@@ -125,6 +125,7 @@ struct Iso14229Request {
                 CommunicationControlRequest communicationControl;
                 DiagnosticSessionControlRequest diagnosticSessionControl;
                 ReadDataByIdentifierRequest readDataByIdentifier;
+                WriteDataByIdentifierRequest writeDataByIdentifier;
                 RoutineControlRequest routineControl;
                 RequestDownloadRequest requestDownload;
                 TransferDataRequest transferData;
@@ -196,6 +197,9 @@ enum Iso14229ClientRequestError CommunicationControl(Iso14229Client *client,
 enum Iso14229ClientRequestError ReadDataByIdentifier(Iso14229Client *client,
                                                      const uint16_t *didList,
                                                      const uint16_t numDataIdentifiers);
+enum Iso14229ClientRequestError WriteDataByIdentifier(Iso14229Client *client,
+                                                      uint16_t dataIdentifier, const uint8_t *data,
+                                                      uint16_t size);
 enum Iso14229ClientRequestError TesterPresent(Iso14229Client *client);
 enum Iso14229ClientRequestError RoutineControl(Iso14229Client *client, enum RoutineControlType type,
                                                uint16_t routineIdentifier, uint8_t *data,

@@ -16,10 +16,15 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "simple.h"
+#include "../iso14229server.h"
 
-int g_sockfd; // CAN socket FD
-bool g_should_exit = false;
+#define SRV_PHYS_RECV_ID 0x7A0 // server listens for physical (1:1) messages on this CAN ID
+#define SRV_FUNC_RECV_ID 0x7A1 // server listens for functional (1:n) messages on this CAN ID
+#define SRV_SEND_ID 0x7A8      // server responds on this CAN ID
+#define ISOTP_BUFSIZE 256
+
+int g_sockfd;               // CAN socket FD
+bool g_should_exit = false; // flag for shutting down
 
 /**
  * @brief iso14229.h required function
@@ -34,8 +39,7 @@ uint32_t isotp_user_get_ms() {
 /**
  * @brief iso14229.h required function
  */
-uint32_t iso14229ServerSendCAN(const uint32_t arbitration_id, const uint8_t *data,
-                               const uint8_t size) {
+int sendCAN(const uint32_t arbitration_id, const uint8_t *data, const uint8_t size) {
     struct can_frame frame = {0};
 
     frame.can_id = arbitration_id;
@@ -50,9 +54,10 @@ uint32_t iso14229ServerSendCAN(const uint32_t arbitration_id, const uint8_t *dat
 }
 
 /**
- * @brief simple.h required function
+ * @brief poll for CAN messages
+ * @return 0 if message is present, -1 otherwise
  */
-int hostCANRxPoll(uint32_t *arb_id, uint8_t *data, uint8_t *size) {
+int CANRxPoll(uint32_t *arb_id, uint8_t *data, uint8_t *size) {
     struct can_frame frame = {0};
 
     int nbytes = read(g_sockfd, &frame, sizeof(struct can_frame));
@@ -74,7 +79,6 @@ int hostCANRxPoll(uint32_t *arb_id, uint8_t *data, uint8_t *size) {
 
 /**
  * @brief close file descriptor on SIGINT
- *
  * @param signum
  */
 void teardown(int signum) {
@@ -85,6 +89,10 @@ void teardown(int signum) {
     g_should_exit = true;
 }
 
+/**
+ * @brief millisecond sleep
+ * @param tms time in milliseconds
+ */
 int msleep(long tms) {
     struct timespec ts;
     int ret;
@@ -110,14 +118,14 @@ struct ifreq ifr;
 struct stat fd_stat;
 FILE *fd;
 
-int main(int ac, char **av) {
+void setupSocket(int ac, char **av) {
     memset(&action, 0, sizeof(action));
     action.sa_handler = teardown;
     sigaction(SIGINT, &action, NULL);
 
     if ((g_sockfd = socket(PF_CAN, SOCK_RAW | SOCK_NONBLOCK, CAN_RAW)) < 0) {
         perror("Socket");
-        return -1;
+        exit(-1);
     }
 
     if (ac < 2) {
@@ -138,13 +146,72 @@ int main(int ac, char **av) {
     }
 
     // Try sending a message. This will fail if the network is down.
-    iso14229ServerSendCAN(0x111, (uint8_t[4]){1, 2, 3, 4}, 4);
+    sendCAN(0x111, (uint8_t[4]){1, 2, 3, 4}, 4);
 
     printf("listening on %s\n", av[1]);
+}
 
-    simpleServerInit();
+void isotpUserDebug(const char *fmt, ...) {}
+
+/**
+ * @brief mock server reset function
+ */
+void hardReset() { printf("server hardReset! %u\n", isotp_user_get_ms()); }
+
+int main(int ac, char **av) {
+    setupSocket(ac, av);
+    uint8_t isotpPhysRecvBuf[ISOTP_BUFSIZE];
+    uint8_t isotpPhysSendBuf[ISOTP_BUFSIZE];
+    uint8_t isotpFuncRecvBuf[ISOTP_BUFSIZE];
+    uint8_t isotpFuncSendBuf[ISOTP_BUFSIZE];
+    uint8_t udsSendBuf[ISOTP_BUFSIZE];
+    uint8_t udsRecvBuf[ISOTP_BUFSIZE];
+
+    IsoTpLink isotpPhysLink;
+    IsoTpLink isotpFuncLink;
+    Iso14229Server uds;
+
+    const Iso14229ServerConfig cfg = {
+        .phys_recv_id = SRV_PHYS_RECV_ID,
+        .func_recv_id = SRV_FUNC_RECV_ID,
+        .send_id = SRV_SEND_ID,
+        .phys_link = &isotpPhysLink,
+        .func_link = &isotpFuncLink,
+        .receive_buffer = udsRecvBuf,
+        .receive_buf_size = sizeof(udsRecvBuf),
+        .send_buffer = udsSendBuf,
+        .send_buf_size = sizeof(udsSendBuf),
+        .userRDBIHandler = NULL,
+        .userWDBIHandler = NULL,
+        .userHardReset = hardReset,
+        .userGetms = isotp_user_get_ms,
+        .p2_ms = 50,
+        .p2_star_ms = 2000,
+        .s3_ms = 5000,
+    };
+
+    Iso14229Server srv;
+
+    /* initialize the ISO-TP links */
+    isotp_init_link(&isotpPhysLink, SRV_SEND_ID, isotpPhysSendBuf, sizeof(isotpPhysSendBuf),
+                    isotpPhysRecvBuf, sizeof(isotpPhysRecvBuf), isotp_user_get_ms, sendCAN,
+                    isotpUserDebug);
+    isotp_init_link(&isotpFuncLink, SRV_SEND_ID, isotpFuncSendBuf, sizeof(isotpFuncSendBuf),
+                    isotpFuncRecvBuf, sizeof(isotpFuncRecvBuf), isotp_user_get_ms, sendCAN,
+                    isotpUserDebug);
+
+    Iso14229ServerInit(&srv, &cfg);
+    iso14229ServerEnableService(&srv, kSID_ECU_RESET);
+
     while (!g_should_exit) {
-        simpleServerPeriodicTask();
+        uint32_t arb_id;
+        uint8_t data[8];
+        uint8_t size;
+
+        Iso14229ServerPoll(&srv);
+        if (0 == CANRxPoll(&arb_id, data, &size)) {
+            iso14229ServerReceiveCAN(&srv, arb_id, data, size);
+        }
         msleep(10);
     }
 }

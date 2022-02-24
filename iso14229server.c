@@ -572,8 +572,6 @@ iso14229EvaluateServiceResponse(Iso14229Server *self, Iso14229Service service,
         return iso14229SendNegativeResponse(ctx, kServiceNotSupported);
     }
 
-    printf("calling service %02x\n", ctx->req.sid);
-
     switch (ctx->req.sid) {
     /* CASE Service_with_sub-function */
     /* test if service with sub-function is supported */

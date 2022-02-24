@@ -14,7 +14,6 @@ isotp-c/isotp_config.h \
 isotp-c/isotp_defines.h
 
 INCLUDES= \
-. \
 isotp-c
 
 
@@ -46,11 +45,9 @@ clean:
 # Example
 
 EXAMPLE_SRCS=\
-example/simple.c \
-example/linux_host.c
+example/server.c
 
-EXAMPLE_HDRS=\
-example/simple.h
+EXAMPLE_HDRS=
 
 EXAMPLE_INCLUDES=\
 example

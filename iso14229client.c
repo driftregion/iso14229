@@ -162,6 +162,24 @@ enum Iso14229ClientRequestError ReadDataByIdentifier(Iso14229Client *client,
     return _SendRequest(client);
 }
 
+enum Iso14229ClientRequestError WriteDataByIdentifier(Iso14229Client *client,
+                                                      uint16_t dataIdentifier, const uint8_t *data,
+                                                      uint16_t size) {
+    PRE_REQUEST_CHECK();
+    struct Iso14229Request *req = &client->ctx.req;
+    req->as.service->sid = kSID_WRITE_DATA_BY_IDENTIFIER;
+    if (size >
+        client->cfg->link->send_buf_size - offsetof(WriteDataByIdentifierRequest, dataRecord)) {
+        return kRequestNotSentBufferTooSmall;
+    }
+
+    req->as.service->type.writeDataByIdentifier.dataIdentifier = Iso14229htons(dataIdentifier);
+    memmove(req->as.service->type.writeDataByIdentifier.dataRecord, data, size);
+
+    req->len = sizeof(WriteDataByIdentifierRequest) + size + 1;
+    return _SendRequest(client);
+}
+
 enum Iso14229ClientRequestError RoutineControl(Iso14229Client *client, enum RoutineControlType type,
                                                uint16_t routineIdentifier, uint8_t *data,
                                                uint16_t size) {

@@ -32,6 +32,19 @@ typedef enum Iso14229ResponseCode (*Iso14229RoutineControlUserCallbackType)(
  */
 typedef struct Iso14229Routine {
     uint16_t routineIdentifier; // Table 378 — Request message definition [0-0xFFFF]
+    /**
+     * @brief
+     * @details \~chinese 允许响应: \~english Permitted responses: \~
+     *  \li 0x00 positiveResponse
+     *  \li 0x12 subFunctionNotSupported
+     *  \li 0x13 incorrectMessageLengthOrInvalidFormat
+     *  \li 0x22 conditionsNotCorrect
+     *  \li 0x24 requestSequenceError
+     *  \li 0x31 requestOutOfRange
+     *  \li 0x33 securityAccessDenied
+     *  \li 0x72 generalProgrammingFailure
+     *
+     */
     Iso14229RoutineControlUserCallbackType startRoutine;
     Iso14229RoutineControlUserCallbackType stopRoutine;
     Iso14229RoutineControlUserCallbackType requestRoutineResults;
@@ -297,8 +310,6 @@ void iso14229ServerReceiveCAN(Iso14229Server *self, const uint32_t arbitration_i
  * @param size
  * @return uint32_t
  */
-extern uint32_t iso14229ServerSendCAN(const uint32_t arbitration_id, const uint8_t *data,
-                                      const uint8_t size);
 
 /**
  * @brief Enable the requested service. Services are disabled by default

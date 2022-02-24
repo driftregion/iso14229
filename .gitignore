@@ -1,2 +1,3 @@
-
 .rsync-filter
+bazel-*
+example/linux
