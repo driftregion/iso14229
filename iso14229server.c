@@ -554,7 +554,6 @@ enum Iso14229ResponseCode iso14229TesterPresent(Iso14229Server *self,
 }
 
 /**
- * @brief
  * @brief Call the service if it exists, modifying the response if the spec calls for it.
  * @note see ISO14229-1 2013 7.5.5 Pseudo code example of server response behavior
  *

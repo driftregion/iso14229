@@ -6,10 +6,9 @@ iso14229 is a UDS server and client implementation (ISO14229-1:2013) targeting e
 
 **Stability: Experimental**
 
-# iso14229 用户文档 User Documentation
+# iso14229 文档 / Documentation
 
-## 服务器：怎么用 / Server: Basic Usage
-
+## 服务器：怎么用 / Server: Usage
 
 ```c
 
@@ -165,12 +164,24 @@ pip3 install -r example/requirements.txt
 
 | Service | `iso14229` Function |
 | - | - |
+| 0x11 ECUReset | `void userHardReset()` |
+| 0x22 ReadDataByIdentifier | `enum Iso14229ResponseCode userRDBIHandler(uint16_t dataId, const uint8_t *data, uint16_t *len)` |
+| 0x27 SecurityAccess | `enum Iso14229ResponseCode userSecurityAccessHandler()` |
+| 0x28 CommunicationControl | `enum Iso14229ResponseCode userCommunicationControlHandler(uint8_t controlType, uint8_t communicationType)` |
+| 0x2E WriteDataByIdentifier | `enum Iso14229ResponseCode userWDBIHandler(uint16_t dataId, const uint8_t *data, uint16_t len)` |
 | 0x31 RoutineControl | `int iso14229ServerRegisterRoutine(Iso14229Server* self, const Iso14229Routine *routine);` |
 | 0x34 RequestDownload, 0x36 TransferData, 0x37 RequestTransferExit | `int iso14229ServerRegisterDownloadHandler(Iso14229Server* self, Iso14229DownloadHandlerConfig *handler);` |
 
 ## 服务器：应用/启动软件（中间件） / Server: Application / Boot Software (Middleware)
 
-## 客户端：怎么用 / Server: Basic Usage
+用户自定的服务器逻辑（比如ISO-14229规范指定的”Application Software"和"Boot Software"）可以用中间件来实现。
+User-defined server behavior such as the "Application Software" and "Boot Software" described in ISO-14229 can be implemented through middleware.
+
+```c
+struct Iso14229UserMiddleware;
+```
+
+## 客户端：怎么用 / Client: Basic Usage
 
 Currently undocumented. See `test_iso14229.c` for usage examples
 
