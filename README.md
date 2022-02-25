@@ -12,58 +12,115 @@ iso14229 is a UDS server and client implementation (ISO14229-1:2013) targeting e
 
 
 ```c
-#define SRV_PHYS_RECV_ID 0x7A0
-#define SRV_FUNC_RECV_ID 0x7A1
-#define SRV_SEND_ID 0x7A8
 
-#define ISOTP_BUFSIZE 256
+// =====================================
+// STEP 1: implement the hooks
+// =====================================
+/**
+* @brief iso14229.h required function
+* Implement this with the functions available on your host platform
+ */
+int userSendCAN(const uint32_t arbitration_id, const uint8_t *data, const uint8_t size) {
+    struct can_frame frame = {0};
 
-static uint8_t isotpPhysRecvBuf[ISOTP_BUFSIZE];
-static uint8_t isotpPhysSendBuf[ISOTP_BUFSIZE];
-static uint8_t isotpFuncRecvBuf[ISOTP_BUFSIZE];
-static uint8_t isotpFuncSendBuf[ISOTP_BUFSIZE];
+    frame.can_id = arbitration_id;
+    frame.can_dlc = size;
+    memmove(frame.data, data, size);
 
-static IsoTpLink isotpPhysLink;
-static IsoTpLink isotpFuncLink;
-static Iso14229Server uds;
-
-void hardReset() {
-    printf("server hardReset! %u\n", isotp_user_get_ms());
+    if (write(g_sockfd, &frame, sizeof(struct can_frame)) != sizeof(struct can_frame)) {
+        perror("Write err");
+        exit(-1);
+    }
+    return 0;
 }
 
-const Iso14229ServerConfig cfg = {
-    .phys_recv_id = SRV_PHYS_RECV_ID,
-    .func_recv_id = SRV_FUNC_RECV_ID,
-    .send_id = SRV_SEND_ID,
-    .phys_link = &isotpPhysLink,
-    .func_link = &isotpFuncLink,
-    .userRDBIHandler = NULL,
-    .userWDBIHandler = NULL,
-    .userHardReset = hardReset,
-    .p2_ms = 50,
-    .p2_star_ms = 2000,
-    .s3_ms = 5000,
-};
+/**
+ * @brief iso14229.h required function
+ * Implement this with the functions available on your host platform
+ */
+uint32_t userGetms() {
+    struct timeval te;
+    gettimeofday(&te, NULL);                                         // get current time
+    long long milliseconds = te.tv_sec * 1000LL + te.tv_usec / 1000; // calculate milliseconds
+    return milliseconds;
+}
 
-Iso14229Server srv;
+/**
+ * @brief iso14229.h required function
+ * Implement this with the functions available on your host platform
+ */
+void userDebug(const char *fmt, ...) {}
 
-void simpleServerInit() {
+/**
+ * @brief Reset the server
+ */
+void hardReset() { printf("server hardReset!\n"); }
+
+// =====================================
+// STEP 2: initialize the server
+// =====================================
+
+int main(int ac, char **av) {
+    // setup the linux CAN socket. This will vary depending on your platform. see example/server.c
+    setupSocket(ac, av); 
+
+    uint8_t isotpPhysRecvBuf[ISOTP_BUFSIZE];
+    uint8_t isotpPhysSendBuf[ISOTP_BUFSIZE];
+    uint8_t isotpFuncRecvBuf[ISOTP_BUFSIZE];
+    uint8_t isotpFuncSendBuf[ISOTP_BUFSIZE];
+    uint8_t udsSendBuf[ISOTP_BUFSIZE];
+    uint8_t udsRecvBuf[ISOTP_BUFSIZE];
+
+    IsoTpLink isotpPhysLink;
+    IsoTpLink isotpFuncLink;
+    Iso14229Server uds;
+
+    const Iso14229ServerConfig cfg = {
+        .phys_recv_id = SRV_PHYS_RECV_ID,
+        .func_recv_id = SRV_FUNC_RECV_ID,
+        .send_id = SRV_SEND_ID,
+        .phys_link = &isotpPhysLink,
+        .func_link = &isotpFuncLink,
+        .receive_buffer = udsRecvBuf,
+        .receive_buf_size = sizeof(udsRecvBuf),
+        .send_buffer = udsSendBuf,
+        .send_buf_size = sizeof(udsSendBuf),
+        .userRDBIHandler = NULL,
+        .userWDBIHandler = NULL,
+        .userHardReset = hardReset,
+        .userGetms = userGetms,
+        .p2_ms = 50,
+        .p2_star_ms = 2000,
+        .s3_ms = 5000,
+    };
+
+    Iso14229Server srv;
+
     /* initialize the ISO-TP links */
-    isotp_init_link(&isotpPhysLink, SRV_SEND_ID, isotpPhysSendBuf, ISOTP_BUFSIZE, isotpPhysRecvBuf, ISOTP_BUFSIZE);
-    isotp_init_link(&isotpFuncLink, SRV_SEND_ID, isotpFuncSendBuf, ISOTP_BUFSIZE, isotpFuncRecvBuf, ISOTP_BUFSIZE);
+    isotp_init_link(&isotpPhysLink, SRV_SEND_ID, isotpPhysSendBuf, sizeof(isotpPhysSendBuf),
+                    isotpPhysRecvBuf, sizeof(isotpPhysRecvBuf), userGetms, userSendCAN,
+                    userDebug);
+    isotp_init_link(&isotpFuncLink, SRV_SEND_ID, isotpFuncSendBuf, sizeof(isotpFuncSendBuf),
+                    isotpFuncRecvBuf, sizeof(isotpFuncRecvBuf), userGetms, userSendCAN,
+                    userDebug);
 
     Iso14229ServerInit(&srv, &cfg);
     iso14229ServerEnableService(&srv, kSID_ECU_RESET);
-}
 
-void simpleServerPeriodicTask() {
-    uint32_t arb_id;
-    uint8_t data[8];
-    uint8_t size;
+    // =====================================
+    // STEP 3: poll the server
+    // =====================================
 
-    Iso14229ServerPoll(&srv);
-    if (0 == hostCANRxPoll(&arb_id, data, &size)) {
-        iso14229ServerReceiveCAN(&srv, arb_id, data, size);
+    while (!g_should_exit) {
+        uint32_t arb_id;
+        uint8_t data[8];
+        uint8_t size;
+
+        Iso14229ServerPoll(&srv);
+        if (0 == CANRxPoll(&arb_id, data, &size)) {
+            iso14229ServerReceiveCAN(&srv, arb_id, data, size);
+        }
+        msleep(10);
     }
 }
 
@@ -89,21 +146,20 @@ make example/linux
 ```
 
 ```sh
+# （可选）在另外一个终端，看看虚拟CAN母线上的数据
+# (Optional) In a another shell, monitor the virtual link
+candump can9
+```
+
+```sh
 # 在另外一个终端，安装python依赖性
 # In another shell, install the required python packages
-pip3 install -r requirements.txt
+pip3 install -r example/requirements.txt
 
 # 然后运行客户端
 # then run the client
 ./example/client.py can9
 ```
-
-```sh
-# （可选）在另外一个终端，看看虚拟CAN母线上的数据
-# (Optional) In a third shell, monitor the virtual link
-candump can9
-```
-
 
 ## 服务器：自定服务回调函数 / Server: Custom Service Handlers
 
@@ -114,12 +170,14 @@ candump can9
 
 ## 服务器：应用/启动软件（中间件） / Server: Application / Boot Software (Middleware)
 
+## 客户端：怎么用 / Server: Basic Usage
+
+Currently undocumented. See `test_iso14229.c` for usage examples
 
 ## 贡献/contributing
 
-欢迎来贡献
+欢迎来贡献/contributions are welcome
 
-- add mock ISO-TP layer to allow test coverage of transport errors and low transport speed
 
 # 感谢 / Acknowledgements
 

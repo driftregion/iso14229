@@ -25,33 +25,7 @@
 
 int g_sockfd;               // CAN socket FD
 bool g_should_exit = false; // flag for shutting down
-
-/**
- * @brief iso14229.h required function
- */
-uint32_t isotp_user_get_ms() {
-    struct timeval te;
-    gettimeofday(&te, NULL);                                         // get current time
-    long long milliseconds = te.tv_sec * 1000LL + te.tv_usec / 1000; // calculate milliseconds
-    return milliseconds;
-}
-
-/**
- * @brief iso14229.h required function
- */
-int sendCAN(const uint32_t arbitration_id, const uint8_t *data, const uint8_t size) {
-    struct can_frame frame = {0};
-
-    frame.can_id = arbitration_id;
-    frame.can_dlc = size;
-    memmove(frame.data, data, size);
-
-    if (write(g_sockfd, &frame, sizeof(struct can_frame)) != sizeof(struct can_frame)) {
-        perror("Write err");
-        exit(-1);
-    }
-    return 0;
-}
+int userSendCAN(const uint32_t arbitration_id, const uint8_t *data, const uint8_t size);
 
 /**
  * @brief poll for CAN messages
@@ -146,20 +120,62 @@ void setupSocket(int ac, char **av) {
     }
 
     // Try sending a message. This will fail if the network is down.
-    sendCAN(0x111, (uint8_t[4]){1, 2, 3, 4}, 4);
+    userSendCAN(0x111, (uint8_t[4]){1, 2, 3, 4}, 4);
 
     printf("listening on %s\n", av[1]);
 }
 
-void isotpUserDebug(const char *fmt, ...) {}
+// =====================================
+// STEP 1: implement the hooks
+// =====================================
+/**
+ * @brief iso14229.h required function
+ * Implement this with the functions available on your host platform
+ */
+int userSendCAN(const uint32_t arbitration_id, const uint8_t *data, const uint8_t size) {
+    struct can_frame frame = {0};
+
+    frame.can_id = arbitration_id;
+    frame.can_dlc = size;
+    memmove(frame.data, data, size);
+
+    if (write(g_sockfd, &frame, sizeof(struct can_frame)) != sizeof(struct can_frame)) {
+        perror("Write err");
+        exit(-1);
+    }
+    return 0;
+}
 
 /**
- * @brief mock server reset function
+ * @brief iso14229.h required function
+ * Implement this with the functions available on your host platform
  */
-void hardReset() { printf("server hardReset! %u\n", isotp_user_get_ms()); }
+uint32_t userGetms() {
+    struct timeval te;
+    gettimeofday(&te, NULL);                                         // get current time
+    long long milliseconds = te.tv_sec * 1000LL + te.tv_usec / 1000; // calculate milliseconds
+    return milliseconds;
+}
+
+/**
+ * @brief iso14229.h required function
+ * Implement this with the functions available on your host platform
+ */
+void userDebug(const char *fmt, ...) {}
+
+/**
+ * @brief Reset the server
+ */
+void hardReset() { printf("server hardReset!\n"); }
+
+// =====================================
+// STEP 2: initialize the server
+// =====================================
 
 int main(int ac, char **av) {
+    // setup the linux CAN socket. This will vary depending on your platform. see example/server.c
     setupSocket(ac, av);
+
     uint8_t isotpPhysRecvBuf[ISOTP_BUFSIZE];
     uint8_t isotpPhysSendBuf[ISOTP_BUFSIZE];
     uint8_t isotpFuncRecvBuf[ISOTP_BUFSIZE];
@@ -184,7 +200,7 @@ int main(int ac, char **av) {
         .userRDBIHandler = NULL,
         .userWDBIHandler = NULL,
         .userHardReset = hardReset,
-        .userGetms = isotp_user_get_ms,
+        .userGetms = userGetms,
         .p2_ms = 50,
         .p2_star_ms = 2000,
         .s3_ms = 5000,
@@ -194,14 +210,16 @@ int main(int ac, char **av) {
 
     /* initialize the ISO-TP links */
     isotp_init_link(&isotpPhysLink, SRV_SEND_ID, isotpPhysSendBuf, sizeof(isotpPhysSendBuf),
-                    isotpPhysRecvBuf, sizeof(isotpPhysRecvBuf), isotp_user_get_ms, sendCAN,
-                    isotpUserDebug);
+                    isotpPhysRecvBuf, sizeof(isotpPhysRecvBuf), userGetms, userSendCAN, userDebug);
     isotp_init_link(&isotpFuncLink, SRV_SEND_ID, isotpFuncSendBuf, sizeof(isotpFuncSendBuf),
-                    isotpFuncRecvBuf, sizeof(isotpFuncRecvBuf), isotp_user_get_ms, sendCAN,
-                    isotpUserDebug);
+                    isotpFuncRecvBuf, sizeof(isotpFuncRecvBuf), userGetms, userSendCAN, userDebug);
 
     Iso14229ServerInit(&srv, &cfg);
     iso14229ServerEnableService(&srv, kSID_ECU_RESET);
+
+    // =====================================
+    // STEP 3: poll the server
+    // =====================================
 
     while (!g_should_exit) {
         uint32_t arb_id;
