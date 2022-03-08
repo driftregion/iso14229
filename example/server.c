@@ -26,6 +26,7 @@
 int g_sockfd;               // CAN socket FD
 bool g_should_exit = false; // flag for shutting down
 int userSendCAN(const uint32_t arbitration_id, const uint8_t *data, const uint8_t size);
+static Iso14229Server *uds_ptr = NULL;
 
 /**
  * @brief poll for CAN messages
@@ -166,7 +167,13 @@ void userDebug(const char *fmt, ...) {}
 /**
  * @brief Reset the server
  */
-void hardReset() { printf("server hardReset!\n"); }
+void hardReset() {
+    printf("server hardReset!\n");
+    assert(uds_ptr);
+    // Mock an ECU reset by reinitializing the server
+    Iso14229ServerInit(uds_ptr, uds_ptr->cfg);
+    iso14229ServerEnableService(uds_ptr, kSID_ECU_RESET);
+}
 
 // =====================================
 // STEP 2: initialize the server
@@ -186,6 +193,7 @@ int main(int ac, char **av) {
     IsoTpLink isotpPhysLink;
     IsoTpLink isotpFuncLink;
     Iso14229Server uds;
+    uds_ptr = &uds;
 
     const Iso14229ServerConfig cfg = {
         .phys_recv_id = SRV_PHYS_RECV_ID,
