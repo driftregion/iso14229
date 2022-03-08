@@ -19,38 +19,6 @@ struct Iso14229Client;
 typedef struct {
 } Iso14229RequestEcuResetArgs;
 
-/**
- * @brief \~chinese 客户端请求参数 \~english Client request arguments
- *
- */
-typedef struct {
-    // union {
-    //     struct {
-    //         enum Iso14229DiagnosticMode diagnosticSessionType;
-    //     } diagnosticSessionControl;
-    //     struct {
-    //         enum Iso14229ECUResetResetType resetType;
-    //     } ecuReset;
-    //     struct {
-    //         uint16_t *dataIdentifierList;
-    //         uint16_t numDataIdentifiers;
-    //     } readDataByIdentifier;
-    //     struct {
-    //         enum RoutineControlType routineControlType;
-    //         uint16_t routineIdentifier;
-    //         uint8_t *routineControlOptionRecord;
-    //         uint16_t routineControlOptionRecordLength;
-    //     } routineControl;
-    // } type;
-
-    // uint8_t suppressPositiveResponse;
-    // struct {
-    //     bool enable;      // send a functional (1:many) request
-    //     uint16_t send_id; // send the functional request to this CAN ID
-    // } functional;
-
-} Iso14229RequestArgs;
-
 enum ClientTaskRoutineStatus {
     kRoutineStatusSuccess = 0,
     kRoutineStatusInProgress,
@@ -74,7 +42,6 @@ typedef struct {
     union {
         struct ClientTaskServiceCall {
             enum Iso14229DiagnosticServiceId sid;
-            Iso14229RequestArgs args;
         } serviceCall;
         struct ClientTaskDelay {
             uint32_t ms;
@@ -100,7 +67,9 @@ typedef struct {
 enum Iso14229ClientRequestState {
     kRequestStateIdle = 0,          // 完成
     kRequestStateSending,           // 传输层现在传输数据
+    kRequestStateSent,              // 传输层完成传输。可以设置等待计时器
     kRequestStateSentAwaitResponse, // 等待响应
+    kRequestStateProcessResponse,   // 处理响应
 };
 
 enum Iso14229ClientRequestError {
@@ -149,6 +118,7 @@ struct Iso14229ClientSettings {
     } functional;
     uint16_t p2_ms; // Default P2_server_max timing supported by the server for
                     // the activated diagnostic session.
+    uint16_t p2_star_ms;
 };
 
 typedef struct {
@@ -221,10 +191,6 @@ enum Iso14229ClientRequestError RequestTransferExit(Iso14229Client *client);
  * @param self
  */
 void Iso14229ClientPoll(Iso14229Client *self);
-
-enum Iso14229ClientRequestError iso14229ClientSendRequest(Iso14229Client *self,
-                                                          enum Iso14229DiagnosticServiceId svc,
-                                                          const Iso14229RequestArgs *args);
 
 /**
  * @brief Pass receieved CAN frames to the Iso14229Client.

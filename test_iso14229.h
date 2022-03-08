@@ -65,7 +65,7 @@
 #define CLIENT_ISOTP_LINK_INIT()                                                                   \
     isotp_init_link(&clientLink, CLIENT_SEND_ID, clientIsotpSendBuf, sizeof(clientIsotpSendBuf),   \
                     clientIsotpRecvBuf, sizeof(clientIsotpRecvBuf), isotp_user_get_ms,             \
-                    client_send_can, isotp_client_debug);
+                    fixtureClientSendCAN, isotp_client_debug);
 
 /**
  * @brief declare and initialize a client ISO-TP link on the stack
@@ -120,11 +120,11 @@
 #define SERVER_ISOTP_LINK_INIT()                                                                   \
     isotp_init_link(&serverPhysLink, CLIENT_RECV_ID, serverIsotpPhysSendBuf,                       \
                     sizeof(serverIsotpPhysSendBuf), serverIsotpPhysRecvBuf,                        \
-                    sizeof(serverIsotpPhysRecvBuf), isotp_user_get_ms, server_send_can,            \
+                    sizeof(serverIsotpPhysRecvBuf), isotp_user_get_ms, fixtureServerSendCAN,       \
                     isotp_server_phys_debug);                                                      \
     isotp_init_link(&serverFuncLink, CLIENT_RECV_ID, serverIsotpFuncSendBuf,                       \
                     sizeof(serverIsotpFuncSendBuf), serverIsotpFuncRecvBuf,                        \
-                    sizeof(serverIsotpFuncRecvBuf), isotp_user_get_ms, server_send_can,            \
+                    sizeof(serverIsotpFuncRecvBuf), isotp_user_get_ms, fixtureServerSendCAN,       \
                     isotp_server_func_debug);
 
 /**
@@ -151,7 +151,8 @@
                                       .receive_buf_size = sizeof(udsRecvBuf),                      \
                                       .send_buffer = udsSendBuf,                                   \
                                       .send_buf_size = sizeof(udsSendBuf),                         \
-                                      .userRDBIHandler = rdbiHandler,                              \
+                                      .userRDBIHandler = mockRdbiHandler,                          \
+                                      .userHardReset = mockHardResetHandler,                       \
                                       .userGetms = isotp_user_get_ms,                              \
                                       .p2_ms = 50,                                                 \
                                       .p2_star_ms = 2000,                                          \
@@ -178,7 +179,8 @@
     g_serverRecvQueueIdx = 0;                                                                      \
     g_clientRecvQueueIdx = 0;                                                                      \
     memset(&g_serverSvcCallCount, 0, sizeof(g_serverSvcCallCount));                                \
-    memset(&g_serverServices, 0, sizeof(g_serverServices));
+    memset(&g_serverServices, 0, sizeof(g_serverServices));                                        \
+    g_mockHardResetHandlerCallCount = 0;
 
 #define TEST_TEARDOWN() printf("OK\n");
 
@@ -205,6 +207,50 @@
     TEST_SETUP();                                                                                  \
     CLIENT_SETUP();                                                                                \
     SERVER_SETUP();
+
+/**
+ * @brief Begin a sequenced server test
+ *
+ */
+#define SERVER_TEST_SEQUENCE_BEGIN()                                                               \
+    int step = 0;                                                                                  \
+    bool done = false;                                                                             \
+    while (!done) {                                                                                \
+        fixtureIsoTpPollLinks(&clientLink, &serverPhysLink, &serverFuncLink);                      \
+        Iso14229ServerPoll(&server);                                                               \
+        switch (step) {
+
+#define SERVER_TEST_SEQUENCE_END(timeout_ms)                                                       \
+    default:                                                                                       \
+        assert(0); /* test has faulty logic */                                                     \
+        }                                                                                          \
+        if (g_ms > (timeout_ms)) {                                                                 \
+            assert(0); /* timeout */                                                               \
+        }                                                                                          \
+        g_ms++;                                                                                    \
+        }
+
+/**
+ * @brief Begin a sequenced client test
+ *
+ */
+#define CLIENT_TEST_SEQUENCE_BEGIN()                                                               \
+    int step = 0;                                                                                  \
+    bool done = false;                                                                             \
+    while (!done) {                                                                                \
+        fixtureIsoTpPollLinks(&clientLink, &serverPhysLink, &serverFuncLink);                      \
+        Iso14229ClientPoll(&client);                                                               \
+        switch (step) {
+
+#define CLIENT_TEST_SEQUENCE_END(timeout_ms)                                                       \
+    default:                                                                                       \
+        assert(0); /* test has faulty logic */                                                     \
+        }                                                                                          \
+        if (g_ms > (timeout_ms)) {                                                                 \
+            assert(0); /* timeout */                                                               \
+        }                                                                                          \
+        g_ms++;                                                                                    \
+        }
 
 struct CANMessage {
     uint32_t arbId;

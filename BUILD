@@ -8,7 +8,6 @@ cc_library(
         "isotp-c/isotp_config.h",
         "isotp-c/isotp_defines.h",
     ],
-    copts=[ "-g" ],
 )
 
 cc_library(
@@ -25,7 +24,6 @@ cc_library(
         "iso14229serverbufferedwriter.h",
     ],
     deps = [":isotp"],
-    copts = ["-g"],
 )
 
 cc_test(
@@ -44,7 +42,6 @@ cc_library(
         "iso14229client.c",
     ],
     deps = [":isotp"],
-    copts=[ "-g" ],
 )
 
 cc_test(
@@ -54,5 +51,4 @@ cc_test(
         "test_iso14229.c",
     ],
     deps=[":client", ":server"],
-    copts=[ "-g" ],
 )

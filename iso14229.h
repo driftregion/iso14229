@@ -227,7 +227,6 @@ typedef struct {
 typedef struct {
     uint8_t routineControlType;
     uint16_t routineIdentifier;
-    uint8_t routineInfo;
     uint8_t routineStatusRecord[];
 } __attribute__((packed)) RoutineControlResponse;
 

@@ -65,6 +65,7 @@ typedef struct {
      * FLASH
      */
     Iso14229Routine eraseAppProgramFlashRoutine;
+    bool responsePending;
 
     BufferedWriter bufferedWriter;
 } UDSBootloaderInstance;

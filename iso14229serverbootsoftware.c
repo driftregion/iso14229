@@ -1,7 +1,10 @@
 #include "iso14229serverbootsoftware.h"
+#include "iso14229.h"
 #include "iso14229server.h"
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <assert.h>
 
 static enum Iso14229ResponseCode onRequest(void *userCtx, const uint8_t dataFormatIdentifier,
                                            const void *memoryAddress, const size_t memorySize,
@@ -41,12 +44,20 @@ static enum Iso14229ResponseCode onExit(void *userCtx) {
 enum Iso14229ResponseCode startEraseAppProgramFlashRoutine(void *userCtx,
                                                            Iso14229RoutineControlArgs *args) {
     UDSBootloaderInstance *self = (UDSBootloaderInstance *)userCtx;
-    self->cfg->eraseAppProgramFlash();
-    printf("erased flash\n");
-    return kPositiveResponse;
+    if (self->responsePending) {
+        self->cfg->eraseAppProgramFlash();
+        self->responsePending = false;
+        return kPositiveResponse;
+    } else {
+        self->responsePending = true;
+        return kRequestCorrectlyReceived_ResponsePending;
+    }
 }
 
 int udsBootloaderInit(void *vptr_self, const void *vptr_cfg, Iso14229Server *iso14229) {
+    assert(vptr_self);
+    assert(vptr_cfg);
+    assert(iso14229);
     UDSBootloaderInstance *self = (UDSBootloaderInstance *)vptr_self;
     const UDSBootloaderConfig *cfg = (const UDSBootloaderConfig *)vptr_cfg;
 
@@ -55,6 +66,7 @@ int udsBootloaderInit(void *vptr_self, const void *vptr_cfg, Iso14229Server *iso
         (NULL == cfg->eraseAppProgramFlash)) {
         return -1;
     }
+    memset(self, 0, sizeof(*self));
 
     self->cfg = cfg;
 
@@ -88,7 +100,7 @@ int udsBootloaderInit(void *vptr_self, const void *vptr_cfg, Iso14229Server *iso
         .userCtx = self,
     };
 
-    if (0 != iso14229ServerRegisterRoutine(iso14229, &self->eraseAppProgramFlashRoutine)) {
+    if (0 != Iso14229ServerRegisterRoutine(iso14229, &self->eraseAppProgramFlashRoutine)) {
         return -1;
     }
 

@@ -169,7 +169,7 @@ pip3 install -r example/requirements.txt
 | 0x27 SecurityAccess | `enum Iso14229ResponseCode userSecurityAccessHandler()` |
 | 0x28 CommunicationControl | `enum Iso14229ResponseCode userCommunicationControlHandler(uint8_t controlType, uint8_t communicationType)` |
 | 0x2E WriteDataByIdentifier | `enum Iso14229ResponseCode userWDBIHandler(uint16_t dataId, const uint8_t *data, uint16_t len)` |
-| 0x31 RoutineControl | `int iso14229ServerRegisterRoutine(Iso14229Server* self, const Iso14229Routine *routine);` |
+| 0x31 RoutineControl | `int Iso14229ServerRegisterRoutine(Iso14229Server* self, const Iso14229Routine *routine);` |
 | 0x34 RequestDownload, 0x36 TransferData, 0x37 RequestTransferExit | `int iso14229ServerRegisterDownloadHandler(Iso14229Server* self, Iso14229DownloadHandlerConfig *handler);` |
 
 ## 服务器：应用/启动软件（中间件） / Server: Application / Boot Software (Middleware)
@@ -211,6 +211,10 @@ MIT
 
 # iso14229开发文档 / design docs
 
+```sh
+bazel test --compilation_mode=dbg //...
+```
+
 ## 客户端请求状态机
 
 ```plantuml
@@ -231,20 +235,59 @@ while (Idle != client->state) {
 }
 end note
 
-
 state Idle
 state Sending
+state Sent
 state SentAwaitResponse
+state ProcessResponse
+Idle: if (ISOTP_RET_OK == isotp_receive(...)) // Error
+ProcessResponse: isotp_receive()
+ProcessResponse: _ClientValidateResponse(...)
+ProcessResponse: _ClientHandleResponse(...)
 
-Sending --> Idle: 传输层完成传输 &&\nsuppressPositiveResponse
-Sending --> SentAwaitResponse: 传输层完成传输 &&\n!suppressPositiveResponse
+Sending --> Sent: 传输层完成传输 
+
+Sent --> Idle : suppressPositiveResponse
+Sending --> SentAwaitResponse: !suppressPositiveResponse
 SentAwaitResponse -> Idle: 响应收到了 ||\np2 超时
+SentAwaitResponse --> ProcessResponse : ISOTP_RECEIVE_STATUS_FULL == link->receive_status
+ProcessResponse --> Idle
 
 [*] -> Idle
-Idle -> Sending : send_request()
+Idle -> Sending : _SendRequest()
 
 @enduml
 ```
+
+```plantuml
+@startuml
+title Request Lifecycle
+alt normal
+    alt positive response
+        client --> client: Sending
+        client -> server : *Any* Service
+        client --> client: SentAwaitResponse: set p2
+        alt 0x78 requestCorrectlyReceived-ResponsePending
+            server -> client : 0x3F 0x78 
+            client -->server : txLink  idle
+            client --> client: SentAwaitResponse: set p2star
+        end
+        server -> client : Positive Service Response
+        client --> client: Idle 
+    else negative response
+        server -> client !! : Negative Service Response
+        client --> client: Idle: RequestErrorNegativeResponse
+    else SID mismatch
+        server -> client !! : Mismatched Service Response
+        client --> client: Idle: RequestErrorResponseSIDMismatch
+    end
+else unexpected response
+    server -> client !! : Unexpected Response
+    client --> client: Idle: RequestErrorUnsolicitedResponse
+end
+@enduml
+```
+
 
 ```plantuml
 @startuml
@@ -263,5 +306,24 @@ endif
 :clearRequestContext();
 if (等待UDS访问) then (访问接收了,进入UDS会话)
 else (时间超过<b>20ms)
+@enduml
+```
+
+## 服务器 0x78 requestCorrectlyReceived-ResponsePending
+
+
+```plantuml
+@startuml
+client -> server : *Any* Service
+server -> userServiceHandler: handler(args)
+note right: Doing this will take a long time\nso I return 0x78
+userServiceHandler -> server: 0x78
+server -> client : 0x3F 0x78 
+client -->server : txLink  idle
+server -> userServiceHandler: handler(args)
+note right: actually call the long-running service
+... p2* > t > p2 ... 
+userServiceHandler -> server : Service Response
+server -> client : Service Response
 @enduml
 ```

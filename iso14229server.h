@@ -267,14 +267,28 @@ typedef struct Iso14229Server {
     uint16_t nRegisteredDownloadHandlers;
 
     enum Iso14229DiagnosticMode diag_mode;
-    bool ecu_reset_requested;
+    bool ecuResetScheduled;            // indicates that an ECUReset has been scheduled
     uint32_t ecu_reset_100ms_timer;    // for delaying resetting until a response
                                        // has been sent to the client
     uint32_t p2_timer;                 // for rate limiting server responses
     uint32_t s3_session_timeout_timer; // for knowing when the diagnostic
                                        // session has timed out
     uint8_t securityLevel;             // Current SecurityAccess (0x27) level
-    uint16_t send_size, receive_size;
+    uint16_t receive_size;             // number of bytes received from ISO-TP layer
+
+    // ISO14229-1 2013 defines the following conditions under which the server does not
+    // process incoming requests:
+    // - not ready to receive (Table A.1 0x78)
+    // - not accepting request messages and not sending responses (9.3.1)
+    //
+    // when this variable is set to true, incoming ISO-TP data will not be processed.
+    bool notReadyToReceive;
+
+    // this variable set to true when a user handler returns 0x78
+    // requestCorrectlyReceivedResponsePending. After a response has been sent on the transport
+    // layer, this variable is set to false and the user handler will be called again. It is the
+    // responsibility of the user handler to track the call count.
+    bool RCRRP;
 } Iso14229Server;
 
 // ========================================================================
@@ -327,7 +341,7 @@ int iso14229ServerEnableService(Iso14229Server *self, enum Iso14229DiagnosticSer
  * @param routine
  * @return int 0: success
  */
-int iso14229ServerRegisterRoutine(Iso14229Server *self, const Iso14229Routine *routine);
+int Iso14229ServerRegisterRoutine(Iso14229Server *self, const Iso14229Routine *routine);
 
 /**
  * @brief Register a handler for the sequence [0x34 RequestDownload, 0x36

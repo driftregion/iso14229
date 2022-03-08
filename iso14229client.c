@@ -10,33 +10,6 @@
 #include <string.h>
 #include <assert.h>
 
-char *Iso14229ClientTaskDescription(Iso14229ClientTask *task) {
-#define BUFSIZE 256
-    static char buf[BUFSIZE];
-    int offset = 0;
-    switch (task->taskType) {
-    case kTaskTypeDelay:
-        offset += snprintf(buf, BUFSIZE - offset, "Delay %dms", task->type.delay.ms);
-        break;
-    case kTaskTypeServiceCall:
-        switch (task->type.serviceCall.sid) {
-        case kSID_DIAGNOSTIC_SESSION_CONTROL:
-            return "0x10 DIAGNOSTIC SESSION CONTROL";
-        case kSID_ECU_RESET:
-            return "0x11 ECU RESET";
-            offset += snprintf(buf, BUFSIZE - offset, "0x11 EcuReset ");
-        case kSID_TESTER_PRESENT:
-            return "0x3E TESTER PRESENT";
-        default:
-            return "unknown";
-        }
-        break;
-    default:
-        break;
-    }
-    return buf;
-}
-
 static void clearRequestContext(Iso14229Client *client) {
     assert(client);
     assert(client->cfg);
@@ -94,11 +67,14 @@ static inline enum Iso14229ClientRequestError _SendRequest(Iso14229Client *clien
         }
     }
     client->ctx.state = kRequestStateSending;
+    client->p2_timer = client->cfg->userGetms() + client->ctx.settings.p2_ms;
+    printf("set p2 timer to %d, current time: %d. p2_ms: %d\n", client->p2_timer,
+           client->cfg->userGetms(), client->ctx.settings.p2_ms);
     return kRequestNoError;
 }
 
 #define PRE_REQUEST_CHECK()                                                                        \
-    if (kRequestStateSentAwaitResponse == client->ctx.state) {                                     \
+    if (kRequestStateIdle != client->ctx.state) {                                                  \
         return kRequestNotSentBusy;                                                                \
     }                                                                                              \
     clearRequestContext(client);
@@ -266,8 +242,13 @@ enum Iso14229ClientRequestError RequestTransferExit(Iso14229Client *client) {
     return _SendRequest(client);
 }
 
-enum Iso14229ClientRequestError
-iso14229ClientValidateResponse(const Iso14229ClientRequestContext *ctx) {
+/**
+ * @brief Check that the response is standard
+ *
+ * @param ctx
+ * @return enum Iso14229ClientRequestError
+ */
+enum Iso14229ClientRequestError _ClientValidateResponse(const Iso14229ClientRequestContext *ctx) {
     uint8_t responseSid;
 
     if (responseIsNegative(&ctx->resp)) {
@@ -278,79 +259,136 @@ iso14229ClientValidateResponse(const Iso14229ClientRequestContext *ctx) {
             return kRequestErrorResponseSIDMismatch;
         }
     }
+
     if (responseIsNegative(&ctx->resp)) {
+        if (kRequestCorrectlyReceived_ResponsePending == ctx->resp.as.negative->responseCode) {
+            return kRequestNoError;
+        }
         return kRequestErrorNegativeResponse;
     }
 
     return kRequestNoError;
 }
 
-void Iso14229ClientPoll(Iso14229Client *client) {
-    int ret = 0;
-    IsoTpLink *link = client->cfg->link;
+/**
+ * @brief Handle validated server response.
+ * Some server responses modify the client behavior. This is where the client
+ * gets modified.
+ *
+ * @param client
+ */
+static inline void _ClientHandleResponse(Iso14229Client *client) {
+    const Iso14229ClientRequestContext *ctx = &client->ctx;
 
-    if (-8 != link->send_protocol_result) {
-        // printf("send: %d,%d,%d\n", client->ctx.state, link->send_status,
-        // link->send_protocol_result); printf("recv: %d,%d,%d\n", client->ctx.state,
-        // link->receive_status, link->receive_protocol_result);
+    if (responseIsNegative(&ctx->resp)) {
+        if (kRequestCorrectlyReceived_ResponsePending == ctx->resp.as.negative->responseCode) {
+            client->p2_timer = client->cfg->userGetms() + client->ctx.settings.p2_star_ms;
+            client->ctx.state = kRequestStateSentAwaitResponse;
+        }
+    } else {
+        switch (ISO14229_REQUEST_SID_OF(ctx->resp.as.positive->serviceId)) {
+        case kSID_DIAGNOSTIC_SESSION_CONTROL: {
+            const DiagnosticSessionControlResponse *resp =
+                &ctx->resp.as.positive->type.diagnosticSessionControl;
+            client->settings.p2_ms = Iso14229ntohs(resp->P2);
+            client->settings.p2_star_ms = Iso14229ntohs(resp->P2star) * 10;
+            break;
+        }
+        default:
+            break;
+        }
     }
-    if (-2 == link->send_protocol_result) {
-        link->send_protocol_result = -8;
-        printf("%d, Error\n", client->cfg->userGetms());
-    }
+}
+
+struct SMResult {
+    enum Iso14229ClientRequestState state;
+    enum Iso14229ClientRequestError err;
+};
+
+static struct SMResult _ClientGetNextRequestState(const Iso14229Client *client) {
+    struct SMResult result = {.state = client->ctx.state, .err = client->ctx.err};
 
     switch (client->ctx.state) {
     case kRequestStateIdle: {
-        ret =
-            isotp_receive(link, link->receive_buffer, link->receive_buf_size, &link->receive_size);
-        client->ctx.resp.len = link->receive_size;
-        if (ISOTP_RET_OK == ret) {
-            ISO14229USERDEBUG("Response unexpected: ");
-            PRINTHEX(link->receive_buffer, link->receive_size);
-            client->ctx.err = kRequestErrorUnsolicitedResponse;
-        } else if (ISOTP_RET_NO_DATA == ret) {
-            ;
-        } else {
-            printf("unhandled return value: %d\n", ret);
+        if (ISOTP_RECEIVE_STATUS_FULL == client->cfg->link->receive_status) {
+            ISO14229USERDEBUG("Response unexpected");
+            result.err = kRequestErrorUnsolicitedResponse;
         }
         break;
     }
 
+    // Only in _SendRequest is client->ctx.state transitioned to kRequestStateSending
     case kRequestStateSending: {
         if (ISOTP_SEND_STATUS_INPROGRESS == client->cfg->link->send_status) {
             ; // Wait until ISO-TP transmission is complete
         } else {
-            if (client->ctx.settings.suppressPositiveResponse) {
-                client->ctx.state = kRequestStateIdle;
-            } else {
-                client->p2_timer = client->cfg->userGetms() + client->ctx.settings.p2_ms;
-                printf("set p2 timer to %d, current time: %d. p2_ms: %d\n", client->p2_timer,
-                       client->cfg->userGetms(), client->ctx.settings.p2_ms);
-                client->ctx.state = kRequestStateSentAwaitResponse;
+            result.state = kRequestStateSent;
+        }
+        break;
+    }
+
+    case kRequestStateSent: {
+        if (client->ctx.settings.suppressPositiveResponse) {
+            result.state = kRequestStateIdle;
+        } else {
+            result.state = kRequestStateSentAwaitResponse;
+        }
+        break;
+    }
+
+    case kRequestStateSentAwaitResponse:
+        if (ISOTP_RECEIVE_STATUS_FULL == client->cfg->link->receive_status) {
+            result.state = kRequestStateProcessResponse;
+        } else if (Iso14229TimeAfter(client->cfg->userGetms(), client->p2_timer)) {
+            result.state = kRequestStateIdle;
+            result.err = kRequestTimedOut;
+        }
+        break;
+    case kRequestStateProcessResponse:
+        result.state = kRequestStateIdle;
+        break;
+    default:
+        assert(0);
+    }
+    return result;
+}
+
+void Iso14229ClientPoll(Iso14229Client *client) {
+    int ret = 0;
+    IsoTpLink *link = client->cfg->link;
+    struct SMResult result = _ClientGetNextRequestState(client);
+    client->ctx.state = result.state;
+    client->ctx.err = result.err;
+    if (result.err != kRequestNoError) {
+        return;
+    }
+
+    switch (client->ctx.state) {
+    case kRequestStateIdle: {
+        break;
+    }
+    case kRequestStateSending: {
+        break;
+    }
+    case kRequestStateSent:
+        break;
+    case kRequestStateSentAwaitResponse:
+        break;
+    case kRequestStateProcessResponse: {
+        ret =
+            isotp_receive(link, link->receive_buffer, link->receive_buf_size, &link->receive_size);
+        if (ISOTP_RET_OK == ret) {
+            client->ctx.resp.len = link->receive_size;
+            client->ctx.state = kRequestStateIdle;
+            // ISO14229USERDEBUG("received response\n");
+            client->ctx.err = _ClientValidateResponse(&client->ctx);
+            if (kRequestNoError == client->ctx.err) {
+                _ClientHandleResponse(client);
             }
         }
         break;
     }
-    case kRequestStateSentAwaitResponse:
-        ret =
-            isotp_receive(link, link->receive_buffer, link->receive_buf_size, &link->receive_size);
-        client->ctx.resp.len = link->receive_size;
-        if (ISOTP_RET_OK == ret) {
-            client->ctx.state = kRequestStateIdle;
-            // ISO14229USERDEBUG("received response\n");
-            client->ctx.err = iso14229ClientValidateResponse(&client->ctx);
-        } else if (ISOTP_RET_NO_DATA == ret) {
-            if (Iso14229TimeAfter(client->cfg->userGetms(), client->p2_timer)) {
-                printf("current time: %d. p2_ms: %d\n", client->cfg->userGetms(),
-                       client->ctx.settings.p2_ms);
-                ISO14229USERDEBUG("timed out\n");
-                client->ctx.state = kRequestStateIdle;
-                client->ctx.err = kRequestTimedOut;
-            }
-        } else {
-            printf("yet another unhandled return value: %d\n", ret);
-        }
-        break;
+
     default:
         assert(0);
     }
@@ -362,15 +400,3 @@ void Iso14229ClientReceiveCAN(Iso14229Client *client, const uint32_t arbitration
         isotp_on_can_message(client->cfg->link, (uint8_t *)data, size);
     }
 }
-
-// void Iso14229ClientPoll(Iso14229Client *client, UserSequenceFunction func, void *args) {
-//     assert(client);
-//     assert(client->cfg);
-//     Iso14229ClientPoll(client);
-//     if (client->ctx.err) {
-//         return;
-//     }
-//     if (func(client, args)) {
-
-//     }
-// }

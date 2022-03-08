@@ -95,6 +95,13 @@ enum Iso14229ResponseCode iso14229DiagnosticSessionControl(Iso14229Server *self,
     return iso14229SendPositiveResponse(ctx, sizeof(DiagnosticSessionControlResponse));
 }
 
+static inline void scheduleECUReset(Iso14229Server *self) {
+    assert(self->cfg->userHardReset);
+    self->notReadyToReceive = true;
+    self->ecu_reset_100ms_timer = self->cfg->userGetms() + 100;
+    self->ecuResetScheduled = true;
+}
+
 /**
  * @brief 0x11 ECUReset
  *
@@ -113,12 +120,9 @@ enum Iso14229ResponseCode iso14229ECUReset(Iso14229Server *self,
     resetType = ctx->req.as.raw[0] & 0x3F;
 
     if (kHardReset == resetType) {
-        if (self->ecu_reset_requested) {
-            ;
-        } else {
-            self->ecu_reset_100ms_timer = self->cfg->userGetms() + 100;
+        if (!self->ecuResetScheduled) {
+            scheduleECUReset(self);
         }
-        self->ecu_reset_requested = true;
     }
 
     response->resetType = resetType;
@@ -361,7 +365,6 @@ enum Iso14229ResponseCode iso14229RoutineControl(Iso14229Server *self,
 
     response->routineControlType = request->routineControlType;
     response->routineIdentifier = Iso14229htons(routineIdentifier);
-    response->routineInfo = 0;
 
     return iso14229SendPositiveResponse(ctx, sizeof(RoutineControlResponse) + statusRecordLength);
 }
@@ -682,7 +685,14 @@ void iso14229CallRequestedService(Iso14229Server *self, IsoTpLink *link,
     };
 
     Iso14229Service service = self->services[ctx.req.sid];
-    iso14229EvaluateServiceResponse(self, service, &ctx);
+    enum Iso14229ResponseCode response = iso14229EvaluateServiceResponse(self, service, &ctx);
+
+    if (kRequestCorrectlyReceived_ResponsePending == response) {
+        self->RCRRP = true;
+        self->notReadyToReceive = true;
+    } else {
+        self->RCRRP = false;
+    }
 
     if (ctx.resp.len) {
         isotp_send(link, ctx.resp.as.raw, ctx.resp.len);
@@ -735,21 +745,37 @@ void Iso14229ServerInit(Iso14229Server *self, const Iso14229ServerConfig *const 
  * @return int
  */
 int iso14229StateMachine(Iso14229Server *self) {
-    if (self->ecu_reset_requested &&
+    if (self->ecuResetScheduled &&
         (Iso14229TimeAfter(self->cfg->userGetms(), self->ecu_reset_100ms_timer))) {
+        assert(self->cfg->userHardReset);
         self->cfg->userHardReset();
-        self->ecu_reset_requested = false;
     }
     return 0;
 }
 
 static inline void iso14229ProcessLink(Iso14229Server *self, IsoTpLink *link,
                                        enum Iso14229AddressingScheme addressingScheme) {
-    if (Iso14229TimeAfter(self->cfg->userGetms(), self->p2_timer)) {
-        if (ISOTP_RET_OK == isotp_receive(link, self->cfg->receive_buffer,
-                                          self->cfg->receive_buf_size, &self->receive_size)) {
+
+    // If the user service handler responded RCRRP and the send link is now idle,
+    // the response has been sent and the long-running service can now be called.
+    if (self->RCRRP && ISOTP_SEND_STATUS_IDLE == link->send_status) {
+        iso14229CallRequestedService(self, link, addressingScheme);
+        self->notReadyToReceive = self->RCRRP;
+    } else if (self->notReadyToReceive) {
+        return;
+    } else if (Iso14229TimeAfter(self->cfg->userGetms(), self->p2_timer)) {
+        int recv_status = isotp_receive(link, self->cfg->receive_buffer,
+                                        self->cfg->receive_buf_size, &self->receive_size);
+        switch (recv_status) {
+        case ISOTP_RET_OK:
             iso14229CallRequestedService(self, link, addressingScheme);
             self->p2_timer = self->cfg->userGetms() + self->cfg->p2_ms;
+            break;
+        case ISOTP_RET_NO_DATA:
+            break;
+        default:
+            assert(0);
+            break;
         }
     }
 }
@@ -773,6 +799,7 @@ void Iso14229ServerPoll(Iso14229Server *self) {
 
 void iso14229ServerReceiveCAN(Iso14229Server *self, const uint32_t arbitration_id,
                               const uint8_t *data, const uint8_t size) {
+
     if (arbitration_id == self->cfg->phys_recv_id) {
         isotp_on_can_message(self->cfg->phys_link, (uint8_t *)data, size);
     } else if (arbitration_id == self->cfg->func_recv_id) {
@@ -782,7 +809,7 @@ void iso14229ServerReceiveCAN(Iso14229Server *self, const uint32_t arbitration_i
     }
 }
 
-int iso14229ServerRegisterRoutine(Iso14229Server *self, const Iso14229Routine *routine) {
+int Iso14229ServerRegisterRoutine(Iso14229Server *self, const Iso14229Routine *routine) {
     if ((self->nRegisteredRoutines >= ISO14229_SERVER_MAX_ROUTINES) || (routine == NULL) ||
         (routine->startRoutine == NULL)) {
         return -1;
