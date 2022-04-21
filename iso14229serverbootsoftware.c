@@ -1,15 +1,21 @@
 #include "iso14229serverbootsoftware.h"
 #include "iso14229.h"
 #include "iso14229server.h"
+#include "iso14229serverbufferedwriter.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <assert.h>
 
-static enum Iso14229ResponseCode onRequest(void *userCtx, const uint8_t dataFormatIdentifier,
+static enum Iso14229ResponseCode onRequest(const struct Iso14229ServerStatus *status, void *userCtx,
+                                           const uint8_t dataFormatIdentifier,
                                            const void *memoryAddress, const size_t memorySize,
                                            uint16_t *maxNumberOfBlockLength) {
     UDSBootloaderInstance *self = (UDSBootloaderInstance *)userCtx;
+
+    if (self->transferInProgress) {
+        return kConditionsNotCorrect;
+    }
 
     // ISO-14229-1:2013 Table 397
     if (memorySize > self->cfg->logicalPartitionSize)
@@ -20,36 +26,66 @@ static enum Iso14229ResponseCode onRequest(void *userCtx, const uint8_t dataForm
         return kRequestOutOfRange;
     }
 
-    *maxNumberOfBlockLength = self->cfg->bufferedWriter.pageSize;
+    *maxNumberOfBlockLength = self->cfg->bufferedWriter.pageBufferSize;
 
     if (0 != bufferedWriterInit(&self->bufferedWriter, &self->cfg->bufferedWriter)) {
         return kGeneralProgrammingFailure;
     }
 
+    self->requestedWriteSize = memorySize;
+    self->transferInProgress = true;
+    self->numBytesTransferred = 0;
+
     return kPositiveResponse;
 }
 
-static enum Iso14229ResponseCode onTransfer(void *userCtx, const uint8_t *data, uint32_t len) {
+static enum Iso14229ResponseCode onTransfer(const struct Iso14229ServerStatus *status,
+                                            void *userCtx, const uint8_t *data, uint32_t len) {
     UDSBootloaderInstance *self = (UDSBootloaderInstance *)userCtx;
-    bufferedWriterWrite(&self->bufferedWriter, data, len);
-    return kPositiveResponse;
+
+    if (false == self->transferInProgress) {
+        return kRequestSequenceError;
+    }
+
+    if (BufferedWriterProcess(&self->bufferedWriter, data, len)) {
+        return kRequestCorrectlyReceived_ResponsePending;
+    } else {
+        self->numBytesTransferred += len;
+        if (self->numBytesTransferred > self->requestedWriteSize) {
+            self->transferInProgress = false;
+            return kTransferDataSuspended;
+        }
+        return kPositiveResponse;
+    }
 }
 
-static enum Iso14229ResponseCode onExit(void *userCtx) {
+static enum Iso14229ResponseCode onExit(const struct Iso14229ServerStatus *status, void *userCtx) {
     UDSBootloaderInstance *self = (UDSBootloaderInstance *)userCtx;
-    bufferedWriterFinalize(&self->bufferedWriter);
-    return kPositiveResponse;
+    if (false == self->transferInProgress) {
+        return kRequestSequenceError;
+    }
+
+    if (self->numBytesTransferred != self->requestedWriteSize) {
+        self->transferInProgress = false;
+        return kRequestSequenceError;
+    }
+
+    if (BufferedWriterProcess(&self->bufferedWriter, NULL, 0)) {
+        return kRequestCorrectlyReceived_ResponsePending;
+    } else {
+        self->transferInProgress = false;
+        return kPositiveResponse;
+    }
 }
 
-enum Iso14229ResponseCode startEraseAppProgramFlashRoutine(void *userCtx,
-                                                           Iso14229RoutineControlArgs *args) {
+enum Iso14229ResponseCode
+startEraseAppProgramFlashRoutine(const struct Iso14229ServerStatus *status, void *userCtx,
+                                 Iso14229RoutineControlArgs *args) {
     UDSBootloaderInstance *self = (UDSBootloaderInstance *)userCtx;
-    if (self->responsePending) {
+    if (status->RCRRP) {
         self->cfg->eraseAppProgramFlash();
-        self->responsePending = false;
         return kPositiveResponse;
     } else {
-        self->responsePending = true;
         return kRequestCorrectlyReceived_ResponsePending;
     }
 }
@@ -61,7 +97,7 @@ int udsBootloaderInit(void *vptr_self, const void *vptr_cfg, Iso14229Server *iso
     UDSBootloaderInstance *self = (UDSBootloaderInstance *)vptr_self;
     const UDSBootloaderConfig *cfg = (const UDSBootloaderConfig *)vptr_cfg;
 
-    if (NULL == cfg || (cfg->logicalPartitionSize < cfg->bufferedWriter.pageSize) ||
+    if (NULL == cfg || (cfg->logicalPartitionSize < cfg->bufferedWriter.pageBufferSize) ||
         (NULL == cfg->applicationIsValid) || (NULL == cfg->enterApplication) ||
         (NULL == cfg->eraseAppProgramFlash)) {
         return -1;
@@ -82,7 +118,7 @@ int udsBootloaderInit(void *vptr_self, const void *vptr_cfg, Iso14229Server *iso
     iso14229ServerEnableService(iso14229, kSID_REQUEST_TRANSFER_EXIT);
     iso14229ServerEnableService(iso14229, kSID_TESTER_PRESENT);
 
-    self->startup_20ms_timer = iso14229->cfg->userGetms() + 20,
+    self->extRequestWindowTimer = iso14229->cfg->userGetms() + self->cfg->extRequestWindowTimems,
     self->sm_state = kBootloaderSMStateCheckHasProgrammingRequest;
 
     self->eraseAppProgramFlashRoutine = (Iso14229Routine){
@@ -117,53 +153,27 @@ int udsBootloaderInit(void *vptr_self, const void *vptr_cfg, Iso14229Server *iso
  *
  * @param self
  */
-static inline int udsBootloaderStateMachine(UDSBootloaderInstance *self, Iso14229Server *iso14229) {
-    switch (self->sm_state) {
-    case kBootloaderSMStateCheckHasProgrammingRequest:
-        // This bootloader doesn't implement external programming requests
-        if (false) {
-            self->sm_state = kBootloaderSMStateDiagnosticSession;
-        } else {
-            self->sm_state = kBootloaderSMStateCheckHasValidApp;
-        }
-        break;
-
-    case kBootloaderSMStateCheckHasValidApp:
-        if (true == self->cfg->applicationIsValid()) {
-            self->sm_state = kBootloaderSMStateWaitForTesterPresent;
-        } else {
-            self->sm_state = kBootloaderSMStateDiagnosticSession;
-        }
-        break;
-
-    // There's a 20ms window here to allow the client to communicate with the
-    // bootloader
-    case kBootloaderSMStateWaitForTesterPresent:
-        if (kDiagModeExtendedDiagnostic == iso14229->diag_mode) {
-            self->sm_state = kBootloaderSMStateDiagnosticSession;
-        } else if (Iso14229TimeAfter(iso14229->cfg->userGetms(), self->startup_20ms_timer)) {
-            self->cfg->enterApplication();
-        }
-        break;
-
-    // We've heard from the client. Keep a diagnostic session open until the
-    // timeout expires.
-    case kBootloaderSMStateDiagnosticSession:
-        if (Iso14229TimeAfter(iso14229->cfg->userGetms(), iso14229->s3_session_timeout_timer)) {
-            // iso14229->cfg->userHardReset();
-        }
-        break;
-
-    default:
-        printf("error. unknown SM state: %d\n", self->sm_state);
-        self->sm_state = kBootloaderSMStateCheckHasProgrammingRequest;
-        break;
-    }
-    return 0;
-}
-
-int udsBootloaderPoll(void *vptr_self, Iso14229Server *iso14229) {
+void UDSBootloaderPoll(void *vptr_self, Iso14229Server *iso14229) {
     UDSBootloaderInstance *self = (UDSBootloaderInstance *)vptr_self;
 
-    return udsBootloaderStateMachine(self, iso14229);
+    switch (self->sm_state) {
+    case kBootloaderSMStateCheckHasProgrammingRequest:
+        if (Iso14229TimeAfter(iso14229->cfg->userGetms(), self->extRequestWindowTimer)) {
+            self->sm_state = kBootloaderSMStateCheckHasValidApp;
+        } else if (kDefaultSession != iso14229->status.sessionType) {
+            self->sm_state = kBootloaderSMStateDone;
+        }
+        break;
+    case kBootloaderSMStateCheckHasValidApp:
+        if (self->cfg->applicationIsValid()) {
+            self->cfg->enterApplication();
+        } else {
+            self->sm_state = kBootloaderSMStateDone;
+        }
+        break;
+    case kBootloaderSMStateDone:
+        break;
+    default:
+        assert(0);
+    }
 }

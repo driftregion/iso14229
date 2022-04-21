@@ -74,15 +74,17 @@ enum Iso14229ResponseCode iso14229DiagnosticSessionControl(Iso14229Server *self,
 
     // TODO: add user-defined diag modes
     switch (diagSessionType) {
-    case kDiagModeDefault:
-    case kDiagModeProgramming:
-    case kDiagModeExtendedDiagnostic:
+    case kDefaultSession:
+        break;
+    case kProgrammingSession:
+    case kExtendedDiagnostic:
+        self->s3_session_timeout_timer = self->cfg->userGetms() + self->cfg->s3_ms;
         break;
     default:
         return iso14229SendNegativeResponse(ctx, kSubFunctionNotSupported);
     }
 
-    self->diag_mode = diagSessionType;
+    self->status.sessionType = diagSessionType;
 
     response->diagSessionType = diagSessionType;
 
@@ -93,13 +95,6 @@ enum Iso14229ResponseCode iso14229DiagnosticSessionControl(Iso14229Server *self,
     response->P2star = Iso14229htons(self->cfg->p2_star_ms / 10);
 
     return iso14229SendPositiveResponse(ctx, sizeof(DiagnosticSessionControlResponse));
-}
-
-static inline void scheduleECUReset(Iso14229Server *self) {
-    assert(self->cfg->userHardReset);
-    self->notReadyToReceive = true;
-    self->ecu_reset_100ms_timer = self->cfg->userGetms() + 100;
-    self->ecuResetScheduled = true;
 }
 
 /**
@@ -119,10 +114,16 @@ enum Iso14229ResponseCode iso14229ECUReset(Iso14229Server *self,
 
     resetType = ctx->req.as.raw[0] & 0x3F;
 
-    if (kHardReset == resetType) {
-        if (!self->ecuResetScheduled) {
-            scheduleECUReset(self);
-        }
+    if (NULL == self->cfg->userECUResetHandler) {
+        return kGeneralProgrammingFailure;
+    }
+
+    enum Iso14229ResponseCode err = self->cfg->userECUResetHandler(&self->status, resetType);
+    if (kPositiveResponse == err) {
+        self->notReadyToReceive = true;
+        self->ecuResetScheduled = true;
+    } else {
+        return iso14229SendNegativeResponse(ctx, err);
     }
 
     response->resetType = resetType;
@@ -182,20 +183,38 @@ enum Iso14229ResponseCode iso14229ReadDataByIdentifier(Iso14229Server *self,
     return iso14229SendPositiveResponse(ctx, sizeof(ReadDataByIdentifierResponse) + responseLength);
 }
 
-enum Iso14229ResponseCode iso14299SecurityAccess(Iso14229Server *self,
+enum Iso14229ResponseCode iso14229SecurityAccess(Iso14229Server *self,
                                                  Iso14229ServerRequestContext *ctx) {
     uint8_t subFunction = ctx->req.as.securityAccess->subFunction;
+    uint8_t response = kPositiveResponse;
+    uint16_t seedLength = 0;
 
-    if (0x00 == subFunction ||                          // ISOSAEReserved
-        (subFunction >= 0x43 && subFunction <= 0x5E) || // ISOSAEReserved
-        0x7F == subFunction)                            // ISOSAEReserved
-    {
+    if (Iso14229SecurityAccessLevelIsReserved(subFunction)) {
         return iso14229SendNegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
     }
 
+    ctx->resp.as.positive->type.securityAccess.securityAccessType = subFunction;
+
     // Even: sendKey
     if (0 == subFunction % 2) {
-        return iso14229SendNegativeResponse(ctx, kGeneralProgrammingFailure);
+        if (self->status.securityLevel == subFunction) {
+            ctx->resp.as.positive->type.securityAccess.securitySeed[0] = 0;
+            return iso14229SendPositiveResponse(ctx, sizeof(SecurityAccessResponse) + 1);
+        }
+
+        if (NULL == self->cfg->userSecurityAccessValidateKey) {
+            return iso14229SendNegativeResponse(ctx, kGeneralProgrammingFailure);
+        }
+
+        response = self->cfg->userSecurityAccessValidateKey(
+            subFunction, ctx->req.as.securityAccess->securityAccessDataRecord,
+            ctx->req.len - offsetof(SecurityAccessRequest, securityAccessDataRecord));
+
+        if (kPositiveResponse != response) {
+            return iso14229SendNegativeResponse(ctx, response);
+        }
+
+        return iso14229SendPositiveResponse(ctx, sizeof(SecurityAccessResponse));
     }
 
     // Odd: requestSeed
@@ -207,10 +226,26 @@ enum Iso14229ResponseCode iso14299SecurityAccess(Iso14229Server *self,
         currently locked. The client shall use this method to determine if a server is locked for a
         particular security level by checking for a non-zero seed.
         */
-        if (self->securityLevel == subFunction) {
-            ctx->resp.as.positive->type.securityAccess.securitySeed[0] = 0;
-            return iso14229SendPositiveResponse(ctx, sizeof(SecurityAccessResponse) + 1);
+        if (NULL == self->cfg->userSecurityAccessGenerateSeed) {
+            return iso14229SendNegativeResponse(ctx, kGeneralProgrammingFailure);
         }
+
+        response = self->cfg->userSecurityAccessGenerateSeed(
+            subFunction, ctx->req.as.securityAccess->securityAccessDataRecord,
+            ctx->req.len - offsetof(SecurityAccessRequest, securityAccessDataRecord),
+            ctx->resp.as.positive->type.securityAccess.securitySeed,
+            ctx->resp.buffer_size - offsetof(SecurityAccessResponse, securitySeed), &seedLength);
+
+        if (seedLength > ctx->resp.buffer_size - offsetof(SecurityAccessResponse, securitySeed)) {
+            return iso14229SendNegativeResponse(ctx, kGeneralProgrammingFailure);
+        }
+
+        if (kPositiveResponse != response) {
+            return iso14229SendNegativeResponse(ctx, response);
+        }
+
+        return iso14229SendPositiveResponse(ctx, offsetof(SecurityAccessResponse, securitySeed) +
+                                                     seedLength);
     }
     return iso14229SendNegativeResponse(ctx, kGeneralProgrammingFailure);
 }
@@ -332,21 +367,21 @@ enum Iso14229ResponseCode iso14229RoutineControl(Iso14229Server *self,
     switch (request->routineControlType) {
     case kStartRoutine:
         if (NULL != routine->startRoutine) {
-            responseCode = routine->startRoutine(routine->userCtx, &args);
+            responseCode = routine->startRoutine(&self->status, routine->userCtx, &args);
         } else {
             return iso14229SendNegativeResponse(ctx, kSubFunctionNotSupported);
         }
         break;
     case kStopRoutine:
         if (NULL != routine->stopRoutine) {
-            responseCode = routine->stopRoutine(routine->userCtx, &args);
+            responseCode = routine->stopRoutine(&self->status, routine->userCtx, &args);
         } else {
             return iso14229SendNegativeResponse(ctx, kSubFunctionNotSupported);
         }
         break;
     case kRequestRoutineResults:
         if (NULL != routine->requestRoutineResults) {
-            responseCode = routine->requestRoutineResults(routine->userCtx, &args);
+            responseCode = routine->requestRoutineResults(&self->status, routine->userCtx, &args);
         } else {
             return iso14229SendNegativeResponse(ctx, kSubFunctionNotSupported);
         }
@@ -411,8 +446,9 @@ enum Iso14229ResponseCode iso14229RequestDownload(Iso14229Server *self,
     }
     handler = self->downloadHandlers[0];
 
-    err = handler->cfg->onRequest(handler->cfg->userCtx, request->dataFormatIdentifier,
-                                  memoryAddress, memorySize, &maxNumberOfBlockLength);
+    err =
+        handler->cfg->onRequest(&self->status, handler->cfg->userCtx, request->dataFormatIdentifier,
+                                memoryAddress, memorySize, &maxNumberOfBlockLength);
 
     if (err != kPositiveResponse) {
         return iso14229SendNegativeResponse(ctx, err);
@@ -469,36 +505,44 @@ enum Iso14229ResponseCode iso14229TransferData(Iso14229Server *self,
     const TransferDataRequest *request = ctx->req.as.transferData;
     Iso14229DownloadHandler *handler = NULL;
     enum Iso14229ResponseCode err;
-
     uint16_t request_data_len = ctx->req.len - offsetof(TransferDataRequest, data);
-
-    if (ctx->req.len < sizeof(TransferDataRequest)) {
-        err = kIncorrectMessageLengthOrInvalidFormat;
-        goto fail;
-    }
-
-    if (self->nRegisteredDownloadHandlers < 1) {
-        err = kUploadDownloadNotAccepted;
-        goto fail;
-    }
-
-    handler = self->downloadHandlers[0];
-
-    if (blockSequenceNumberIsBad(request->blockSequenceCounter, handler)) {
-        err = kRequestSequenceError;
-        goto fail;
-    } else {
-        handler->blockSequenceCounter++;
-    }
-
-    err = handler->cfg->onTransfer(handler->cfg->userCtx, request->data, request_data_len);
-    if (err != kPositiveResponse) {
-        goto fail;
-    }
 
     response->blockSequenceCounter = request->blockSequenceCounter;
 
-    return iso14229SendPositiveResponse(ctx, sizeof(TransferDataResponse));
+    if (!self->status.RCRRP) {
+        if (ctx->req.len < sizeof(TransferDataRequest)) {
+            err = kIncorrectMessageLengthOrInvalidFormat;
+            goto fail;
+        }
+
+        if (self->nRegisteredDownloadHandlers < 1) {
+            err = kUploadDownloadNotAccepted;
+            goto fail;
+        }
+
+        handler = self->downloadHandlers[0];
+
+        if (blockSequenceNumberIsBad(request->blockSequenceCounter, handler)) {
+            err = kRequestSequenceError;
+            goto fail;
+        } else {
+            handler->blockSequenceCounter++;
+        }
+    } else {
+        handler = self->downloadHandlers[0];
+    }
+
+    err = handler->cfg->onTransfer(&self->status, handler->cfg->userCtx, request->data,
+                                   request_data_len);
+
+    switch (err) {
+    case kPositiveResponse:
+        return iso14229SendPositiveResponse(ctx, sizeof(TransferDataResponse));
+    case kRequestCorrectlyReceived_ResponsePending:
+        return iso14229SendNegativeResponse(ctx, err);
+    default:
+        goto fail;
+    }
 
 // There's been an error. Reinitialize the handler to clear out its state
 fail:
@@ -523,7 +567,7 @@ enum Iso14229ResponseCode iso14229RequestTransferExit(Iso14229Server *self,
     }
     handler = self->downloadHandlers[0];
 
-    err = handler->cfg->onExit(handler->cfg->userCtx);
+    err = handler->cfg->onExit(&self->status, handler->cfg->userCtx);
 
     if (err != kPositiveResponse) {
         return iso14229SendNegativeResponse(ctx, err);
@@ -553,6 +597,27 @@ enum Iso14229ResponseCode iso14229TesterPresent(Iso14229Server *self,
     self->s3_session_timeout_timer = self->cfg->userGetms() + self->cfg->s3_ms;
     response->zeroSubFunction = request->zeroSubFunction & 0x3F;
     iso14229SendPositiveResponse(ctx, sizeof(TesterPresentResponse));
+    return kPositiveResponse;
+}
+
+/**
+ * @brief 0x85 ControlDtcSetting
+ *
+ * @param self
+ * @param data
+ * @param size
+ */
+enum Iso14229ResponseCode iso14229ControlDtcSetting(Iso14229Server *self,
+                                                    Iso14229ServerRequestContext *ctx) {
+    ControlDtcSettingResponse *response = &ctx->resp.as.positive->type.controlDtcSetting;
+    const ControlDtcSettingRequest *request = ctx->req.as.controlDtcSetting;
+
+    if (ctx->req.len < 1) {
+        return iso14229SendNegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
+    }
+
+    response->dtcSettingType = request->dtcSettingType & 0x3F;
+    iso14229SendPositiveResponse(ctx, sizeof(ControlDtcSettingResponse));
     return kPositiveResponse;
 }
 
@@ -688,10 +753,10 @@ void iso14229CallRequestedService(Iso14229Server *self, IsoTpLink *link,
     enum Iso14229ResponseCode response = iso14229EvaluateServiceResponse(self, service, &ctx);
 
     if (kRequestCorrectlyReceived_ResponsePending == response) {
-        self->RCRRP = true;
+        self->status.RCRRP = true;
         self->notReadyToReceive = true;
     } else {
-        self->RCRRP = false;
+        self->status.RCRRP = false;
     }
 
     if (ctx.resp.len) {
@@ -720,9 +785,12 @@ void Iso14229ServerInit(Iso14229Server *self, const Iso14229ServerConfig *const 
     assert(cfg->receive_buffer);
     assert(cfg->send_buf_size > 2);
     assert(cfg->receive_buf_size > 2);
+    assert(cfg->userSessionTimeoutHandler);
 
     memset(self, 0, sizeof(Iso14229Server));
     self->cfg = cfg;
+
+    self->status.sessionType = kDefaultSession;
 
     // Initialize p2_timer to an already past time, otherwise the server's
     // response to incoming messages will be delayed.
@@ -745,10 +813,9 @@ void Iso14229ServerInit(Iso14229Server *self, const Iso14229ServerConfig *const 
  * @return int
  */
 int iso14229StateMachine(Iso14229Server *self) {
-    if (self->ecuResetScheduled &&
-        (Iso14229TimeAfter(self->cfg->userGetms(), self->ecu_reset_100ms_timer))) {
-        assert(self->cfg->userHardReset);
-        self->cfg->userHardReset();
+    if (kDefaultSession != self->status.sessionType &&
+        Iso14229TimeAfter(self->cfg->userGetms(), self->s3_session_timeout_timer)) {
+        self->cfg->userSessionTimeoutHandler();
     }
     return 0;
 }
@@ -758,9 +825,9 @@ static inline void iso14229ProcessLink(Iso14229Server *self, IsoTpLink *link,
 
     // If the user service handler responded RCRRP and the send link is now idle,
     // the response has been sent and the long-running service can now be called.
-    if (self->RCRRP && ISOTP_SEND_STATUS_IDLE == link->send_status) {
+    if (self->status.RCRRP && ISOTP_SEND_STATUS_IDLE == link->send_status) {
         iso14229CallRequestedService(self, link, addressingScheme);
-        self->notReadyToReceive = self->RCRRP;
+        self->notReadyToReceive = self->status.RCRRP;
     } else if (self->notReadyToReceive) {
         return;
     } else if (Iso14229TimeAfter(self->cfg->userGetms(), self->p2_timer)) {
@@ -857,6 +924,8 @@ static const ServiceMap serviceMap[] = {
     {.sid = kSID_TRANSFER_DATA, .funcptr = iso14229TransferData},
     {.sid = kSID_REQUEST_TRANSFER_EXIT, .funcptr = iso14229RequestTransferExit},
     {.sid = kSID_TESTER_PRESENT, .funcptr = iso14229TesterPresent},
+    {.sid = kSID_CONTROL_DTC_SETTING, .funcptr = iso14229ControlDtcSetting},
+    {.sid = kSID_SECURITY_ACCESS, .funcptr = iso14229SecurityAccess},
 };
 
 int iso14229ServerEnableService(Iso14229Server *self, enum Iso14229DiagnosticServiceId sid) {

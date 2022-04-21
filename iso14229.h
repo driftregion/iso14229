@@ -5,9 +5,6 @@
 #include <stdint.h>
 #include "isotp-c/isotp.h"
 
-/* returns true if `a` is after `b` */
-#define Iso14229TimeAfter(a, b) ((int32_t)((int32_t)(b) - (int32_t)(a)) < 0)
-
 #define ARRAY_SZ(X) (sizeof((X)) / sizeof((X)[0]))
 
 // ISO-14229-1:2013 Table 2
@@ -46,10 +43,11 @@ enum Iso14229DiagnosticServiceId {
     // ...
 };
 
-enum Iso14229DiagnosticMode {
-    kDiagModeDefault = 1,
-    kDiagModeProgramming,
-    kDiagModeExtendedDiagnostic,
+enum Iso14229DiagnosticSessionType {
+    kDefaultSession = 0x01,
+    kProgrammingSession = 0x02,
+    kExtendedDiagnostic = 0x03,
+    kSafetySystemDiagnostic = 0x04,
     ISO14229_SERVER_USER_DIAGNOSTIC_MODES
 };
 
@@ -143,11 +141,28 @@ typedef struct {
 /**
  * @addtogroup securityAccess_0x27
  */
+enum Iso14229SecurityAccessType {
+    kRequestSeed = 0x01,
+    kSendKey = 0x02,
+};
+
+static inline bool Iso14229SecurityAccessLevelIsReserved(uint8_t securityLevel) {
+    securityLevel &= 0x3f;
+    return (0 == securityLevel || (0x43 <= securityLevel && securityLevel >= 0x5E) ||
+            0x7F == securityLevel);
+}
+
+/**
+ * @addtogroup securityAccess_0x27
+ */
 typedef struct {
     uint8_t subFunction;
     uint8_t securityAccessDataRecord[];
 } SecurityAccessRequest;
 
+/**
+ * @addtogroup securityAccess_0x27
+ */
 typedef struct {
     uint8_t securityAccessType;
     uint8_t securitySeed[];
@@ -293,6 +308,26 @@ typedef struct {
     uint8_t zeroSubFunction;
 } __attribute__((packed)) TesterPresentResponse;
 
+enum DTCSettingType {
+    kDTCSettingON = 0x01,
+    kDTCSettingOFF = 0x02,
+};
+
+/**
+ * @addtogroup controlDTCSetting_0x85
+ */
+typedef struct {
+    uint8_t dtcSettingType;
+    uint8_t dtcSettingControlOptionRecord[];
+} ControlDtcSettingRequest;
+
+/**
+ * @addtogroup controlDTCSetting_0x85
+ */
+typedef struct {
+    uint8_t dtcSettingType;
+} __attribute__((packed)) ControlDtcSettingResponse;
+
 struct Iso14229NegativeResponse {
     uint8_t negResponseSid;
     uint8_t requestSid;
@@ -311,6 +346,7 @@ union Iso14229AllResponseTypes {
     TransferDataResponse transferData;
     RequestTransferExitResponse requestTransferExit;
     TesterPresentResponse testerPresent;
+    ControlDtcSettingResponse controlDtcSetting;
 };
 
 struct Iso14229PositiveResponse {
@@ -366,6 +402,11 @@ static inline uint32_t Iso14229htonl(uint32_t hostlong) {
 }
 
 static inline uint32_t Iso14229ntohl(uint32_t networklong) { return Iso14229htonl(networklong); }
+
+/* returns true if `a` is after `b` */
+static inline bool Iso14229TimeAfter(uint32_t a, uint32_t b) {
+    return ((int32_t)((int32_t)(b) - (int32_t)(a)) < 0);
+}
 
 /*
 provide a debug function with -DISO14229USERDEBUG=printf when compiling this

@@ -165,15 +165,15 @@ uint32_t userGetms() {
 void userDebug(const char *fmt, ...) {}
 
 /**
- * @brief Reset the server
+ * @brief Schedule an ECU reset
  */
-void hardReset() {
-    printf("server hardReset!\n");
-    assert(uds_ptr);
-    // Mock an ECU reset by reinitializing the server
-    Iso14229ServerInit(uds_ptr, uds_ptr->cfg);
-    iso14229ServerEnableService(uds_ptr, kSID_ECU_RESET);
+enum Iso14229ResponseCode ecuResetHandler(const struct Iso14229ServerStatus *status,
+                                          uint8_t resetType) {
+    printf("reset scheduled!\n");
+    return kPositiveResponse;
 }
+
+void sessionTimeoutHandler() { printf("session timed out\n"); }
 
 // =====================================
 // STEP 2: initialize the server
@@ -207,7 +207,8 @@ int main(int ac, char **av) {
         .send_buf_size = sizeof(udsSendBuf),
         .userRDBIHandler = NULL,
         .userWDBIHandler = NULL,
-        .userHardReset = hardReset,
+        .userECUResetHandler = ecuResetHandler,
+        .userSessionTimeoutHandler = sessionTimeoutHandler,
         .userGetms = userGetms,
         .p2_ms = 50,
         .p2_star_ms = 2000,

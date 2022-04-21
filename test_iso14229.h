@@ -152,7 +152,8 @@
                                       .send_buffer = udsSendBuf,                                   \
                                       .send_buf_size = sizeof(udsSendBuf),                         \
                                       .userRDBIHandler = mockRdbiHandler,                          \
-                                      .userHardReset = mockHardResetHandler,                       \
+                                      .userECUResetHandler = mockECUResetHandler,                  \
+                                      .userSessionTimeoutHandler = mockSessionTimeoutHandler,      \
                                       .userGetms = isotp_user_get_ms,                              \
                                       .p2_ms = 50,                                                 \
                                       .p2_star_ms = 2000,                                          \
@@ -180,7 +181,7 @@
     g_clientRecvQueueIdx = 0;                                                                      \
     memset(&g_serverSvcCallCount, 0, sizeof(g_serverSvcCallCount));                                \
     memset(&g_serverServices, 0, sizeof(g_serverServices));                                        \
-    g_mockHardResetHandlerCallCount = 0;
+    g_mockECUResetHandlerCallCount = 0;
 
 #define TEST_TEARDOWN() printf("OK\n");
 

@@ -82,8 +82,15 @@ static enum Iso14229ResponseCode mockRdbiHandler(uint16_t data_id, uint8_t const
     return kPositiveResponse;
 }
 
-static int g_mockHardResetHandlerCallCount = 0;
-static void mockHardResetHandler() { g_mockHardResetHandlerCallCount++; }
+static int g_mockECUResetHandlerCallCount = 0;
+static enum Iso14229ResponseCode mockECUResetHandler(const struct Iso14229ServerStatus *status,
+                                                     uint8_t resetType) {
+    g_mockECUResetHandlerCallCount++;
+    return kPositiveResponse;
+}
+
+static int g_mockSessionTimeoutHandlerCallCount = 0;
+static void mockSessionTimeoutHandler() { g_mockSessionTimeoutHandlerCallCount++; }
 
 // ================================================
 // Fixtures
@@ -260,7 +267,7 @@ case 1: {
     break;
 }
 case 2: {
-    if (g_mockHardResetHandlerCallCount) {
+    if (g_mockECUResetHandlerCallCount) {
         done = true;
     }
     break;
@@ -272,8 +279,9 @@ case 2: {
     TEST_TEARDOWN();
 }
 
-enum Iso14229ResponseCode fixtureTestServerRCRRPStartRoutine(void *userCtx,
-                                                             Iso14229RoutineControlArgs *args) {
+enum Iso14229ResponseCode
+fixtureTestServerRCRRPStartRoutine(const struct Iso14229ServerStatus *status, void *userCtx,
+                                   Iso14229RoutineControlArgs *args) {
     static bool userFlag = false;
     if (userFlag) {
         /* a call to `doLongBlockingTask();` would go here */

@@ -3,11 +3,13 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stddef.h>
 #include "isotp-c/isotp.h"
 #include "iso14229.h"
 #include "iso14229serverconfig.h"
 
 typedef struct Iso14229Server Iso14229Server;
+struct Iso14229ServerStatus;
 
 /**
  * @addtogroup 0x31_routineControl
@@ -25,7 +27,7 @@ typedef struct {
  * @addtogroup routineControl_0x31
  */
 typedef enum Iso14229ResponseCode (*Iso14229RoutineControlUserCallbackType)(
-    void *userCtx, Iso14229RoutineControlArgs *args);
+    const struct Iso14229ServerStatus *status, void *userCtx, Iso14229RoutineControlArgs *args);
 
 /**
  * @addtogroup routineControl_0x31
@@ -64,6 +66,7 @@ typedef struct {
         union {
             const uint8_t *raw; // request data (excluding service ID)
             const TesterPresentRequest *testerPresent;
+            const ControlDtcSettingRequest *controlDtcSetting;
             // const DiagnosticSessionControlRequest *diagnosticSessionControl;
             // const ECUResetRequest *ecuReset;
             const SecurityAccessRequest *securityAccess;
@@ -75,7 +78,7 @@ typedef struct {
             const TransferDataRequest *transferData;
             // const RequestTransferExitRequest *requestTransferExit;
         } as;
-        const uint16_t len; // size of request data
+        const uint16_t len; // size of request data (excluding service ID)
         const uint8_t sid;  // service ID
         const enum Iso14229AddressingScheme addressingScheme;
     } req;
@@ -97,11 +100,13 @@ typedef struct {
      * accept in bytes
      * @return one of [kPositiveResponse, kRequestOutOfRange]
      */
-    enum Iso14229ResponseCode (*onRequest)(void *userCtx, const uint8_t dataFormatIdentifier,
+    enum Iso14229ResponseCode (*onRequest)(const struct Iso14229ServerStatus *status, void *userCtx,
+                                           const uint8_t dataFormatIdentifier,
                                            const void *memoryAddress, const size_t memorySize,
                                            uint16_t *maxNumberOfBlockLength);
-    enum Iso14229ResponseCode (*onTransfer)(void *userCtx, const uint8_t *data, uint32_t len);
-    enum Iso14229ResponseCode (*onExit)(void *userCtx);
+    enum Iso14229ResponseCode (*onTransfer)(const struct Iso14229ServerStatus *status,
+                                            void *userCtx, const uint8_t *data, uint32_t len);
+    enum Iso14229ResponseCode (*onExit)(const struct Iso14229ServerStatus *status, void *userCtx);
 
     void *userCtx;
 } Iso14229DownloadHandlerConfig;
@@ -154,7 +159,7 @@ typedef struct {
      * state-machine behavior which can modify the state of the middleware or
      * the iso14229 instance
      */
-    int (*pollFunc)(void *self, struct Iso14229Server *iso14229);
+    void (*pollFunc)(void *self, struct Iso14229Server *iso14229);
 } Iso14229UserMiddleware;
 
 typedef struct {
@@ -224,14 +229,41 @@ typedef struct {
      *  \li 0x36 kExceededNumberOfAttempts
      *  \li 0x37 kRequiredTimeDelayNotExpired
      */
-    enum Iso14429ResponseCodeEnum (*userSecurityAccessHandler)();
+    enum Iso14229ResponseCode (*userSecurityAccessGenerateSeed)(uint8_t level,
+                                                                const uint8_t *in_data,
+                                                                uint16_t in_size, uint8_t *out_data,
+                                                                uint16_t out_bufsize,
+                                                                uint16_t *out_size);
+
+    enum Iso14229ResponseCode (*userSecurityAccessValidateKey)(uint8_t level, const uint8_t *key,
+                                                               uint16_t size);
 
     /**
-     * @brief \~chinese 用户定义ECU复位回调函数 \~english user-provided function to reset the ECU.
+     * @brief \~chinese 用户定义ECU复位请求处理函数。
+      \~english user-provided function handle an ECU reset request.
      * \~
      * @addtogroup ecuReset_0x11
+     * @param status 当前服务器状态
+     * @param resetType 复位类型
+     * @return
+     肯定响应意味着复位已经安排好了。服务器回停止处理新数据。建议用户停止发送所有CAN报文。用户应该等到CAN物理层响应发送完成后进行复位。
+     * @details \~chinese 允许响应: \~english Permitted responses: \~
+     *  \li 0x00 positiveResponse
+     *  \li 0x12 sub-functionNotSupported
+     *  \li 0x13 incorrectMessageLengthOrInvalidFormat
+     *  \li 0x22 kConditionsNotCorrect
+     *  \li 0x33 kSecurityAccessDenied
      */
-    void (*userHardReset)();
+    enum Iso14229ResponseCode (*userECUResetHandler)(const struct Iso14229ServerStatus *status,
+                                                     uint8_t resetType);
+
+    /**
+    * @brief \~chinese 会话超时处理函数。这个函数应该立刻进行ECU复位。
+    \~english user-provided session timeout handler. This function should probably reset the ECU
+    immediately.
+     * \~
+     */
+    void (*userSessionTimeoutHandler)();
 
     /**
      * @brief \~chinese 用户定义获取时间（毫秒）回调函数 \~english user-provided function that
@@ -248,6 +280,8 @@ typedef struct {
     uint16_t p2_star_ms; // Enhanced (NRC 0x78) P2_server_max supported by the
                          // server for the activated diagnostic session.
     uint16_t s3_ms;      // Session timeout
+
+    uint16_t ecuResetDelayms; // time to delay between
 
     Iso14229UserMiddleware *middleware;
 } Iso14229ServerConfig;
@@ -266,15 +300,26 @@ typedef struct Iso14229Server {
     Iso14229DownloadHandler *downloadHandlers[ISO14229_SERVER_MAX_DOWNLOAD_HANDLERS];
     uint16_t nRegisteredDownloadHandlers;
 
-    enum Iso14229DiagnosticMode diag_mode;
     bool ecuResetScheduled;            // indicates that an ECUReset has been scheduled
-    uint32_t ecu_reset_100ms_timer;    // for delaying resetting until a response
+    uint32_t ecuResetTimer;            // for delaying resetting until a response
                                        // has been sent to the client
     uint32_t p2_timer;                 // for rate limiting server responses
     uint32_t s3_session_timeout_timer; // for knowing when the diagnostic
                                        // session has timed out
-    uint8_t securityLevel;             // Current SecurityAccess (0x27) level
     uint16_t receive_size;             // number of bytes received from ISO-TP layer
+
+    /**
+     * @brief public subset of server state for user handlers
+     */
+    struct Iso14229ServerStatus {
+        enum Iso14229DiagnosticSessionType sessionType;
+        uint8_t securityLevel; // Current SecurityAccess (0x27) level
+        // this variable set to true when a user handler returns 0x78
+        // requestCorrectlyReceivedResponsePending. After a response has been sent on the transport
+        // layer, this variable is set to false and the user handler will be called again. It is the
+        // responsibility of the user handler to track the call count.
+        bool RCRRP;
+    } status;
 
     // ISO14229-1 2013 defines the following conditions under which the server does not
     // process incoming requests:
@@ -284,11 +329,6 @@ typedef struct Iso14229Server {
     // when this variable is set to true, incoming ISO-TP data will not be processed.
     bool notReadyToReceive;
 
-    // this variable set to true when a user handler returns 0x78
-    // requestCorrectlyReceivedResponsePending. After a response has been sent on the transport
-    // layer, this variable is set to false and the user handler will be called again. It is the
-    // responsibility of the user handler to track the call count.
-    bool RCRRP;
 } Iso14229Server;
 
 // ========================================================================

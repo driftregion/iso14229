@@ -1,8 +1,10 @@
 #ifndef ISO14229CLIENT_H
 #define ISO14229CLIENT_H
 
+#include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include "iso14229.h"
 #include "isotp-c/isotp.h"
 
@@ -73,15 +75,16 @@ enum Iso14229ClientRequestState {
 };
 
 enum Iso14229ClientRequestError {
-    kRequestNoError = 0,              // 没故障
-    kRequestNotSentBusy,              // 在忙、没发
-    kRequestNotSentInvalidArgs,       // 参数不对、没发
-    kRequestNotSentBufferTooSmall,    // 传输层缓冲器不够大
-    kRequestNotSentTransportError,    // 传输层故障、没发
-    kRequestTimedOut,                 // 请求超时
-    kRequestErrorUnsolicitedResponse, // 突然响应
-    kRequestErrorResponseSIDMismatch, // 请求和响应SID不一致
-    kRequestErrorNegativeResponse,    // 否定响应
+    kRequestNoError = 0,                 // 没故障
+    kRequestNotSentBusy,                 // 在忙、没发
+    kRequestNotSentInvalidArgs,          // 参数不对、没发
+    kRequestNotSentBufferTooSmall,       // 传输层缓冲器不够大
+    kRequestNotSentTransportError,       // 传输层故障、没发
+    kRequestTimedOut,                    // 请求超时
+    kRequestErrorUnsolicitedResponse,    // 突然响应
+    kRequestErrorResponseSIDMismatch,    // 请求和响应SID不一致
+    kRequestErrorNegativeResponse,       // 否定响应
+    kRequestErrorResponseTransportError, // 传输层故障、响应没有接受
 };
 
 struct Iso14229Request {
@@ -99,11 +102,13 @@ struct Iso14229Request {
                 RequestDownloadRequest requestDownload;
                 TransferDataRequest transferData;
                 TesterPresentRequest testerPresent;
+                ControlDtcSettingRequest controlDtcSetting;
             } __attribute__((packed)) type;
         } * service;
-        struct {
+        struct Iso14229GenericRequest {
             uint8_t sid;
             uint8_t subFunction;
+            uint8_t data[];
         } * base;
     } as; // points to the ISO-TP send buffer
     uint16_t len;
@@ -160,7 +165,9 @@ typedef int (*UserSequenceFunction)(Iso14229Client *client, void *userContext);
 enum Iso14229ClientRequestError ECUReset(Iso14229Client *client,
                                          enum Iso14229ECUResetResetType type);
 enum Iso14229ClientRequestError DiagnosticSessionControl(Iso14229Client *client,
-                                                         enum Iso14229DiagnosticMode mode);
+                                                         enum Iso14229DiagnosticSessionType mode);
+enum Iso14229ClientRequestError SecurityAccess(Iso14229Client *client, uint8_t level, uint8_t *data,
+                                               uint16_t size);
 enum Iso14229ClientRequestError CommunicationControl(Iso14229Client *client,
                                                      enum Iso14229CommunicationControlType ctrl,
                                                      enum Iso14229CommunicationType comm);
@@ -183,6 +190,62 @@ enum Iso14229ClientRequestError RequestDownload_32_32(Iso14229Client *client,
 enum Iso14229ClientRequestError TransferData(Iso14229Client *client, uint8_t blockSequenceCounter,
                                              const uint16_t blockLength, FILE *fd);
 enum Iso14229ClientRequestError RequestTransferExit(Iso14229Client *client);
+enum Iso14229ClientRequestError ControlDTCSetting(Iso14229Client *client, uint8_t dtcSettingType,
+                                                  uint8_t *dtcSettingControlOptionRecord,
+                                                  uint16_t len);
+
+/**
+ * @brief Helper function for reading RDBI responses
+ *
+ * @param did
+ * @param data
+ * @param size read this many bytes of data
+ * @param offset pointer to variable initialized to zero at the first call
+ * @return int
+ */
+static inline int Iso14229ClientRDBIReadU8(const struct Iso14229Response *resp, uint16_t did,
+                                           uint8_t *data, uint16_t *offset) {
+    // resp->len包含 SID. resp->len减1是服务数据
+    // *offset最开始
+    if (*offset + sizeof(uint16_t) + sizeof(uint8_t) > resp->len - 1) {
+        return -1;
+    }
+    if (did != Iso14229ntohs(*(uint16_t *)(resp->as.raw + 1 + *offset))) {
+        return -2;
+    }
+    *offset += sizeof(uint16_t);
+    *data = *(resp->as.raw + 1 + *offset);
+    *offset += sizeof(uint8_t);
+    return sizeof(uint8_t);
+}
+
+static inline int Iso14229ClientRDBIReadU16(const struct Iso14229Response *resp, uint16_t did,
+                                            uint16_t *data, uint16_t *offset) {
+    if (*offset + sizeof(uint16_t) + sizeof(uint16_t) > resp->len - 1) {
+        return -1;
+    }
+    if (did != Iso14229ntohs(*(uint16_t *)(resp->as.raw + 1 + *offset))) {
+        return -2;
+    }
+    *offset += sizeof(uint16_t);
+    *data = Iso14229ntohs(*(uint16_t *)(resp->as.raw + 1 + *offset));
+    *offset += sizeof(uint16_t);
+    return sizeof(uint16_t);
+}
+
+static inline int Iso14229ClientRDBIReadU32(const struct Iso14229Response *resp, uint16_t did,
+                                            uint32_t *data, uint16_t *offset) {
+    if (*offset + sizeof(uint16_t) + sizeof(uint16_t) > resp->len - 1) {
+        return -1;
+    }
+    if (did != Iso14229ntohs(*(uint16_t *)(resp->as.raw + 1 + *offset))) {
+        return -2;
+    }
+    *offset += sizeof(uint16_t);
+    *data = Iso14229ntohl(*(uint32_t *)(resp->as.raw + 1 + *offset));
+    *offset += sizeof(uint32_t);
+    return sizeof(uint32_t);
+}
 
 /**
  * @brief Poll the client request state machine.

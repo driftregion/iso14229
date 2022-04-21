@@ -67,9 +67,6 @@ static inline enum Iso14229ClientRequestError _SendRequest(Iso14229Client *clien
         }
     }
     client->ctx.state = kRequestStateSending;
-    client->p2_timer = client->cfg->userGetms() + client->ctx.settings.p2_ms;
-    printf("set p2 timer to %d, current time: %d. p2_ms: %d\n", client->p2_timer,
-           client->cfg->userGetms(), client->ctx.settings.p2_ms);
     return kRequestNoError;
 }
 
@@ -90,7 +87,7 @@ enum Iso14229ClientRequestError ECUReset(Iso14229Client *client,
 }
 
 enum Iso14229ClientRequestError DiagnosticSessionControl(Iso14229Client *client,
-                                                         enum Iso14229DiagnosticMode mode) {
+                                                         enum Iso14229DiagnosticSessionType mode) {
     PRE_REQUEST_CHECK();
     struct Iso14229Request *req = &client->ctx.req;
     req->as.service->sid = kSID_DIAGNOSTIC_SESSION_CONTROL;
@@ -242,6 +239,49 @@ enum Iso14229ClientRequestError RequestTransferExit(Iso14229Client *client) {
     return _SendRequest(client);
 }
 
+enum Iso14229ClientRequestError ControlDTCSetting(Iso14229Client *client, uint8_t dtcSettingType,
+                                                  uint8_t *data, uint16_t size) {
+    PRE_REQUEST_CHECK();
+    struct Iso14229Request *req = &client->ctx.req;
+    if (0x00 == dtcSettingType || 0x7F == dtcSettingType ||
+        (0x03 <= dtcSettingType && dtcSettingType <= 0x3F)) {
+        assert(0); // reserved vals
+    }
+
+    if (NULL == data) {
+        assert(size == 0);
+    } else {
+        assert(size > 0);
+        if (size >
+            client->cfg->link->send_buf_size - offsetof(ControlDtcSettingRequest, dtcSettingType)) {
+            return kRequestNotSentBufferTooSmall;
+        }
+        memmove(req->as.service->type.controlDtcSetting.dtcSettingControlOptionRecord, data, size);
+    }
+
+    req->as.base->sid = kSID_CONTROL_DTC_SETTING;
+    req->as.service->type.controlDtcSetting.dtcSettingType = dtcSettingType;
+    req->len = sizeof(ControlDtcSettingRequest) + size + 1;
+    return _SendRequest(client);
+}
+
+enum Iso14229ClientRequestError SecurityAccess(Iso14229Client *client, uint8_t level, uint8_t *data,
+                                               uint16_t size) {
+    PRE_REQUEST_CHECK();
+    struct Iso14229Request *req = &client->ctx.req;
+    if (Iso14229SecurityAccessLevelIsReserved(level)) {
+        return kRequestNotSentInvalidArgs;
+    }
+    req->as.base->sid = kSID_SECURITY_ACCESS;
+    req->as.base->subFunction = level;
+    if (size > client->cfg->link->send_buf_size + offsetof(struct Iso14229GenericRequest, data)) {
+        return kRequestNotSentBufferTooSmall;
+    }
+    memmove(req->as.base->data, data, size);
+    req->len = sizeof(SecurityAccessRequest) + size + 1;
+    return _SendRequest(client);
+}
+
 /**
  * @brief Check that the response is standard
  *
@@ -282,6 +322,7 @@ static inline void _ClientHandleResponse(Iso14229Client *client) {
 
     if (responseIsNegative(&ctx->resp)) {
         if (kRequestCorrectlyReceived_ResponsePending == ctx->resp.as.negative->responseCode) {
+            printf("got RCRRP, setting p2 timer\n");
             client->p2_timer = client->cfg->userGetms() + client->ctx.settings.p2_star_ms;
             client->ctx.state = kRequestStateSentAwaitResponse;
         }
@@ -290,8 +331,16 @@ static inline void _ClientHandleResponse(Iso14229Client *client) {
         case kSID_DIAGNOSTIC_SESSION_CONTROL: {
             const DiagnosticSessionControlResponse *resp =
                 &ctx->resp.as.positive->type.diagnosticSessionControl;
-            client->settings.p2_ms = Iso14229ntohs(resp->P2);
-            client->settings.p2_star_ms = Iso14229ntohs(resp->P2star) * 10;
+            if (Iso14229ntohs(resp->P2) >= client->settings.p2_ms) {
+                ISO14229USERDEBUG("warning: server P2 timing greater than or equal to client P2 "
+                                  "timing (%u >= %u). This may result in timeouts.\n",
+                                  Iso14229ntohs(resp->P2), client->settings.p2_ms);
+            }
+            if (Iso14229ntohs(resp->P2star) * 10 >= client->settings.p2_star_ms) {
+                ISO14229USERDEBUG("warning: server P2* timing greater than or equal to client P2* "
+                                  "timing (%u >= %u). This may result in timeouts.\n",
+                                  Iso14229ntohs(resp->P2star) * 10, client->settings.p2_star_ms);
+            }
             break;
         }
         default:
@@ -317,31 +366,47 @@ static struct SMResult _ClientGetNextRequestState(const Iso14229Client *client) 
         break;
     }
 
-    // Only in _SendRequest is client->ctx.state transitioned to kRequestStateSending
     case kRequestStateSending: {
-        if (ISOTP_SEND_STATUS_INPROGRESS == client->cfg->link->send_status) {
-            ; // Wait until ISO-TP transmission is complete
-        } else {
-            result.state = kRequestStateSent;
+        switch (client->cfg->link->send_status) {
+        case ISOTP_SEND_STATUS_INPROGRESS:
+            // 等待ISO-TP传输完成
+            break;
+        case ISOTP_SEND_STATUS_IDLE:
+            if (client->ctx.settings.suppressPositiveResponse) {
+                result.state = kRequestStateIdle;
+            } else {
+                result.state = kRequestStateSent;
+            }
+            break;
+        case ISOTP_SEND_STATUS_ERROR:
+            result.err = kRequestNotSentTransportError;
+            break;
+        default:
+            assert(0);
         }
         break;
     }
 
     case kRequestStateSent: {
-        if (client->ctx.settings.suppressPositiveResponse) {
-            result.state = kRequestStateIdle;
-        } else {
-            result.state = kRequestStateSentAwaitResponse;
-        }
+        result.state = kRequestStateSentAwaitResponse;
         break;
     }
 
     case kRequestStateSentAwaitResponse:
-        if (ISOTP_RECEIVE_STATUS_FULL == client->cfg->link->receive_status) {
+        switch (client->cfg->link->receive_status) {
+        case ISOTP_RECEIVE_STATUS_FULL:
             result.state = kRequestStateProcessResponse;
-        } else if (Iso14229TimeAfter(client->cfg->userGetms(), client->p2_timer)) {
-            result.state = kRequestStateIdle;
-            result.err = kRequestTimedOut;
+            break;
+        case ISOTP_RECEIVE_STATUS_IDLE:
+        case ISOTP_RECEIVE_STATUS_INPROGRESS:
+            if (Iso14229TimeAfter(client->cfg->userGetms(), client->p2_timer)) {
+                result.state = kRequestStateIdle;
+                result.err = kRequestTimedOut;
+                printf("timed out. receive status: %d\n", client->cfg->link->receive_status);
+            }
+            break;
+        default:
+            assert(0);
         }
         break;
     case kRequestStateProcessResponse:
@@ -371,7 +436,9 @@ void Iso14229ClientPoll(Iso14229Client *client) {
         break;
     }
     case kRequestStateSent:
+        client->p2_timer = client->cfg->userGetms() + client->ctx.settings.p2_ms;
         break;
+
     case kRequestStateSentAwaitResponse:
         break;
     case kRequestStateProcessResponse: {
@@ -380,7 +447,6 @@ void Iso14229ClientPoll(Iso14229Client *client) {
         if (ISOTP_RET_OK == ret) {
             client->ctx.resp.len = link->receive_size;
             client->ctx.state = kRequestStateIdle;
-            // ISO14229USERDEBUG("received response\n");
             client->ctx.err = _ClientValidateResponse(&client->ctx);
             if (kRequestNoError == client->ctx.err) {
                 _ClientHandleResponse(client);
