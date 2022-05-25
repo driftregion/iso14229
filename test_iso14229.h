@@ -3,7 +3,6 @@
 
 #include <assert.h>
 #include <stdint.h>
-#define ISO14229USERDEBUG printf
 #include "iso14229.h"
 #include "iso14229client.h"
 #include "iso14229server.h"
@@ -11,12 +10,23 @@
 #include "isotp-c/isotp_config.h"
 #include "isotp-c/isotp_defines.h"
 
-#define ASSERT_EQUAL(a, b)                                                                         \
+#define ASSERT_INT_EQUAL(a, b)                                                                     \
     {                                                                                              \
         int _a = a;                                                                                \
         int _b = b;                                                                                \
         if ((_a) != (_b)) {                                                                        \
             printf("%s:%d (%d != %d)\n", __FILE__, __LINE__, _a, _b);                              \
+            fflush(stdout);                                                                        \
+            assert(0);                                                                             \
+        }                                                                                          \
+    }
+
+#define ASSERT_PTR_EQUAL(a, b)                                                                     \
+    {                                                                                              \
+        void *_a = a;                                                                              \
+        void *_b = b;                                                                              \
+        if ((_a) != (_b)) {                                                                        \
+            printf("%s:%d (%p != %p)\n", __FILE__, __LINE__, _a, _b);                              \
             fflush(stdout);                                                                        \
             assert(0);                                                                             \
         }                                                                                          \
@@ -28,11 +38,11 @@
         const uint8_t *_b = b;                                                                     \
         if (memcmp(_a, _b, len)) {                                                                 \
             printf("A:");                                                                          \
-            for (int i = 0; i < len; i++) {                                                        \
+            for (unsigned int i = 0; i < len; i++) {                                               \
                 printf("%02x,", _a[i]);                                                            \
             }                                                                                      \
             printf(" (%s)\nB:", #a);                                                               \
-            for (int i = 0; i < len; i++) {                                                        \
+            for (unsigned int i = 0; i < len; i++) {                                               \
                 printf("%02x,", _b[i]);                                                            \
             }                                                                                      \
             printf(" (%s)\n", #b);                                                                 \
@@ -84,8 +94,6 @@
         .link = &clientLink,                                                                       \
         .recv_id = CLIENT_RECV_ID,                                                                 \
         .send_id = CLIENT_SEND_ID,                                                                 \
-        .tasks = NULL,                                                                             \
-        .numtasks = 0,                                                                             \
         .userGetms = isotp_user_get_ms,                                                            \
     };
 
@@ -151,14 +159,11 @@
                                       .receive_buf_size = sizeof(udsRecvBuf),                      \
                                       .send_buffer = udsSendBuf,                                   \
                                       .send_buf_size = sizeof(udsSendBuf),                         \
-                                      .userRDBIHandler = mockRdbiHandler,                          \
-                                      .userECUResetHandler = mockECUResetHandler,                  \
-                                      .userSessionTimeoutHandler = mockSessionTimeoutHandler,      \
+                                      .userSessionTimeoutCallback = mockSessionTimeoutHandler,     \
                                       .userGetms = isotp_user_get_ms,                              \
                                       .p2_ms = 50,                                                 \
                                       .p2_star_ms = 2000,                                          \
-                                      .s3_ms = 5000,                                               \
-                                      .middleware = NULL};
+                                      .s3_ms = 5000}
 
 /**
  * @brief initialize an Iso14229Server on the stack
@@ -210,8 +215,10 @@
     SERVER_SETUP();
 
 /**
- * @brief Begin a sequenced server test
- *
+ * @brief Begin a sequenced server test: a switch statement in which the variable `step` is the
+ * current stage in the test. The sequence finishes without error when the variable `done` is set to
+ * `true`
+ * @warning This block must be closed with SERVER_TEST_SEQUENCE_END();
  */
 #define SERVER_TEST_SEQUENCE_BEGIN()                                                               \
     int step = 0;                                                                                  \
@@ -230,6 +237,48 @@
         }                                                                                          \
         g_ms++;                                                                                    \
         }
+
+/**
+ * @brief send some UDS data from the client during a sequenced server test
+ * @example ```
+    const uint8_t REQUEST_DOWNLOAD_REQUEST[] = {0x34, 0x11, 0x33, 0x60, 0x20};
+    SERVER_TEST_SEQUENCE_BEGIN();
+case 0:
+    SERVER_TEST_CLIENT_SEND(REQUEST_DOWNLOAD_REQUEST);
+    break;
+ ```
+ */
+#define SERVER_TEST_CLIENT_SEND(buffer)                                                            \
+    {                                                                                              \
+        isotp_send(&clientLink, buffer, sizeof(buffer));                                           \
+        step++;                                                                                    \
+    }
+
+/**
+ * @brief assert that some UDS data is send by the server during a sequenced server test
+ * @example ```
+    const uint8_t REQUEST_DOWNLOAD_REQUEST[] = {0x34, 0x11, 0x33, 0x60, 0x20};
+    const uint8_t REQUEST_DOWNLOAD_RESPONSE[] = {0x7F, 0x34, 0x11};
+    SERVER_TEST_SEQUENCE_BEGIN();
+case 0:
+    SERVER_TEST_CLIENT_SEND(REQUEST_DOWNLOAD_REQUEST);
+    break;
+case 1:
+    SERVER_TEST_AWAIT_RESPONSE(REQUEST_DOWNLOAD_RESPONSE);
+    break;
+ ```
+ */
+#define SERVER_TEST_AWAIT_RESPONSE(buffer)                                                         \
+    {                                                                                              \
+        uint16_t size;                                                                             \
+        int ret = isotp_receive(&clientLink, clientLink.receive_buffer,                            \
+                                clientLink.receive_buf_size, &size);                               \
+        if (ISOTP_RET_OK == ret) {                                                                 \
+            ASSERT_INT_EQUAL(size, sizeof(buffer))                                                 \
+            ASSERT_MEMORY_EQUAL(buffer, clientLink.receive_buffer, size);                          \
+            step++;                                                                                \
+        }                                                                                          \
+    };
 
 /**
  * @brief Begin a sequenced client test

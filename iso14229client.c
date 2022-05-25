@@ -20,13 +20,13 @@ static void clearRequestContext(Iso14229Client *client) {
     client->ctx =
         (Iso14229ClientRequestContext){.req =
                                            {
-                                               .as.raw = client->cfg->link->send_buffer,
+                                               .buf = client->cfg->link->send_buffer,
                                                .buffer_size = client->cfg->link->send_buf_size,
                                                .len = 0,
                                            },
                                        .resp =
                                            {
-                                               .as.raw = client->cfg->link->receive_buffer,
+                                               .buf = client->cfg->link->receive_buffer,
                                                .buffer_size = client->cfg->link->receive_buf_size,
                                                .len = 0,
                                            },
@@ -53,16 +53,16 @@ static inline enum Iso14229ClientRequestError _SendRequest(Iso14229Client *clien
 
     if (ctx->settings.suppressPositiveResponse) {
         // ISO14229-1:2013 8.2.2 Table 11
-        ctx->req.as.base->subFunction |= 0x80;
+        ctx->req.buf[1] |= 0x80;
     }
 
     if (ctx->settings.functional.enable) {
         if (ISOTP_RET_OK != isotp_send_with_id(client->cfg->link, ctx->settings.functional.send_id,
-                                               ctx->req.as.raw, ctx->req.len)) {
+                                               ctx->req.buf, ctx->req.len)) {
             return kRequestNotSentTransportError;
         }
     } else {
-        if (ISOTP_RET_OK != isotp_send(client->cfg->link, ctx->req.as.raw, ctx->req.len)) {
+        if (ISOTP_RET_OK != isotp_send(client->cfg->link, ctx->req.buf, ctx->req.len)) {
             return kRequestNotSentTransportError;
         }
     }
@@ -80,9 +80,9 @@ enum Iso14229ClientRequestError ECUReset(Iso14229Client *client,
                                          enum Iso14229ECUResetResetType type) {
     PRE_REQUEST_CHECK();
     struct Iso14229Request *req = &client->ctx.req;
-    req->as.service->sid = kSID_ECU_RESET;
-    req->as.service->type.ecuReset.resetType = type;
-    req->len = sizeof(ECUResetRequest) + 1;
+    req->buf[0] = kSID_ECU_RESET;
+    req->buf[1] = type;
+    req->len = 2;
     return _SendRequest(client);
 }
 
@@ -90,9 +90,9 @@ enum Iso14229ClientRequestError DiagnosticSessionControl(Iso14229Client *client,
                                                          enum Iso14229DiagnosticSessionType mode) {
     PRE_REQUEST_CHECK();
     struct Iso14229Request *req = &client->ctx.req;
-    req->as.service->sid = kSID_DIAGNOSTIC_SESSION_CONTROL;
-    req->as.service->type.diagnosticSessionControl.diagSessionType = mode;
-    req->len = sizeof(DiagnosticSessionControlRequest) + 1;
+    req->buf[0] = kSID_DIAGNOSTIC_SESSION_CONTROL;
+    req->buf[1] = mode;
+    req->len = 2;
     return _SendRequest(client);
 }
 
@@ -101,19 +101,19 @@ enum Iso14229ClientRequestError CommunicationControl(Iso14229Client *client,
                                                      enum Iso14229CommunicationType comm) {
     PRE_REQUEST_CHECK();
     struct Iso14229Request *req = &client->ctx.req;
-    req->as.service->sid = kSID_COMMUNICATION_CONTROL;
-    req->as.service->type.communicationControl.controlType = ctrl;
-    req->as.service->type.communicationControl.communicationType = comm;
-    req->len = sizeof(CommunicationControlRequest) + 1;
+    req->buf[0] = kSID_COMMUNICATION_CONTROL;
+    req->buf[1] = ctrl;
+    req->buf[2] = comm;
+    req->len = 3;
     return _SendRequest(client);
 }
 
 enum Iso14229ClientRequestError TesterPresent(Iso14229Client *client) {
     PRE_REQUEST_CHECK();
     struct Iso14229Request *req = &client->ctx.req;
-    req->as.service->sid = kSID_TESTER_PRESENT;
-    req->as.service->type.testerPresent.zeroSubFunction = 0;
-    req->len = sizeof(TesterPresentRequest) + 1;
+    req->buf[0] = kSID_TESTER_PRESENT;
+    req->buf[1] = 0;
+    req->len = 2;
     return _SendRequest(client);
 }
 
@@ -121,17 +121,19 @@ enum Iso14229ClientRequestError ReadDataByIdentifier(Iso14229Client *client,
                                                      const uint16_t *didList,
                                                      const uint16_t numDataIdentifiers) {
     PRE_REQUEST_CHECK();
+    assert(didList);
+    assert(numDataIdentifiers);
     struct Iso14229Request *req = &client->ctx.req;
-    req->as.service->sid = kSID_READ_DATA_BY_IDENTIFIER;
+    req->buf[0] = kSID_READ_DATA_BY_IDENTIFIER;
     for (int i = 0; i < numDataIdentifiers; i++) {
         uint16_t offset = 1 + sizeof(uint16_t) * i;
         if (offset + 2 > req->buffer_size) {
-            assert(0);
             return kRequestNotSentInvalidArgs;
         }
-        *(uint16_t *)(req->as.raw + offset) = Iso14229htons(didList[i]);
+        (req->buf + offset)[0] = (didList[i] & 0xFF00) >> 8;
+        (req->buf + offset)[1] = (didList[i] & 0xFF);
     }
-    req->len = (numDataIdentifiers * sizeof(uint16_t)) + 1;
+    req->len = 1 + (numDataIdentifiers * sizeof(uint16_t));
     return _SendRequest(client);
 }
 
@@ -139,39 +141,64 @@ enum Iso14229ClientRequestError WriteDataByIdentifier(Iso14229Client *client,
                                                       uint16_t dataIdentifier, const uint8_t *data,
                                                       uint16_t size) {
     PRE_REQUEST_CHECK();
+    assert(data);
+    assert(size);
     struct Iso14229Request *req = &client->ctx.req;
-    req->as.service->sid = kSID_WRITE_DATA_BY_IDENTIFIER;
-    if (size >
-        client->cfg->link->send_buf_size - offsetof(WriteDataByIdentifierRequest, dataRecord)) {
+    req->buf[0] = kSID_WRITE_DATA_BY_IDENTIFIER;
+    if (client->cfg->link->send_buf_size <= 3 || size > client->cfg->link->send_buf_size - 3) {
         return kRequestNotSentBufferTooSmall;
     }
-
-    req->as.service->type.writeDataByIdentifier.dataIdentifier = Iso14229htons(dataIdentifier);
-    memmove(req->as.service->type.writeDataByIdentifier.dataRecord, data, size);
-
-    req->len = sizeof(WriteDataByIdentifierRequest) + size + 1;
+    req->buf[1] = (dataIdentifier & 0xFF00) >> 8;
+    req->buf[2] = (dataIdentifier & 0xFF);
+    memmove(&req->buf[3], data, size);
+    req->len = 3 + size;
     return _SendRequest(client);
 }
 
+/**
+ * @brief RoutineControl
+ *
+ * @param client
+ * @param type
+ * @param routineIdentifier
+ * @param data
+ * @param size
+ * @return enum Iso14229ClientRequestError
+ * @addtogroup routineControl_0x31
+ */
 enum Iso14229ClientRequestError RoutineControl(Iso14229Client *client, enum RoutineControlType type,
                                                uint16_t routineIdentifier, uint8_t *data,
                                                uint16_t size) {
     PRE_REQUEST_CHECK();
     struct Iso14229Request *req = &client->ctx.req;
-    req->as.service->sid = kSID_ROUTINE_CONTROL;
-    req->as.service->type.routineControl.routineControlType = type;
-    req->as.service->type.routineControl.routineIdentifier = Iso14229htons(routineIdentifier);
+    req->buf[0] = kSID_ROUTINE_CONTROL;
+    req->buf[1] = type;
+    req->buf[2] = routineIdentifier >> 8;
+    req->buf[3] = routineIdentifier;
     if (size) {
         assert(data);
-        if (size > req->buffer_size - offsetof(RoutineControlRequest, routineControlOptionRecord)) {
+        if (size > req->buffer_size - ISO14229_0X31_REQ_MIN_LEN) {
             return kRequestNotSentBufferTooSmall;
         }
-        memmove(req->as.service->type.routineControl.routineControlOptionRecord, data, size);
+        memmove(&req->buf[ISO14229_0X31_REQ_MIN_LEN], data, size);
+    } else {
+        assert(NULL == data);
     }
-    req->len = offsetof(RoutineControlRequest, routineControlOptionRecord) + size + 1;
+    req->len = ISO14229_0X31_REQ_MIN_LEN + size;
     return _SendRequest(client);
 }
 
+/**
+ * @brief
+ *
+ * @param client
+ * @param dataFormatIdentifier
+ * @param addressAndLengthFormatIdentifier
+ * @param memoryAddress
+ * @param memorySize
+ * @return enum Iso14229ClientRequestError
+ * @addtogroup requestDownload_0x34
+ */
 enum Iso14229ClientRequestError RequestDownload(Iso14229Client *client,
                                                 uint8_t dataFormatIdentifier,
                                                 uint8_t addressAndLengthFormatIdentifier,
@@ -181,64 +208,75 @@ enum Iso14229ClientRequestError RequestDownload(Iso14229Client *client,
     uint8_t numMemorySizeBytes = (addressAndLengthFormatIdentifier & 0xF0) >> 4;
     uint8_t numMemoryAddressBytes = addressAndLengthFormatIdentifier & 0x0F;
 
-    req->as.service->sid = kSID_REQUEST_DOWNLOAD;
-    req->as.service->type.requestDownload.dataFormatIdentifier = dataFormatIdentifier;
-    req->as.service->type.requestDownload.addressAndLengthFormatIdentifier =
-        addressAndLengthFormatIdentifier;
+    req->buf[0] = kSID_REQUEST_DOWNLOAD;
+    req->buf[1] = dataFormatIdentifier;
+    req->buf[2] = addressAndLengthFormatIdentifier;
 
-    uint8_t *ptr =
-        ((uint8_t *)&req->as.service->type.requestDownload.addressAndLengthFormatIdentifier) + 1;
-    uint8_t *var_len_start = ptr;
+    uint8_t *ptr = &req->buf[ISO14229_0X34_REQ_BASE_LEN];
 
-    while (numMemoryAddressBytes--) {
-        *ptr =
-            (memoryAddress & (0xFF << (8 * numMemoryAddressBytes))) >> (8 * numMemoryAddressBytes);
+    for (int i = numMemoryAddressBytes - 1; i >= 0; i--) {
+        *ptr = (memoryAddress & (0xFF << (8 * i))) >> (8 * i);
         ptr++;
     }
 
-    while (numMemorySizeBytes--) {
-        *ptr = (memorySize & (0xFF << (8 * numMemorySizeBytes))) >> (8 * numMemorySizeBytes);
+    for (int i = numMemorySizeBytes - 1; i >= 0; i--) {
+        *ptr = (memorySize & (0xFF << (8 * i))) >> (8 * i);
         ptr++;
     }
 
-    req->len = ptr - var_len_start + offsetof(RequestDownloadRequest, memoryAddress) + 1;
+    req->len = ISO14229_0X34_REQ_BASE_LEN + numMemoryAddressBytes + numMemorySizeBytes;
     return _SendRequest(client);
 }
 
-enum Iso14229ClientRequestError RequestDownload_32_32(Iso14229Client *client,
-                                                      uint32_t memoryAddress, uint32_t memorySize) {
-    PRE_REQUEST_CHECK();
-    struct Iso14229Request *req = &client->ctx.req;
-    req->as.service->sid = kSID_REQUEST_DOWNLOAD;
-    req->as.service->type.requestDownload.dataFormatIdentifier = 0;
-    req->as.service->type.requestDownload.addressAndLengthFormatIdentifier = 0x44;
-    req->as.service->type.requestDownload.memoryAddress = Iso14229htonl(memoryAddress);
-    req->as.service->type.requestDownload.memorySize = Iso14229htonl(memorySize);
-    req->len = sizeof(RequestDownloadRequest) + 1;
-    return _SendRequest(client);
-}
-
+/**
+ * @brief
+ *
+ * @param client
+ * @param blockSequenceCounter
+ * @param blockLength
+ * @param fd
+ * @return enum Iso14229ClientRequestError
+ * @addtogroup transferData_0x36
+ */
 enum Iso14229ClientRequestError TransferData(Iso14229Client *client, uint8_t blockSequenceCounter,
                                              const uint16_t blockLength, FILE *fd) {
     PRE_REQUEST_CHECK();
     assert(blockLength > 2); // blockLength must include SID and sequenceCounter
     struct Iso14229Request *req = &client->ctx.req;
-    req->as.service->sid = kSID_TRANSFER_DATA;
-    req->as.service->type.transferData.blockSequenceCounter = blockSequenceCounter;
-    uint16_t size = fread(req->as.service->type.transferData.data, 1, blockLength - 2, fd);
+    req->buf[0] = kSID_TRANSFER_DATA;
+    req->buf[1] = blockSequenceCounter;
+
+    uint16_t size = fread(&req->buf[2], 1, blockLength - 2, fd);
     ISO14229USERDEBUG("size: %d, blocklength: %d\n", size, blockLength);
-    req->len = sizeof(TransferDataRequest) + size + 1;
+    req->len = ISO14229_0X36_REQ_BASE_LEN + size;
     return _SendRequest(client);
 }
 
+/**
+ * @brief
+ *
+ * @param client
+ * @return enum Iso14229ClientRequestError
+ * @addtogroup requestTransferExit_0x37
+ */
 enum Iso14229ClientRequestError RequestTransferExit(Iso14229Client *client) {
     PRE_REQUEST_CHECK();
     struct Iso14229Request *req = &client->ctx.req;
-    req->as.service->sid = kSID_REQUEST_TRANSFER_EXIT;
+    req->buf[0] = kSID_REQUEST_TRANSFER_EXIT;
     req->len = 1;
     return _SendRequest(client);
 }
 
+/**
+ * @brief
+ *
+ * @param client
+ * @param dtcSettingType
+ * @param data
+ * @param size
+ * @return enum Iso14229ClientRequestError
+ * @addtogroup controlDTCSetting_0x85
+ */
 enum Iso14229ClientRequestError ControlDTCSetting(Iso14229Client *client, uint8_t dtcSettingType,
                                                   uint8_t *data, uint16_t size) {
     PRE_REQUEST_CHECK();
@@ -247,24 +285,32 @@ enum Iso14229ClientRequestError ControlDTCSetting(Iso14229Client *client, uint8_
         (0x03 <= dtcSettingType && dtcSettingType <= 0x3F)) {
         assert(0); // reserved vals
     }
+    req->buf[0] = kSID_CONTROL_DTC_SETTING;
+    req->buf[1] = dtcSettingType;
 
     if (NULL == data) {
         assert(size == 0);
     } else {
         assert(size > 0);
-        if (size >
-            client->cfg->link->send_buf_size - offsetof(ControlDtcSettingRequest, dtcSettingType)) {
+        if (size > req->buffer_size - 2) {
             return kRequestNotSentBufferTooSmall;
         }
-        memmove(req->as.service->type.controlDtcSetting.dtcSettingControlOptionRecord, data, size);
+        memmove(&req->buf[2], data, size);
     }
-
-    req->as.base->sid = kSID_CONTROL_DTC_SETTING;
-    req->as.service->type.controlDtcSetting.dtcSettingType = dtcSettingType;
-    req->len = sizeof(ControlDtcSettingRequest) + size + 1;
+    req->len = 2 + size;
     return _SendRequest(client);
 }
 
+/**
+ * @brief
+ *
+ * @param client
+ * @param level
+ * @param data
+ * @param size
+ * @return enum Iso14229ClientRequestError
+ * @addtogroup securityAccess_0x27
+ */
 enum Iso14229ClientRequestError SecurityAccess(Iso14229Client *client, uint8_t level, uint8_t *data,
                                                uint16_t size) {
     PRE_REQUEST_CHECK();
@@ -272,16 +318,106 @@ enum Iso14229ClientRequestError SecurityAccess(Iso14229Client *client, uint8_t l
     if (Iso14229SecurityAccessLevelIsReserved(level)) {
         return kRequestNotSentInvalidArgs;
     }
-    req->as.base->sid = kSID_SECURITY_ACCESS;
-    req->as.base->subFunction = level;
-    if (size > client->cfg->link->send_buf_size + offsetof(struct Iso14229GenericRequest, data)) {
-        return kRequestNotSentBufferTooSmall;
+    req->buf[0] = kSID_SECURITY_ACCESS;
+    req->buf[1] = level;
+    if (size) {
+        assert(data);
+        if (size > req->buffer_size - ISO14229_0X27_REQ_BASE_LEN) {
+            return kRequestNotSentBufferTooSmall;
+        }
+    } else {
+        assert(NULL == data);
     }
-    memmove(req->as.base->data, data, size);
-    req->len = sizeof(SecurityAccessRequest) + size + 1;
+
+    memmove(&req->buf[ISO14229_0X27_REQ_BASE_LEN], data, size);
+    req->len = ISO14229_0X27_REQ_BASE_LEN + size;
     return _SendRequest(client);
 }
 
+/**
+ * @brief
+ *
+ * @param client
+ * @param resp
+ * @return enum Iso14229ClientRequestError
+ * @addtogroup securityAccess_0x27
+ */
+enum Iso14229ClientRequestError UnpackSecurityAccessResponse(Iso14229Client *client,
+                                                             struct SecurityAccessResponse *resp) {
+    assert(client);
+    assert(resp);
+    if (ISO14229_RESPONSE_SID_OF(kSID_SECURITY_ACCESS) != client->ctx.resp.buf[0]) {
+        return kRequestErrorResponseSIDMismatch;
+    }
+    if (client->ctx.resp.len < ISO14229_0X27_RESP_BASE_LEN) {
+        return kRequestErrorResponseTooShort;
+    }
+    resp->securityAccessType = client->ctx.resp.buf[1];
+    resp->securitySeedLength = client->ctx.resp.len - ISO14229_0X27_RESP_BASE_LEN;
+    resp->securitySeed = resp->securitySeedLength == 0 ? NULL : &client->ctx.resp.buf[2];
+    return kRequestNoError;
+}
+
+/**
+ * @brief
+ *
+ * @param client
+ * @param resp
+ * @return enum Iso14229ClientRequestError
+ * @addtogroup routineControl_0x31
+ */
+enum Iso14229ClientRequestError UnpackRoutineControlResponse(Iso14229Client *client,
+                                                             struct RoutineControlResponse *resp) {
+    assert(client);
+    assert(resp);
+    if (ISO14229_RESPONSE_SID_OF(kSID_ROUTINE_CONTROL) != client->ctx.resp.buf[0]) {
+        return kRequestErrorResponseSIDMismatch;
+    }
+    if (client->ctx.resp.len < ISO14229_0X31_RESP_MIN_LEN) {
+        return kRequestErrorResponseTooShort;
+    }
+    resp->routineControlType = client->ctx.resp.buf[1];
+    resp->routineIdentifier = (client->ctx.resp.buf[2] << 8) + client->ctx.resp.buf[3];
+    resp->routineStatusRecordLength = client->ctx.resp.len - ISO14229_0X31_RESP_MIN_LEN;
+    resp->routineStatusRecord = resp->routineStatusRecordLength == 0
+                                    ? NULL
+                                    : &client->ctx.resp.buf[ISO14229_0X31_RESP_MIN_LEN];
+    return kRequestNoError;
+}
+
+/**
+ * @brief
+ *
+ * @param client
+ * @param resp
+ * @return enum Iso14229ClientRequestError
+ * @addtogroup requestDownload_0x34
+ */
+enum Iso14229ClientRequestError
+UnpackRequestDownloadResponse(const struct Iso14229Response *resp,
+                              struct RequestDownloadResponse *unpacked) {
+    assert(resp);
+    assert(unpacked);
+    if (ISO14229_RESPONSE_SID_OF(kSID_REQUEST_DOWNLOAD) != resp->buf[0]) {
+        return kRequestErrorResponseSIDMismatch;
+    }
+    if (resp->len < ISO14229_0X34_RESP_BASE_LEN) {
+        return kRequestErrorResponseTooShort;
+    }
+    uint8_t maxNumberOfBlockLengthSize = (resp->buf[1] & 0xF0) >> 4;
+
+    if (sizeof(unpacked->maxNumberOfBlockLength) < maxNumberOfBlockLengthSize) {
+        ISO14229USERDEBUG("WARNING: sizeof(maxNumberOfBlockLength) > sizeof(size_t)");
+        return kRequestErrorCannotUnpackResponse;
+    }
+    unpacked->maxNumberOfBlockLength = 0;
+    for (int byteIdx = 0; byteIdx < maxNumberOfBlockLengthSize; byteIdx++) {
+        uint8_t byte = resp->buf[ISO14229_0X34_RESP_BASE_LEN + byteIdx];
+        uint8_t shiftBytes = maxNumberOfBlockLengthSize - 1 - byteIdx;
+        unpacked->maxNumberOfBlockLength |= byte << (8 * shiftBytes);
+    }
+    return kRequestNoError;
+}
 /**
  * @brief Check that the response is standard
  *
@@ -289,22 +425,24 @@ enum Iso14229ClientRequestError SecurityAccess(Iso14229Client *client, uint8_t l
  * @return enum Iso14229ClientRequestError
  */
 enum Iso14229ClientRequestError _ClientValidateResponse(const Iso14229ClientRequestContext *ctx) {
-    uint8_t responseSid;
 
-    if (responseIsNegative(&ctx->resp)) {
-        responseSid = ctx->resp.as.negative->requestSid;
-    } else {
-        responseSid = ctx->resp.as.positive->serviceId;
-        if (ctx->req.as.service->sid != ISO14229_REQUEST_SID_OF(responseSid)) {
+    if (0x7F == ctx->resp.buf[0]) {
+        if (ctx->req.buf[0] != ctx->resp.buf[1]) {
+            ISO14229USERDEBUG("req->buf[0]: %x, ctx->resp.buf[1]: %x", ctx->req.buf[0],
+                              ctx->resp.buf[1]);
             return kRequestErrorResponseSIDMismatch;
         }
-    }
-
-    if (responseIsNegative(&ctx->resp)) {
-        if (kRequestCorrectlyReceived_ResponsePending == ctx->resp.as.negative->responseCode) {
+        if (kRequestCorrectlyReceived_ResponsePending == ctx->resp.buf[2]) {
             return kRequestNoError;
+        } else {
+            return kRequestErrorNegativeResponse;
         }
-        return kRequestErrorNegativeResponse;
+    } else {
+        if (ISO14229_RESPONSE_SID_OF(ctx->req.buf[0]) != ctx->resp.buf[0]) {
+            ISO14229USERDEBUG("req->buf[0] %x, ctx->resp.buf[0]: %x", ctx->req.buf[0],
+                              ctx->resp.buf[0]);
+            return kRequestErrorResponseSIDMismatch;
+        }
     }
 
     return kRequestNoError;
@@ -320,26 +458,34 @@ enum Iso14229ClientRequestError _ClientValidateResponse(const Iso14229ClientRequ
 static inline void _ClientHandleResponse(Iso14229Client *client) {
     const Iso14229ClientRequestContext *ctx = &client->ctx;
 
-    if (responseIsNegative(&ctx->resp)) {
-        if (kRequestCorrectlyReceived_ResponsePending == ctx->resp.as.negative->responseCode) {
-            printf("got RCRRP, setting p2 timer\n");
+    if (0x7F == ctx->resp.buf[0]) {
+        if (kRequestCorrectlyReceived_ResponsePending == ctx->resp.buf[2]) {
+            ISO14229USERDEBUG("got RCRRP, setting p2 timer\n");
             client->p2_timer = client->cfg->userGetms() + client->ctx.settings.p2_star_ms;
             client->ctx.state = kRequestStateSentAwaitResponse;
         }
     } else {
-        switch (ISO14229_REQUEST_SID_OF(ctx->resp.as.positive->serviceId)) {
+        uint8_t respSid = ctx->resp.buf[0];
+        switch (ISO14229_REQUEST_SID_OF(respSid)) {
         case kSID_DIAGNOSTIC_SESSION_CONTROL: {
-            const DiagnosticSessionControlResponse *resp =
-                &ctx->resp.as.positive->type.diagnosticSessionControl;
-            if (Iso14229ntohs(resp->P2) >= client->settings.p2_ms) {
+            if (ctx->resp.len < ISO14229_0X10_RESP_LEN) {
+                ISO14229USERDEBUG("Error: SID %x response too short\n",
+                                  kSID_DIAGNOSTIC_SESSION_CONTROL);
+                return;
+            }
+
+            uint16_t p2 = (ctx->resp.buf[2] << 8) + ctx->resp.buf[3];
+            uint16_t p2_star = (ctx->resp.buf[4] << 8) + ctx->resp.buf[5];
+
+            if (p2 >= client->settings.p2_ms) {
                 ISO14229USERDEBUG("warning: server P2 timing greater than or equal to client P2 "
                                   "timing (%u >= %u). This may result in timeouts.\n",
-                                  Iso14229ntohs(resp->P2), client->settings.p2_ms);
+                                  p2, client->settings.p2_ms);
             }
-            if (Iso14229ntohs(resp->P2star) * 10 >= client->settings.p2_star_ms) {
+            if (p2_star * 10 >= client->settings.p2_star_ms) {
                 ISO14229USERDEBUG("warning: server P2* timing greater than or equal to client P2* "
                                   "timing (%u >= %u). This may result in timeouts.\n",
-                                  Iso14229ntohs(resp->P2star) * 10, client->settings.p2_star_ms);
+                                  p2_star * 10, client->settings.p2_star_ms);
             }
             break;
         }
@@ -360,7 +506,6 @@ static struct SMResult _ClientGetNextRequestState(const Iso14229Client *client) 
     switch (client->ctx.state) {
     case kRequestStateIdle: {
         if (ISOTP_RECEIVE_STATUS_FULL == client->cfg->link->receive_status) {
-            ISO14229USERDEBUG("Response unexpected");
             result.err = kRequestErrorUnsolicitedResponse;
         }
         break;

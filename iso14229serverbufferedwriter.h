@@ -16,12 +16,6 @@
 #include <assert.h>
 #include "iso14229.h"
 
-#ifndef BUFFERED_WRITER_ASSERT
-#define BUFFERED_WRITER_ASSERT(cond)                                                               \
-    if (0 == (cond))                                                                               \
-    return -1
-#endif
-
 typedef struct {
     /**
      * @brief writes to the program flash logical partition
@@ -45,13 +39,13 @@ typedef struct {
     bool writePending;
 } BufferedWriter;
 
-static inline int bufferedWriterInit(BufferedWriter *self, const BufferedWriterConfig *cfg) {
-    BUFFERED_WRITER_ASSERT(cfg->writeFunc);
-    BUFFERED_WRITER_ASSERT(cfg->logicalPartitionStartAddr);
-    BUFFERED_WRITER_ASSERT(cfg->pageBuffer);
-    BUFFERED_WRITER_ASSERT(cfg->pageBufferSize > 0);
-    BUFFERED_WRITER_ASSERT(cfg->logicalPartitionSize >= cfg->pageBufferSize);
-    BUFFERED_WRITER_ASSERT(cfg->logicalPartitionSize % cfg->pageBufferSize == 0);
+static inline void bufferedWriterInit(BufferedWriter *self, const BufferedWriterConfig *cfg) {
+    assert(cfg->writeFunc);
+    assert(cfg->logicalPartitionStartAddr);
+    assert(cfg->pageBuffer);
+    assert(cfg->pageBufferSize > 0);
+    assert(cfg->logicalPartitionSize >= cfg->pageBufferSize);
+    assert(cfg->logicalPartitionSize % cfg->pageBufferSize == 0);
 
     self->writePending = false;
     self->cfg = cfg;
@@ -59,7 +53,6 @@ static inline int bufferedWriterInit(BufferedWriter *self, const BufferedWriterC
     self->pageBufIdx = 0;
     self->flashOffset = 0;
     memset((void *)cfg->pageBuffer, 0, cfg->pageBufferSize);
-    return 0;
 }
 
 static inline void _BufferedWriterCopy(BufferedWriter *self, const uint8_t *ibuf, uint32_t size) {
@@ -95,7 +88,6 @@ static inline void _BufferedWriterWrite(BufferedWriter *self) {
  * @return false 不在等、可以返回0x01。
  */
 static inline bool BufferedWriterProcess(BufferedWriter *self, const uint8_t *ibuf, uint32_t size) {
-    const BufferedWriterConfig *cfg = self->cfg;
 
     if (self->writePending) { // 要写入
         _BufferedWriterWrite(self);

@@ -5,64 +5,14 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <assert.h>
 #include "iso14229.h"
 #include "isotp-c/isotp.h"
-
-#define PRINTHEX(addr, len)                                                                        \
-    {                                                                                              \
-        for (int i = 0; i < len; i++) {                                                            \
-            printf("%02x,", addr[i]);                                                              \
-        }                                                                                          \
-        printf("\n");                                                                              \
-    }
-
-struct Iso14229Client;
-
-typedef struct {
-} Iso14229RequestEcuResetArgs;
-
-enum ClientTaskRoutineStatus {
-    kRoutineStatusSuccess = 0,
-    kRoutineStatusInProgress,
-    kRoutineStatusError,
-};
-
-/**
- * @brief \~chinese 用户提供的回调函数(使用在工作流当中) \~english User-provided callback function
- * for use in the workflow
- *
- */
-typedef enum ClientTaskRoutineStatus(ClientTaskRoutineType)(const struct Iso14229Client *client,
-                                                            void *args);
-
-typedef struct {
-    enum ClientTaskType {
-        kTaskTypeDelay,
-        kTaskTypeServiceCall,
-        kTaskTypeRoutine,
-    } taskType;
-    union {
-        struct ClientTaskServiceCall {
-            enum Iso14229DiagnosticServiceId sid;
-        } serviceCall;
-        struct ClientTaskDelay {
-            uint32_t ms;
-        } delay;
-        struct ClientTaskRoutine {
-            ClientTaskRoutineType *func;
-            void *args;
-        } routine;
-    } type;
-} Iso14229ClientTask;
-
-typedef int (*Iso14229UserCANRxPollType)(uint32_t *arb_id, uint8_t *data, uint8_t *size);
 
 typedef struct {
     uint16_t send_id;
     uint16_t recv_id;
     IsoTpLink *link;
-    Iso14229ClientTask *tasks;
-    uint16_t numtasks;
     uint32_t (*userGetms)();
 } Iso14229ClientConfig;
 
@@ -84,33 +34,13 @@ enum Iso14229ClientRequestError {
     kRequestErrorUnsolicitedResponse,    // 突然响应
     kRequestErrorResponseSIDMismatch,    // 请求和响应SID不一致
     kRequestErrorNegativeResponse,       // 否定响应
+    kRequestErrorResponseTooShort,       // 响应太小
+    kRequestErrorCannotUnpackResponse,   // 响应不能解析
     kRequestErrorResponseTransportError, // 传输层故障、响应没有接受
 };
 
 struct Iso14229Request {
-    union {
-        uint8_t *raw;
-        struct {
-            uint8_t sid;
-            union {
-                ECUResetRequest ecuReset;
-                CommunicationControlRequest communicationControl;
-                DiagnosticSessionControlRequest diagnosticSessionControl;
-                ReadDataByIdentifierRequest readDataByIdentifier;
-                WriteDataByIdentifierRequest writeDataByIdentifier;
-                RoutineControlRequest routineControl;
-                RequestDownloadRequest requestDownload;
-                TransferDataRequest transferData;
-                TesterPresentRequest testerPresent;
-                ControlDtcSettingRequest controlDtcSetting;
-            } __attribute__((packed)) type;
-        } * service;
-        struct Iso14229GenericRequest {
-            uint8_t sid;
-            uint8_t subFunction;
-            uint8_t data[];
-        } * base;
-    } as; // points to the ISO-TP send buffer
+    uint8_t *buf;
     uint16_t len;
     uint16_t buffer_size;
 };
@@ -126,6 +56,9 @@ struct Iso14229ClientSettings {
     uint16_t p2_star_ms;
 };
 
+/**
+ * @brief \~chinese 客户端请求上下文 \~english User-provided callback function
+ */
 typedef struct {
     struct Iso14229Request req;
     struct Iso14229Response resp;
@@ -151,6 +84,23 @@ typedef struct Iso14229Client {
             },                                                                                     \
         .p2_ms = 50,                                                                               \
     }
+
+struct SecurityAccessResponse {
+    uint8_t securityAccessType;
+    const uint8_t *securitySeed;
+    uint16_t securitySeedLength;
+};
+
+struct RequestDownloadResponse {
+    size_t maxNumberOfBlockLength;
+};
+
+struct RoutineControlResponse {
+    uint8_t routineControlType;
+    uint16_t routineIdentifier;
+    const uint8_t *routineStatusRecord;
+    uint16_t routineStatusRecordLength;
+};
 
 /**
  * @brief Initialize the Iso14229Client
@@ -194,57 +144,54 @@ enum Iso14229ClientRequestError ControlDTCSetting(Iso14229Client *client, uint8_
                                                   uint8_t *dtcSettingControlOptionRecord,
                                                   uint16_t len);
 
+enum Iso14229ClientRequestError UnpackSecurityAccessResponse(Iso14229Client *client,
+                                                             struct SecurityAccessResponse *resp);
+enum Iso14229ClientRequestError UnpackRoutineControlResponse(Iso14229Client *client,
+                                                             struct RoutineControlResponse *resp);
+enum Iso14229ClientRequestError
+UnpackRequestDownloadResponse(const struct Iso14229Response *resp,
+                              struct RequestDownloadResponse *unpacked);
+
+#define READ_DID_NO_ERR 0
+#define READ_DID_ERR_RESPONSE_TOO_SHORT -1
+#define READ_DID_ERR_DID_MISMATCH -2
+
 /**
  * @brief Helper function for reading RDBI responses
  *
- * @param did
- * @param data
- * @param size read this many bytes of data
- * @param offset pointer to variable initialized to zero at the first call
- * @return int
+ * @param resp
+ * @param did expected DID
+ * @param data pointer to receive buffer
+ * @param size number of bytes to read
+ * @param offset incremented with each call
+ * @return int 0 on success
  */
-static inline int Iso14229ClientRDBIReadU8(const struct Iso14229Response *resp, uint16_t did,
-                                           uint8_t *data, uint16_t *offset) {
-    // resp->len包含 SID. resp->len减1是服务数据
-    // *offset最开始
-    if (*offset + sizeof(uint16_t) + sizeof(uint8_t) > resp->len - 1) {
-        return -1;
+static inline int RDBIReadDID(const struct Iso14229Response *resp, uint16_t did, uint8_t *data,
+                              uint16_t size, uint16_t *offset) {
+    assert(resp);
+    assert(data);
+    assert(offset);
+    if (0 == *offset) {
+        *offset = ISO14229_0X22_RESP_BASE_LEN;
     }
-    if (did != Iso14229ntohs(*(uint16_t *)(resp->as.raw + 1 + *offset))) {
-        return -2;
-    }
-    *offset += sizeof(uint16_t);
-    *data = *(resp->as.raw + 1 + *offset);
-    *offset += sizeof(uint8_t);
-    return sizeof(uint8_t);
-}
 
-static inline int Iso14229ClientRDBIReadU16(const struct Iso14229Response *resp, uint16_t did,
-                                            uint16_t *data, uint16_t *offset) {
-    if (*offset + sizeof(uint16_t) + sizeof(uint16_t) > resp->len - 1) {
-        return -1;
+    if (*offset + sizeof(did) > resp->len) {
+        return READ_DID_ERR_RESPONSE_TOO_SHORT;
     }
-    if (did != Iso14229ntohs(*(uint16_t *)(resp->as.raw + 1 + *offset))) {
-        return -2;
-    }
-    *offset += sizeof(uint16_t);
-    *data = Iso14229ntohs(*(uint16_t *)(resp->as.raw + 1 + *offset));
-    *offset += sizeof(uint16_t);
-    return sizeof(uint16_t);
-}
 
-static inline int Iso14229ClientRDBIReadU32(const struct Iso14229Response *resp, uint16_t did,
-                                            uint32_t *data, uint16_t *offset) {
-    if (*offset + sizeof(uint16_t) + sizeof(uint16_t) > resp->len - 1) {
-        return -1;
+    uint16_t theirDID = (resp->buf[*offset] << 8) + resp->buf[*offset + 1];
+    if (theirDID != did) {
+        return READ_DID_ERR_DID_MISMATCH;
     }
-    if (did != Iso14229ntohs(*(uint16_t *)(resp->as.raw + 1 + *offset))) {
-        return -2;
+
+    if (*offset + sizeof(uint16_t) + size > resp->len) {
+        return READ_DID_ERR_RESPONSE_TOO_SHORT;
     }
-    *offset += sizeof(uint16_t);
-    *data = Iso14229ntohl(*(uint32_t *)(resp->as.raw + 1 + *offset));
-    *offset += sizeof(uint32_t);
-    return sizeof(uint32_t);
+
+    memmove(data, &resp->buf[*offset + sizeof(uint16_t)], size);
+
+    *offset += sizeof(uint16_t) + size;
+    return READ_DID_NO_ERR;
 }
 
 /**

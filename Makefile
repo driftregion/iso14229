@@ -1,9 +1,7 @@
 SRCS= \
 isotp-c/isotp.c \
 iso14229server.c \
-iso14229client.c \
-iso14229serverappsoftware.c \
-iso14229serverbootsoftware.c
+iso14229client.c
 
 HDRS= \
 iso14229.h \
@@ -19,7 +17,6 @@ isotp-c
 
 # Tests (Run locally on linux)
 DEFINES=\
-ISO14229USERDEBUG=printf
 
 TEST_CFLAGS += $(foreach i,$(INCLUDES),-I$(i))
 TEST_CFLAGS += $(foreach d,$(DEFINES),-D$(d))
@@ -30,7 +27,7 @@ test_iso14229.c
 TEST_CFLAGS += -g
 
 test_bin: $(TEST_SRCS) $(SRCS) $(HDRS) Makefile
-	$(CC) $(TEST_CFLAGS) $(TEST_SRCS) $(SRCS) -o $@
+	$(CC) -o $@ $(TEST_CFLAGS) $(TEST_SRCS) $(SRCS) 
 
 test: test_bin
 	./test_bin
@@ -45,7 +42,8 @@ clean:
 # Example
 
 EXAMPLE_SRCS=\
-example/server.c
+example/linux_host.c \
+example/simpleserver.c
 
 EXAMPLE_HDRS=
 

@@ -2,35 +2,43 @@
 
 iso14229是个针对嵌入式系统的UDS(ISO14229-1:2013)服务器和客户端执行。
 
-iso14229 is a UDS server and client implementation (ISO14229-1:2013) for embedded systems.
+iso14229 is a UDS server and client implementation (ISO14229-1:2013) targeting embedded systems. It embeds the [`isotp-c`](https://github.com/lishen2/isotp-c) transport layer.
 
-**Stability: Usable**
+**Stability: Unstable**
+
+- callback functions give you complete control
+- statically allocated
+- aims to be toolchain-independent: no toolchain-specific extensions
+    - tested: gcc
+- aims to be architecture-independent
+    - tested: arm, x86-64, ppc
+    - tests run under qemu 
 
 # iso14229 文档 / Documentation
 
-## 服务器：怎么用 / Server: Usage
+## 服务器：例子 / Server: Example (linux)
 
 See [example](/example) for a simple server with socketCAN bindings
 
 ```sh
 # 设置虚拟socketCAN接口
 # setup a virtual socketCAN interface
-sudo ip link add name can9 type vcan
-sudo ip link set can9 up
+sudo ip link add name vcan0 type vcan
+sudo ip link set vcan0 up
 
 # 构建例子服务器
 # build the example server
 make example/linux
 
-# 在can9接口上运行例子服务器
-# run the example server on can9
-./example/linux can9
+# 在vcan0接口上运行例子服务器
+# run the example server on vcan0
+./example/linux vcan0
 ```
 
 ```sh
 # （可选）在另外一个终端，看看虚拟CAN母线上的数据
 # (Optional) In a another shell, monitor the virtual link
-candump can9
+candump vcan0
 ```
 
 ```sh
@@ -40,27 +48,7 @@ pip3 install -r example/requirements.txt
 
 # 然后运行客户端
 # then run the client
-./example/client.py can9
-```
-
-## 服务器：自定服务回调函数 / Server: Custom Service Handlers
-
-| Service | `iso14229` Function |
-| - | - |
-| 0x11 ECUReset | `void userHardReset()` |
-| 0x22 ReadDataByIdentifier | `enum Iso14229ResponseCode userRDBIHandler(uint16_t dataId, const uint8_t *data, uint16_t *len)` |
-| 0x28 CommunicationControl | `enum Iso14229ResponseCode userCommunicationControlHandler(uint8_t controlType, uint8_t communicationType)` |
-| 0x2E WriteDataByIdentifier | `enum Iso14229ResponseCode userWDBIHandler(uint16_t dataId, const uint8_t *data, uint16_t len)` |
-| 0x31 RoutineControl | `int Iso14229ServerRegisterRoutine(Iso14229Server* self, const Iso14229Routine *routine);` |
-| 0x34 RequestDownload, 0x36 TransferData, 0x37 RequestTransferExit | `int iso14229ServerRegisterDownloadHandler(Iso14229Server* self, Iso14229DownloadHandlerConfig *handler);` |
-
-## 服务器：应用/启动软件（中间件） / Server: Application / Boot Software (Middleware)
-
-用户自定的服务器逻辑（比如ISO-14229规范指定的”Application Software"和"Boot Software"）可以用中间件来实现。
-User-defined server behavior such as the "Application Software" and "Boot Software" described in ISO-14229 can be implemented through middleware.
-
-```c
-struct Iso14229UserMiddleware;
+./example/client.py vcan0
 ```
 
 ## 客户端：怎么用 / Client: Basic Usage
@@ -91,11 +79,31 @@ MIT
 - Add server SID 0x27 SecurityAccess
 - API changes
 
+## 0.2.0
+- removed all instances of `__attribute__((packed))`
+- refactored server download functional unit API to simplify testing
+- refactored tests:
+    - ordered by service
+    - documented macros
+- removed middleware because it made no sense after the above refactoring
+- simplified server routine control API
+- removed redundant function iso14229ServerEnableService: Services are enabled by registering user handlers.
+- updated example
+
+
 # iso14229开发文档 / design docs
+
+## Running Tests
+
+```sh
+CC=powerpc-linux-gnu-gcc make test_bin
+qemu-ppc -L /usr/powerpc-linux-gnu test_bin
+```
 
 ```sh
 bazel test --compilation_mode=dbg //...
 ```
+
 
 ## 客户端请求状态机
 
