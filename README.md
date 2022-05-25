@@ -16,9 +16,40 @@ iso14229 is a UDS server and client implementation (ISO14229-1:2013) targeting e
 
 # iso14229 文档 / Documentation
 
+##  支持服务(服务器和客户端) / supported functions (server and client )
+
+| SID | name | supported |
+| - | - | - |
+| 0x10 | diagnostic session control | ✅ |
+| 0x11 | ECU reset | ✅ |
+| 0x14 | clear diagnostic information | ❌ |
+| 0x19 | read DTC information | ❌ |
+| 0x22 | read data by identifier | ✅ |
+| 0x23 | read memory by address | ❌ |
+| 0x24 | read scaling data by identifier | ❌ |
+| 0x27 | security access | ✅ |
+| 0x28 | communication control | ✅ |
+| 0x2A | read periodic data by identifier | ❌ |
+| 0x2C | dynamically define data identifier | ❌ |
+| 0x2E | write data by identifier | ✅ |
+| 0x2F | input control by identifier | ❌ |
+| 0x31 | routine control | ✅ |
+| 0x34 | request download | ✅ |
+| 0x35 | request upload | ❌ |
+| 0x36 | transfer data | ✅ |
+| 0x37 | request transfer exit | ✅ |
+| 0x38 | request file transfer | ❌ |
+| 0x3D | write memory by address | ❌ |
+| 0x3E | tester present | ✅ |
+| 0x83 | access timing parameter | ❌ |
+| 0x84 | secured data transmission | ❌ |
+| 0x85 | control DTC setting | ✅ |
+| 0x86 | response on event | ❌ |
+
+
 ## 服务器：例子 / Server: Example (linux)
 
-See [example](/example) for a simple server with socketCAN bindings
+See [example/server.c](/example/server.c) for a simple server with socketCAN bindings
 
 ```sh
 # 设置虚拟socketCAN接口
