@@ -74,14 +74,14 @@ enum Iso14229ResponseCode iso14229DiagnosticSessionControl(Iso14229Server *self,
         return Iso14229SendNegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
     }
 
-    if (NULL == self->cfg->userDiagnosticSessionControlHandler) {
+    if (NULL == self->userDiagnosticSessionControlHandler) {
         return Iso14229SendNegativeResponse(ctx, kServiceNotSupported);
     }
 
     uint8_t diagSessionType = ctx->req.buf[1] & 0x4F;
 
     enum Iso14229ResponseCode err =
-        self->cfg->userDiagnosticSessionControlHandler(&self->status, diagSessionType);
+        self->userDiagnosticSessionControlHandler(&self->status, diagSessionType);
 
     if (kPositiveResponse != err) {
         return Iso14229SendNegativeResponse(ctx, err);
@@ -93,7 +93,7 @@ enum Iso14229ResponseCode iso14229DiagnosticSessionControl(Iso14229Server *self,
     case kProgrammingSession:
     case kExtendedDiagnostic:
     default:
-        self->s3_session_timeout_timer = self->cfg->userGetms() + self->cfg->s3_ms;
+        self->s3_session_timeout_timer = self->userGetms() + self->s3_ms;
         break;
     }
 
@@ -104,12 +104,12 @@ enum Iso14229ResponseCode iso14229DiagnosticSessionControl(Iso14229Server *self,
 
     // ISO14229-1-2013: Table 29
     // resolution: 1ms
-    ctx->resp.buf[2] = self->cfg->p2_ms >> 8;
-    ctx->resp.buf[3] = self->cfg->p2_ms;
+    ctx->resp.buf[2] = self->p2_ms >> 8;
+    ctx->resp.buf[3] = self->p2_ms;
 
     // resolution: 10ms
-    ctx->resp.buf[4] = (self->cfg->p2_star_ms / 10) >> 8;
-    ctx->resp.buf[5] = self->cfg->p2_star_ms / 10;
+    ctx->resp.buf[4] = (self->p2_star_ms / 10) >> 8;
+    ctx->resp.buf[5] = self->p2_star_ms / 10;
 
     ctx->resp.len = ISO14229_0X10_RESP_LEN;
     return kPositiveResponse;
@@ -131,12 +131,12 @@ enum Iso14229ResponseCode iso14229ECUReset(Iso14229Server *self,
         return Iso14229SendNegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
     }
 
-    if (NULL == self->cfg->userECUResetHandler) {
+    if (NULL == self->userECUResetHandler) {
         return Iso14229SendNegativeResponse(ctx, kGeneralProgrammingFailure);
     }
 
     enum Iso14229ResponseCode err =
-        self->cfg->userECUResetHandler(&self->status, resetType, &powerDownTime);
+        self->userECUResetHandler(&self->status, resetType, &powerDownTime);
     if (kPositiveResponse == err) {
         self->notReadyToReceive = true;
         self->ecuResetScheduled = true;
@@ -172,7 +172,7 @@ enum Iso14229ResponseCode iso14229ReadDataByIdentifier(Iso14229Server *self,
     uint16_t dataId = 0;
     enum Iso14229ResponseCode rdbi_response;
 
-    if (NULL == self->cfg->userRDBIHandler) {
+    if (NULL == self->userRDBIHandler) {
         return Iso14229SendNegativeResponse(ctx, kServiceNotSupported);
     }
 
@@ -190,7 +190,7 @@ enum Iso14229ResponseCode iso14229ReadDataByIdentifier(Iso14229Server *self,
         uint16_t idx = 1 + did * 2;
         dataId = (ctx->req.buf[idx] << 8) + ctx->req.buf[idx + 1];
         rdbi_response =
-            self->cfg->userRDBIHandler(&self->status, dataId, &data_location, &dataRecordSize);
+            self->userRDBIHandler(&self->status, dataId, &data_location, &dataRecordSize);
 
         if (kPositiveResponse == rdbi_response) {
             // TODO: make this safe: ensure that the offset doesn't exceed the
@@ -226,8 +226,8 @@ enum Iso14229ResponseCode iso14229SecurityAccess(Iso14229Server *self,
         return Iso14229SendNegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
     }
 
-    if (NULL == self->cfg->userSecurityAccessGenerateSeed ||
-        NULL == self->cfg->userSecurityAccessValidateKey) {
+    if (NULL == self->userSecurityAccessGenerateSeed ||
+        NULL == self->userSecurityAccessValidateKey) {
         return Iso14229SendNegativeResponse(ctx, kServiceNotSupported);
     }
 
@@ -236,9 +236,9 @@ enum Iso14229ResponseCode iso14229SecurityAccess(Iso14229Server *self,
 
     // Even: sendKey
     if (0 == subFunction % 2) {
-        response = self->cfg->userSecurityAccessValidateKey(
-            &self->status, subFunction, &ctx->req.buf[ISO14229_0X27_REQ_BASE_LEN],
-            ctx->req.len - ISO14229_0X27_REQ_BASE_LEN);
+        response = self->userSecurityAccessValidateKey(&self->status, subFunction,
+                                                       &ctx->req.buf[ISO14229_0X27_REQ_BASE_LEN],
+                                                       ctx->req.len - ISO14229_0X27_REQ_BASE_LEN);
 
         if (kPositiveResponse != response) {
             return Iso14229SendNegativeResponse(ctx, response);
@@ -260,7 +260,7 @@ enum Iso14229ResponseCode iso14229SecurityAccess(Iso14229Server *self,
 
         uint16_t buffer_size_remaining = ctx->resp.buffer_size - ISO14229_0X27_RESP_BASE_LEN;
 
-        response = self->cfg->userSecurityAccessGenerateSeed(
+        response = self->userSecurityAccessGenerateSeed(
             &self->status, subFunction, &ctx->req.buf[ISO14229_0X27_REQ_BASE_LEN],
             ctx->req.len - ISO14229_0X27_REQ_BASE_LEN, &ctx->resp.buf[ISO14229_0X27_RESP_BASE_LEN],
             buffer_size_remaining, &seedLength);
@@ -295,12 +295,12 @@ enum Iso14229ResponseCode iso14229CommunicationControl(Iso14229Server *self,
         return Iso14229SendNegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
     }
 
-    if (NULL == self->cfg->userCommunicationControlHandler) {
+    if (NULL == self->userCommunicationControlHandler) {
         return Iso14229SendNegativeResponse(ctx, kServiceNotSupported);
     }
 
     enum Iso14229ResponseCode err =
-        self->cfg->userCommunicationControlHandler(&self->status, controlType, communicationType);
+        self->userCommunicationControlHandler(&self->status, controlType, communicationType);
     if (kPositiveResponse != err) {
         return Iso14229SendNegativeResponse(ctx, err);
     }
@@ -332,9 +332,9 @@ enum Iso14229ResponseCode iso14229WriteDataByIdentifier(Iso14229Server *self,
     dataId = (ctx->req.buf[1] << 8) + ctx->req.buf[2];
     dataLen = ctx->req.len - ISO14229_0X2E_REQ_BASE_LEN;
 
-    if (NULL != self->cfg->userWDBIHandler) {
-        wdbi_response = self->cfg->userWDBIHandler(
-            &self->status, dataId, &ctx->req.buf[ISO14229_0X2E_REQ_BASE_LEN], dataLen);
+    if (NULL != self->userWDBIHandler) {
+        wdbi_response = self->userWDBIHandler(&self->status, dataId,
+                                              &ctx->req.buf[ISO14229_0X2E_REQ_BASE_LEN], dataLen);
         if (kPositiveResponse != wdbi_response) {
             return Iso14229SendNegativeResponse(ctx, wdbi_response);
         }
@@ -363,7 +363,7 @@ enum Iso14229ResponseCode iso14229RoutineControl(Iso14229Server *self,
     if (ctx->req.len < ISO14229_0X31_REQ_MIN_LEN) {
         return Iso14229SendNegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
     }
-    if (NULL == self->cfg->userRoutineControlHandler) {
+    if (NULL == self->userRoutineControlHandler) {
         return Iso14229SendNegativeResponse(ctx, kServiceNotSupported);
     }
     uint8_t routineControlType = ctx->req.buf[1];
@@ -385,8 +385,8 @@ enum Iso14229ResponseCode iso14229RoutineControl(Iso14229Server *self,
     case kStartRoutine:
     case kStopRoutine:
     case kRequestRoutineResults:
-        err = self->cfg->userRoutineControlHandler(&self->status, routineControlType,
-                                                   routineIdentifier, &args);
+        err = self->userRoutineControlHandler(&self->status, routineControlType, routineIdentifier,
+                                              &args);
         if (kPositiveResponse != err) {
             return Iso14229SendNegativeResponse(ctx, err);
         }
@@ -421,7 +421,7 @@ enum Iso14229ResponseCode iso14229RequestDownload(Iso14229Server *self,
     size_t memoryAddress = 0;
     size_t memorySize = 0;
 
-    if (NULL == self->cfg->userRequestDownloadHandler) {
+    if (NULL == self->userRequestDownloadHandler) {
         return Iso14229SendNegativeResponse(ctx, kServiceNotSupported);
     }
 
@@ -461,11 +461,11 @@ enum Iso14229ResponseCode iso14229RequestDownload(Iso14229Server *self,
         memorySize |= byte << (8 * shiftBytes);
     }
 
-    assert(self->cfg->userRequestDownloadHandler);
+    assert(self->userRequestDownloadHandler);
     assert(NULL == self->downloadHandler);
-    err = self->cfg->userRequestDownloadHandler(&self->status, (void *)memoryAddress, memorySize,
-                                                dataFormatIdentifier, &self->downloadHandler,
-                                                &maxNumberOfBlockLength);
+    err = self->userRequestDownloadHandler(&self->status, (void *)memoryAddress, memorySize,
+                                           dataFormatIdentifier, &self->downloadHandler,
+                                           &maxNumberOfBlockLength);
 
     if (kPositiveResponse != err) {
         self->downloadHandler = NULL;
@@ -628,7 +628,7 @@ enum Iso14229ResponseCode iso14229TesterPresent(Iso14229Server *self,
     if (ctx->req.len < ISO14229_0X3E_REQ_MIN_LEN) {
         return Iso14229SendNegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
     }
-    self->s3_session_timeout_timer = self->cfg->userGetms() + self->cfg->s3_ms;
+    self->s3_session_timeout_timer = self->userGetms() + self->s3_ms;
     uint8_t zeroSubFunction = ctx->req.buf[1];
     ctx->resp.buf[0] = ISO14229_RESPONSE_SID_OF(kSID_TESTER_PRESENT);
     ctx->resp.buf[1] = zeroSubFunction & 0x3F;
@@ -784,16 +784,16 @@ Iso14229Service Iso14229GetServiceForSID(enum Iso14229DiagnosticServiceId sid) {
  */
 void iso14229ProcessUDSLayer(Iso14229Server *self, IsoTpLink *link,
                              enum Iso14229AddressingScheme addressingScheme) {
-    uint8_t sid = self->cfg->receive_buffer[0];
+    uint8_t sid = link->receive_buffer[0];
     Iso14229Service handler = Iso14229GetServiceForSID(sid);
     Iso14229ServerRequestContext ctx = {
         .req =
             {
-                .buf = self->cfg->receive_buffer,
-                .len = self->receive_size,
+                .buf = link->receive_buffer,
+                .len = link->receive_size,
                 .addressingScheme = addressingScheme,
             },
-        .resp = {.buf = self->cfg->send_buffer, .len = 0, .buffer_size = self->cfg->send_buf_size},
+        .resp = {.buf = link->send_buffer, .len = 0, .buffer_size = link->send_buf_size},
     };
 
     enum Iso14229ResponseCode response = iso14229EvaluateServiceResponse(self, handler, &ctx);
@@ -821,47 +821,112 @@ void iso14229ProcessUDSLayer(Iso14229Server *self, IsoTpLink *link,
  * @param cfg
  * @return int
  */
-void Iso14229ServerInit(Iso14229Server *self, const Iso14229ServerConfig *const cfg) {
+void Iso14229ServerInit(Iso14229Server *self, const Iso14229ServerConfig *cfg) {
     assert(self);
     assert(cfg);
-    assert(cfg->userGetms);
     assert(cfg->phys_link);
     assert(cfg->func_link);
-    assert(cfg->send_buffer);
-    assert(cfg->receive_buffer);
-    assert(cfg->send_buf_size > 2);
-    assert(cfg->receive_buf_size > 2);
+    assert(cfg->phys_link_send_buffer);
+    assert(cfg->phys_link_send_buf_size > 2);
+    assert(cfg->phys_link_receive_buffer);
+    assert(cfg->phys_link_recv_buf_size > 2);
+    assert(cfg->func_link_send_buffer);
+    assert(cfg->func_link_send_buf_size > 2);
+    assert(cfg->func_link_receive_buffer);
+    assert(cfg->func_link_recv_buf_size > 2);
+    assert(cfg->userGetms);
     assert(cfg->userSessionTimeoutCallback);
+    assert(cfg->userCANTransmit);
+    assert(cfg->userCANRxPoll);
+
+    isotp_init_link(cfg->phys_link, cfg->send_id, cfg->phys_link_send_buffer,
+                    cfg->phys_link_send_buf_size, cfg->phys_link_receive_buffer,
+                    cfg->phys_link_recv_buf_size, cfg->userGetms, cfg->userCANTransmit,
+                    cfg->userDebug);
+
+    isotp_init_link(cfg->func_link, cfg->send_id, cfg->func_link_send_buffer,
+                    cfg->func_link_send_buf_size, cfg->func_link_receive_buffer,
+                    cfg->func_link_recv_buf_size, cfg->userGetms, cfg->userCANTransmit,
+                    cfg->userDebug);
 
     memset(self, 0, sizeof(Iso14229Server));
-    self->cfg = cfg;
+
+    self->phys_link = cfg->phys_link;
+    self->func_link = cfg->func_link;
+    self->phys_recv_id = cfg->phys_recv_id;
+    self->func_recv_id = cfg->func_recv_id;
+    self->p2_ms = cfg->p2_ms;
+    self->p2_star_ms = cfg->p2_star_ms;
+    self->s3_ms = cfg->s3_ms;
+    self->userSessionTimeoutCallback = cfg->userSessionTimeoutCallback;
+    self->userGetms = cfg->userGetms;
+    self->userCANTransmit = cfg->userCANTransmit;
+    self->userCANRxPoll = cfg->userCANRxPoll;
+    self->userDebug = cfg->userDebug;
+    self->userDiagnosticSessionControlHandler = cfg->userDiagnosticSessionControlHandler;
+    self->userECUResetHandler = cfg->userECUResetHandler;
+    self->userRDBIHandler = cfg->userRDBIHandler;
+    self->userWDBIHandler = cfg->userWDBIHandler;
+    self->userCommunicationControlHandler = cfg->userCommunicationControlHandler;
+    self->userSecurityAccessGenerateSeed = cfg->userSecurityAccessGenerateSeed;
+    self->userSecurityAccessValidateKey = cfg->userSecurityAccessValidateKey;
+    self->userRoutineControlHandler = cfg->userRoutineControlHandler;
+    self->userRequestDownloadHandler = cfg->userRequestDownloadHandler;
+
     self->status.sessionType = kDefaultSession;
 
     // Initialize p2_timer to an already past time, otherwise the server's
     // response to incoming messages will be delayed.
-    self->p2_timer = self->cfg->userGetms() - self->cfg->p2_ms;
+    self->p2_timer = self->userGetms() - self->p2_ms;
 
     // Set the session timeout for s3 milliseconds from now.
-    self->s3_session_timeout_timer = self->cfg->userGetms() + self->cfg->s3_ms;
+    self->s3_session_timeout_timer = self->userGetms() + self->s3_ms;
 }
 
-static inline void iso14229ProcessLink(Iso14229Server *self, IsoTpLink *link,
-                                       enum Iso14229AddressingScheme addressingScheme) {
+static void _ProcessLinks(Iso14229Server *self) {
+    int recv_status = ISOTP_RET_NO_DATA;
 
     // If the user service handler responded RCRRP and the send link is now idle,
     // the response has been sent and the long-running service can now be called.
-    if (self->status.RCRRP && ISOTP_SEND_STATUS_IDLE == link->send_status) {
-        iso14229ProcessUDSLayer(self, link, addressingScheme);
+    if (self->status.RCRRP && ISOTP_SEND_STATUS_IDLE == self->phys_link->send_status) {
+        iso14229ProcessUDSLayer(self, self->phys_link, kAddressingSchemePhysical);
         self->notReadyToReceive = self->status.RCRRP;
-    } else if (self->notReadyToReceive) {
         return;
-    } else if (Iso14229TimeAfter(self->cfg->userGetms(), self->p2_timer)) {
-        int recv_status = isotp_receive(link, self->cfg->receive_buffer,
-                                        self->cfg->receive_buf_size, &self->receive_size);
+    }
+
+    if (self->notReadyToReceive) {
+        return;
+    }
+
+    // new data may be processed only after p2 has elapsed
+    if (Iso14229TimeAfter(self->userGetms(), self->p2_timer)) {
+
+        // priority goes to the physical link
+        recv_status =
+            isotp_receive(self->phys_link, self->phys_link->receive_buffer,
+                          self->phys_link->receive_buf_size, &self->phys_link->receive_size);
         switch (recv_status) {
         case ISOTP_RET_OK:
-            iso14229ProcessUDSLayer(self, link, addressingScheme);
-            self->p2_timer = self->cfg->userGetms() + self->cfg->p2_ms;
+            iso14229ProcessUDSLayer(self, self->phys_link, kAddressingSchemePhysical);
+            self->p2_timer = self->userGetms() + self->p2_ms;
+            return;
+            break;
+        case ISOTP_RET_NO_DATA:
+            break;
+        default:
+            assert(0);
+            break;
+        }
+
+        recv_status =
+            isotp_receive(self->func_link, self->func_link->receive_buffer,
+                          self->func_link->receive_buf_size, &self->func_link->receive_size);
+
+        switch (recv_status) {
+        case ISOTP_RET_OK:
+            iso14229ProcessUDSLayer(self, self->func_link, kAddressingSchemeFunctional);
+            self->p2_timer = self->userGetms() + self->p2_ms;
+            return;
             break;
         case ISOTP_RET_NO_DATA:
             break;
@@ -873,27 +938,26 @@ static inline void iso14229ProcessLink(Iso14229Server *self, IsoTpLink *link,
 }
 
 void Iso14229ServerPoll(Iso14229Server *self) {
-    isotp_poll(self->cfg->phys_link);
-    isotp_poll(self->cfg->func_link);
+    uint32_t arb_id;
+    uint8_t data[8];
+    uint8_t size;
+
+    if (kCANRxSome == self->userCANRxPoll(&arb_id, data, &size)) {
+        if (arb_id == self->phys_recv_id) {
+            isotp_on_can_message(self->phys_link, (uint8_t *)data, size);
+        } else if (arb_id == self->func_recv_id) {
+            isotp_on_can_message(self->func_link, (uint8_t *)data, size);
+        }
+    }
+
+    isotp_poll(self->phys_link);
+    isotp_poll(self->func_link);
 
     // ISO14229-1-2013 Figure 38: Session Timeout (S3)
     if (kDefaultSession != self->status.sessionType &&
-        Iso14229TimeAfter(self->cfg->userGetms(), self->s3_session_timeout_timer)) {
-        self->cfg->userSessionTimeoutCallback();
+        Iso14229TimeAfter(self->userGetms(), self->s3_session_timeout_timer)) {
+        self->userSessionTimeoutCallback();
     }
 
-    iso14229ProcessLink(self, self->cfg->phys_link, kAddressingSchemePhysical);
-    iso14229ProcessLink(self, self->cfg->func_link, kAddressingSchemeFunctional);
-}
-
-void iso14229ServerReceiveCAN(Iso14229Server *self, const uint32_t arbitration_id,
-                              const uint8_t *data, const uint8_t size) {
-
-    if (arbitration_id == self->cfg->phys_recv_id) {
-        isotp_on_can_message(self->cfg->phys_link, (uint8_t *)data, size);
-    } else if (arbitration_id == self->cfg->func_recv_id) {
-        isotp_on_can_message(self->cfg->func_link, (uint8_t *)data, size);
-    } else {
-        return;
-    }
+    _ProcessLinks(self);
 }

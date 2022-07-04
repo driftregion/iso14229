@@ -51,16 +51,35 @@ cc_test(
     copts = ["-Wall", "-Wextra", "-Werror"],
 )
 
-cc_library(
-    name = "example_host_linux",
+filegroup(
+    name="example_srcs",
     srcs = [
-        "example/linux_host.c",
-        "example/host.h",
-    ],
+        "examples/server.c",
+        "examples/server.h",
+        "examples/client.c",
+        "examples/client.h",
+        "examples/shared.h",
+        "examples/port.h",
+    ]
 )
 
 cc_binary(
-    name = "example_server",
-    srcs = [ "example/server.c" ],
-    deps = [ ":server", ":example_host_linux"],
+    name = "example",
+    srcs = [ 
+        ":example_srcs",
+        "examples/port_socketcan.c",
+        "examples/main.c",
+    ],
+    deps = [ ":server", ":client"],
+)
+
+cc_test(
+    name = "test_example",
+    srcs = [
+        ":example_srcs",
+        "examples/port_socketcan.c",
+        "examples/test_example.c",
+    ],
+    deps = [ ":server", ":client"],
+    copts = ["-Wall", "-Wextra", "-Werror"],
 )

@@ -9,13 +9,6 @@
 #include "iso14229.h"
 #include "isotp-c/isotp.h"
 
-typedef struct {
-    uint16_t send_id;
-    uint16_t recv_id;
-    IsoTpLink *link;
-    uint32_t (*userGetms)();
-} Iso14229ClientConfig;
-
 enum Iso14229ClientRequestState {
     kRequestStateIdle = 0,          // 完成
     kRequestStateSending,           // 传输层现在传输数据
@@ -45,45 +38,80 @@ struct Iso14229Request {
     uint16_t buffer_size;
 };
 
-struct Iso14229ClientSettings {
-    uint8_t suppressPositiveResponse;
-    struct {
-        bool enable;      // send a functional (1:many) request
-        uint16_t send_id; // send the functional request to this CAN ID
-    } functional;
-    uint16_t p2_ms; // Default P2_server_max timing supported by the server for
-                    // the activated diagnostic session.
+struct Iso14229ClientConfig {
+    uint16_t phys_send_id;
+    uint16_t func_send_id;
+    uint16_t recv_id;
+    uint16_t p2_ms;
     uint16_t p2_star_ms;
+    IsoTpLink *link;
+    uint8_t *link_receive_buffer;
+    uint16_t link_recv_buf_size;
+    uint8_t *link_send_buffer;
+    uint16_t link_send_buf_size;
+    uint32_t (*userGetms)();
+    int (*userCANTransmit)(uint32_t arb_id, const uint8_t *data, uint8_t len);
+    enum Iso14229CANRxStatus (*userCANRxPoll)(uint32_t *arb_id, uint8_t *data, uint8_t *size);
+    void (*userSleepms)();
+    void (*userDebug)(const char *, ...);
 };
 
-/**
- * @brief \~chinese 客户端请求上下文 \~english User-provided callback function
- */
-typedef struct {
+typedef struct Iso14229Client {
+    uint16_t phys_send_id; // 物理发送地址
+    uint16_t func_send_id; // 功能发送地址
+    uint16_t recv_id;      // 服务器相应地址
+    uint16_t p2_ms;        // p2 超时时间
+    uint16_t p2_star_ms;   // 0x78 p2* 超时时间
+    IsoTpLink *link;
+    uint32_t (*userGetms)();
+    enum Iso14229CANRxStatus (*userCANRxPoll)(uint32_t *arb_id, uint8_t *data, uint8_t *size);
+    void (*userSleepms)();
+
+    // 内状态
+    uint32_t p2_timer;
     struct Iso14229Request req;
     struct Iso14229Response resp;
     enum Iso14229ClientRequestState state;
     enum Iso14229ClientRequestError err;
-    struct Iso14229ClientSettings settings; // a copy of settings made when a request is sent
-} Iso14229ClientRequestContext;
 
-typedef struct Iso14229Client {
-    const Iso14229ClientConfig *cfg;
-    uint32_t p2_timer;
-    Iso14229ClientRequestContext ctx;
-    struct Iso14229ClientSettings settings;
+    // 客户端配置 / client options
+    struct {
+        // 服务器不应该发送肯定响应
+        uint8_t suppressPositiveResponse : 1;
+        // 发功能请求
+        uint8_t sendFunctional : 1;
+        // 否定响应是否属于故障
+        uint8_t negativeResponseIsError : 1;
+        // 预留
+        uint8_t reserved : 5;
+    };
 } Iso14229Client;
 
-#define DEFAULT_CLIENT_SETTINGS()                                                                  \
-    (struct Iso14229ClientSettings) {                                                              \
-        .suppressPositiveResponse = false,                                                         \
-        .functional =                                                                              \
-            {                                                                                      \
-                .enable = false,                                                                   \
-                .send_id = 0,                                                                      \
-            },                                                                                     \
-        .p2_ms = 50,                                                                               \
-    }
+enum Iso14229ClientCallbackStatus {
+    kISO14229_CLIENT_CALLBACK_ERROR = -1,  // 故障、立刻停止
+    kISO14229_CLIENT_CALLBACK_PENDING = 0, // 未完成、继续调用本函数
+    kISO14229_CLIENT_CALLBACK_DONE = 1,    // 完成成功、可以跳到下一步函数
+};
+
+typedef enum Iso14229ClientCallbackStatus (*Iso14229ClientCallback)(Iso14229Client *client,
+                                                                    void *args);
+
+struct Iso14229ClientStep {
+    Iso14229ClientCallback cb;
+    void *args;
+};
+
+/**
+ * @brief Run a sequence until completion or error
+ * @param client
+ * @param sequence
+ * @param seqLen
+ * @param idx a pointer to an integer to be used as the sequence index
+ * @param args
+ * @return int
+ */
+int iso14229ClientSequenceRunBlocking(Iso14229Client *client, struct Iso14229ClientStep sequence[],
+                                      size_t seqLen, int *idx);
 
 struct SecurityAccessResponse {
     uint8_t securityAccessType;
@@ -108,7 +136,7 @@ struct RoutineControlResponse {
  * @param self
  * @param cfg
  */
-void iso14229ClientInit(Iso14229Client *self, const Iso14229ClientConfig *cfg);
+void iso14229ClientInit(Iso14229Client *self, const struct Iso14229ClientConfig *cfg);
 
 typedef int (*UserSequenceFunction)(Iso14229Client *client, void *userContext);
 
@@ -138,7 +166,11 @@ enum Iso14229ClientRequestError RequestDownload(Iso14229Client *client,
 enum Iso14229ClientRequestError RequestDownload_32_32(Iso14229Client *client,
                                                       uint32_t memoryAddress, uint32_t memorySize);
 enum Iso14229ClientRequestError TransferData(Iso14229Client *client, uint8_t blockSequenceCounter,
-                                             const uint16_t blockLength, FILE *fd);
+                                             const uint16_t blockLength, const uint8_t *data,
+                                             uint16_t size);
+enum Iso14229ClientRequestError TransferDataStream(Iso14229Client *client,
+                                                   uint8_t blockSequenceCounter,
+                                                   const uint16_t blockLength, FILE *fd);
 enum Iso14229ClientRequestError RequestTransferExit(Iso14229Client *client);
 enum Iso14229ClientRequestError ControlDTCSetting(Iso14229Client *client, uint8_t dtcSettingType,
                                                   uint8_t *dtcSettingControlOptionRecord,
@@ -196,22 +228,8 @@ static inline int RDBIReadDID(const struct Iso14229Response *resp, uint16_t did,
 
 /**
  * @brief Poll the client request state machine.
- * @note This is not part of the user API. It is only used internally and for tests.
- *
  * @param self
  */
 void Iso14229ClientPoll(Iso14229Client *self);
-
-/**
- * @brief Pass receieved CAN frames to the Iso14229Client.
- * @note This is not part of the user API. It is only used internally and for tests.
- *
- * @param self: pointer to initialized Iso14229Client
- * @param arbitration_id
- * @param data
- * @param size
- */
-void Iso14229ClientReceiveCAN(Iso14229Client *self, const uint32_t arbitration_id,
-                              const uint8_t *data, const uint8_t size);
 
 #endif

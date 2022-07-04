@@ -12,66 +12,71 @@
 
 static void clearRequestContext(Iso14229Client *client) {
     assert(client);
-    assert(client->cfg);
-    assert(client->cfg->link);
-
-    memset(&client->ctx, 0, sizeof(client->ctx));
-
-    client->ctx =
-        (Iso14229ClientRequestContext){.req =
-                                           {
-                                               .buf = client->cfg->link->send_buffer,
-                                               .buffer_size = client->cfg->link->send_buf_size,
-                                               .len = 0,
-                                           },
-                                       .resp =
-                                           {
-                                               .buf = client->cfg->link->receive_buffer,
-                                               .buffer_size = client->cfg->link->receive_buf_size,
-                                               .len = 0,
-                                           },
-                                       .state = kRequestStateIdle,
-                                       .settings = {.functional = {.enable = false, .send_id = 0},
-                                                    .suppressPositiveResponse = false}};
+    assert(client->link);
+    client->req = (struct Iso14229Request){
+        .buf = client->link->send_buffer,
+        .buffer_size = client->link->send_buf_size,
+        .len = 0,
+    };
+    client->resp = (struct Iso14229Response){
+        .buf = client->link->receive_buffer,
+        .buffer_size = client->link->receive_buf_size,
+        .len = 0,
+    };
+    client->state = kRequestStateIdle;
+    client->err = kRequestNoError;
 }
 
-void iso14229ClientInit(Iso14229Client *client, const Iso14229ClientConfig *cfg) {
+void iso14229ClientInit(Iso14229Client *client, const struct Iso14229ClientConfig *cfg) {
     assert(client);
     assert(cfg);
     assert(cfg->link);
     assert(cfg->userGetms);
+    assert(cfg->userCANTransmit);
+    assert(cfg->userDebug);
 
-    memset(client, 0, sizeof(Iso14229Client));
-    client->cfg = cfg;
+    memset(client, 0, sizeof(*client));
+
+    isotp_init_link(cfg->link, cfg->phys_send_id, cfg->link_send_buffer, cfg->link_send_buf_size,
+                    cfg->link_receive_buffer, cfg->link_recv_buf_size, cfg->userGetms,
+                    cfg->userCANTransmit, cfg->userDebug);
+
+    client->phys_send_id = cfg->phys_send_id;
+    client->func_send_id = cfg->func_send_id;
+    client->recv_id = cfg->recv_id;
+    client->p2_ms = cfg->p2_ms;
+    client->p2_star_ms = cfg->p2_star_ms;
+    client->link = cfg->link;
+    client->userGetms = cfg->userGetms;
+    client->userCANRxPoll = cfg->userCANRxPoll;
+
+    client->negativeResponseIsError = true;
+
     clearRequestContext(client);
-    client->settings = DEFAULT_CLIENT_SETTINGS();
 }
 
-static inline enum Iso14229ClientRequestError _SendRequest(Iso14229Client *client) {
-    client->ctx.settings = client->settings;
-    const Iso14229ClientRequestContext *ctx = &client->ctx;
-
-    if (ctx->settings.suppressPositiveResponse) {
+static enum Iso14229ClientRequestError _SendRequest(Iso14229Client *client) {
+    if (client->suppressPositiveResponse) {
         // ISO14229-1:2013 8.2.2 Table 11
-        ctx->req.buf[1] |= 0x80;
+        client->req.buf[1] |= 0x80;
     }
 
-    if (ctx->settings.functional.enable) {
-        if (ISOTP_RET_OK != isotp_send_with_id(client->cfg->link, ctx->settings.functional.send_id,
-                                               ctx->req.buf, ctx->req.len)) {
+    if (client->sendFunctional) {
+        if (ISOTP_RET_OK != isotp_send_with_id(client->link, client->func_send_id, client->req.buf,
+                                               client->req.len)) {
             return kRequestNotSentTransportError;
         }
     } else {
-        if (ISOTP_RET_OK != isotp_send(client->cfg->link, ctx->req.buf, ctx->req.len)) {
+        if (ISOTP_RET_OK != isotp_send(client->link, client->req.buf, client->req.len)) {
             return kRequestNotSentTransportError;
         }
     }
-    client->ctx.state = kRequestStateSending;
+    client->state = kRequestStateSending;
     return kRequestNoError;
 }
 
 #define PRE_REQUEST_CHECK()                                                                        \
-    if (kRequestStateIdle != client->ctx.state) {                                                  \
+    if (kRequestStateIdle != client->state) {                                                      \
         return kRequestNotSentBusy;                                                                \
     }                                                                                              \
     clearRequestContext(client);
@@ -79,7 +84,7 @@ static inline enum Iso14229ClientRequestError _SendRequest(Iso14229Client *clien
 enum Iso14229ClientRequestError ECUReset(Iso14229Client *client,
                                          enum Iso14229ECUResetResetType type) {
     PRE_REQUEST_CHECK();
-    struct Iso14229Request *req = &client->ctx.req;
+    struct Iso14229Request *req = &client->req;
     req->buf[0] = kSID_ECU_RESET;
     req->buf[1] = type;
     req->len = 2;
@@ -89,7 +94,7 @@ enum Iso14229ClientRequestError ECUReset(Iso14229Client *client,
 enum Iso14229ClientRequestError DiagnosticSessionControl(Iso14229Client *client,
                                                          enum Iso14229DiagnosticSessionType mode) {
     PRE_REQUEST_CHECK();
-    struct Iso14229Request *req = &client->ctx.req;
+    struct Iso14229Request *req = &client->req;
     req->buf[0] = kSID_DIAGNOSTIC_SESSION_CONTROL;
     req->buf[1] = mode;
     req->len = 2;
@@ -100,7 +105,7 @@ enum Iso14229ClientRequestError CommunicationControl(Iso14229Client *client,
                                                      enum Iso14229CommunicationControlType ctrl,
                                                      enum Iso14229CommunicationType comm) {
     PRE_REQUEST_CHECK();
-    struct Iso14229Request *req = &client->ctx.req;
+    struct Iso14229Request *req = &client->req;
     req->buf[0] = kSID_COMMUNICATION_CONTROL;
     req->buf[1] = ctrl;
     req->buf[2] = comm;
@@ -110,7 +115,7 @@ enum Iso14229ClientRequestError CommunicationControl(Iso14229Client *client,
 
 enum Iso14229ClientRequestError TesterPresent(Iso14229Client *client) {
     PRE_REQUEST_CHECK();
-    struct Iso14229Request *req = &client->ctx.req;
+    struct Iso14229Request *req = &client->req;
     req->buf[0] = kSID_TESTER_PRESENT;
     req->buf[1] = 0;
     req->len = 2;
@@ -123,7 +128,7 @@ enum Iso14229ClientRequestError ReadDataByIdentifier(Iso14229Client *client,
     PRE_REQUEST_CHECK();
     assert(didList);
     assert(numDataIdentifiers);
-    struct Iso14229Request *req = &client->ctx.req;
+    struct Iso14229Request *req = &client->req;
     req->buf[0] = kSID_READ_DATA_BY_IDENTIFIER;
     for (int i = 0; i < numDataIdentifiers; i++) {
         uint16_t offset = 1 + sizeof(uint16_t) * i;
@@ -143,9 +148,9 @@ enum Iso14229ClientRequestError WriteDataByIdentifier(Iso14229Client *client,
     PRE_REQUEST_CHECK();
     assert(data);
     assert(size);
-    struct Iso14229Request *req = &client->ctx.req;
+    struct Iso14229Request *req = &client->req;
     req->buf[0] = kSID_WRITE_DATA_BY_IDENTIFIER;
-    if (client->cfg->link->send_buf_size <= 3 || size > client->cfg->link->send_buf_size - 3) {
+    if (client->link->send_buf_size <= 3 || size > client->link->send_buf_size - 3) {
         return kRequestNotSentBufferTooSmall;
     }
     req->buf[1] = (dataIdentifier & 0xFF00) >> 8;
@@ -170,7 +175,7 @@ enum Iso14229ClientRequestError RoutineControl(Iso14229Client *client, enum Rout
                                                uint16_t routineIdentifier, uint8_t *data,
                                                uint16_t size) {
     PRE_REQUEST_CHECK();
-    struct Iso14229Request *req = &client->ctx.req;
+    struct Iso14229Request *req = &client->req;
     req->buf[0] = kSID_ROUTINE_CONTROL;
     req->buf[1] = type;
     req->buf[2] = routineIdentifier >> 8;
@@ -204,7 +209,7 @@ enum Iso14229ClientRequestError RequestDownload(Iso14229Client *client,
                                                 uint8_t addressAndLengthFormatIdentifier,
                                                 size_t memoryAddress, size_t memorySize) {
     PRE_REQUEST_CHECK();
-    struct Iso14229Request *req = &client->ctx.req;
+    struct Iso14229Request *req = &client->req;
     uint8_t numMemorySizeBytes = (addressAndLengthFormatIdentifier & 0xF0) >> 4;
     uint8_t numMemoryAddressBytes = addressAndLengthFormatIdentifier & 0x0F;
 
@@ -239,10 +244,26 @@ enum Iso14229ClientRequestError RequestDownload(Iso14229Client *client,
  * @addtogroup transferData_0x36
  */
 enum Iso14229ClientRequestError TransferData(Iso14229Client *client, uint8_t blockSequenceCounter,
-                                             const uint16_t blockLength, FILE *fd) {
+                                             const uint16_t blockLength, const uint8_t *data,
+                                             uint16_t size) {
+    PRE_REQUEST_CHECK();
+    assert(blockLength > 2);         // blockLength must include SID and sequenceCounter
+    assert(size + 2 <= blockLength); // data must fit inside blockLength - 2
+    struct Iso14229Request *req = &client->req;
+    req->buf[0] = kSID_TRANSFER_DATA;
+    req->buf[1] = blockSequenceCounter;
+    memmove(&req->buf[ISO14229_0X36_REQ_BASE_LEN], data, size);
+    ISO14229USERDEBUG("size: %d, blocklength: %d\n", size, blockLength);
+    req->len = ISO14229_0X36_REQ_BASE_LEN + size;
+    return _SendRequest(client);
+}
+
+enum Iso14229ClientRequestError TransferDataStream(Iso14229Client *client,
+                                                   uint8_t blockSequenceCounter,
+                                                   const uint16_t blockLength, FILE *fd) {
     PRE_REQUEST_CHECK();
     assert(blockLength > 2); // blockLength must include SID and sequenceCounter
-    struct Iso14229Request *req = &client->ctx.req;
+    struct Iso14229Request *req = &client->req;
     req->buf[0] = kSID_TRANSFER_DATA;
     req->buf[1] = blockSequenceCounter;
 
@@ -261,7 +282,7 @@ enum Iso14229ClientRequestError TransferData(Iso14229Client *client, uint8_t blo
  */
 enum Iso14229ClientRequestError RequestTransferExit(Iso14229Client *client) {
     PRE_REQUEST_CHECK();
-    struct Iso14229Request *req = &client->ctx.req;
+    struct Iso14229Request *req = &client->req;
     req->buf[0] = kSID_REQUEST_TRANSFER_EXIT;
     req->len = 1;
     return _SendRequest(client);
@@ -280,7 +301,7 @@ enum Iso14229ClientRequestError RequestTransferExit(Iso14229Client *client) {
 enum Iso14229ClientRequestError ControlDTCSetting(Iso14229Client *client, uint8_t dtcSettingType,
                                                   uint8_t *data, uint16_t size) {
     PRE_REQUEST_CHECK();
-    struct Iso14229Request *req = &client->ctx.req;
+    struct Iso14229Request *req = &client->req;
     if (0x00 == dtcSettingType || 0x7F == dtcSettingType ||
         (0x03 <= dtcSettingType && dtcSettingType <= 0x3F)) {
         assert(0); // reserved vals
@@ -314,7 +335,7 @@ enum Iso14229ClientRequestError ControlDTCSetting(Iso14229Client *client, uint8_
 enum Iso14229ClientRequestError SecurityAccess(Iso14229Client *client, uint8_t level, uint8_t *data,
                                                uint16_t size) {
     PRE_REQUEST_CHECK();
-    struct Iso14229Request *req = &client->ctx.req;
+    struct Iso14229Request *req = &client->req;
     if (Iso14229SecurityAccessLevelIsReserved(level)) {
         return kRequestNotSentInvalidArgs;
     }
@@ -346,15 +367,15 @@ enum Iso14229ClientRequestError UnpackSecurityAccessResponse(Iso14229Client *cli
                                                              struct SecurityAccessResponse *resp) {
     assert(client);
     assert(resp);
-    if (ISO14229_RESPONSE_SID_OF(kSID_SECURITY_ACCESS) != client->ctx.resp.buf[0]) {
+    if (ISO14229_RESPONSE_SID_OF(kSID_SECURITY_ACCESS) != client->resp.buf[0]) {
         return kRequestErrorResponseSIDMismatch;
     }
-    if (client->ctx.resp.len < ISO14229_0X27_RESP_BASE_LEN) {
+    if (client->resp.len < ISO14229_0X27_RESP_BASE_LEN) {
         return kRequestErrorResponseTooShort;
     }
-    resp->securityAccessType = client->ctx.resp.buf[1];
-    resp->securitySeedLength = client->ctx.resp.len - ISO14229_0X27_RESP_BASE_LEN;
-    resp->securitySeed = resp->securitySeedLength == 0 ? NULL : &client->ctx.resp.buf[2];
+    resp->securityAccessType = client->resp.buf[1];
+    resp->securitySeedLength = client->resp.len - ISO14229_0X27_RESP_BASE_LEN;
+    resp->securitySeed = resp->securitySeedLength == 0 ? NULL : &client->resp.buf[2];
     return kRequestNoError;
 }
 
@@ -370,18 +391,17 @@ enum Iso14229ClientRequestError UnpackRoutineControlResponse(Iso14229Client *cli
                                                              struct RoutineControlResponse *resp) {
     assert(client);
     assert(resp);
-    if (ISO14229_RESPONSE_SID_OF(kSID_ROUTINE_CONTROL) != client->ctx.resp.buf[0]) {
+    if (ISO14229_RESPONSE_SID_OF(kSID_ROUTINE_CONTROL) != client->resp.buf[0]) {
         return kRequestErrorResponseSIDMismatch;
     }
-    if (client->ctx.resp.len < ISO14229_0X31_RESP_MIN_LEN) {
+    if (client->resp.len < ISO14229_0X31_RESP_MIN_LEN) {
         return kRequestErrorResponseTooShort;
     }
-    resp->routineControlType = client->ctx.resp.buf[1];
-    resp->routineIdentifier = (client->ctx.resp.buf[2] << 8) + client->ctx.resp.buf[3];
-    resp->routineStatusRecordLength = client->ctx.resp.len - ISO14229_0X31_RESP_MIN_LEN;
-    resp->routineStatusRecord = resp->routineStatusRecordLength == 0
-                                    ? NULL
-                                    : &client->ctx.resp.buf[ISO14229_0X31_RESP_MIN_LEN];
+    resp->routineControlType = client->resp.buf[1];
+    resp->routineIdentifier = (client->resp.buf[2] << 8) + client->resp.buf[3];
+    resp->routineStatusRecordLength = client->resp.len - ISO14229_0X31_RESP_MIN_LEN;
+    resp->routineStatusRecord =
+        resp->routineStatusRecordLength == 0 ? NULL : &client->resp.buf[ISO14229_0X31_RESP_MIN_LEN];
     return kRequestNoError;
 }
 
@@ -424,23 +444,24 @@ UnpackRequestDownloadResponse(const struct Iso14229Response *resp,
  * @param ctx
  * @return enum Iso14229ClientRequestError
  */
-enum Iso14229ClientRequestError _ClientValidateResponse(const Iso14229ClientRequestContext *ctx) {
+enum Iso14229ClientRequestError _ClientValidateResponse(const Iso14229Client *client) {
 
-    if (0x7F == ctx->resp.buf[0]) {
-        if (ctx->req.buf[0] != ctx->resp.buf[1]) {
-            ISO14229USERDEBUG("req->buf[0]: %x, ctx->resp.buf[1]: %x", ctx->req.buf[0],
-                              ctx->resp.buf[1]);
+    if (0x7F == client->resp.buf[0]) {
+        if (client->req.buf[0] != client->resp.buf[1]) {
+            ISO14229USERDEBUG("req->buf[0]: %x, client->resp.buf[1]: %x", client->req.buf[0],
+                              client->resp.buf[1]);
             return kRequestErrorResponseSIDMismatch;
-        }
-        if (kRequestCorrectlyReceived_ResponsePending == ctx->resp.buf[2]) {
+        } else if (kRequestCorrectlyReceived_ResponsePending == client->resp.buf[2]) {
             return kRequestNoError;
-        } else {
+        } else if (client->negativeResponseIsError) {
             return kRequestErrorNegativeResponse;
+        } else {
+            ;
         }
     } else {
-        if (ISO14229_RESPONSE_SID_OF(ctx->req.buf[0]) != ctx->resp.buf[0]) {
-            ISO14229USERDEBUG("req->buf[0] %x, ctx->resp.buf[0]: %x", ctx->req.buf[0],
-                              ctx->resp.buf[0]);
+        if (ISO14229_RESPONSE_SID_OF(client->req.buf[0]) != client->resp.buf[0]) {
+            ISO14229USERDEBUG("req->buf[0] %x, client->resp.buf[0]: %x", client->req.buf[0],
+                              client->resp.buf[0]);
             return kRequestErrorResponseSIDMismatch;
         }
     }
@@ -456,36 +477,35 @@ enum Iso14229ClientRequestError _ClientValidateResponse(const Iso14229ClientRequ
  * @param client
  */
 static inline void _ClientHandleResponse(Iso14229Client *client) {
-    const Iso14229ClientRequestContext *ctx = &client->ctx;
-
-    if (0x7F == ctx->resp.buf[0]) {
-        if (kRequestCorrectlyReceived_ResponsePending == ctx->resp.buf[2]) {
+    const struct Iso14229Response *resp = &client->resp;
+    if (0x7F == resp->buf[0]) {
+        if (kRequestCorrectlyReceived_ResponsePending == resp->buf[2]) {
             ISO14229USERDEBUG("got RCRRP, setting p2 timer\n");
-            client->p2_timer = client->cfg->userGetms() + client->ctx.settings.p2_star_ms;
-            client->ctx.state = kRequestStateSentAwaitResponse;
+            client->p2_timer = client->userGetms() + client->p2_star_ms;
+            client->state = kRequestStateSentAwaitResponse;
         }
     } else {
-        uint8_t respSid = ctx->resp.buf[0];
+        uint8_t respSid = resp->buf[0];
         switch (ISO14229_REQUEST_SID_OF(respSid)) {
         case kSID_DIAGNOSTIC_SESSION_CONTROL: {
-            if (ctx->resp.len < ISO14229_0X10_RESP_LEN) {
+            if (client->resp.len < ISO14229_0X10_RESP_LEN) {
                 ISO14229USERDEBUG("Error: SID %x response too short\n",
                                   kSID_DIAGNOSTIC_SESSION_CONTROL);
                 return;
             }
 
-            uint16_t p2 = (ctx->resp.buf[2] << 8) + ctx->resp.buf[3];
-            uint16_t p2_star = (ctx->resp.buf[4] << 8) + ctx->resp.buf[5];
+            uint16_t p2 = (resp->buf[2] << 8) + resp->buf[3];
+            uint16_t p2_star = (resp->buf[4] << 8) + resp->buf[5];
 
-            if (p2 >= client->settings.p2_ms) {
+            if (p2 >= client->p2_ms) {
                 ISO14229USERDEBUG("warning: server P2 timing greater than or equal to client P2 "
                                   "timing (%u >= %u). This may result in timeouts.\n",
-                                  p2, client->settings.p2_ms);
+                                  p2, client->p2_ms);
             }
-            if (p2_star * 10 >= client->settings.p2_star_ms) {
+            if (p2_star * 10 >= client->p2_star_ms) {
                 ISO14229USERDEBUG("warning: server P2* timing greater than or equal to client P2* "
                                   "timing (%u >= %u). This may result in timeouts.\n",
-                                  p2_star * 10, client->settings.p2_star_ms);
+                                  p2_star * 10, client->p2_star_ms);
             }
             break;
         }
@@ -501,23 +521,23 @@ struct SMResult {
 };
 
 static struct SMResult _ClientGetNextRequestState(const Iso14229Client *client) {
-    struct SMResult result = {.state = client->ctx.state, .err = client->ctx.err};
+    struct SMResult result = {.state = client->state, .err = client->err};
 
-    switch (client->ctx.state) {
+    switch (client->state) {
     case kRequestStateIdle: {
-        if (ISOTP_RECEIVE_STATUS_FULL == client->cfg->link->receive_status) {
+        if (ISOTP_RECEIVE_STATUS_FULL == client->link->receive_status) {
             result.err = kRequestErrorUnsolicitedResponse;
         }
         break;
     }
 
     case kRequestStateSending: {
-        switch (client->cfg->link->send_status) {
+        switch (client->link->send_status) {
         case ISOTP_SEND_STATUS_INPROGRESS:
             // 等待ISO-TP传输完成
             break;
         case ISOTP_SEND_STATUS_IDLE:
-            if (client->ctx.settings.suppressPositiveResponse) {
+            if (client->suppressPositiveResponse) {
                 result.state = kRequestStateIdle;
             } else {
                 result.state = kRequestStateSent;
@@ -538,16 +558,16 @@ static struct SMResult _ClientGetNextRequestState(const Iso14229Client *client) 
     }
 
     case kRequestStateSentAwaitResponse:
-        switch (client->cfg->link->receive_status) {
+        switch (client->link->receive_status) {
         case ISOTP_RECEIVE_STATUS_FULL:
             result.state = kRequestStateProcessResponse;
             break;
         case ISOTP_RECEIVE_STATUS_IDLE:
         case ISOTP_RECEIVE_STATUS_INPROGRESS:
-            if (Iso14229TimeAfter(client->cfg->userGetms(), client->p2_timer)) {
+            if (Iso14229TimeAfter(client->userGetms(), client->p2_timer)) {
                 result.state = kRequestStateIdle;
                 result.err = kRequestTimedOut;
-                printf("timed out. receive status: %d\n", client->cfg->link->receive_status);
+                printf("timed out. receive status: %d\n", client->link->receive_status);
             }
             break;
         default:
@@ -563,17 +583,10 @@ static struct SMResult _ClientGetNextRequestState(const Iso14229Client *client) 
     return result;
 }
 
-void Iso14229ClientPoll(Iso14229Client *client) {
-    int ret = 0;
-    IsoTpLink *link = client->cfg->link;
-    struct SMResult result = _ClientGetNextRequestState(client);
-    client->ctx.state = result.state;
-    client->ctx.err = result.err;
-    if (result.err != kRequestNoError) {
-        return;
-    }
+static void _ClientProcessRequestState(Iso14229Client *client) {
+    IsoTpLink *link = client->link;
 
-    switch (client->ctx.state) {
+    switch (client->state) {
     case kRequestStateIdle: {
         break;
     }
@@ -581,19 +594,18 @@ void Iso14229ClientPoll(Iso14229Client *client) {
         break;
     }
     case kRequestStateSent:
-        client->p2_timer = client->cfg->userGetms() + client->ctx.settings.p2_ms;
+        client->p2_timer = client->userGetms() + client->p2_ms;
         break;
 
     case kRequestStateSentAwaitResponse:
         break;
     case kRequestStateProcessResponse: {
-        ret =
-            isotp_receive(link, link->receive_buffer, link->receive_buf_size, &link->receive_size);
-        if (ISOTP_RET_OK == ret) {
-            client->ctx.resp.len = link->receive_size;
-            client->ctx.state = kRequestStateIdle;
-            client->ctx.err = _ClientValidateResponse(&client->ctx);
-            if (kRequestNoError == client->ctx.err) {
+        if (ISOTP_RET_OK == isotp_receive(link, link->receive_buffer, link->receive_buf_size,
+                                          &link->receive_size)) {
+            client->resp.len = link->receive_size;
+            client->state = kRequestStateIdle;
+            client->err = _ClientValidateResponse(client);
+            if (kRequestNoError == client->err) {
                 _ClientHandleResponse(client);
             }
         }
@@ -605,9 +617,60 @@ void Iso14229ClientPoll(Iso14229Client *client) {
     }
 }
 
-void Iso14229ClientReceiveCAN(Iso14229Client *client, const uint32_t arbitration_id,
-                              const uint8_t *data, const uint8_t size) {
-    if (arbitration_id == client->cfg->recv_id) {
-        isotp_on_can_message(client->cfg->link, (uint8_t *)data, size);
+static void _ProcessCANRx(Iso14229Client *client) {
+    uint32_t arb_id = 0;
+    uint8_t data[8] = {0}, size = 0;
+    while (kCANRxSome == client->userCANRxPoll(&arb_id, data, &size)) {
+        if (arb_id == client->recv_id) {
+            isotp_on_can_message(client->link, data, size);
+        }
+    }
+    isotp_poll(client->link);
+}
+
+void Iso14229ClientPoll(Iso14229Client *client) {
+    struct SMResult result;
+    _ProcessCANRx(client);
+    result = _ClientGetNextRequestState(client);
+    client->state = result.state;
+    client->err = result.err;
+    if (result.err != kRequestNoError) {
+        return;
+    }
+    _ClientProcessRequestState(client);
+}
+
+int iso14229ClientSequenceRunBlocking(Iso14229Client *client, struct Iso14229ClientStep sequence[],
+                                      size_t seqLen, int *idx) {
+    assert(client);
+    assert(client->userGetms);
+    assert(client->userCANRxPoll);
+    assert(sequence);
+    assert(idx);
+    assert(seqLen > 0);
+    assert(*idx < seqLen);
+
+    while (true) {
+        Iso14229ClientPoll(client);
+        if (kRequestNoError != client->err) {
+            return -1;
+        }
+
+        struct Iso14229ClientStep *step = &sequence[*idx];
+
+        switch (step->cb(client, step->args)) {
+        case kISO14229_CLIENT_CALLBACK_PENDING:
+            break;
+        case kISO14229_CLIENT_CALLBACK_DONE: {
+            *idx += 1;
+            if (*idx >= seqLen) {
+                return 0;
+            }
+            break;
+        }
+        case kISO14229_CLIENT_CALLBACK_ERROR:
+        default:
+            return -1;
+        }
     }
 }

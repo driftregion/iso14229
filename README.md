@@ -4,15 +4,23 @@ iso14229是个针对嵌入式系统的UDS(ISO14229-1:2013)服务器和客户端�
 
 iso14229 is a UDS server and client implementation (ISO14229-1:2013) targeting embedded systems. It embeds the [`isotp-c`](https://github.com/lishen2/isotp-c) transport layer.
 
-**Stability: Unstable**
+API状态: **不稳定** / API status: **unstable**
 
-- callback functions give you complete control
-- statically allocated
-- aims to be toolchain-independent: no toolchain-specific extensions
-    - tested: gcc
-- aims to be architecture-independent
+特点:
+- 依赖性注入
+- 静态内存分配
+- 独立于处理器架构
+    - 测试了: arm, x86-64, ppc
+    - 可以用qemu测试更多
+- 单元测试又多又容易扩展
+
+Features:
+- dependency injection gives you complete control
+- uses only static memory allocation
+- architecture-independent
     - tested: arm, x86-64, ppc
     - tests run under qemu 
+- has many existing unit-tests and tests are easy to extend
 
 # iso14229 文档 / Documentation
 
@@ -47,44 +55,9 @@ iso14229 is a UDS server and client implementation (ISO14229-1:2013) targeting e
 | 0x86 | response on event | ❌ |
 
 
-## 服务器：例子 / Server: Example (linux)
+## 例子 / Examples
 
-See [example/server.c](/example/server.c) for a simple server with socketCAN bindings
-
-```sh
-# 设置虚拟socketCAN接口
-# setup a virtual socketCAN interface
-sudo ip link add name vcan0 type vcan
-sudo ip link set vcan0 up
-
-# 构建例子服务器
-# build the example server
-make example/linux
-
-# 在vcan0接口上运行例子服务器
-# run the example server on vcan0
-./example/linux vcan0
-```
-
-```sh
-# （可选）在另外一个终端，看看虚拟CAN母线上的数据
-# (Optional) In a another shell, monitor the virtual link
-candump vcan0
-```
-
-```sh
-# 在另外一个终端，安装python依赖性
-# In another shell, install the required python packages
-pip3 install -r example/requirements.txt
-
-# 然后运行客户端
-# then run the client
-./example/client.py vcan0
-```
-
-## 客户端：怎么用 / Client: Basic Usage
-
-Currently undocumented. See `test_iso14229.c` for usage examples
+[examples/README.md](examples/README.md)
 
 ## 贡献/contributing
 
@@ -95,45 +68,62 @@ Currently undocumented. See `test_iso14229.c` for usage examples
 
 - [`isotp`](https://github.com/lishen2/isotp-c) which this project embeds
 
-# License
+# 许可 / License
 
 MIT
 
 # 变更记录 / Changelog
 
-
 ## 0.0.0
-- initial release
+- 初次发布 / initial release
 
 ## 0.1.0
-- Add client
-- Add server SID 0x27 SecurityAccess
-- API changes
+- 加客户端 / Add client
+- 加服务器SID 0x27安全访问 / Add server SID 0x27 SecurityAccess
+- API更改 / API changes
 
 ## 0.2.0
-- removed all instances of `__attribute__((packed))`
-- refactored server download functional unit API to simplify testing
-- refactored tests:
-    - ordered by service
-    - documented macros
-- removed middleware because it made no sense after the above refactoring
-- simplified server routine control API
-- removed redundant function iso14229ServerEnableService: Services are enabled by registering user handlers.
-- updated example
+- 
+- 删除所有`__attribute__((packed))` / removed all instances of `__attribute__((packed))`
+- 为了简化测试、重构服务器下载功能单元 / refactored server download functional unit API to simplify testing
+- 重构测试 / refactored tests
+    - 按服务排列 / ordered by service
+    - 给宏定义写文档 / documented macros
+- 删掉了中间件 / removed middleware 
+- 简化了服务器例程控制API / simplified server routine control API
+- 删掉了重复函数`iso14229ServerEnableService` / removed redundant function `iso14229ServerEnableService`
+- 更新例子 / updated example
 
+## 0.3.0
+- 加`iso14229ClientRunSequenceBlocking(...)` / added `iso14229ClientRunSequenceBlocking(...)`
+- 加了服务器和客户端例子 / added server and client examples
+- 简化测试流程、删掉了过分模糊宏定义和switch结构 / simplified test flow, deleted opaque macros and switch statements
+- 服务器和客户端结构体简化：尽量用一层深度 / flattened client and server main structs
+- 简化使用、放isotp-c初始化参数到服务器/客户端配置里面 / simplified usage by moving isotp-c initialization parameters into server/client config structs 
+- 删除重复服务器缓冲器 / remove redundant buffers in server
 
-# iso14229开发文档 / design docs
+---
 
-## Running Tests
+# 运行测试 / running tests
+
+```sh
+make test
+```
+
+## qemu
 
 ```sh
 CC=powerpc-linux-gnu-gcc make test_bin
 qemu-ppc -L /usr/powerpc-linux-gnu test_bin
 ```
+## wine
 
 ```sh
-bazel test --compilation_mode=dbg //...
+CC=x86_64-w64-mingw32-gcc make test_bin
+wine test_bin.exe
 ```
+
+# iso14229开发文档 / design docs
 
 
 ## 客户端请求状态机
