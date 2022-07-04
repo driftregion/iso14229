@@ -90,6 +90,8 @@ enum Iso14229DiagnosticServiceCallbackIdx {
 };
 #undef X
 
+#define ISO14229_NUM_SERVICES (kISO14229_SID_NOT_SUPPORTED)
+
 enum Iso14229DiagnosticSessionType {
     kDefaultSession = 0x01,
     kProgrammingSession = 0x02,
@@ -222,6 +224,8 @@ struct Iso14229Response {
     uint16_t buffer_size;
     uint16_t len;
 };
+
+enum Iso14229CANRxStatus { kCANRxNone = 0, kCANRxSome };
 
 // ========================================================================
 //                              Helper functions

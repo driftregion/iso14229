@@ -14,8 +14,9 @@ isotp-c/isotp_defines.h
 INCLUDES= \
 isotp-c
 
-
-# Tests (Run locally on linux)
+#
+# Unit tests
+#
 DEFINES=\
 
 TEST_CFLAGS += $(foreach i,$(INCLUDES),-I$(i))
@@ -38,24 +39,28 @@ test_interactive: test_bin
 clean:
 	rm -rf test_bin
 
-
-# Example
-
+#
+# Example program
+#
 EXAMPLE_SRCS=\
-example/linux_host.c \
-example/simpleserver.c
+examples/client.c \
+examples/main.c \
+examples/server.c \
+examples/port_socketcan.c
 
-EXAMPLE_HDRS=
+EXAMPLE_HDRS=\
+examples/client.h \
+examples/server.h \
+examples/port.h \
+examples/shared.h
 
 EXAMPLE_INCLUDES=\
-example
+examples
 
 EXAMPLE_CFLAGS += $(foreach i,$(INCLUDES),-I$(i))
 EXAMPLE_CFLAGS += $(foreach i,$(EXAMPLE_INCLUDES),-I$(i))
 EXAMPLE_CFLAGS += $(foreach d,$(DEFINES),-D$(d))
 EXAMPLE_CFLAGS += -g 
 
-example/linux: $(SRCS) $(EXAMPLE_SRCS) $(HDRS) $(EXAMPLE_HDRS) Makefile
+example: $(SRCS) $(EXAMPLE_SRCS) $(HDRS) $(EXAMPLE_HDRS) Makefile
 	$(CC) $(EXAMPLE_CFLAGS) -o $@ $(EXAMPLE_SRCS) $(SRCS) 
-
-.phony: py_requirements

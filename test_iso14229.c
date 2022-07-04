@@ -3,31 +3,89 @@
 #include "iso14229client.h"
 #include "iso14229server.h"
 #include "isotp-c/isotp.h"
+#include "isotp-c/isotp_defines.h"
 #include <assert.h>
 #include <stdarg.h>
 #include <stdint.h>
+
+uint32_t mockUserGetms();
+int mockClientSendCAN(const uint32_t arbitration_id, const uint8_t *data, const uint8_t size);
+int mockServerCANTransmit(const uint32_t arbitration_id, const uint8_t *data, const uint8_t size);
+enum Iso14229CANRxStatus mockServerCANRxPoll(uint32_t *arbitration_id, uint8_t *data,
+                                             uint8_t *size);
+void mockSrvFuncLinkDbg(const char *message, ...);
+void mockSrvPhysLinkDbg(const char *message, ...);
+void mockClientLinkDbg(const char *message, ...);
 
 // ================================================
 // Global Variables
 // ================================================
 
-int g_ms;
 #define CAN_MESSAGE_QUEUE_SIZE 10
-struct CANMessage g_serverRecvQueue[CAN_MESSAGE_QUEUE_SIZE];
-int g_serverRecvQueueIdx = 0;
-struct CANMessage g_clientRecvQueue[CAN_MESSAGE_QUEUE_SIZE];
-int g_clientRecvQueueIdx = 0;
 
-int g_serverSvcCallCount[kISO14229_SID_NOT_SUPPORTED] = {0};
-Iso14229Service g_serverServices[kISO14229_SID_NOT_SUPPORTED] = {0};
+// global state: memset() to zero in TEST_SETUP();
+static struct {
+    int ms; // simulated absolute time
+    int t0; // marks a time point
+
+    struct CANMessage serverRecvQueue[CAN_MESSAGE_QUEUE_SIZE];
+    int serverRecvQueueIdx;
+    struct CANMessage clientRecvQueue[CAN_MESSAGE_QUEUE_SIZE];
+    int clientRecvQueueIdx;
+
+    int g_serverSvcCallCount[ISO14229_NUM_SERVICES];
+    Iso14229Service g_serverServices[ISO14229_NUM_SERVICES];
+
+    IsoTpLink clientLink, srvPhysLink, srvFuncLink;
+    uint8_t srvPhysLinkRxBuf[DEFAULT_ISOTP_BUFSIZE];
+    uint8_t srvPhysLinkTxBuf[DEFAULT_ISOTP_BUFSIZE];
+    uint8_t srvFuncLinkRxBuf[DEFAULT_ISOTP_BUFSIZE];
+    uint8_t srvFuncLinkTxBuf[DEFAULT_ISOTP_BUFSIZE];
+    uint8_t srvRxBuf[DEFAULT_ISOTP_BUFSIZE];
+    uint8_t srvTxBuf[DEFAULT_ISOTP_BUFSIZE];
+    uint8_t clientLinkRxBuf[DEFAULT_ISOTP_BUFSIZE];
+    uint8_t clientLinkTxBuf[DEFAULT_ISOTP_BUFSIZE];
+
+    uint8_t scratch[DEFAULT_ISOTP_BUFSIZE];
+    uint16_t size;
+    int ret;
+
+    enum Iso14229ResponseCode userResponse;
+} g;
+
+static const struct IsoTpLinkConfig SRV_PHYS_LINK_DEFAULT_CONFIG = {
+    .send_id = SERVER_SEND_ID,
+    .send_buffer = g.srvPhysLinkTxBuf,
+    .send_buf_size = sizeof(g.srvPhysLinkTxBuf),
+    .recv_buffer = g.srvPhysLinkRxBuf,
+    .recv_buf_size = sizeof(g.srvPhysLinkRxBuf),
+    .user_get_ms = mockUserGetms,
+    .user_send_can = mockServerCANTransmit,
+    .user_debug = mockSrvPhysLinkDbg};
+
+static const struct IsoTpLinkConfig CLIENT_LINK_DEFAULT_CONFIG = {
+    .send_id = SERVER_PHYS_RECV_ID,
+    .send_buffer = g.clientLinkTxBuf,
+    .send_buf_size = sizeof(g.clientLinkTxBuf),
+    .recv_buffer = g.clientLinkRxBuf,
+    .recv_buf_size = sizeof(g.clientLinkRxBuf),
+    .user_get_ms = mockUserGetms,
+    .user_send_can = mockClientSendCAN,
+    .user_debug = mockClientLinkDbg};
 
 // ================================================
-// isotp-c Required Callback Functions
+// common mock functions
+// ---
+// these are used in all tests
 // ================================================
 
-uint32_t isotp_user_get_ms() { return g_ms; }
+uint32_t mockUserGetms() { return g.ms; }
 
-void isotp_client_debug(const char *message, ...) {
+// ================================================
+// isotp-c mock functions
+// ================================================
+
+void mockClientLinkDbg(const char *message, ...) {
     printf("CLIENT ISO-TP: ");
     va_list ap;
     va_start(ap, message);
@@ -35,7 +93,7 @@ void isotp_client_debug(const char *message, ...) {
     va_end(ap);
 }
 
-void isotp_server_phys_debug(const char *message, ...) {
+void mockSrvPhysLinkDbg(const char *message, ...) {
     printf("SRV PHYS ISO-TP: ");
     va_list ap;
     va_start(ap, message);
@@ -43,7 +101,7 @@ void isotp_server_phys_debug(const char *message, ...) {
     va_end(ap);
 }
 
-void isotp_server_func_debug(const char *message, ...) {
+void mockSrvFuncLinkDbg(const char *message, ...) {
     printf("SRV FUNC ISO-TP: ");
     va_list ap;
     va_start(ap, message);
@@ -107,73 +165,119 @@ static int g_mockSessionTimeoutHandlerCallCount = 0;
 static void mockSessionTimeoutHandler() { g_mockSessionTimeoutHandlerCallCount++; }
 
 // ================================================
+// Iso14229Client Mock Functions
+// ================================================
+
+static enum Iso14229CANRxStatus mockClientCANRxPoll(uint32_t *arb_id, uint8_t *data, uint8_t *dlc) {
+    if (g.clientRecvQueueIdx > 0) {
+        struct CANMessage *msg = &g.clientRecvQueue[0];
+        *arb_id = msg->arbId;
+        memmove(data, msg->data, msg->size);
+        *dlc = msg->size;
+        ISO14229USERDEBUG("%06d c<0x%03x [%02d]: ", g.ms, msg->arbId, g.clientRecvQueueIdx);
+        PRINTHEX(msg->data, msg->size);
+        g.clientRecvQueueIdx--;
+        memmove(g.clientRecvQueue, &g.clientRecvQueue[1], sizeof(struct CANMessage));
+        return kCANRxSome;
+    }
+    return kCANRxNone;
+}
+
+// ================================================
 // Fixtures
 // ================================================
 
 /**
  * @brief Sends CAN messages from client to an in-memory FIFO queue
  */
-int fixtureClientSendCAN(const uint32_t arbitration_id, const uint8_t *data, const uint8_t size) {
+int mockClientSendCAN(const uint32_t arbitration_id, const uint8_t *data, const uint8_t size) {
     assert(size <= 8);
-    assert(g_serverRecvQueueIdx < CAN_MESSAGE_QUEUE_SIZE);
-    struct CANMessage *msg = &g_serverRecvQueue[g_serverRecvQueueIdx++];
+    assert(g.serverRecvQueueIdx < CAN_MESSAGE_QUEUE_SIZE);
+    struct CANMessage *msg = &g.serverRecvQueue[g.serverRecvQueueIdx++];
     memmove(msg->data, data, size);
     msg->arbId = arbitration_id;
     msg->size = size;
-    ISO14229USERDEBUG("c>0x%03x [%02d]: ", arbitration_id, g_serverRecvQueueIdx);
+    ISO14229USERDEBUG("%06d " ANSI_BRIGHT_GREEN "c>"
+                      "0x%03x [%02d]: ",
+                      g.ms, arbitration_id, g.serverRecvQueueIdx);
     PRINTHEX(data, size);
+    ISO14229USERDEBUG(ANSI_RESET);
     return ISOTP_RET_OK;
 }
 
 /**
  * @brief Sends CAN messages from server to an in-memory FIFO queue
  */
-int fixtureServerSendCAN(const uint32_t arbitration_id, const uint8_t *data, const uint8_t size) {
+int mockServerCANTransmit(const uint32_t arbitration_id, const uint8_t *data, const uint8_t size) {
     assert(size <= 8);
-    assert(g_clientRecvQueueIdx < CAN_MESSAGE_QUEUE_SIZE);
-    struct CANMessage *msg = &g_clientRecvQueue[g_clientRecvQueueIdx++];
+    assert(g.clientRecvQueueIdx < CAN_MESSAGE_QUEUE_SIZE);
+    struct CANMessage *msg = &g.clientRecvQueue[g.clientRecvQueueIdx++];
     memmove(msg->data, data, size);
     msg->arbId = arbitration_id;
     msg->size = size;
-    ISO14229USERDEBUG("s>0x%03x [%02d]: ", arbitration_id, g_clientRecvQueueIdx);
+    ISO14229USERDEBUG("%06d " ANSI_BRIGHT_MAGENTA "s>0x%03x [%02d]: ", g.ms, arbitration_id,
+                      g.clientRecvQueueIdx);
     PRINTHEX(data, size);
+    ISO14229USERDEBUG(ANSI_RESET);
     return ISOTP_RET_OK;
 }
 
-/**
- * @brief poll all IsoTpLinks and receive CAN from FIFO queues if available
- *
- * @param serverPhys
- * @param serverFunc
- */
-static void fixtureIsoTpPollLinks(IsoTpLink *client, IsoTpLink *serverPhys, IsoTpLink *serverFunc) {
-    assert(client);
-    assert(serverPhys);
-    assert(serverFunc);
-    if (g_clientRecvQueueIdx > 0) {
-        struct CANMessage *msg = &g_clientRecvQueue[0];
-        if (msg->arbId == CLIENT_RECV_ID) {
-            ISO14229USERDEBUG("c<0x%03x [%02d]: ", msg->arbId, g_clientRecvQueueIdx);
-            PRINTHEX(msg->data, msg->size);
-            isotp_on_can_message(client, msg->data, msg->size);
-        }
-        g_clientRecvQueueIdx--;
-        memmove(g_clientRecvQueue, &g_clientRecvQueue[1], sizeof(struct CANMessage));
+enum Iso14229CANRxStatus mockServerCANRxPoll(uint32_t *arbitration_id, uint8_t *data,
+                                             uint8_t *size) {
+    if (g.serverRecvQueueIdx > 0) {
+        struct CANMessage *msg = &g.serverRecvQueue[0];
+        *arbitration_id = msg->arbId;
+        memmove(data, msg->data, msg->size);
+        *size = msg->size;
+        // ISO14229USERDEBUG("%06d s<0x%03x [%02d]: ", g.ms, msg->arbId, g.serverRecvQueueIdx);
+        // PRINTHEX(msg->data, msg->size);
+        g.serverRecvQueueIdx--;
+        memmove(g.serverRecvQueue, &g.serverRecvQueue[1], sizeof(struct CANMessage));
+        return kCANRxSome;
     }
-    if (g_serverRecvQueueIdx > 0) {
-        struct CANMessage *msg = &g_serverRecvQueue[0];
-        if (msg->arbId == SERVER_PHYS_RECV_ID) {
-            isotp_on_can_message(serverPhys, msg->data, msg->size);
-        }
-        if (msg->arbId == SERVER_FUNC_RECV_ID) {
-            isotp_on_can_message(serverFunc, msg->data, msg->size);
-        }
-        g_serverRecvQueueIdx--;
-        memmove(g_serverRecvQueue, &g_serverRecvQueue[1], sizeof(struct CANMessage));
+    return kCANRxNone;
+}
+
+void fixtureClientLinkProcess() {
+    uint32_t arb_id;
+    uint8_t data[8], dlc;
+
+    switch (mockClientCANRxPoll(&arb_id, data, &dlc)) {
+    case kCANRxSome:
+        isotp_on_can_message(&g.clientLink, data, dlc);
+        break;
+    case kCANRxNone:
+        break;
+    default:
+        assert(0);
     }
-    isotp_poll(client);
-    isotp_poll(serverPhys);
-    isotp_poll(serverFunc);
+    isotp_poll(&g.clientLink);
+}
+
+void fixtureSrvLinksProcess() {
+    uint32_t arb_id;
+    uint8_t data[8], dlc;
+
+    switch (mockServerCANRxPoll(&arb_id, data, &dlc)) {
+    case kCANRxSome:
+        switch (arb_id) {
+        case SERVER_PHYS_RECV_ID:
+            isotp_on_can_message(&g.srvPhysLink, data, dlc);
+            break;
+        case SERVER_FUNC_RECV_ID:
+            isotp_on_can_message(&g.srvFuncLink, data, dlc);
+            break;
+        default:
+            assert(0);
+        }
+        break;
+    case kCANRxNone:
+        break;
+    default:
+        assert(0);
+    }
+    isotp_poll(&g.srvPhysLink);
+    isotp_poll(&g.srvFuncLink);
 }
 
 // ================================================
@@ -182,31 +286,34 @@ static void fixtureIsoTpPollLinks(IsoTpLink *client, IsoTpLink *serverPhys, IsoT
 
 void testServerInit() {
     TEST_SETUP();
-    SERVER_DECLARE();
-    isotp_init_link(&serverPhysLink, CLIENT_RECV_ID, serverIsotpPhysSendBuf,
-                    sizeof(serverIsotpPhysSendBuf), serverIsotpPhysRecvBuf,
-                    sizeof(serverIsotpPhysRecvBuf), isotp_user_get_ms, fixtureServerSendCAN,
-                    isotp_server_phys_debug);
-    isotp_init_link(&serverFuncLink, CLIENT_RECV_ID, serverIsotpFuncSendBuf,
-                    sizeof(serverIsotpFuncSendBuf), serverIsotpFuncRecvBuf,
-                    sizeof(serverIsotpFuncRecvBuf), isotp_user_get_ms, fixtureServerSendCAN,
-                    isotp_server_func_debug);
-    Iso14229ServerInit(&server, &serverCfg);
+    Iso14229Server srv;
+    Iso14229ServerConfig cfg = DEFAULT_SERVER_CONFIG();
+    Iso14229ServerInit(&srv, &cfg);
     TEST_TEARDOWN();
 }
 
 void testServer0x10DiagnosticSessionControlIsDisabledByDefault() {
-    SERVER_TEST_SETUP();
+    TEST_SETUP();
+    Iso14229Server server;
+    Iso14229ServerConfig cfg = DEFAULT_SERVER_CONFIG();
+    Iso14229ServerInit(&server, &cfg);
+    IsoTpInitLink(&g.clientLink, &CLIENT_LINK_DEFAULT_CONFIG);
+
     const uint8_t MOCK_DATA[] = {0x10, 0x02};
     const uint8_t CORRECT_RESPONSE[] = {0x7f, 0x10, 0x11};
-    for (g_ms = 0; g_ms < server.cfg->p2_ms; g_ms++) {
+
+    // sending a diagnostic session control request
+    isotp_send(&g.clientLink, MOCK_DATA, sizeof(MOCK_DATA));
+
+    // should result in a response
+    while (ISOTP_RET_OK != isotp_receive(&g.clientLink, g.scratch, sizeof(g.scratch), &g.size)) {
         Iso14229ServerPoll(&server);
-        fixtureIsoTpPollLinks(&clientLink, &serverPhysLink, &serverFuncLink);
-        if (0 == g_ms) {
-            isotp_send(&clientLink, MOCK_DATA, sizeof(MOCK_DATA));
-        }
+        fixtureClientLinkProcess();
+        assert(g.ms++ < 2); // (in a reasonable time)
     }
-    ASSERT_MEMORY_EQUAL(CORRECT_RESPONSE, serverIsotpPhysSendBuf, sizeof(CORRECT_RESPONSE));
+
+    // that is negative, indicating that diagnostic session control is disabled by default
+    ASSERT_MEMORY_EQUAL(CORRECT_RESPONSE, g.scratch, sizeof(CORRECT_RESPONSE));
     TEST_TEARDOWN();
 }
 
@@ -216,49 +323,70 @@ void testServer0x10DiagnosticSessionControlIsDisabledByDefault() {
 // reset request: It is recommended that during this time the ECU does not accept any request
 // messages and send any response messages.
 void testServer0x11DoesNotSendOrReceiveMessagesAfterECUReset() {
-    SERVER_TEST_SETUP();
-    serverCfg.userECUResetHandler = mockECUResetHandler;
-    uint16_t size = 0;
+    TEST_SETUP();
+    Iso14229Server server;
+    Iso14229ServerConfig cfg = DEFAULT_SERVER_CONFIG();
+    cfg.userECUResetHandler = mockECUResetHandler;
+    Iso14229ServerInit(&server, &cfg);
+    IsoTpInitLink(&g.clientLink, &CLIENT_LINK_DEFAULT_CONFIG);
+
     const uint8_t MOCK_DATA[] = {0x11, 0x01};
     const uint8_t EXPECTED_RESPONSE[] = {0x51, 0x01};
-    SERVER_TEST_SEQUENCE_BEGIN();
-case 0:
-    SERVER_TEST_CLIENT_SEND(MOCK_DATA);
-    break;
-case 1:
-    SERVER_TEST_AWAIT_RESPONSE(EXPECTED_RESPONSE);
-    break;
-case 2:
-    SERVER_TEST_CLIENT_SEND(MOCK_DATA);
-    break;
-case 3: {
-    if (g_mockECUResetHandlerCallCount) {
-        done = true;
+
+    // Sending an ECU reset
+    isotp_send(&g.clientLink, MOCK_DATA, sizeof(MOCK_DATA));
+
+    // should result in a response
+    while (ISOTP_RET_OK != isotp_receive(&g.clientLink, g.scratch, sizeof(g.scratch), &g.size)) {
+        Iso14229ServerPoll(&server);
+        fixtureClientLinkProcess();
+        assert(g.ms++ < 2); // (in a reasonable time)
     }
-    break;
-}
-    SERVER_TEST_SEQUENCE_END(server.cfg->p2_ms * 3);
-    int ret =
-        isotp_receive(&clientLink, clientLink.receive_buffer, clientLink.receive_buf_size, &size);
-    ASSERT_INT_EQUAL(ret, ISOTP_RET_NO_DATA);
+
+    // that matches the expected response.
+    ASSERT_INT_EQUAL(g.size, sizeof(EXPECTED_RESPONSE));
+    ASSERT_MEMORY_EQUAL(EXPECTED_RESPONSE, g.scratch, sizeof(EXPECTED_RESPONSE));
+
+    // The ECU reset handler should have been called.
+    ASSERT_INT_EQUAL(g_mockECUResetHandlerCallCount, 1);
+
+    // Sending a second ECU reset
+    isotp_send(&g.clientLink, MOCK_DATA, sizeof(MOCK_DATA));
+
+    // should not receive a response until the server is reset
+    while (g.ms++ < 100) {
+        Iso14229ServerPoll(&server);
+        fixtureClientLinkProcess();
+        g.ret = isotp_receive(&g.clientLink, g.scratch, sizeof(g.scratch), &g.size);
+        ASSERT_INT_EQUAL(g.ret, ISOTP_RET_NO_DATA);
+    }
     TEST_TEARDOWN();
 }
 
 void testServer0x22RDBI1() {
-    SERVER_TEST_SETUP();
-    serverCfg.userRDBIHandler = mockUserRdbiHandler;
+    TEST_SETUP();
+    Iso14229Server server;
+    Iso14229ServerConfig cfg = DEFAULT_SERVER_CONFIG();
+    cfg.userRDBIHandler = mockUserRdbiHandler;
+    Iso14229ServerInit(&server, &cfg);
+    IsoTpInitLink(&g.clientLink, &CLIENT_LINK_DEFAULT_CONFIG);
+
     const uint8_t MOCK_DATA[] = {0x22, 0xF1, 0x90};
     const uint8_t CORRECT_RESPONSE[] = {0x62, 0xF1, 0x90, 0x57, 0x30, 0x4C, 0x30, 0x30, 0x30, 0x30,
                                         0x34, 0x33, 0x4D, 0x42, 0x35, 0x34, 0x31, 0x33, 0x32, 0x36};
-    for (g_ms = 0; g_ms < server.cfg->p2_ms; g_ms++) {
+    // sending an RDBI request
+    isotp_send(&g.clientLink, MOCK_DATA, sizeof(MOCK_DATA));
+
+    // should result in a response
+    while (ISOTP_RET_OK != isotp_receive(&g.clientLink, g.scratch, sizeof(g.scratch), &g.size)) {
         Iso14229ServerPoll(&server);
-        fixtureIsoTpPollLinks(&clientLink, &serverPhysLink, &serverFuncLink);
-        if (0 == g_ms) {
-            isotp_send(&clientLink, MOCK_DATA, sizeof(MOCK_DATA));
-        }
+        fixtureClientLinkProcess();
+        assert(g.ms++ < 10); // (in a reasonable time)
     }
-    ASSERT_INT_EQUAL(sizeof(CORRECT_RESPONSE), serverPhysLink.send_size);
-    ASSERT_MEMORY_EQUAL(CORRECT_RESPONSE, serverIsotpPhysSendBuf, sizeof(CORRECT_RESPONSE));
+
+    // that matches the correct response
+    ASSERT_INT_EQUAL(sizeof(CORRECT_RESPONSE), g.size);
+    ASSERT_MEMORY_EQUAL(CORRECT_RESPONSE, g.scratch, sizeof(CORRECT_RESPONSE));
     TEST_TEARDOWN();
 }
 
@@ -296,55 +424,85 @@ enum Iso14229ResponseCode mockSecurityAccessValidateKey(const struct Iso14229Ser
 
 // ISO14229-1 2013 9.4.5.2
 void testServer0x27SecurityAccess() {
-    SERVER_TEST_SETUP();
-    serverCfg.userSecurityAccessGenerateSeed = mockSecurityAccessGenerateSeed;
-    serverCfg.userSecurityAccessValidateKey = mockSecurityAccessValidateKey;
-    const uint8_t MOCK_DATA_1[] = {0x27, 0x01};
-    const uint8_t EXPECTED_RESPONSE_1[] = {0x67, 0x01, 0x36, 0x57};
-    const uint8_t MOCK_DATA_2[] = {0x27, 0x02, 0xC9, 0xA9};
-    const uint8_t EXPECTED_RESPONSE_2[] = {0x67, 0x02};
+    TEST_SETUP();
+    Iso14229Server server;
+    Iso14229ServerConfig cfg = DEFAULT_SERVER_CONFIG();
+    cfg.userSecurityAccessGenerateSeed = mockSecurityAccessGenerateSeed;
+    cfg.userSecurityAccessValidateKey = mockSecurityAccessValidateKey;
+    Iso14229ServerInit(&server, &cfg);
+    IsoTpInitLink(&g.clientLink, &CLIENT_LINK_DEFAULT_CONFIG);
+
+    const uint8_t SEED_REQUEST[] = {0x27, 0x01};
+    const uint8_t SEED_RESPONSE[] = {0x67, 0x01, 0x36, 0x57};
+    const uint8_t UNLOCK_REQUEST[] = {0x27, 0x02, 0xC9, 0xA9};
+    const uint8_t UNLOCK_RESPONSE[] = {0x67, 0x02};
+
+    // the server security level after initialization should be 0
     ASSERT_INT_EQUAL(server.status.securityLevel, 0);
-    SERVER_TEST_SEQUENCE_BEGIN();
-case 0:
-    SERVER_TEST_CLIENT_SEND(MOCK_DATA_1);
-    break;
-case 1:
-    SERVER_TEST_AWAIT_RESPONSE(EXPECTED_RESPONSE_1);
-    break;
-case 2:
-    SERVER_TEST_CLIENT_SEND(MOCK_DATA_2);
-    break;
-case 3:
-    SERVER_TEST_AWAIT_RESPONSE(EXPECTED_RESPONSE_2);
-    break;
-case 4:
+
+    // sending a seed request
+    isotp_send(&g.clientLink, SEED_REQUEST, sizeof(SEED_REQUEST));
+
+    // should result in a response
+    while (ISOTP_RET_OK != isotp_receive(&g.clientLink, g.scratch, sizeof(g.scratch), &g.size)) {
+        Iso14229ServerPoll(&server);
+        fixtureClientLinkProcess();
+        assert(g.ms++ < SERVER_DEFAULT_P2_MS); // (in a reasonable time)
+    }
+
+    // that matches the correct response
+    ASSERT_INT_EQUAL(sizeof(SEED_RESPONSE), g.size);
+    ASSERT_MEMORY_EQUAL(SEED_RESPONSE, g.scratch, sizeof(SEED_RESPONSE));
+
+    // subsequently sending an unlock request
+    isotp_send(&g.clientLink, UNLOCK_REQUEST, sizeof(UNLOCK_REQUEST));
+
+    // should result in a response
+    while (ISOTP_RET_OK != isotp_receive(&g.clientLink, g.scratch, sizeof(g.scratch), &g.size)) {
+        Iso14229ServerPoll(&server);
+        fixtureClientLinkProcess();
+        assert(g.ms++ < 2 * SERVER_DEFAULT_P2_MS); // (in a reasonable time)
+    }
+
+    // that matches the correct response
+    ASSERT_INT_EQUAL(sizeof(UNLOCK_RESPONSE), g.size);
+    ASSERT_MEMORY_EQUAL(UNLOCK_RESPONSE, g.scratch, sizeof(UNLOCK_RESPONSE));
+
+    // Additionally, the security level should now be 1
     ASSERT_INT_EQUAL(server.status.securityLevel, 1);
-    done = true;
-    break;
-    SERVER_TEST_SEQUENCE_END(server.cfg->p2_ms * 5);
     TEST_TEARDOWN();
 }
 
 // ISO14229-1 2013 9.4.5.3
 void testServer0x27SecurityAccessAlreadyUnlocked() {
-    SERVER_TEST_SETUP();
-    serverCfg.userSecurityAccessGenerateSeed = mockSecurityAccessGenerateSeed;
-    serverCfg.userSecurityAccessValidateKey = mockSecurityAccessValidateKey;
+    TEST_SETUP();
+    Iso14229Server server;
+    Iso14229ServerConfig cfg = DEFAULT_SERVER_CONFIG();
+    cfg.userSecurityAccessGenerateSeed = mockSecurityAccessGenerateSeed;
+    cfg.userSecurityAccessValidateKey = mockSecurityAccessValidateKey;
+    Iso14229ServerInit(&server, &cfg);
+    IsoTpInitLink(&g.clientLink, &CLIENT_LINK_DEFAULT_CONFIG);
+
+    const uint8_t SEED_REQUEST[] = {0x27, 0x01};
+    const uint8_t ALREADY_UNLOCKED_RESPONSE[] = {0x67, 0x01, 0x00, 0x00};
+
+    // when the security level is already set to 1
     server.status.securityLevel = 1;
-    const uint8_t MOCK_DATA_1[] = {0x27, 0x01};
-    const uint8_t EXPECTED_RESPONSE_1[] = {0x67, 0x01, 0x00, 0x00};
-    SERVER_TEST_SEQUENCE_BEGIN();
-case 0:
-    SERVER_TEST_CLIENT_SEND(MOCK_DATA_1);
-    break;
-case 1:
-    SERVER_TEST_AWAIT_RESPONSE(EXPECTED_RESPONSE_1);
-    break;
-case 2:
-    done = true;
-    ASSERT_INT_EQUAL(server.status.securityLevel, 1);
-    break;
-    SERVER_TEST_SEQUENCE_END(server.cfg->p2_ms * 5);
+
+    // sending a seed request
+    isotp_send(&g.clientLink, SEED_REQUEST, sizeof(SEED_REQUEST));
+
+    // should result in a response
+    while (ISOTP_RET_OK != isotp_receive(&g.clientLink, g.scratch, sizeof(g.scratch), &g.size)) {
+        Iso14229ServerPoll(&server);
+        fixtureClientLinkProcess();
+        assert(g.ms++ < SERVER_DEFAULT_P2_MS); // (in a reasonable time)
+    }
+
+    // that matches the correct response
+    ASSERT_INT_EQUAL(sizeof(ALREADY_UNLOCKED_RESPONSE), g.size);
+    ASSERT_MEMORY_EQUAL(ALREADY_UNLOCKED_RESPONSE, g.scratch, sizeof(ALREADY_UNLOCKED_RESPONSE));
+
     TEST_TEARDOWN();
 }
 
@@ -353,59 +511,96 @@ static enum Iso14229ResponseCode testServer0x31RCRRPMockRoutineControl(
     uint16_t routineIdentifier, Iso14229RoutineControlArgs *args) {
     (void)status;
     (void)routineControlType;
+    (void)routineIdentifier;
     (void)args;
-    static bool userFlag = false;
-    ASSERT_INT_EQUAL(0x1234, routineIdentifier);
-    if (userFlag) {
-        /* a call to `doLongBlockingTask();` would go here */
-        return kPositiveResponse;
-    } else {
-        userFlag = true;
-        return kRequestCorrectlyReceived_ResponsePending;
-    }
+    return g.userResponse;
 }
 
 // ISO-14229-1 2013 Table A.1 Byte Value 0x78: requestCorrectlyReceived-ResponsePending
 // "This NRC is in general supported by each diagnostic service".
 void testServer0x31RCRRP() {
-    SERVER_TEST_SETUP();
-    serverCfg.userRoutineControlHandler = testServer0x31RCRRPMockRoutineControl;
-    const uint8_t MOCK_DATA[] = {0x31, 0x01, 0x12, 0x34};
-    const uint8_t EXPECTED_RESPONSE_1[] = {0x7F, 0x31, 0x78};
-    const uint8_t EXPECTED_RESPONSE_2[] = {0x71, 0x01, 0x12, 0x34};
-    SERVER_TEST_SEQUENCE_BEGIN();
-case 0:
-    SERVER_TEST_CLIENT_SEND(MOCK_DATA);
-    break;
-case 1:
-    SERVER_TEST_AWAIT_RESPONSE(EXPECTED_RESPONSE_1);
-    break;
-case 2:
-    SERVER_TEST_AWAIT_RESPONSE(EXPECTED_RESPONSE_2);
-    break;
-case 3:
-    done = true;
-    break;
-    SERVER_TEST_SEQUENCE_END(server.cfg->p2_ms * 5);
+    TEST_SETUP();
+    Iso14229Server server;
+    Iso14229ServerConfig cfg = DEFAULT_SERVER_CONFIG();
+    cfg.userRoutineControlHandler = testServer0x31RCRRPMockRoutineControl;
+    Iso14229ServerInit(&server, &cfg);
+    IsoTpInitLink(&g.clientLink, &CLIENT_LINK_DEFAULT_CONFIG);
+
+    const uint8_t REQUEST[] = {0x31, 0x01, 0x12, 0x34};
+    const uint8_t RCRRP[] = {0x7F, 0x31, 0x78}; // Request Correctly Received - Response Pending
+    const uint8_t POSITIVE_RESPONSE[] = {0x71, 0x01, 0x12, 0x34};
+
+    // When a user handler initially returns RRCRP
+    g.userResponse = kRequestCorrectlyReceived_ResponsePending;
+
+    // sending a request to the server
+    isotp_send(&g.clientLink, REQUEST, sizeof(REQUEST));
+
+    // should result in a response
+    while (ISOTP_RET_OK != isotp_receive(&g.clientLink, g.scratch, sizeof(g.scratch), &g.size)) {
+        Iso14229ServerPoll(&server);
+        fixtureClientLinkProcess();
+        assert(g.ms++ < cfg.p2_ms); // in p2 ms
+    }
+
+    // a RequestCorrectlyReceived-ResponsePending response.
+    ASSERT_INT_EQUAL(sizeof(RCRRP), g.size);
+    ASSERT_MEMORY_EQUAL(RCRRP, g.scratch, sizeof(RCRRP));
+
+    // The server should again respond
+    g.t0 = g.ms;
+    while (ISOTP_RET_OK != isotp_receive(&g.clientLink, g.scratch, sizeof(g.scratch), &g.size)) {
+        Iso14229ServerPoll(&server);
+        fixtureClientLinkProcess();
+        assert(g.ms++ - g.t0 < SERVER_DEFAULT_P2_STAR_MS); // in p2_star ms
+    }
+
+    // with another RequestCorrectlyReceived-ResponsePending response.
+    ASSERT_INT_EQUAL(sizeof(RCRRP), g.size);
+    ASSERT_MEMORY_EQUAL(RCRRP, g.scratch, sizeof(RCRRP));
+
+    // When the user handler now returns a positive response
+    g.userResponse = kPositiveResponse;
+    g.t0 = g.ms;
+
+    // the server should respond
+    while (ISOTP_RET_OK != isotp_receive(&g.clientLink, g.scratch, sizeof(g.scratch), &g.size)) {
+        Iso14229ServerPoll(&server);
+        fixtureClientLinkProcess();
+        assert(g.ms++ - g.t0 < SERVER_DEFAULT_P2_MS); // in p2_ms
+    }
+
+    // with a positive response
+    ASSERT_INT_EQUAL(sizeof(POSITIVE_RESPONSE), g.size);
+    ASSERT_MEMORY_EQUAL(POSITIVE_RESPONSE, g.scratch, sizeof(POSITIVE_RESPONSE));
     TEST_TEARDOWN();
 }
 
 void testServer0x34NotEnabled() {
-    SERVER_TEST_SETUP();
+    TEST_SETUP();
+    Iso14229Server server;
+    Iso14229ServerConfig cfg = DEFAULT_SERVER_CONFIG();
+    Iso14229ServerInit(&server, &cfg);
+    IsoTpInitLink(&g.clientLink, &CLIENT_LINK_DEFAULT_CONFIG);
+
     const uint8_t REQUEST_DOWNLOAD_REQUEST[] = {0x34, 0x11, 0x33, 0x60, 0x20,
                                                 0x00, 0x00, 0xFF, 0xFF};
-    const uint8_t REQUEST_DOWNLOAD_RESPONSE[] = {0x7F, 0x34, 0x11};
-    SERVER_TEST_SEQUENCE_BEGIN();
-case 0:
-    SERVER_TEST_CLIENT_SEND(REQUEST_DOWNLOAD_REQUEST);
-    break;
-case 1:
-    SERVER_TEST_AWAIT_RESPONSE(REQUEST_DOWNLOAD_RESPONSE);
-    break;
-case 2:
-    done = true;
-    break;
-    SERVER_TEST_SEQUENCE_END(server.cfg->p2_ms * 3);
+    const uint8_t NEGATIVE_RESPONSE[] = {0x7F, 0x34, 0x11};
+
+    // when no requestDownloadHandler is installed,
+    // sending a request to the server
+    isotp_send(&g.clientLink, REQUEST_DOWNLOAD_REQUEST, sizeof(REQUEST_DOWNLOAD_REQUEST));
+
+    // should result in a response
+    while (ISOTP_RET_OK != isotp_receive(&g.clientLink, g.scratch, sizeof(g.scratch), &g.size)) {
+        Iso14229ServerPoll(&server);
+        fixtureClientLinkProcess();
+        assert(g.ms++ < cfg.p2_ms); // in p2 ms
+    }
+
+    // a kServiceNotSupported response
+    ASSERT_INT_EQUAL(sizeof(NEGATIVE_RESPONSE), g.size);
+    ASSERT_MEMORY_EQUAL(NEGATIVE_RESPONSE, g.scratch, sizeof(NEGATIVE_RESPONSE));
     TEST_TEARDOWN();
 }
 
@@ -430,113 +625,154 @@ testServer0x34DownloadDataMockHandlerOnTransfer(const struct Iso14229ServerStatu
     return kPositiveResponse;
 }
 
-Iso14229DownloadHandler testServer0x34DownloadDataMockHandler = {
-    .onExit = testServer0x34DownloadDataMockHandlerOnExit,
-    .onTransfer = testServer0x34DownloadDataMockHandlerOnTransfer,
-    .userCtx = NULL,
-};
-
 static enum Iso14229ResponseCode testServer0x34DownloadDataMockuserRequestDownloadHandler(
     const struct Iso14229ServerStatus *status, void *memoryAddress, size_t memorySize,
     uint8_t dataFormatIdentifier, Iso14229DownloadHandler **handler,
     uint16_t *maxNumberOfBlockLength) {
     (void)status;
+    static Iso14229DownloadHandler mockHandler = {
+        .onExit = testServer0x34DownloadDataMockHandlerOnExit,
+        .onTransfer = testServer0x34DownloadDataMockHandlerOnTransfer,
+        .userCtx = NULL,
+    };
     ASSERT_INT_EQUAL(0x11, dataFormatIdentifier);
     ASSERT_PTR_EQUAL((void *)0x602000, memoryAddress);
     ASSERT_INT_EQUAL(0x00FFFF, memorySize);
-    *handler = &testServer0x34DownloadDataMockHandler;
+    *handler = &mockHandler;
     *maxNumberOfBlockLength = 0x0081;
     return kPositiveResponse;
 }
 
 void testServer0x34DownloadData() {
-    SERVER_TEST_SETUP();
-    serverCfg.userRequestDownloadHandler = testServer0x34DownloadDataMockuserRequestDownloadHandler;
-    // ISO14229-1:2013 Table 415
+    TEST_SETUP();
+    Iso14229Server server;
+    Iso14229ServerConfig cfg = DEFAULT_SERVER_CONFIG();
+    // when a handler is installed that implements ISO14229-1:2013 Table 415
+    cfg.userRequestDownloadHandler = testServer0x34DownloadDataMockuserRequestDownloadHandler;
+    Iso14229ServerInit(&server, &cfg);
+    IsoTpInitLink(&g.clientLink, &CLIENT_LINK_DEFAULT_CONFIG);
+
     const uint8_t REQUEST_DOWNLOAD_REQUEST[] = {0x34, 0x11, 0x33, 0x60, 0x20,
                                                 0x00, 0x00, 0xFF, 0xFF};
-    const uint8_t REQUEST_DOWNLOAD_RESPONSE[] = {0x74, 0x20, 0x00, 0x81};
-    SERVER_TEST_SEQUENCE_BEGIN();
-case 0:
-    SERVER_TEST_CLIENT_SEND(REQUEST_DOWNLOAD_REQUEST);
-    break;
-case 1:
-    SERVER_TEST_AWAIT_RESPONSE(REQUEST_DOWNLOAD_RESPONSE);
-    break;
-case 2:
-    done = true;
-    break;
-    SERVER_TEST_SEQUENCE_END(server.cfg->p2_ms * 3);
+    const uint8_t POSITIVE_RESPONSE[] = {0x74, 0x20, 0x00, 0x81};
+
+    // sending this request to the server
+    isotp_send(&g.clientLink, REQUEST_DOWNLOAD_REQUEST, sizeof(REQUEST_DOWNLOAD_REQUEST));
+
+    // should result in a response
+    while (ISOTP_RET_OK != isotp_receive(&g.clientLink, g.scratch, sizeof(g.scratch), &g.size)) {
+        Iso14229ServerPoll(&server);
+        fixtureClientLinkProcess();
+        assert(g.ms++ < cfg.p2_ms); // in less than p2 ms
+    }
+
+    // a positive response matching ISO14229-1:2013 Table 415
+    ASSERT_INT_EQUAL(sizeof(POSITIVE_RESPONSE), g.size);
+    ASSERT_MEMORY_EQUAL(POSITIVE_RESPONSE, g.scratch, sizeof(POSITIVE_RESPONSE));
     TEST_TEARDOWN();
 }
 
-#define TEST_0x36_MOCK_DATA 0xF0, 0x00, 0xBA, 0xBA
-static enum Iso14229ResponseCode
-testServer0x36TransferDataMockHandlerOnTransfer(const struct Iso14229ServerStatus *status,
-                                                void *userCtx, const uint8_t *data, uint32_t len) {
-    (void)status;
-    (void)userCtx;
-    const uint8_t MOCK_DATA[] = {TEST_0x36_MOCK_DATA};
-    ASSERT_INT_EQUAL(sizeof(MOCK_DATA), len);
-    ASSERT_MEMORY_EQUAL(MOCK_DATA, data, len);
-    return kPositiveResponse;
-}
+// #define TEST_0x36_MOCK_DATA 0xF0, 0x00, 0xBA, 0xBA
+// static enum Iso14229ResponseCode
+// testServer0x36TransferDataMockHandlerOnTransfer(const struct Iso14229ServerStatus *status,
+//                                                 void *userCtx, const uint8_t *data, uint32_t len)
+//                                                 {
+//     (void)status;
+//     (void)userCtx;
+//     const uint8_t MOCK_DATA[] = {TEST_0x36_MOCK_DATA};
+//     ASSERT_INT_EQUAL(sizeof(MOCK_DATA), len);
+//     ASSERT_MEMORY_EQUAL(MOCK_DATA, data, len);
+//     return kPositiveResponse;
+// }
 
-Iso14229DownloadHandler testServer0x36TransferDataMockHandler = {
-    .onTransfer = testServer0x36TransferDataMockHandlerOnTransfer,
-};
+// Iso14229DownloadHandler testServer0x36TransferDataMockHandler = {
+//     .onTransfer = testServer0x36TransferDataMockHandlerOnTransfer,
+// };
 
-void testServer0x36TransferData() {
-    SERVER_TEST_SETUP();
-    server.downloadHandler = &testServer0x36TransferDataMockHandler;
-    Iso14229DownloadHandlerInit(server.downloadHandler, 0xFFFF);
-    const uint8_t TRANSFER_DATA_REQUEST[] = {0x36, 0x01, TEST_0x36_MOCK_DATA};
-#undef TEST_0x36_MOCK_DATA
-    const uint8_t TRANSFER_DATA_RESPONSE[] = {0x76, 0x01};
-    SERVER_TEST_SEQUENCE_BEGIN();
-case 0:
-    SERVER_TEST_CLIENT_SEND(TRANSFER_DATA_REQUEST);
-    break;
-case 1:
-    SERVER_TEST_AWAIT_RESPONSE(TRANSFER_DATA_RESPONSE);
-    break;
-case 2:
-    done = true;
-    break;
-    SERVER_TEST_SEQUENCE_END(server.cfg->p2_ms * 3);
-    ASSERT_INT_EQUAL(server.downloadHandler->numBytesTransferred, 4);
-    ASSERT_INT_EQUAL(server.downloadHandler->blockSequenceCounter, 2);
-    TEST_TEARDOWN();
-}
+// void testServer0x36TransferData() {
+//     Iso14229Server server;
+//     Iso14229ServerConfig cfg = DEFAULT_SERVER_CONFIG();
+//     // when a handler is installed that implements ISO14229-1:2013 Table 415
+//     cfg.userRequestDownloadHandler = testServer0x34DownloadDataMockuserRequestDownloadHandler;
+//     Iso14229ServerInit(&server, &cfg);
+//     IsoTpInitLink(&g.clientLink, &CLIENT_LINK_DEFAULT_CONFIG);
+
+//     SERVER_TEST_SETUP();
+//     server.downloadHandler = &testServer0x36TransferDataMockHandler;
+//     Iso14229DownloadHandlerInit(server.downloadHandler, 0xFFFF);
+//     const uint8_t TRANSFER_DATA_REQUEST[] = {0x36, 0x01, TEST_0x36_MOCK_DATA};
+// #undef TEST_0x36_MOCK_DATA
+//     const uint8_t TRANSFER_DATA_RESPONSE[] = {0x76, 0x01};
+//     SERVER_TEST_SEQUENCE_BEGIN();
+// case 0:
+//     SERVER_TEST_CLIENT_SEND(TRANSFER_DATA_REQUEST);
+//     break;
+// case 1:
+//     SERVER_TEST_AWAIT_RESPONSE(TRANSFER_DATA_RESPONSE);
+//     break;
+// case 2:
+//     done = true;
+//     break;
+//     SERVER_TEST_SEQUENCE_END(server.cfg->p2_ms * 3);
+//     ASSERT_INT_EQUAL(server.downloadHandler->numBytesTransferred, 4);
+//     ASSERT_INT_EQUAL(server.downloadHandler->blockSequenceCounter, 2);
+//     TEST_TEARDOWN();
+// }
 
 /* ISO14229-1 2013 Table 72 */
 void testServer0x3ESuppressPositiveResponse() {
-    SERVER_TEST_SETUP();
-    const uint8_t MOCK_DATA[] = {0x3E, 0x80};
-    for (g_ms = 0; g_ms < server.cfg->p2_ms; g_ms++) {
+    TEST_SETUP();
+    Iso14229Server server;
+    Iso14229ServerConfig cfg = DEFAULT_SERVER_CONFIG();
+    Iso14229ServerInit(&server, &cfg);
+    IsoTpInitLink(&g.clientLink, &CLIENT_LINK_DEFAULT_CONFIG);
+
+    // when the suppressPositiveResponse bit is set
+    const uint8_t REQUEST[] = {0x3E, 0x80};
+
+    // sending this request
+    isotp_send(&g.clientLink, REQUEST, sizeof(REQUEST));
+
+    // should result in no response.
+    while (g.ms++ < cfg.p2_ms) {
         Iso14229ServerPoll(&server);
-        fixtureIsoTpPollLinks(&clientLink, &serverPhysLink, &serverFuncLink);
-        if (0 == g_ms) {
-            isotp_send(&clientLink, MOCK_DATA, sizeof(MOCK_DATA));
-        }
+        fixtureClientLinkProcess();
+        g.ret = isotp_receive(&g.clientLink, g.scratch, sizeof(g.scratch), &g.size);
+        ASSERT_INT_EQUAL(ISOTP_RET_NO_DATA, g.ret);
+        ASSERT_INT_EQUAL(g.size, 0);
     }
-    ASSERT_INT_EQUAL(clientLink.receive_size, 0);
     TEST_TEARDOWN();
 }
 
 void testServer0x83DiagnosticSessionControl() {
-    SERVER_TEST_SETUP();
-    serverCfg.userDiagnosticSessionControlHandler = mockDiagnosticSessionControlHandler;
-    const uint8_t MOCK_DATA[] = {0x10, 0x83};
+    TEST_SETUP();
+    Iso14229Server server;
+    Iso14229ServerConfig cfg = DEFAULT_SERVER_CONFIG();
+    cfg.userDiagnosticSessionControlHandler = mockDiagnosticSessionControlHandler;
+    Iso14229ServerInit(&server, &cfg);
+    IsoTpInitLink(&g.clientLink, &CLIENT_LINK_DEFAULT_CONFIG);
+
+    // the server sessionType after initialization should be kDefaultSession.
     ASSERT_INT_EQUAL(server.status.sessionType, kDefaultSession);
-    for (g_ms = 0; g_ms < server.cfg->p2_ms; g_ms++) {
+
+    // When the suppressPositiveResponse bit is set
+    const uint8_t REQUEST[] = {0x10, 0x83};
+
+    // sending this request
+    isotp_send(&g.clientLink, REQUEST, sizeof(REQUEST));
+
+    // should result in no response.
+    while (g.ms++ < cfg.p2_ms) {
         Iso14229ServerPoll(&server);
-        fixtureIsoTpPollLinks(&clientLink, &serverPhysLink, &serverFuncLink);
-        if (0 == g_ms) {
-            isotp_send(&clientLink, MOCK_DATA, sizeof(MOCK_DATA));
-        }
+        fixtureClientLinkProcess();
+        g.ret = isotp_receive(&g.clientLink, g.scratch, sizeof(g.scratch), &g.size);
+        ASSERT_INT_EQUAL(ISOTP_RET_NO_DATA, g.ret);
+        ASSERT_INT_EQUAL(g.size, 0);
     }
+
+    // and the server sessionType should have changed
     ASSERT_INT_EQUAL(server.status.sessionType, kExtendedDiagnostic);
+
     TEST_TEARDOWN();
 }
 
@@ -546,137 +782,217 @@ void testServer0x83DiagnosticSessionControl() {
 
 void testClientInit() {
     TEST_SETUP();
-    CLIENT_DECLARE();
-    isotp_init_link(&clientLink, CLIENT_SEND_ID, clientIsotpSendBuf, sizeof(clientIsotpSendBuf),
-                    clientIsotpRecvBuf, sizeof(clientIsotpRecvBuf), isotp_user_get_ms,
-                    fixtureClientSendCAN, isotp_client_debug);
-    iso14229ClientInit(&client, &clientCfg);
+    Iso14229Client client;
+    struct Iso14229ClientConfig cfg = DEFAULT_CLIENT_CONFIG();
+    iso14229ClientInit(&client, &cfg);
     TEST_TEARDOWN();
 }
 
 void testClientP2TimeoutExceeded() {
-    CLIENT_TEST_SETUP();
-    for (g_ms = 0; g_ms < client.settings.p2_ms + 3; g_ms++) {
+    TEST_SETUP();
+    Iso14229Client client;
+    IsoTpInitLink(&g.srvPhysLink, &SRV_PHYS_LINK_DEFAULT_CONFIG);
+    struct Iso14229ClientConfig cfg = DEFAULT_CLIENT_CONFIG();
+    iso14229ClientInit(&client, &cfg);
+
+    // Sending an ECU reset
+    ECUReset(&client, kHardReset);
+
+    // and not receiving a response after approximately p2 ms
+    while (g.ms++ < cfg.p2_ms + 3) {
         Iso14229ClientPoll(&client);
-        if (0 == g_ms) {
-            ASSERT_INT_EQUAL(kRequestNoError, ECUReset(&client, kHardReset));
-        }
     }
-    ASSERT_INT_EQUAL(kRequestTimedOut, client.ctx.err);
-    ASSERT_INT_EQUAL(kRequestStateIdle, client.ctx.state);
+
+    // should result in kRequestTimedOut
+    ASSERT_INT_EQUAL(kRequestTimedOut, client.err);
+    ASSERT_INT_EQUAL(kRequestStateIdle, client.state);
     TEST_TEARDOWN();
 }
 
 void testClientP2TimeoutNotExceeded() {
-    CLIENT_TEST_SETUP();
-    static uint8_t response[] = {0x51, 0x01};
-    for (g_ms = 0; g_ms < client.settings.p2_ms + 2; g_ms++) {
-        fixtureIsoTpPollLinks(&clientLink, &serverPhysLink, &serverFuncLink);
+    TEST_SETUP();
+    Iso14229Client client;
+    IsoTpInitLink(&g.srvPhysLink, &SRV_PHYS_LINK_DEFAULT_CONFIG);
+    struct Iso14229ClientConfig cfg = DEFAULT_CLIENT_CONFIG();
+    iso14229ClientInit(&client, &cfg);
+
+    // a client that sends an ECU reset
+    ECUReset(&client, kHardReset);
+
+    // which receives a positive response
+    const uint8_t POSITIVE_RESPONSE[] = {0x51, 0x01};
+    isotp_send(&g.srvPhysLink, POSITIVE_RESPONSE, sizeof(POSITIVE_RESPONSE));
+
+    // should return to the idle state
+    while (kRequestStateIdle != client.state) {
         Iso14229ClientPoll(&client);
-        if (0 == g_ms) {
-            ECUReset(&client, kHardReset);
-        } else if (1 == g_ms) {
-            isotp_send(&serverPhysLink, response, sizeof(response));
-        }
+        assert(g.ms++ < cfg.p2_ms); // before p2 ms has elapsed
     }
-    ASSERT_INT_EQUAL(kRequestNoError, client.ctx.err);
-    ASSERT_INT_EQUAL(kRequestStateIdle, client.ctx.state);
+
+    // and should have no error.
+    ASSERT_INT_EQUAL(kRequestNoError, client.err);
     TEST_TEARDOWN();
 }
 
 void testClientSuppressPositiveResponse() {
-    CLIENT_TEST_SETUP();
-    client.settings.suppressPositiveResponse = true;
-    for (g_ms = 0; g_ms < client.settings.p2_ms + 2; g_ms++) {
+    TEST_SETUP();
+    Iso14229Client client;
+    IsoTpInitLink(&g.srvPhysLink, &SRV_PHYS_LINK_DEFAULT_CONFIG);
+    struct Iso14229ClientConfig cfg = DEFAULT_CLIENT_CONFIG();
+    iso14229ClientInit(&client, &cfg);
+
+    // Setting the suppressPositiveResponse flag before sending a request
+    client.suppressPositiveResponse = true;
+    ECUReset(&client, kHardReset);
+
+    // and not receiving a response after approximately p2 ms
+    while (g.ms++ < cfg.p2_ms + 3) {
         Iso14229ClientPoll(&client);
-        if (0 == g_ms) {
-            ASSERT_INT_EQUAL(kRequestNoError, ECUReset(&client, kHardReset));
-        }
     }
-    ASSERT_INT_EQUAL(kRequestNoError, client.ctx.err);
-    ASSERT_INT_EQUAL(kRequestStateIdle, client.ctx.state);
+
+    // should not result in an error.
+    ASSERT_INT_EQUAL(kRequestNoError, client.err);
+    ASSERT_INT_EQUAL(kRequestStateIdle, client.state);
     TEST_TEARDOWN();
 }
 
 void testClientBusy() {
-    CLIENT_TEST_SETUP();
-    for (g_ms = 0; g_ms < 2; g_ms++) {
-        Iso14229ClientPoll(&client);
-        if (0 == g_ms) {
-            ECUReset(&client, kHardReset);
-        } else if (1 == g_ms) {
-            ASSERT_INT_EQUAL(kRequestNotSentBusy, ECUReset(&client, kHardReset));
-        }
-    }
+    TEST_SETUP();
+    Iso14229Client client;
+    IsoTpInitLink(&g.srvPhysLink, &SRV_PHYS_LINK_DEFAULT_CONFIG);
+    struct Iso14229ClientConfig cfg = DEFAULT_CLIENT_CONFIG();
+    iso14229ClientInit(&client, &cfg);
+
+    // Sending a request should not return an error
+    ASSERT_INT_EQUAL(kRequestNoError, ECUReset(&client, kHardReset));
+
+    // unless there is an existing unresolved request
+    ASSERT_INT_EQUAL(kRequestNotSentBusy, ECUReset(&client, kHardReset));
+
     TEST_TEARDOWN();
 }
 
 void testClientUnexpectedResponse() {
-    CLIENT_TEST_SETUP();
+    TEST_SETUP();
+    Iso14229Client client;
+    IsoTpInitLink(&g.srvPhysLink, &SRV_PHYS_LINK_DEFAULT_CONFIG);
+    struct Iso14229ClientConfig cfg = DEFAULT_CLIENT_CONFIG();
+    iso14229ClientInit(&client, &cfg);
+
+    // sending an ECU reset
+    ECUReset(&client, kHardReset);
+
     // The correct response SID to EcuReset (0x11) is 0x51.
-    const uint8_t RESPONSE[] = {0x50, 0x01}; // incorrect, unexpected
-    for (g_ms = 0; g_ms < 4; g_ms++) {
-        fixtureIsoTpPollLinks(&clientLink, &serverPhysLink, &serverFuncLink);
+    const uint8_t WEIRD_RESPONSE[] = {0x50, 0x01}; // incorrect, unexpected
+
+    isotp_send(&g.srvPhysLink, WEIRD_RESPONSE, sizeof(WEIRD_RESPONSE));
+
+    // should return to the idle state
+    while (kRequestStateIdle != client.state) {
         Iso14229ClientPoll(&client);
-        if (0 == g_ms) {
-            ECUReset(&client, kHardReset);
-        } else if (1 == g_ms) {
-            isotp_send(&serverPhysLink, RESPONSE, sizeof(RESPONSE));
-        }
+        assert(g.ms++ < cfg.p2_ms); // before p2 ms has elapsed
     }
-    ASSERT_INT_EQUAL(kRequestErrorResponseSIDMismatch, client.ctx.err);
-    ASSERT_INT_EQUAL(kRequestStateIdle, client.ctx.state);
+
+    // with a kRequestErrorResponseSIDMismatch error.
+    ASSERT_INT_EQUAL(kRequestErrorResponseSIDMismatch, client.err);
     TEST_TEARDOWN();
 }
 
 void testClient0x11ECUReset() {
-    CLIENT_TEST_SETUP();
-    const uint8_t REQUEST[] = {0x11, 0x01};  // correct
-    const uint8_t RESPONSE[] = {0x51, 0x01}; // correct, positive
-    for (g_ms = 0; g_ms < client.settings.p2_ms + 2; g_ms++) {
-        fixtureIsoTpPollLinks(&clientLink, &serverPhysLink, &serverFuncLink);
-        Iso14229ClientPoll(&client);
-        if (0 == g_ms) {
-            ECUReset(&client, kHardReset);
-            ASSERT_MEMORY_EQUAL(clientIsotpSendBuf, REQUEST, sizeof(REQUEST));
-            assert(sizeof(REQUEST) == clientLink.send_size);
-        } else if (1 == g_ms) {
-            isotp_send(&serverPhysLink, RESPONSE, sizeof(RESPONSE));
-        }
-    }
-    ASSERT_INT_EQUAL(kRequestNoError, client.ctx.err);
-    ASSERT_INT_EQUAL(kRequestStateIdle, client.ctx.state);
+    TEST_SETUP();
+    Iso14229Client client;
+    IsoTpInitLink(&g.srvPhysLink, &SRV_PHYS_LINK_DEFAULT_CONFIG);
+    struct Iso14229ClientConfig cfg = DEFAULT_CLIENT_CONFIG();
+    iso14229ClientInit(&client, &cfg);
+
+    // sending an ECUReset of type kHardReset
+    ECUReset(&client, kHardReset);
+
+    // should send these bytes to the ISO-TP layer
+    const uint8_t HARD_RESET_REQUEST[] = {0x11, 0x01};
+    ASSERT_MEMORY_EQUAL(g.clientLinkTxBuf, HARD_RESET_REQUEST, sizeof(HARD_RESET_REQUEST));
+    ASSERT_INT_EQUAL(sizeof(HARD_RESET_REQUEST), g.clientLink.send_size);
+
     TEST_TEARDOWN();
 }
 
 void testClient0x11ECUResetNegativeResponse() {
-    CLIENT_TEST_SETUP();
-    static uint8_t RESPONSE[] = {0x7F, 0x11, 0x10}; // ECU Reset Negative Response
-    for (g_ms = 0; g_ms < 4; g_ms++) {
-        fixtureIsoTpPollLinks(&clientLink, &serverPhysLink, &serverFuncLink);
+    TEST_SETUP();
+    Iso14229Client client;
+    IsoTpInitLink(&g.srvPhysLink, &SRV_PHYS_LINK_DEFAULT_CONFIG);
+    struct Iso14229ClientConfig cfg = DEFAULT_CLIENT_CONFIG();
+    iso14229ClientInit(&client, &cfg);
+
+    // A client that sends an ECU reset
+    ECUReset(&client, kHardReset);
+
+    // and receives a negative response
+    const uint8_t NEG_RESPONSE[] = {0x7F, 0x11, 0x10};
+    isotp_send(&g.srvPhysLink, NEG_RESPONSE, sizeof(NEG_RESPONSE));
+
+    // should return to the idle state
+    while (kRequestStateIdle != client.state) {
         Iso14229ClientPoll(&client);
-        if (0 == g_ms) {
-            ECUReset(&client, kHardReset);
-        } else if (1 == g_ms) {
-            isotp_send(&serverPhysLink, RESPONSE, sizeof(RESPONSE));
-        }
+        assert(g.ms++ < cfg.p2_ms); // before p2 ms has elapsed
     }
-    ASSERT_INT_EQUAL(kRequestErrorNegativeResponse, client.ctx.err);
-    ASSERT_INT_EQUAL(kRequestStateIdle, client.ctx.state);
+
+    // with a kRequestErrorNegativeResponse error
+    ASSERT_INT_EQUAL(kRequestErrorNegativeResponse, client.err);
+    TEST_TEARDOWN();
+}
+
+void testClient0x11ECUResetNegativeResponseNoError() {
+    TEST_SETUP();
+    Iso14229Client client;
+    IsoTpInitLink(&g.srvPhysLink, &SRV_PHYS_LINK_DEFAULT_CONFIG);
+    struct Iso14229ClientConfig cfg = DEFAULT_CLIENT_CONFIG();
+    iso14229ClientInit(&client, &cfg);
+
+    // A client that sets the negativeResponseIsError flag to false
+    client.negativeResponseIsError = false;
+    // before sending an ECU reset
+    ECUReset(&client, kHardReset);
+
+    // and receiving a negative response
+    const uint8_t NEG_RESPONSE[] = {0x7F, 0x11, 0x10};
+    isotp_send(&g.srvPhysLink, NEG_RESPONSE, sizeof(NEG_RESPONSE));
+
+    // should return to the idle state
+    while (kRequestStateIdle != client.state) {
+        Iso14229ClientPoll(&client);
+        assert(g.ms++ < cfg.p2_ms); // before p2 ms has elapsed
+    }
+
+    // with no error
+    ASSERT_INT_EQUAL(kRequestNoError, client.err);
     TEST_TEARDOWN();
 }
 
 void testClient0x22RDBITxBufferTooSmall() {
-    CLIENT_TEST_SETUP();
+    TEST_SETUP();
+    Iso14229Client client;
+    IsoTpInitLink(&g.srvPhysLink, &SRV_PHYS_LINK_DEFAULT_CONFIG);
+    struct Iso14229ClientConfig cfg = DEFAULT_CLIENT_CONFIG();
+    iso14229ClientInit(&client, &cfg);
+
+    // attempting to send a request payload of 6 bytes
     uint16_t didList[] = {0x0001, 0x0002, 0x0003};
-    client.cfg->link->send_buf_size = 4;
+
+    // which is larger than the underlying buffer
+    client.link->send_buf_size = 4;
+
+    // should return an error
     ASSERT_INT_EQUAL(kRequestNotSentInvalidArgs,
                      ReadDataByIdentifier(&client, didList, ARRAY_SZ(didList)))
+
+    // and no data should be sent
+    ASSERT_INT_EQUAL(client.link->send_size, 0);
+
     TEST_TEARDOWN();
 }
 
 void testClient0x22RDBIUnpackResponse() {
-    CLIENT_TEST_SETUP();
+    TEST_SETUP();
     uint8_t RESPONSE[] = {0x72, 0x12, 0x34, 0x00, 0x00, 0xAA, 0x00, 0x56, 0x78, 0xAA, 0xBB};
     struct Iso14229Response resp = {
         .buf = RESPONSE, .buffer_size = sizeof(RESPONSE), .len = sizeof(RESPONSE)};
@@ -702,181 +1018,196 @@ void testClient0x22RDBIUnpackResponse() {
 }
 
 void testClient0x31RequestCorrectlyReceivedResponsePending() {
-    CLIENT_TEST_SETUP();
-    client.settings.p2_ms = 10;
-    client.settings.p2_star_ms = 50;
-    const uint8_t RESPONSE1[] = {0x7F, 0x31, 0x78}; // RequestCorrectly-ReceievedResponsePending
-    const uint8_t RESPONSE2[] = {0x71, 0x01, 0x12, 0x34}; // PositiveResponse
-    uint32_t t_1 = 0;
-    CLIENT_TEST_SEQUENCE_BEGIN();
-case 0: {
+    TEST_SETUP();
+    IsoTpInitLink(&g.srvPhysLink, &SRV_PHYS_LINK_DEFAULT_CONFIG);
+    Iso14229Client client;
+    struct Iso14229ClientConfig cfg = DEFAULT_CLIENT_CONFIG();
+    cfg.p2_ms = 10;
+    cfg.p2_star_ms = 50;
+    iso14229ClientInit(&client, &cfg);
+
+    // When a request is sent
     RoutineControl(&client, kStartRoutine, 0x1234, NULL, 0);
-    step = 1;
-    break;
-}
-case 1: {
-    isotp_send(&serverPhysLink, RESPONSE1, sizeof(RESPONSE1));
-    step = 2;
-    // At this time, the client should be waiting with timeout p2_star
-    t_1 = g_ms + 20;
-    break;
-}
-case 2: {
-    if (Iso14229TimeAfter(t_1, g_ms)) {
-        ASSERT_INT_EQUAL(client.ctx.state, kRequestStateSentAwaitResponse);
-        isotp_send(&serverPhysLink, RESPONSE2, sizeof(RESPONSE2));
-        step = 3;
+
+    // that receives an RCRRP response
+    const uint8_t RCRRP[] = {0x7F, 0x31, 0x78}; // RequestCorrectly-ReceievedResponsePending
+    isotp_send(&g.srvPhysLink, RCRRP, sizeof(RCRRP));
+
+    // that remains unresolved at a time between p2 ms and p2 star ms
+    while (g.ms++ < 30) {
+        Iso14229ClientPoll(&client);
     }
-    break;
-}
-case 3: {
-    if (kRequestStateIdle == client.ctx.state) {
-        done = true;
+
+    // the client should still be pending.
+    ASSERT_INT_EQUAL(kRequestStateSentAwaitResponse, client.state)
+
+    // When the server sends a positive response
+    const uint8_t POSITIVE_RESPONSE[] = {0x71, 0x01, 0x12, 0x34};
+    isotp_send(&g.srvPhysLink, POSITIVE_RESPONSE, sizeof(POSITIVE_RESPONSE));
+    g.t0 = g.ms;
+
+    // the client should return to the idle state
+    while (kRequestStateIdle != client.state) {
+        Iso14229ClientPoll(&client);
+        assert(g.ms++ - g.t0 < cfg.p2_ms); // before p2 ms has elapsed
     }
-    break;
-}
-    CLIENT_TEST_SEQUENCE_END(1000);
-    ASSERT_INT_EQUAL(client.ctx.err, kRequestNoError);
+
+    // with no error
+    ASSERT_INT_EQUAL(client.err, kRequestNoError);
     TEST_TEARDOWN();
 }
 
-// ISO14229-1 2013 Table 415
 void testClient0x34RequestDownload() {
-    CLIENT_TEST_SETUP();
-    const uint8_t REQUEST[] = {0x34, 0x11, 0x33, 0x60, 0x20, 0x00, 0x00, 0xFF, 0xFF};
+    TEST_SETUP();
+    IsoTpInitLink(&g.srvPhysLink, &SRV_PHYS_LINK_DEFAULT_CONFIG);
+    Iso14229Client client;
+    struct Iso14229ClientConfig cfg = DEFAULT_CLIENT_CONFIG();
+    iso14229ClientInit(&client, &cfg);
+
+    // When RequestDownload is called with these arguments
     ASSERT_INT_EQUAL(kRequestNoError, RequestDownload(&client, 0x11, 0x33, 0x602000, 0x00FFFF));
-    ASSERT_MEMORY_EQUAL(clientIsotpSendBuf, REQUEST, sizeof(REQUEST));
-    ASSERT_INT_EQUAL(sizeof(REQUEST), clientLink.send_size);
+
+    // the bytes sent should match ISO14229-1 2013 Table 415
+    const uint8_t CORRECT_REQUEST[] = {0x34, 0x11, 0x33, 0x60, 0x20, 0x00, 0x00, 0xFF, 0xFF};
+    ASSERT_MEMORY_EQUAL(g.clientLinkTxBuf, CORRECT_REQUEST, sizeof(CORRECT_REQUEST));
+    ASSERT_INT_EQUAL(sizeof(CORRECT_REQUEST), g.clientLink.send_size);
     TEST_TEARDOWN();
 }
 
 void testClient0x34UnpackRequestDownloadResponse() {
-    uint8_t RESPONSE[] = {0x74, 0x20, 0x00, 0x81};
-    struct Iso14229Response resp;
-    resp.buf = RESPONSE;
-    resp.buffer_size = sizeof(RESPONSE);
-    resp.len = sizeof(RESPONSE);
+    TEST_SETUP();
     struct RequestDownloadResponse unpacked;
+
+    // When the following raw bytes are received
+    uint8_t RESPONSE[] = {0x74, 0x20, 0x00, 0x81};
+    struct Iso14229Response resp = {
+        .buf = RESPONSE,
+        .buffer_size = sizeof(RESPONSE),
+        .len = sizeof(RESPONSE),
+    };
+
     enum Iso14229ClientRequestError err = UnpackRequestDownloadResponse(&resp, &unpacked);
-    ASSERT_INT_EQUAL(unpacked.maxNumberOfBlockLength, 0x81);
+
+    // they should unpack without error
     ASSERT_INT_EQUAL(err, kRequestNoError);
+    ASSERT_INT_EQUAL(unpacked.maxNumberOfBlockLength, 0x81);
 }
 
 void testClient0x36TransferData() {
-    CLIENT_TEST_SETUP();
-    RequestDownload(&client, 0x11, 0x33, 0x602000, 0x00FFFF);
-    const uint8_t CORRECT[] = {0x34, 0x11, 0x33, 0x60, 0x20, 0x00, 0x00, 0xFF, 0xFF};
-    ASSERT_MEMORY_EQUAL(clientIsotpSendBuf, CORRECT, sizeof(CORRECT));
-    TEST_TEARDOWN();
-}
+    TEST_SETUP();
+    IsoTpInitLink(&g.srvPhysLink, &SRV_PHYS_LINK_DEFAULT_CONFIG);
+    Iso14229Client client;
+    struct Iso14229ClientConfig cfg = DEFAULT_CLIENT_CONFIG();
+    iso14229ClientInit(&client, &cfg);
 
-/* ISO14229-1 2013 14.5.5 */
-void testClient0x36TransferData2() {
-    CLIENT_TEST_SETUP();
+    // This test is large because it implements ISO14229-1 2013 14.5.5
+    // It would be perhaps be better implemented with the
+    // iso14229ClientSequenceRunBlocking API instead.
 
 #define MemorySize (0x00FFFF)
+
+    // Create some source data and write it to a file
     const char *fname = "testClient0x36TransferData2.dat";
     uint8_t SRC_DATA[MemorySize] = {0};
     for (unsigned int i = 0; i < sizeof(SRC_DATA); i++) {
         SRC_DATA[i] = i & 0xFF;
     }
-
     FILE *fd = fopen(fname, "wb+");
     assert(sizeof(SRC_DATA) == fwrite(SRC_DATA, 1, sizeof(SRC_DATA), fd));
     rewind(fd);
 
+    // see example
     const uint16_t maximumNumberOfBlockLength = 0x0081;
     uint32_t blockNr = 0;
 
-    CLIENT_TEST_SEQUENCE_BEGIN();
-case 0:
+    // when RequestDownload is called
     RequestDownload(&client, 0x11, 0x33, 0x602000, MemorySize);
-    step = 1;
-    break;
 
-case 1: {
-    uint16_t size = 0;
-    if (ISOTP_RET_OK == isotp_receive(&serverPhysLink, serverIsotpPhysRecvBuf,
-                                      sizeof(serverIsotpPhysRecvBuf), &size)) {
-        // Table 415
-        ASSERT_INT_EQUAL(size, 9);
-        const uint8_t CORRECT_REQUEST[] = {0x34, 0x11, 0x33, 0x60, 0x20, 0x00, 0x00, 0xFF, 0xFF};
-        ASSERT_MEMORY_EQUAL(serverIsotpPhysRecvBuf, CORRECT_REQUEST, sizeof(CORRECT_REQUEST));
-
-        const uint8_t RESPONSE[] = {0x74, 0x20, 0x00, 0x81};
-        isotp_send(&serverPhysLink, RESPONSE, sizeof(RESPONSE));
-        step = 2;
+    // the server link should receive it
+    while (ISOTP_RET_OK != isotp_receive(&g.srvPhysLink, g.scratch, sizeof(g.scratch), &g.size)) {
+        fixtureSrvLinksProcess();
+        Iso14229ClientPoll(&client);
+        assert(g.ms++ < cfg.p2_ms); // in p2 ms
     }
-    break;
-}
 
-case 2: { // Transfer Data
+    // The bytes received should match Table 415
+    ASSERT_INT_EQUAL(g.size, 9);
+    const uint8_t CORRECT_0x34_REQUEST[] = {0x34, 0x11, 0x33, 0x60, 0x20, 0x00, 0x00, 0xFF, 0xFF};
+    ASSERT_MEMORY_EQUAL(g.srvPhysLinkRxBuf, CORRECT_0x34_REQUEST, sizeof(CORRECT_0x34_REQUEST));
+
+    // when the server sends this positive response
+    const uint8_t RESPONSE[] = {0x74, 0x20, 0x00, 0x81};
+    isotp_send(&g.srvPhysLink, RESPONSE, sizeof(RESPONSE));
+
+    // the client should return to the idle state in under p2 ms
+    g.t0 = g.ms;
+    while (kRequestStateIdle != client.state) {
+        fixtureSrvLinksProcess();
+        Iso14229ClientPoll(&client);
+        assert(g.ms++ - g.t0 < client.p2_ms);
+    }
+    // and have no errors.
+    ASSERT_INT_EQUAL(kRequestNoError, client.err);
+
     assert(!ferror(fd));
-    if (!feof(fd)) {
-        if (kRequestStateIdle == client.ctx.state) {
-            TransferData(&client, ++blockNr & 0xFF, maximumNumberOfBlockLength, fd);
 
-            const uint8_t RESPONSE[] = {0x76, blockNr};
-            isotp_send(&serverPhysLink, RESPONSE, sizeof(RESPONSE));
+    // Until the file has been exhausted. . .
+    while (!feof(fd)) {
+
+        // the client should send chunks of data from the file.
+        TransferDataStream(&client, ++blockNr & 0xFF, maximumNumberOfBlockLength, fd);
+
+        // When the server responds positively,
+        const uint8_t RESPONSE[] = {0x76, blockNr};
+        isotp_send(&g.srvPhysLink, RESPONSE, sizeof(RESPONSE));
+
+        g.t0 = g.ms;
+        // The client should return to the idle state
+        while (kRequestStateIdle != client.state) {
+            fixtureSrvLinksProcess();
+            Iso14229ClientPoll(&client);
+            assert(g.ms++ - g.t0 < client.p2_ms); // in under p2 ms
         }
-    } else {
-        // The last message contains the final three bytes of the source data
-        uint8_t REQUEST[5] = {0x36, 0x05, 0x0, 0x0, 0x0};
-        for (int i = 0; i < 3; i++) {
-            REQUEST[2 + i] = SRC_DATA[(MemorySize - 1) - 2 + i];
-        }
-        ASSERT_INT_EQUAL(serverPhysLink.receive_size, sizeof(REQUEST));
-        ASSERT_MEMORY_EQUAL(serverIsotpPhysRecvBuf, REQUEST, sizeof(REQUEST)); // Table 419
+        ASSERT_INT_EQUAL(kRequestNoError, client.err); // with no error.
 
-        ASSERT_INT_EQUAL(blockNr, 517); // 14.5.5.1.1
-        step = 3;                       // Transfer complete
-    }
-    break;
-}
+        // and the server link should have received data
+        g.ret = isotp_receive(&g.srvPhysLink, g.scratch, sizeof(g.scratch), &g.size);
+        ASSERT_INT_EQUAL(ISOTP_RET_OK, g.ret);
 
-case 3: // Request Transfer Exit
-    if (kRequestStateIdle == client.ctx.state) {
-        ASSERT_INT_EQUAL(client.ctx.err, kRequestNoError);
-        RequestTransferExit(&client);
-        step = 4;
+        assert(g.ms < 60000); // timeout: TransferDataStream isn't reading the fd.
     }
-    break;
-case 4: {
-    uint16_t size = 0;
-    if (ISOTP_RET_OK == isotp_receive(&serverPhysLink, serverIsotpPhysRecvBuf,
-                                      sizeof(serverIsotpPhysRecvBuf), &size)) {
-        PRINTHEX(serverIsotpPhysRecvBuf, size);
-        ASSERT_INT_EQUAL(size, 1);
-        const uint8_t CORRECT_REQUEST[] = {0x37};
-        ASSERT_MEMORY_EQUAL(serverIsotpPhysRecvBuf, CORRECT_REQUEST, sizeof(CORRECT_REQUEST));
-        done = true;
+
+    // The transfer is complete.
+    // The last message contains the final three bytes of the source data.
+    // Create a reference:
+    uint8_t REQUEST[5] = {0x36, 0x05, 0x0, 0x0, 0x0};
+    for (int i = 0; i < 3; i++) {
+        REQUEST[2 + i] = SRC_DATA[(MemorySize - 1) - 2 + i];
     }
-    break;
-}
-    CLIENT_TEST_SEQUENCE_END(60000);
+    // The data received by the server at the should match the reference.
+    ASSERT_INT_EQUAL(g.srvPhysLink.receive_size, sizeof(REQUEST));
+    ASSERT_MEMORY_EQUAL(g.srvPhysLinkRxBuf, REQUEST, sizeof(REQUEST)); // Table 419
+    ASSERT_INT_EQUAL(blockNr, 517);                                    // 14.5.5.1.1
+
+    // When RequestTransferExit is called
+    RequestTransferExit(&client);
+
+    // the server link should receive data
+    g.t0 = g.ms;
+    while (ISOTP_RET_OK != isotp_receive(&g.srvPhysLink, g.scratch, sizeof(g.scratch), &g.size)) {
+        fixtureSrvLinksProcess();
+        Iso14229ClientPoll(&client);
+        assert(g.ms++ - g.t0 < cfg.p2_ms); // in p2 ms
+    }
+
+    // and the data should look like this
+    const uint8_t CORRECT_0x37_REQUEST[] = {0x37};
+    ASSERT_INT_EQUAL(g.size, sizeof(CORRECT_0x37_REQUEST));
+    ASSERT_MEMORY_EQUAL(g.srvPhysLinkRxBuf, CORRECT_0x37_REQUEST, sizeof(CORRECT_0x37_REQUEST));
+
 #undef MemorySize
     fclose(fd);
     remove(fname);
-    TEST_TEARDOWN();
-}
-
-// ================================================
-// System tests
-// ================================================
-
-void testSystemEcuReset() {
-    CLIENT_SERVER_TEST_SETUP();
-    serverCfg.userECUResetHandler = mockECUResetHandler;
-
-    for (g_ms = 0; g_ms < client.settings.p2_ms + 2; g_ms++) {
-        fixtureIsoTpPollLinks(&clientLink, &serverPhysLink, &serverFuncLink);
-        Iso14229ClientPoll(&client);
-        Iso14229ServerPoll(&server);
-        if (0 == g_ms) {
-            ECUReset(&client, kHardReset);
-        }
-    }
-    ASSERT_INT_EQUAL(g_mockECUResetHandlerCallCount, 1);
     TEST_TEARDOWN();
 }
 
@@ -893,7 +1224,7 @@ int main() {
     testServer0x31RCRRP();
     testServer0x34NotEnabled();
     testServer0x34DownloadData();
-    testServer0x36TransferData();
+    // testServer0x36TransferData();
     testServer0x3ESuppressPositiveResponse();
     testServer0x83DiagnosticSessionControl();
 
@@ -905,13 +1236,11 @@ int main() {
     testClientUnexpectedResponse();
     testClient0x11ECUReset();
     testClient0x11ECUResetNegativeResponse();
+    testClient0x11ECUResetNegativeResponseNoError();
     testClient0x22RDBITxBufferTooSmall();
     testClient0x22RDBIUnpackResponse();
     testClient0x31RequestCorrectlyReceivedResponsePending();
     testClient0x34RequestDownload();
     testClient0x34UnpackRequestDownloadResponse();
     testClient0x36TransferData();
-    testClient0x36TransferData2();
-
-    testSystemEcuReset();
 }

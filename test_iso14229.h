@@ -10,6 +10,11 @@
 #include "isotp-c/isotp_config.h"
 #include "isotp-c/isotp_defines.h"
 
+#define ANSI_RESET "\033[0m"
+#define ANSI_BOLD "\033[1m"
+#define ANSI_BRIGHT_GREEN "\033[92m"
+#define ANSI_BRIGHT_MAGENTA "\033[95m"
+
 #define ASSERT_INT_EQUAL(a, b)                                                                     \
     {                                                                                              \
         int _a = a;                                                                                \
@@ -55,252 +60,77 @@
 #define SERVER_PHYS_RECV_ID (0x2U) /* server listens for physically (1:1) addressed messages */
 #define SERVER_FUNC_RECV_ID (0x4U) /* server listens for functionally (1:n) addressed messages */
 
-#define CLIENT_SEND_ID SERVER_PHYS_RECV_ID /* client sends physically (1:1) by default */
+#define CLIENT_PHYS_SEND_ID SERVER_PHYS_RECV_ID /* client sends physically (1:1) by default */
+#define CLIENT_SEND_ID CLIENT_PHYS_SEND_ID
+#define CLIENT_FUNC_SEND_ID SERVER_FUNC_RECV_ID
 #define CLIENT_RECV_ID SERVER_SEND_ID
 
+#define CLIENT_DEFAULT_P2_MS 150
+#define CLIENT_DEFAULT_P2_STAR_MS 1500
+#define SERVER_DEFAULT_P2_MS 50
+#define SERVER_DEFAULT_P2_STAR_MS 2000
+#define SERVER_DEFAULT_S3_MS 5000
+
 // TODO: parameterize and fuzz this
-#define ISOTP_BUFSIZE (2048U)
+#define DEFAULT_ISOTP_BUFSIZE (2048U)
 
-/**
- * @brief declare a client ISO-TP link on the stack
- */
-#define CLIENT_ISOTP_LINK_DECLARE()                                                                \
-    uint8_t clientIsotpSendBuf[ISOTP_BUFSIZE];                                                     \
-    uint8_t clientIsotpRecvBuf[ISOTP_BUFSIZE];                                                     \
-    IsoTpLink clientLink;
+struct IsoTpLinkConfig {
+    uint16_t send_id;
+    uint8_t *send_buffer;
+    uint16_t send_buf_size;
+    uint8_t *recv_buffer;
+    uint16_t recv_buf_size;
+    uint32_t (*user_get_ms)(void);
+    int (*user_send_can)(uint32_t arbitration_id, const uint8_t *data, uint8_t size);
+    void (*user_debug)(const char *message, ...);
+};
 
-/**
- * @brief initialize a declared client ISO-TP link on the stack
- */
-#define CLIENT_ISOTP_LINK_INIT()                                                                   \
-    isotp_init_link(&clientLink, CLIENT_SEND_ID, clientIsotpSendBuf, sizeof(clientIsotpSendBuf),   \
-                    clientIsotpRecvBuf, sizeof(clientIsotpRecvBuf), isotp_user_get_ms,             \
-                    fixtureClientSendCAN, isotp_client_debug);
+static inline void IsoTpInitLink(IsoTpLink *link, const struct IsoTpLinkConfig *cfg) {
+    isotp_init_link(link, cfg->send_id, cfg->send_buffer, cfg->send_buf_size, cfg->recv_buffer,
+                    cfg->recv_buf_size, cfg->user_get_ms, cfg->user_send_can, cfg->user_debug);
+}
 
-/**
- * @brief declare and initialize a client ISO-TP link on the stack
- */
-#define CLIENT_ISOTP_LINK_SETUP()                                                                  \
-    CLIENT_ISOTP_LINK_DECLARE();                                                                   \
-    CLIENT_ISOTP_LINK_INIT();
-
-/**
- * @brief declare an Iso14229Client and its ISO-TP link on the stack
- */
-#define CLIENT_DECLARE()                                                                           \
-    CLIENT_ISOTP_LINK_DECLARE();                                                                   \
-    Iso14229Client client;                                                                         \
-    Iso14229ClientConfig clientCfg = {                                                             \
-        .link = &clientLink,                                                                       \
-        .recv_id = CLIENT_RECV_ID,                                                                 \
-        .send_id = CLIENT_SEND_ID,                                                                 \
-        .userGetms = isotp_user_get_ms,                                                            \
-    };
-
-/**
- * @brief initialize a declared Iso14229Client and its ISO-TP link on the stack
- */
-#define CLIENT_INIT()                                                                              \
-    CLIENT_ISOTP_LINK_INIT();                                                                      \
-    iso14229ClientInit(&client, &clientCfg);
-
-/**
- * @brief declare and initialize an Iso14229Client and its ISO-TP link on the stack
- */
-#define CLIENT_SETUP()                                                                             \
-    CLIENT_DECLARE();                                                                              \
-    CLIENT_INIT();
-
-/**
- * @brief declare server ISO-TP links on the stack
- */
-#define SERVER_ISOTP_LINK_DECLARE()                                                                \
-    uint8_t serverIsotpPhysSendBuf[ISOTP_BUFSIZE];                                                 \
-    uint8_t serverIsotpPhysRecvBuf[ISOTP_BUFSIZE];                                                 \
-    uint8_t serverIsotpFuncSendBuf[ISOTP_BUFSIZE];                                                 \
-    uint8_t serverIsotpFuncRecvBuf[ISOTP_BUFSIZE];                                                 \
-    IsoTpLink serverPhysLink;                                                                      \
-    IsoTpLink serverFuncLink;
-
-/**
- * @brief initialize declared server ISO-TP links on the stack
- */
-#define SERVER_ISOTP_LINK_INIT()                                                                   \
-    isotp_init_link(&serverPhysLink, CLIENT_RECV_ID, serverIsotpPhysSendBuf,                       \
-                    sizeof(serverIsotpPhysSendBuf), serverIsotpPhysRecvBuf,                        \
-                    sizeof(serverIsotpPhysRecvBuf), isotp_user_get_ms, fixtureServerSendCAN,       \
-                    isotp_server_phys_debug);                                                      \
-    isotp_init_link(&serverFuncLink, CLIENT_RECV_ID, serverIsotpFuncSendBuf,                       \
-                    sizeof(serverIsotpFuncSendBuf), serverIsotpFuncRecvBuf,                        \
-                    sizeof(serverIsotpFuncRecvBuf), isotp_user_get_ms, fixtureServerSendCAN,       \
-                    isotp_server_func_debug);
-
-/**
- * @brief declare and initialize server ISO-TP links on the stack
- */
-#define SERVER_ISOTP_LINK_SETUP()                                                                  \
-    SERVER_ISOTP_LINK_DECLARE();                                                                   \
-    SERVER_ISOTP_LINK_INIT();
-
-/**
- * @brief declare an Iso14229Server and its ISO-TP links on the stack
- */
-#define SERVER_DECLARE()                                                                           \
-    SERVER_ISOTP_LINK_DECLARE();                                                                   \
-    Iso14229Server server;                                                                         \
-    uint8_t udsRecvBuf[ISOTP_BUFSIZE];                                                             \
-    uint8_t udsSendBuf[ISOTP_BUFSIZE];                                                             \
-    Iso14229ServerConfig serverCfg = {.phys_recv_id = SERVER_PHYS_RECV_ID,                         \
-                                      .func_recv_id = SERVER_FUNC_RECV_ID,                         \
-                                      .send_id = SERVER_SEND_ID,                                   \
-                                      .phys_link = &serverPhysLink,                                \
-                                      .func_link = &serverFuncLink,                                \
-                                      .receive_buffer = udsRecvBuf,                                \
-                                      .receive_buf_size = sizeof(udsRecvBuf),                      \
-                                      .send_buffer = udsSendBuf,                                   \
-                                      .send_buf_size = sizeof(udsSendBuf),                         \
-                                      .userSessionTimeoutCallback = mockSessionTimeoutHandler,     \
-                                      .userGetms = isotp_user_get_ms,                              \
-                                      .p2_ms = 50,                                                 \
-                                      .p2_star_ms = 2000,                                          \
-                                      .s3_ms = 5000}
-
-/**
- * @brief initialize an Iso14229Server on the stack
- */
-#define SERVER_INIT()                                                                              \
-    SERVER_ISOTP_LINK_INIT();                                                                      \
-    Iso14229ServerInit(&server, &serverCfg);
-
-/**
- * @brief declare and initialize an Iso14229Server on the stack
- */
-#define SERVER_SETUP()                                                                             \
-    SERVER_DECLARE();                                                                              \
-    SERVER_INIT();
-
-#define TEST_SETUP()                                                                               \
-    printf("%s", __PRETTY_FUNCTION__);                                                             \
-    g_ms = 0;                                                                                      \
-    g_serverRecvQueueIdx = 0;                                                                      \
-    g_clientRecvQueueIdx = 0;                                                                      \
-    memset(&g_serverSvcCallCount, 0, sizeof(g_serverSvcCallCount));                                \
-    memset(&g_serverServices, 0, sizeof(g_serverServices));                                        \
-    g_mockECUResetHandlerCallCount = 0;
-
-#define TEST_TEARDOWN() printf("OK\n");
-
-/**
- * @brief Setup everything for server test
- */
-#define SERVER_TEST_SETUP()                                                                        \
-    TEST_SETUP();                                                                                  \
-    SERVER_SETUP();                                                                                \
-    CLIENT_ISOTP_LINK_SETUP();
-
-/**
- * @brief Setup everything for client test
- */
-#define CLIENT_TEST_SETUP()                                                                        \
-    TEST_SETUP();                                                                                  \
-    CLIENT_SETUP();                                                                                \
-    SERVER_ISOTP_LINK_SETUP();
-
-/**
- * @brief Setup everything for client and server test
- */
-#define CLIENT_SERVER_TEST_SETUP()                                                                 \
-    TEST_SETUP();                                                                                  \
-    CLIENT_SETUP();                                                                                \
-    SERVER_SETUP();
-
-/**
- * @brief Begin a sequenced server test: a switch statement in which the variable `step` is the
- * current stage in the test. The sequence finishes without error when the variable `done` is set to
- * `true`
- * @warning This block must be closed with SERVER_TEST_SEQUENCE_END();
- */
-#define SERVER_TEST_SEQUENCE_BEGIN()                                                               \
-    int step = 0;                                                                                  \
-    bool done = false;                                                                             \
-    while (!done) {                                                                                \
-        fixtureIsoTpPollLinks(&clientLink, &serverPhysLink, &serverFuncLink);                      \
-        Iso14229ServerPoll(&server);                                                               \
-        switch (step) {
-
-#define SERVER_TEST_SEQUENCE_END(timeout_ms)                                                       \
-    default:                                                                                       \
-        assert(0); /* test has faulty logic */                                                     \
-        }                                                                                          \
-        if (g_ms > (timeout_ms)) {                                                                 \
-            assert(0); /* timeout */                                                               \
-        }                                                                                          \
-        g_ms++;                                                                                    \
-        }
-
-/**
- * @brief send some UDS data from the client during a sequenced server test
- * @example ```
-    const uint8_t REQUEST_DOWNLOAD_REQUEST[] = {0x34, 0x11, 0x33, 0x60, 0x20};
-    SERVER_TEST_SEQUENCE_BEGIN();
-case 0:
-    SERVER_TEST_CLIENT_SEND(REQUEST_DOWNLOAD_REQUEST);
-    break;
- ```
- */
-#define SERVER_TEST_CLIENT_SEND(buffer)                                                            \
+#define DEFAULT_SERVER_CONFIG()                                                                    \
     {                                                                                              \
-        isotp_send(&clientLink, buffer, sizeof(buffer));                                           \
-        step++;                                                                                    \
+        .phys_recv_id = SERVER_PHYS_RECV_ID, .func_recv_id = SERVER_FUNC_RECV_ID,                  \
+        .send_id = SERVER_SEND_ID, .phys_link = &g.srvPhysLink, .func_link = &g.srvFuncLink,       \
+        .phys_link_receive_buffer = g.srvPhysLinkRxBuf,                                            \
+        .phys_link_recv_buf_size = sizeof(g.srvPhysLinkRxBuf),                                     \
+        .phys_link_send_buffer = g.srvPhysLinkTxBuf,                                               \
+        .phys_link_send_buf_size = sizeof(g.srvPhysLinkTxBuf),                                     \
+        .func_link_receive_buffer = g.srvFuncLinkRxBuf,                                            \
+        .func_link_recv_buf_size = sizeof(g.srvFuncLinkRxBuf),                                     \
+        .func_link_send_buffer = g.srvFuncLinkTxBuf,                                               \
+        .func_link_send_buf_size = sizeof(g.srvFuncLinkTxBuf),                                     \
+        .userSessionTimeoutCallback = mockSessionTimeoutHandler, .userGetms = mockUserGetms,       \
+        .userCANTransmit = mockServerCANTransmit, .userCANRxPoll = mockServerCANRxPoll,            \
+        .p2_ms = SERVER_DEFAULT_P2_MS, .p2_star_ms = SERVER_DEFAULT_P2_STAR_MS,                    \
+        .s3_ms = SERVER_DEFAULT_S3_MS                                                              \
     }
 
-/**
- * @brief assert that some UDS data is send by the server during a sequenced server test
- * @example ```
-    const uint8_t REQUEST_DOWNLOAD_REQUEST[] = {0x34, 0x11, 0x33, 0x60, 0x20};
-    const uint8_t REQUEST_DOWNLOAD_RESPONSE[] = {0x7F, 0x34, 0x11};
-    SERVER_TEST_SEQUENCE_BEGIN();
-case 0:
-    SERVER_TEST_CLIENT_SEND(REQUEST_DOWNLOAD_REQUEST);
-    break;
-case 1:
-    SERVER_TEST_AWAIT_RESPONSE(REQUEST_DOWNLOAD_RESPONSE);
-    break;
- ```
- */
-#define SERVER_TEST_AWAIT_RESPONSE(buffer)                                                         \
+#define DEFAULT_CLIENT_CONFIG()                                                                    \
     {                                                                                              \
-        uint16_t size;                                                                             \
-        int ret = isotp_receive(&clientLink, clientLink.receive_buffer,                            \
-                                clientLink.receive_buf_size, &size);                               \
-        if (ISOTP_RET_OK == ret) {                                                                 \
-            ASSERT_INT_EQUAL(size, sizeof(buffer))                                                 \
-            ASSERT_MEMORY_EQUAL(buffer, clientLink.receive_buffer, size);                          \
-            step++;                                                                                \
-        }                                                                                          \
+        .phys_send_id = CLIENT_PHYS_SEND_ID,                                                       \
+        .func_send_id = CLIENT_FUNC_SEND_ID,                                                       \
+        .recv_id = CLIENT_RECV_ID,                                                                 \
+        .p2_ms = CLIENT_DEFAULT_P2_MS,                                                             \
+        .p2_star_ms = CLIENT_DEFAULT_P2_STAR_MS,                                                   \
+        .link = &g.clientLink,                                                                     \
+        .link_receive_buffer = g.clientLinkRxBuf,                                                  \
+        .link_recv_buf_size = sizeof(g.clientLinkRxBuf),                                           \
+        .link_send_buffer = g.clientLinkTxBuf,                                                     \
+        .link_send_buf_size = sizeof(g.clientLinkTxBuf),                                           \
+        .userCANTransmit = mockClientSendCAN,                                                      \
+        .userGetms = mockUserGetms,                                                                \
+        .userCANRxPoll = mockClientCANRxPoll,                                                      \
+        .userDebug = mockClientLinkDbg,                                                            \
     };
 
-/**
- * @brief Begin a sequenced client test
- *
- */
-#define CLIENT_TEST_SEQUENCE_BEGIN()                                                               \
-    int step = 0;                                                                                  \
-    bool done = false;                                                                             \
-    while (!done) {                                                                                \
-        fixtureIsoTpPollLinks(&clientLink, &serverPhysLink, &serverFuncLink);                      \
-        Iso14229ClientPoll(&client);                                                               \
-        switch (step) {
+#define TEST_SETUP()                                                                               \
+    memset(&g, 0, sizeof(g));                                                                      \
+    printf("%s\n", __PRETTY_FUNCTION__);
 
-#define CLIENT_TEST_SEQUENCE_END(timeout_ms)                                                       \
-    default:                                                                                       \
-        assert(0); /* test has faulty logic */                                                     \
-        }                                                                                          \
-        if (g_ms > (timeout_ms)) {                                                                 \
-            assert(0); /* timeout */                                                               \
-        }                                                                                          \
-        g_ms++;                                                                                    \
-        }
+#define TEST_TEARDOWN() printf(ANSI_BOLD "OK\n" ANSI_RESET);
 
 struct CANMessage {
     uint32_t arbId;

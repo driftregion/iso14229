@@ -108,13 +108,57 @@ typedef struct {
     uint16_t phys_recv_id;
     uint16_t func_recv_id;
     uint16_t send_id;
+
     IsoTpLink *phys_link;
     IsoTpLink *func_link;
 
-    uint8_t *receive_buffer;
-    uint16_t receive_buf_size;
-    uint8_t *send_buffer;
-    uint16_t send_buf_size;
+    uint8_t *phys_link_receive_buffer;
+    uint16_t phys_link_recv_buf_size;
+    uint8_t *phys_link_send_buffer;
+    uint16_t phys_link_send_buf_size;
+
+    uint8_t *func_link_receive_buffer;
+    uint16_t func_link_recv_buf_size;
+    uint8_t *func_link_send_buffer;
+    uint16_t func_link_send_buf_size;
+
+    /**
+     * @brief \~chinese 服务器时间参数（毫秒） \~ Server time constants (milliseconds) \~
+     */
+    uint16_t p2_ms;      // Default P2_server_max timing supported by the server for
+                         // the activated diagnostic session.
+    uint16_t p2_star_ms; // Enhanced (NRC 0x78) P2_server_max supported by the
+                         // server for the activated diagnostic session.
+    uint16_t s3_ms;      // Session timeout
+
+    /**
+    * @brief \~chinese 会话超时处理函数。这个函数应该立刻进行ECU复位。
+    \~english user-provided session timeout callback. This function should reset the ECU
+    immediately.
+     * \~
+     */
+    void (*userSessionTimeoutCallback)();
+
+    /**
+     * @brief \~chinese 用户定义获取时间（毫秒）回调函数 \~english user-provided function that
+     * returns the current time in milliseconds \~
+     *
+     */
+    uint32_t (*userGetms)();
+
+    /**
+     * @brief User-implemented CAN send function
+     *
+     * @param arbitration_id
+     * @param data
+     * @param size
+     * @return uint32_t
+     */
+    int (*userCANTransmit)(uint32_t arb_id, const uint8_t *data, uint8_t len);
+
+    enum Iso14229CANRxStatus (*userCANRxPoll)(uint32_t *arb_id, uint8_t *data, uint8_t *size);
+
+    void (*userDebug)(const char *, ...);
 
     /**
      * @brief ~\chinese 用户定义诊断会话控制回调函数~\english user-provided DiagnosticSessionControl
@@ -246,29 +290,6 @@ typedef struct {
         uint8_t dataFormatIdentifier, Iso14229DownloadHandler **handler,
         uint16_t *maxNumberOfBlockLength);
 
-    /**
-    * @brief \~chinese 会话超时处理函数。这个函数应该立刻进行ECU复位。
-    \~english user-provided session timeout callback. This function should reset the ECU
-    immediately.
-     * \~
-     */
-    void (*userSessionTimeoutCallback)();
-
-    /**
-     * @brief \~chinese 用户定义获取时间（毫秒）回调函数 \~english user-provided function that
-     * returns the current time in milliseconds \~
-     *
-     */
-    uint32_t (*userGetms)();
-
-    /**
-     * @brief \~chinese 服务器时间参数（毫秒） \~ Server time constants (milliseconds) \~
-     */
-    uint16_t p2_ms;      // Default P2_server_max timing supported by the server for
-                         // the activated diagnostic session.
-    uint16_t p2_star_ms; // Enhanced (NRC 0x78) P2_server_max supported by the
-                         // server for the activated diagnostic session.
-    uint16_t s3_ms;      // Session timeout
 } Iso14229ServerConfig;
 
 /**
@@ -276,9 +297,16 @@ typedef struct {
  *
  */
 typedef struct Iso14229Server {
-    const Iso14229ServerConfig *cfg;
+    uint16_t phys_recv_id;
+    uint16_t func_recv_id;
+    IsoTpLink *phys_link;
+    IsoTpLink *func_link;
 
-    Iso14229Service services[kISO14229_SID_NOT_SUPPORTED];
+    uint16_t p2_ms;
+    uint16_t p2_star_ms;
+    uint16_t s3_ms;
+
+    Iso14229Service services[ISO14229_NUM_SERVICES];
 
     // The active download handler. NULL indicates that there is not currently a download in
     // progress.
@@ -290,7 +318,6 @@ typedef struct Iso14229Server {
     uint32_t p2_timer;                 // for rate limiting server responses
     uint32_t s3_session_timeout_timer; // for knowing when the diagnostic
                                        // session has timed out
-    uint16_t receive_size;             // number of bytes received from ISO-TP layer
 
     /**
      * @brief public subset of server state for user handlers
@@ -313,6 +340,36 @@ typedef struct Iso14229Server {
     // when this variable is set to true, incoming ISO-TP data will not be processed.
     bool notReadyToReceive;
 
+    void (*userSessionTimeoutCallback)();
+    uint32_t (*userGetms)();
+    int (*userCANTransmit)(uint32_t arb_id, const uint8_t *data, uint8_t len);
+    enum Iso14229CANRxStatus (*userCANRxPoll)(uint32_t *arb_id, uint8_t *data, uint8_t *size);
+    void (*userDebug)(const char *, ...);
+    enum Iso14229ResponseCode (*userDiagnosticSessionControlHandler)(
+        const struct Iso14229ServerStatus *status, enum Iso14229DiagnosticSessionType type);
+    enum Iso14229ResponseCode (*userECUResetHandler)(const struct Iso14229ServerStatus *status,
+                                                     uint8_t resetType, uint8_t *powerDownTime);
+    enum Iso14229ResponseCode (*userRDBIHandler)(const struct Iso14229ServerStatus *status,
+                                                 uint16_t dataId, const uint8_t **data_location,
+                                                 uint16_t *len);
+    enum Iso14229ResponseCode (*userWDBIHandler)(const struct Iso14229ServerStatus *status,
+                                                 uint16_t dataId, const uint8_t *data,
+                                                 uint16_t len);
+    enum Iso14229ResponseCode (*userCommunicationControlHandler)(
+        const struct Iso14229ServerStatus *status, uint8_t controlType, uint8_t communicationType);
+    enum Iso14229ResponseCode (*userSecurityAccessGenerateSeed)(
+        const struct Iso14229ServerStatus *status, uint8_t level, const uint8_t *in_data,
+        uint16_t in_size, uint8_t *out_data, uint16_t out_bufsize, uint16_t *out_size);
+    enum Iso14229ResponseCode (*userSecurityAccessValidateKey)(
+        const struct Iso14229ServerStatus *status, uint8_t level, const uint8_t *key,
+        uint16_t size);
+    enum Iso14229ResponseCode (*userRoutineControlHandler)(
+        const struct Iso14229ServerStatus *status, enum RoutineControlType routineControlType,
+        uint16_t routineIdentifier, Iso14229RoutineControlArgs *args);
+    enum Iso14229ResponseCode (*userRequestDownloadHandler)(
+        const struct Iso14229ServerStatus *status, void *memoryAddress, size_t memorySize,
+        uint8_t dataFormatIdentifier, Iso14229DownloadHandler **handler,
+        uint16_t *maxNumberOfBlockLength);
 } Iso14229Server;
 
 // ========================================================================
@@ -328,26 +385,6 @@ void Iso14229ServerInit(Iso14229Server *self, const Iso14229ServerConfig *cfg);
  * @param self: pointer to initialized Iso14229Server
  */
 void Iso14229ServerPoll(Iso14229Server *self);
-
-/**
- * @brief Pass receieved CAN frames to the Iso14229Server
- *
- * @param self: pointer to initialized Iso14229Server
- * @param arbitration_id
- * @param data
- * @param size
- */
-void iso14229ServerReceiveCAN(Iso14229Server *self, const uint32_t arbitration_id,
-                              const uint8_t *data, const uint8_t size);
-
-/**
- * @brief User-implemented CAN send function
- *
- * @param arbitration_id
- * @param data
- * @param size
- * @return uint32_t
- */
 
 enum Iso14229BootManagerSMState {
     kBootManagerSMStateWaitForProgrammingRequest = 0, // 等待外部下载请求
@@ -394,7 +431,7 @@ static inline void Iso14229BootManagerInit(struct Iso14229BootManager *mgr,
     assert(enterApplication);
     mgr->applicationIsValid = applicationIsValid;
     mgr->enterApplication = enterApplication;
-    mgr->extRequestWindowTimer = srv->cfg->userGetms() + extRequestWindowTimems;
+    mgr->extRequestWindowTimer = srv->userGetms() + extRequestWindowTimems;
     mgr->srv = srv;
 }
 
@@ -406,7 +443,7 @@ static inline void Iso14229BootManagerInit(struct Iso14229BootManager *mgr,
 static inline void Iso14229BootManagerPoll(struct Iso14229BootManager *mgr) {
     switch (mgr->sm_state) {
     case kBootManagerSMStateWaitForProgrammingRequest:
-        if (Iso14229TimeAfter(mgr->srv->cfg->userGetms(), mgr->extRequestWindowTimer)) {
+        if (Iso14229TimeAfter(mgr->srv->userGetms(), mgr->extRequestWindowTimer)) {
             if (mgr->applicationIsValid()) {
                 mgr->enterApplication();
             } else {

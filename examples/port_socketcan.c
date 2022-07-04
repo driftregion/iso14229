@@ -1,15 +1,16 @@
-#include "host.h"
+#include "../iso14229.h"
+#include "port.h"
 #include <errno.h>
 #include <error.h>
 #include <linux/can.h>
 #include <linux/can/raw.h>
 #include <net/if.h>
 #include <signal.h>
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdarg.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -18,31 +19,28 @@
 #include <time.h>
 #include <unistd.h>
 
-int g_sockfd;               // CAN socket FD
-bool g_should_exit = false; // flag for shutting down
+int g_sockfd;                  // CAN socket FD
+bool port_should_exit = false; // flag for shutting down
 
 /**
  * @brief poll for CAN messages
  * @return 0 if message is present, -1 otherwise
  */
-int hostCANRxPoll(uint32_t *arb_id, uint8_t *data, uint8_t *size) {
+enum Iso14229CANRxStatus portCANRxPoll(uint32_t *arb_id, uint8_t *data, uint8_t *size) {
     struct can_frame frame = {0};
-
     int nbytes = read(g_sockfd, &frame, sizeof(struct can_frame));
-
     if (nbytes < 0) {
         if (EAGAIN == errno || EWOULDBLOCK == errno) {
-            return -1;
+            return kCANRxNone;
         } else {
             perror("Read err");
             exit(-1);
         }
     }
-
     *arb_id = frame.can_id;
     *size = frame.can_dlc;
     memmove(data, frame.data, *size);
-    return 0;
+    return kCANRxSome;
 }
 
 struct sigaction action;
@@ -61,10 +59,10 @@ void teardown(int signum) {
         perror("failed to close socket");
         exit(-1);
     }
-    g_should_exit = true;
+    port_should_exit = true;
 }
 
-int hostSendCAN(const uint32_t arbitration_id, const uint8_t *data, const uint8_t size) {
+int portSendCAN(const uint32_t arbitration_id, const uint8_t *data, const uint8_t size) {
     struct can_frame frame = {0};
 
     frame.can_id = arbitration_id;
@@ -75,10 +73,12 @@ int hostSendCAN(const uint32_t arbitration_id, const uint8_t *data, const uint8_
         perror("Write err");
         exit(-1);
     }
+    printf("send> 0x%03x: ", arbitration_id);
+    PRINTHEX(data, size);
     return 0;
 }
 
-void hostSetup(int ac, char **av) {
+void portSetup(int ac, char **av) {
     memset(&action, 0, sizeof(action));
     action.sa_handler = teardown;
     sigaction(SIGINT, &action, NULL);
@@ -106,27 +106,19 @@ void hostSetup(int ac, char **av) {
     }
 
     // Try sending a message. This will fail if the network is down.
-    hostSendCAN(0x111, (uint8_t[4]){1, 2, 3, 4}, 4);
+    portSendCAN(0x111, (uint8_t[4]){1, 2, 3, 4}, 4);
 
     printf("listening on %s\n", av[1]);
 }
 
-// shim to silence compiler warning
-void hostPrintf(const char *fmt, ...) {
-    va_list ap;
-    va_start(ap, fmt);
-    vprintf(fmt, ap);
-    va_end(ap);
-}
-
-uint32_t hostGetms() {
+uint32_t portGetms() {
     struct timeval te;
     gettimeofday(&te, NULL);                                         // get current time
     long long milliseconds = te.tv_sec * 1000LL + te.tv_usec / 1000; // calculate milliseconds
     return milliseconds;
 }
 
-int hostmsleep(long tms) {
+int portmsleep(long tms) {
     struct timespec ts;
     int ret;
 
@@ -143,4 +135,11 @@ int hostmsleep(long tms) {
     } while (ret && errno == EINTR);
 
     return ret;
+}
+
+void isotp_user_debug(const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    vprintf(fmt, ap);
+    va_end(ap);
 }
