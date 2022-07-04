@@ -3,5 +3,9 @@
 files=`find . -type f \( -name '*.c' -o -name '*.h' \) -not -path "./isotp-c/*"`
 
 for file in $files ; do
-    clang-format -i $file
+    if [ -z "$CHECK_FORMAT" ] ; then
+        clang-format -i $file
+    else
+        clang-format -Werror --dry-run $file
+    fi
 done
