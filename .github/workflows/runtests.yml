@@ -1,0 +1,21 @@
+name: unit tests
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      
+    - name: build test
+      run: make test_bin
+      
+    - name: run test
+      run: make test
