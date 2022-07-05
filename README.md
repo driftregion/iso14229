@@ -1,8 +1,8 @@
 # iso14229
 
-iso14229是个针对嵌入式系统的UDS(ISO14229-1:2013)服务器和客户端执行。
+iso14229是个针对嵌入式系统的UDS(ISO14229-1:2013)服务器和客户端实现。这一套已包含[`isotp-c`](https://github.com/lishen2/isotp-c) ISO15765-2 (ISO-TP)传输层。
 
-iso14229 is a UDS server and client implementation (ISO14229-1:2013) targeting embedded systems. It embeds the [`isotp-c`](https://github.com/lishen2/isotp-c) transport layer.
+iso14229 is a UDS server and client implementation (ISO14229-1:2013) targeting embedded systems. It embeds the [`isotp-c`](https://github.com/lishen2/isotp-c) ISO15765-2 (ISO-TP) transport layer. 
 
 API状态: **不稳定** / API status: **unstable**
 
@@ -21,8 +21,6 @@ Features:
     - tested: arm, x86-64, ppc
     - tests run under qemu 
 - has many existing unit-tests and tests are easy to extend
-
-# iso14229 文档 / Documentation
 
 ##  支持服务(服务器和客户端) / supported functions (server and client )
 
@@ -54,14 +52,39 @@ Features:
 | 0x85 | control DTC setting | ✅ |
 | 0x86 | response on event | ❌ |
 
+# iso14229 文档 / Documentation
 
 ## 例子 / Examples
 
 [examples/README.md](examples/README.md)
 
-## 贡献/contributing
+## 测试 / Tests
 
-欢迎来贡献/contributions are welcome
+[test_iso14229.c](test_iso14229.c)
+
+### 运行测试 / running tests
+
+```sh
+make test
+```
+
+## qemu
+
+```sh
+CC=powerpc-linux-gnu-gcc make test_bin
+qemu-ppc -L /usr/powerpc-linux-gnu test_bin
+```
+## wine
+
+```sh
+CC=x86_64-w64-mingw32-gcc make test_bin
+wine test_bin.exe
+```
+
+
+# 贡献 / Contributing
+
+欢迎提交贡献/contributions are welcome
 
 
 # 感谢 / Acknowledgements
@@ -104,24 +127,6 @@ MIT
 
 ---
 
-# 运行测试 / running tests
-
-```sh
-make test
-```
-
-## qemu
-
-```sh
-CC=powerpc-linux-gnu-gcc make test_bin
-qemu-ppc -L /usr/powerpc-linux-gnu test_bin
-```
-## wine
-
-```sh
-CC=x86_64-w64-mingw32-gcc make test_bin
-wine test_bin.exe
-```
 
 # iso14229开发文档 / design docs
 
