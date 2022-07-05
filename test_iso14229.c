@@ -41,8 +41,6 @@ static struct {
     uint8_t srvPhysLinkTxBuf[DEFAULT_ISOTP_BUFSIZE];
     uint8_t srvFuncLinkRxBuf[DEFAULT_ISOTP_BUFSIZE];
     uint8_t srvFuncLinkTxBuf[DEFAULT_ISOTP_BUFSIZE];
-    uint8_t srvRxBuf[DEFAULT_ISOTP_BUFSIZE];
-    uint8_t srvTxBuf[DEFAULT_ISOTP_BUFSIZE];
     uint8_t clientLinkRxBuf[DEFAULT_ISOTP_BUFSIZE];
     uint8_t clientLinkTxBuf[DEFAULT_ISOTP_BUFSIZE];
 

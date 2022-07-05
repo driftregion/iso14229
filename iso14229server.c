@@ -32,9 +32,8 @@
  * @param self
  * @param response_code
  */
-static inline enum Iso14229ResponseCode
-Iso14229SendNegativeResponse(Iso14229ServerRequestContext *ctx,
-                             enum Iso14229ResponseCode response_code) {
+static inline enum Iso14229ResponseCode NegativeResponse(Iso14229ServerRequestContext *ctx,
+                                                         enum Iso14229ResponseCode response_code) {
     struct Iso14229NegativeResponse *resp = (struct Iso14229NegativeResponse *)ctx->resp.buf;
 
     resp->negResponseSid = 0x7F;
@@ -44,22 +43,7 @@ Iso14229SendNegativeResponse(Iso14229ServerRequestContext *ctx,
     return response_code;
 }
 
-/**
- * @brief
- *
- * @param ctx
- * @param len
- * @return enum Iso14229ResponseCode
- */
-static inline enum Iso14229ResponseCode
-Iso14229SendPositiveResponse(Iso14229ServerRequestContext *ctx, const uint16_t len) {
-    assert(len >= 2);
-    ctx->resp.buf[0] = ISO14229_RESPONSE_SID_OF(ctx->req.buf[0]);
-    ctx->resp.len = len;
-    return kPositiveResponse;
-}
-
-static inline void iso14229SendNoResponse(Iso14229ServerRequestContext *ctx) { ctx->resp.len = 0; }
+static inline void NoResponse(Iso14229ServerRequestContext *ctx) { ctx->resp.len = 0; }
 
 /**
  * @brief 0x10 DiagnosticSessionControl
@@ -68,14 +52,14 @@ static inline void iso14229SendNoResponse(Iso14229ServerRequestContext *ctx) { c
  * @param data
  * @param size
  */
-enum Iso14229ResponseCode iso14229DiagnosticSessionControl(Iso14229Server *self,
-                                                           Iso14229ServerRequestContext *ctx) {
+static enum Iso14229ResponseCode _0x10_DiagnosticSessionControl(Iso14229Server *self,
+                                                                Iso14229ServerRequestContext *ctx) {
     if (ctx->req.len < 1) {
-        return Iso14229SendNegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
+        return NegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
     }
 
     if (NULL == self->userDiagnosticSessionControlHandler) {
-        return Iso14229SendNegativeResponse(ctx, kServiceNotSupported);
+        return NegativeResponse(ctx, kServiceNotSupported);
     }
 
     uint8_t diagSessionType = ctx->req.buf[1] & 0x4F;
@@ -84,7 +68,7 @@ enum Iso14229ResponseCode iso14229DiagnosticSessionControl(Iso14229Server *self,
         self->userDiagnosticSessionControlHandler(&self->status, diagSessionType);
 
     if (kPositiveResponse != err) {
-        return Iso14229SendNegativeResponse(ctx, err);
+        return NegativeResponse(ctx, err);
     }
 
     switch (diagSessionType) {
@@ -122,17 +106,17 @@ enum Iso14229ResponseCode iso14229DiagnosticSessionControl(Iso14229Server *self,
  * @param data
  * @param size
  */
-enum Iso14229ResponseCode iso14229ECUReset(Iso14229Server *self,
-                                           Iso14229ServerRequestContext *ctx) {
+static enum Iso14229ResponseCode _0x11_ECUReset(Iso14229Server *self,
+                                                Iso14229ServerRequestContext *ctx) {
     uint8_t resetType = ctx->req.buf[1] & 0x3F;
     uint8_t powerDownTime = 0xFF;
 
     if (ctx->req.len < ISO14229_0X11_REQ_MIN_LEN) {
-        return Iso14229SendNegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
+        return NegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
     }
 
     if (NULL == self->userECUResetHandler) {
-        return Iso14229SendNegativeResponse(ctx, kGeneralProgrammingFailure);
+        return NegativeResponse(ctx, kGeneralProgrammingFailure);
     }
 
     enum Iso14229ResponseCode err =
@@ -141,7 +125,7 @@ enum Iso14229ResponseCode iso14229ECUReset(Iso14229Server *self,
         self->notReadyToReceive = true;
         self->ecuResetScheduled = true;
     } else {
-        return Iso14229SendNegativeResponse(ctx, err);
+        return NegativeResponse(ctx, err);
     }
 
     ctx->resp.buf[0] = ISO14229_RESPONSE_SID_OF(kSID_ECU_RESET);
@@ -163,8 +147,8 @@ enum Iso14229ResponseCode iso14229ECUReset(Iso14229Server *self,
  * @param data
  * @param size
  */
-enum Iso14229ResponseCode iso14229ReadDataByIdentifier(Iso14229Server *self,
-                                                       Iso14229ServerRequestContext *ctx) {
+static enum Iso14229ResponseCode _0x22_ReadDataByIdentifier(Iso14229Server *self,
+                                                            Iso14229ServerRequestContext *ctx) {
     uint8_t numDIDs;
     const uint8_t *data_location = NULL;
     uint16_t dataRecordSize = 0;
@@ -173,17 +157,17 @@ enum Iso14229ResponseCode iso14229ReadDataByIdentifier(Iso14229Server *self,
     enum Iso14229ResponseCode rdbi_response;
 
     if (NULL == self->userRDBIHandler) {
-        return Iso14229SendNegativeResponse(ctx, kServiceNotSupported);
+        return NegativeResponse(ctx, kServiceNotSupported);
     }
 
     if (0 != (ctx->req.len - 1) % sizeof(uint16_t)) {
-        return Iso14229SendNegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
+        return NegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
     }
 
     numDIDs = ctx->req.len / sizeof(uint16_t);
 
     if (0 == numDIDs) {
-        return Iso14229SendNegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
+        return NegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
     }
 
     for (int did = 0; did < numDIDs; did++) {
@@ -201,7 +185,7 @@ enum Iso14229ResponseCode iso14229ReadDataByIdentifier(Iso14229Server *self,
             memmove(copylocation + sizeof(uint16_t), data_location, dataRecordSize);
             responseLength += sizeof(uint16_t) + dataRecordSize;
         } else {
-            return Iso14229SendNegativeResponse(ctx, rdbi_response);
+            return NegativeResponse(ctx, rdbi_response);
         }
     }
 
@@ -216,19 +200,19 @@ enum Iso14229ResponseCode iso14229ReadDataByIdentifier(Iso14229Server *self,
  * @param self
  * @param ctx
  */
-enum Iso14229ResponseCode iso14229SecurityAccess(Iso14229Server *self,
-                                                 Iso14229ServerRequestContext *ctx) {
+static enum Iso14229ResponseCode _0x27_SecurityAccess(Iso14229Server *self,
+                                                      Iso14229ServerRequestContext *ctx) {
     uint8_t subFunction = ctx->req.buf[1];
     uint8_t response = kPositiveResponse;
     uint16_t seedLength = 0;
 
     if (Iso14229SecurityAccessLevelIsReserved(subFunction)) {
-        return Iso14229SendNegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
+        return NegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
     }
 
     if (NULL == self->userSecurityAccessGenerateSeed ||
         NULL == self->userSecurityAccessValidateKey) {
-        return Iso14229SendNegativeResponse(ctx, kServiceNotSupported);
+        return NegativeResponse(ctx, kServiceNotSupported);
     }
 
     ctx->resp.buf[0] = ISO14229_RESPONSE_SID_OF(kSID_SECURITY_ACCESS);
@@ -241,7 +225,7 @@ enum Iso14229ResponseCode iso14229SecurityAccess(Iso14229Server *self,
                                                        ctx->req.len - ISO14229_0X27_REQ_BASE_LEN);
 
         if (kPositiveResponse != response) {
-            return Iso14229SendNegativeResponse(ctx, response);
+            return NegativeResponse(ctx, response);
         }
         self->status.securityLevel = subFunction - 1;
         ctx->resp.len = ISO14229_0X27_RESP_BASE_LEN;
@@ -266,16 +250,16 @@ enum Iso14229ResponseCode iso14229SecurityAccess(Iso14229Server *self,
             buffer_size_remaining, &seedLength);
 
         if (seedLength == 0 || seedLength > buffer_size_remaining) {
-            return Iso14229SendNegativeResponse(ctx, kGeneralProgrammingFailure);
+            return NegativeResponse(ctx, kGeneralProgrammingFailure);
         }
 
         if (kPositiveResponse != response) {
-            return Iso14229SendNegativeResponse(ctx, response);
+            return NegativeResponse(ctx, response);
         }
         ctx->resp.len = ISO14229_0X27_RESP_BASE_LEN + seedLength;
         return kPositiveResponse;
     }
-    return Iso14229SendNegativeResponse(ctx, kGeneralProgrammingFailure);
+    return NegativeResponse(ctx, kGeneralProgrammingFailure);
 }
 
 /**
@@ -286,23 +270,23 @@ enum Iso14229ResponseCode iso14229SecurityAccess(Iso14229Server *self,
  * @param data
  * @param size
  */
-enum Iso14229ResponseCode iso14229CommunicationControl(Iso14229Server *self,
-                                                       Iso14229ServerRequestContext *ctx) {
+static enum Iso14229ResponseCode _0x28_CommunicationControl(Iso14229Server *self,
+                                                            Iso14229ServerRequestContext *ctx) {
     uint8_t controlType = ctx->req.buf[1];
     uint8_t communicationType = ctx->req.buf[2];
 
     if (ctx->req.len < ISO14229_0X28_REQ_BASE_LEN) {
-        return Iso14229SendNegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
+        return NegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
     }
 
     if (NULL == self->userCommunicationControlHandler) {
-        return Iso14229SendNegativeResponse(ctx, kServiceNotSupported);
+        return NegativeResponse(ctx, kServiceNotSupported);
     }
 
     enum Iso14229ResponseCode err =
         self->userCommunicationControlHandler(&self->status, controlType, communicationType);
     if (kPositiveResponse != err) {
-        return Iso14229SendNegativeResponse(ctx, err);
+        return NegativeResponse(ctx, err);
     }
 
     ctx->resp.buf[0] = ISO14229_RESPONSE_SID_OF(kSID_COMMUNICATION_CONTROL);
@@ -318,15 +302,15 @@ enum Iso14229ResponseCode iso14229CommunicationControl(Iso14229Server *self,
  * @param data
  * @param size
  */
-enum Iso14229ResponseCode iso14229WriteDataByIdentifier(Iso14229Server *self,
-                                                        Iso14229ServerRequestContext *ctx) {
+static enum Iso14229ResponseCode _0x2E_WriteDataByIdentifier(Iso14229Server *self,
+                                                             Iso14229ServerRequestContext *ctx) {
     uint16_t dataLen = 0;
     uint16_t dataId = 0;
     enum Iso14229ResponseCode wdbi_response;
 
     /* ISO14229-1 2013 Figure 21 Key 1 */
     if (ctx->req.len < ISO14229_0X2E_REQ_MIN_LEN) {
-        return Iso14229SendNegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
+        return NegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
     }
 
     dataId = (ctx->req.buf[1] << 8) + ctx->req.buf[2];
@@ -336,10 +320,10 @@ enum Iso14229ResponseCode iso14229WriteDataByIdentifier(Iso14229Server *self,
         wdbi_response = self->userWDBIHandler(&self->status, dataId,
                                               &ctx->req.buf[ISO14229_0X2E_REQ_BASE_LEN], dataLen);
         if (kPositiveResponse != wdbi_response) {
-            return Iso14229SendNegativeResponse(ctx, wdbi_response);
+            return NegativeResponse(ctx, wdbi_response);
         }
     } else {
-        return Iso14229SendNegativeResponse(ctx, kServiceNotSupported);
+        return NegativeResponse(ctx, kServiceNotSupported);
     }
 
     ctx->resp.buf[0] = ISO14229_RESPONSE_SID_OF(kSID_WRITE_DATA_BY_IDENTIFIER);
@@ -357,14 +341,14 @@ enum Iso14229ResponseCode iso14229WriteDataByIdentifier(Iso14229Server *self,
  * @param data
  * @param size
  */
-enum Iso14229ResponseCode iso14229RoutineControl(Iso14229Server *self,
-                                                 Iso14229ServerRequestContext *ctx) {
+static enum Iso14229ResponseCode _0x31_RoutineControl(Iso14229Server *self,
+                                                      Iso14229ServerRequestContext *ctx) {
     enum Iso14229ResponseCode err = kPositiveResponse;
     if (ctx->req.len < ISO14229_0X31_REQ_MIN_LEN) {
-        return Iso14229SendNegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
+        return NegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
     }
     if (NULL == self->userRoutineControlHandler) {
-        return Iso14229SendNegativeResponse(ctx, kServiceNotSupported);
+        return NegativeResponse(ctx, kServiceNotSupported);
     }
     uint8_t routineControlType = ctx->req.buf[1];
     uint16_t routineIdentifier = (ctx->req.buf[2] << 8) + ctx->req.buf[3];
@@ -388,15 +372,15 @@ enum Iso14229ResponseCode iso14229RoutineControl(Iso14229Server *self,
         err = self->userRoutineControlHandler(&self->status, routineControlType, routineIdentifier,
                                               &args);
         if (kPositiveResponse != err) {
-            return Iso14229SendNegativeResponse(ctx, err);
+            return NegativeResponse(ctx, err);
         }
         break;
     default:
-        return Iso14229SendNegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
+        return NegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
     }
 
     if (statusRecordLength > args.statusRecordBufferSize) {
-        return Iso14229SendNegativeResponse(ctx, kGeneralProgrammingFailure);
+        return NegativeResponse(ctx, kGeneralProgrammingFailure);
     }
 
     ctx->resp.buf[0] = ISO14229_RESPONSE_SID_OF(kSID_ROUTINE_CONTROL);
@@ -414,23 +398,23 @@ enum Iso14229ResponseCode iso14229RoutineControl(Iso14229Server *self,
  * @param data
  * @param size
  */
-enum Iso14229ResponseCode iso14229RequestDownload(Iso14229Server *self,
-                                                  Iso14229ServerRequestContext *ctx) {
+static enum Iso14229ResponseCode _0x34_RequestDownload(Iso14229Server *self,
+                                                       Iso14229ServerRequestContext *ctx) {
     enum Iso14229ResponseCode err;
     uint16_t maxNumberOfBlockLength = 0;
     size_t memoryAddress = 0;
     size_t memorySize = 0;
 
     if (NULL == self->userRequestDownloadHandler) {
-        return Iso14229SendNegativeResponse(ctx, kServiceNotSupported);
+        return NegativeResponse(ctx, kServiceNotSupported);
     }
 
     if (NULL != self->downloadHandler) {
-        return Iso14229SendNegativeResponse(ctx, kConditionsNotCorrect);
+        return NegativeResponse(ctx, kConditionsNotCorrect);
     }
 
     if (ctx->req.len < ISO14229_0X34_REQ_BASE_LEN) {
-        return Iso14229SendNegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
+        return NegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
     }
 
     uint8_t dataFormatIdentifier = ctx->req.buf[1];
@@ -438,15 +422,15 @@ enum Iso14229ResponseCode iso14229RequestDownload(Iso14229Server *self,
     uint8_t memoryAddressLength = ctx->req.buf[2] & 0x0F;
 
     if (memorySizeLength == 0 || memorySizeLength > sizeof(memorySize)) {
-        return Iso14229SendNegativeResponse(ctx, kRequestOutOfRange);
+        return NegativeResponse(ctx, kRequestOutOfRange);
     }
 
     if (memoryAddressLength == 0 || memoryAddressLength > sizeof(memoryAddress)) {
-        return Iso14229SendNegativeResponse(ctx, kRequestOutOfRange);
+        return NegativeResponse(ctx, kRequestOutOfRange);
     }
 
     if (ctx->req.len < ISO14229_0X34_REQ_BASE_LEN + memorySizeLength + memoryAddressLength) {
-        return Iso14229SendNegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
+        return NegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
     }
 
     for (int byteIdx = 0; byteIdx < memoryAddressLength; byteIdx++) {
@@ -469,21 +453,21 @@ enum Iso14229ResponseCode iso14229RequestDownload(Iso14229Server *self,
 
     if (kPositiveResponse != err) {
         self->downloadHandler = NULL;
-        return Iso14229SendNegativeResponse(ctx, err);
+        return NegativeResponse(ctx, err);
     } else {
         if (NULL == self->downloadHandler) {
             ISO14229USERDEBUG("ERROR: handler must not be NULL!");
-            return Iso14229SendNegativeResponse(ctx, kGeneralProgrammingFailure);
+            return NegativeResponse(ctx, kGeneralProgrammingFailure);
         }
         if (NULL == self->downloadHandler->onTransfer || NULL == self->downloadHandler->onExit) {
             ISO14229USERDEBUG("ERROR: onTransfer and onExit must be implemented!");
-            return Iso14229SendNegativeResponse(ctx, kGeneralProgrammingFailure);
+            return NegativeResponse(ctx, kGeneralProgrammingFailure);
         }
     }
 
     if (maxNumberOfBlockLength < 3) {
         ISO14229USERDEBUG("ERROR: maxNumberOfBlockLength too short");
-        return Iso14229SendNegativeResponse(ctx, kGeneralProgrammingFailure);
+        return NegativeResponse(ctx, kGeneralProgrammingFailure);
     }
 
     Iso14229DownloadHandlerInit(self->downloadHandler, memorySize);
@@ -523,8 +507,8 @@ data-parameters present in the TransferData request message.
  * @param data
  * @param size
  */
-enum Iso14229ResponseCode iso14229TransferData(Iso14229Server *self,
-                                               Iso14229ServerRequestContext *ctx) {
+static enum Iso14229ResponseCode _0x36_TransferData(Iso14229Server *self,
+                                                    Iso14229ServerRequestContext *ctx) {
     enum Iso14229ResponseCode err;
     uint16_t request_data_len = ctx->req.len - ISO14229_0X36_REQ_BASE_LEN;
 
@@ -536,7 +520,7 @@ enum Iso14229ResponseCode iso14229TransferData(Iso14229Server *self,
     uint8_t blockSequenceCounter = ctx->req.buf[1];
 
     if (NULL == self->downloadHandler) {
-        return Iso14229SendNegativeResponse(ctx, kUploadDownloadNotAccepted);
+        return NegativeResponse(ctx, kUploadDownloadNotAccepted);
     }
 
     assert(self->downloadHandler);
@@ -568,14 +552,14 @@ enum Iso14229ResponseCode iso14229TransferData(Iso14229Server *self,
         ctx->resp.len = ISO14229_0X36_RESP_BASE_LEN; // TODO: 加transferResponseParameterRecord
         return kPositiveResponse;
     case kRequestCorrectlyReceived_ResponsePending:
-        return Iso14229SendNegativeResponse(ctx, kRequestCorrectlyReceived_ResponsePending);
+        return NegativeResponse(ctx, kRequestCorrectlyReceived_ResponsePending);
     default:
         goto fail;
     }
 
 fail:
     self->downloadHandler = NULL;
-    return Iso14229SendNegativeResponse(ctx, err);
+    return NegativeResponse(ctx, err);
 }
 
 /**
@@ -585,12 +569,12 @@ fail:
  * @param data
  * @param size
  */
-enum Iso14229ResponseCode iso14229RequestTransferExit(Iso14229Server *self,
-                                                      Iso14229ServerRequestContext *ctx) {
+static enum Iso14229ResponseCode _0x37_RequestTransferExit(Iso14229Server *self,
+                                                           Iso14229ServerRequestContext *ctx) {
     enum Iso14229ResponseCode err;
 
     if (NULL == self->downloadHandler) {
-        return Iso14229SendNegativeResponse(ctx, kUploadDownloadNotAccepted);
+        return NegativeResponse(ctx, kUploadDownloadNotAccepted);
     }
 
     assert(self->downloadHandler);
@@ -603,11 +587,11 @@ enum Iso14229ResponseCode iso14229RequestTransferExit(Iso14229Server *self,
                                         &transferResponseParameterRecordSize);
 
     if (err != kPositiveResponse) {
-        return Iso14229SendNegativeResponse(ctx, err);
+        return NegativeResponse(ctx, err);
     }
 
     if (transferResponseParameterRecordSize > buffer_size) {
-        return Iso14229SendNegativeResponse(ctx, kGeneralProgrammingFailure);
+        return NegativeResponse(ctx, kGeneralProgrammingFailure);
     }
 
     self->downloadHandler = NULL;
@@ -623,10 +607,10 @@ enum Iso14229ResponseCode iso14229RequestTransferExit(Iso14229Server *self,
  * @param data
  * @param size
  */
-enum Iso14229ResponseCode iso14229TesterPresent(Iso14229Server *self,
-                                                Iso14229ServerRequestContext *ctx) {
+static enum Iso14229ResponseCode _0x3E_TesterPresent(Iso14229Server *self,
+                                                     Iso14229ServerRequestContext *ctx) {
     if (ctx->req.len < ISO14229_0X3E_REQ_MIN_LEN) {
-        return Iso14229SendNegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
+        return NegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
     }
     self->s3_session_timeout_timer = self->userGetms() + self->s3_ms;
     uint8_t zeroSubFunction = ctx->req.buf[1];
@@ -643,11 +627,11 @@ enum Iso14229ResponseCode iso14229TesterPresent(Iso14229Server *self,
  * @param data
  * @param size
  */
-enum Iso14229ResponseCode iso14229ControlDtcSetting(Iso14229Server *self,
-                                                    Iso14229ServerRequestContext *ctx) {
+static enum Iso14229ResponseCode _0x85_ControlDTCSetting(Iso14229Server *self,
+                                                         Iso14229ServerRequestContext *ctx) {
     (void)self;
     if (ctx->req.len < ISO14229_0X85_REQ_BASE_LEN) {
-        return Iso14229SendNegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
+        return NegativeResponse(ctx, kIncorrectMessageLengthOrInvalidFormat);
     }
     uint8_t dtcSettingType = ctx->req.buf[1] & 0x3F;
 
@@ -665,15 +649,15 @@ enum Iso14229ResponseCode iso14229ControlDtcSetting(Iso14229Server *self,
  * @param service NULL if the service is not supported
  * @param ctx
  */
-static enum Iso14229ResponseCode
-iso14229EvaluateServiceResponse(Iso14229Server *self, Iso14229Service service,
-                                Iso14229ServerRequestContext *ctx) {
+static enum Iso14229ResponseCode evaluateServiceResponse(Iso14229Server *self,
+                                                         Iso14229Service service,
+                                                         Iso14229ServerRequestContext *ctx) {
     enum Iso14229ResponseCode response = kPositiveResponse;
     bool suppressResponse = false;
     uint8_t sid = ctx->req.buf[0];
 
     if (NULL == service) {
-        return Iso14229SendNegativeResponse(ctx, kServiceNotSupported);
+        return NegativeResponse(ctx, kServiceNotSupported);
     }
 
     switch (sid) {
@@ -751,10 +735,10 @@ iso14229EvaluateServiceResponse(Iso14229Server *self, Iso14229Service service,
             // TODO: *not yet a NRC 0x78 response sent*
             true)) {
         suppressResponse = true; /* Suppress negative response message */
-        iso14229SendNoResponse(ctx);
+        NoResponse(ctx);
     } else {
         if (suppressResponse) { /* Suppress positive response message */
-            iso14229SendNoResponse(ctx);
+            NoResponse(ctx);
         } else { /* send negative or positive response */
             ;
         }
@@ -762,7 +746,7 @@ iso14229EvaluateServiceResponse(Iso14229Server *self, Iso14229Service service,
     return response;
 }
 
-Iso14229Service Iso14229GetServiceForSID(enum Iso14229DiagnosticServiceId sid) {
+static Iso14229Service getServiceForSID(enum Iso14229DiagnosticServiceId sid) {
 #define X(str_ident, sid, func)                                                                    \
     case sid:                                                                                      \
         return func;
@@ -785,7 +769,7 @@ Iso14229Service Iso14229GetServiceForSID(enum Iso14229DiagnosticServiceId sid) {
 void iso14229ProcessUDSLayer(Iso14229Server *self, IsoTpLink *link,
                              enum Iso14229AddressingScheme addressingScheme) {
     uint8_t sid = link->receive_buffer[0];
-    Iso14229Service handler = Iso14229GetServiceForSID(sid);
+    Iso14229Service handler = getServiceForSID(sid);
     Iso14229ServerRequestContext ctx = {
         .req =
             {
@@ -796,7 +780,7 @@ void iso14229ProcessUDSLayer(Iso14229Server *self, IsoTpLink *link,
         .resp = {.buf = link->send_buffer, .len = 0, .buffer_size = link->send_buf_size},
     };
 
-    enum Iso14229ResponseCode response = iso14229EvaluateServiceResponse(self, handler, &ctx);
+    enum Iso14229ResponseCode response = evaluateServiceResponse(self, handler, &ctx);
 
     if (kRequestCorrectlyReceived_ResponsePending == response) {
         self->status.RCRRP = true;
