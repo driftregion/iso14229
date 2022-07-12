@@ -801,8 +801,8 @@ void testClientP2TimeoutExceeded() {
         Iso14229ClientPoll(&client);
     }
 
-    // should result in kRequestTimedOut
-    ASSERT_INT_EQUAL(kRequestTimedOut, client.err);
+    // should result in kISO14229_CLIENT_ERR_REQ_TIMED_OUT
+    ASSERT_INT_EQUAL(kISO14229_CLIENT_ERR_REQ_TIMED_OUT, client.err);
     ASSERT_INT_EQUAL(kRequestStateIdle, client.state);
     TEST_TEARDOWN();
 }
@@ -828,7 +828,7 @@ void testClientP2TimeoutNotExceeded() {
     }
 
     // and should have no error.
-    ASSERT_INT_EQUAL(kRequestNoError, client.err);
+    ASSERT_INT_EQUAL(kISO14229_CLIENT_OK, client.err);
     TEST_TEARDOWN();
 }
 
@@ -840,7 +840,7 @@ void testClientSuppressPositiveResponse() {
     iso14229ClientInit(&client, &cfg);
 
     // Setting the suppressPositiveResponse flag before sending a request
-    client.suppressPositiveResponse = true;
+    client.options |= SUPPRESS_POS_RESP;
     ECUReset(&client, kHardReset);
 
     // and not receiving a response after approximately p2 ms
@@ -849,7 +849,7 @@ void testClientSuppressPositiveResponse() {
     }
 
     // should not result in an error.
-    ASSERT_INT_EQUAL(kRequestNoError, client.err);
+    ASSERT_INT_EQUAL(kISO14229_CLIENT_OK, client.err);
     ASSERT_INT_EQUAL(kRequestStateIdle, client.state);
     TEST_TEARDOWN();
 }
@@ -862,10 +862,11 @@ void testClientBusy() {
     iso14229ClientInit(&client, &cfg);
 
     // Sending a request should not return an error
-    ASSERT_INT_EQUAL(kRequestNoError, ECUReset(&client, kHardReset));
+    ASSERT_INT_EQUAL(kISO14229_CLIENT_OK, ECUReset(&client, kHardReset));
 
     // unless there is an existing unresolved request
-    ASSERT_INT_EQUAL(kRequestNotSentBusy, ECUReset(&client, kHardReset));
+    ASSERT_INT_EQUAL(kISO14229_CLIENT_ERR_REQ_NOT_SENT_SEND_IN_PROGRESS,
+                     ECUReset(&client, kHardReset));
 
     TEST_TEARDOWN();
 }
@@ -891,8 +892,8 @@ void testClientUnexpectedResponse() {
         assert(g.ms++ < cfg.p2_ms); // before p2 ms has elapsed
     }
 
-    // with a kRequestErrorResponseSIDMismatch error.
-    ASSERT_INT_EQUAL(kRequestErrorResponseSIDMismatch, client.err);
+    // with a kISO14229_CLIENT_ERR_RESP_SID_MISMATCH error.
+    ASSERT_INT_EQUAL(kISO14229_CLIENT_ERR_RESP_SID_MISMATCH, client.err);
     TEST_TEARDOWN();
 }
 
@@ -921,33 +922,8 @@ void testClient0x11ECUResetNegativeResponse() {
     struct Iso14229ClientConfig cfg = DEFAULT_CLIENT_CONFIG();
     iso14229ClientInit(&client, &cfg);
 
-    // A client that sends an ECU reset
-    ECUReset(&client, kHardReset);
-
-    // and receives a negative response
-    const uint8_t NEG_RESPONSE[] = {0x7F, 0x11, 0x10};
-    isotp_send(&g.srvPhysLink, NEG_RESPONSE, sizeof(NEG_RESPONSE));
-
-    // should return to the idle state
-    while (kRequestStateIdle != client.state) {
-        Iso14229ClientPoll(&client);
-        assert(g.ms++ < cfg.p2_ms); // before p2 ms has elapsed
-    }
-
-    // with a kRequestErrorNegativeResponse error
-    ASSERT_INT_EQUAL(kRequestErrorNegativeResponse, client.err);
-    TEST_TEARDOWN();
-}
-
-void testClient0x11ECUResetNegativeResponseNoError() {
-    TEST_SETUP();
-    Iso14229Client client;
-    IsoTpInitLink(&g.srvPhysLink, &SRV_PHYS_LINK_DEFAULT_CONFIG);
-    struct Iso14229ClientConfig cfg = DEFAULT_CLIENT_CONFIG();
-    iso14229ClientInit(&client, &cfg);
-
-    // A client that sets the negativeResponseIsError flag to false
-    client.negativeResponseIsError = false;
+    // A client that sets the negativeResponseIsError flag
+    client.options |= NEG_RESP_IS_ERR;
     // before sending an ECU reset
     ECUReset(&client, kHardReset);
 
@@ -961,8 +937,33 @@ void testClient0x11ECUResetNegativeResponseNoError() {
         assert(g.ms++ < cfg.p2_ms); // before p2 ms has elapsed
     }
 
+    // with a kISO14229_CLIENT_ERR_RESP_NEGATIVE error
+    ASSERT_INT_EQUAL(kISO14229_CLIENT_ERR_RESP_NEGATIVE, client.err);
+    TEST_TEARDOWN();
+}
+
+void testClient0x11ECUResetNegativeResponseNoError() {
+    TEST_SETUP();
+    Iso14229Client client;
+    IsoTpInitLink(&g.srvPhysLink, &SRV_PHYS_LINK_DEFAULT_CONFIG);
+    struct Iso14229ClientConfig cfg = DEFAULT_CLIENT_CONFIG();
+    iso14229ClientInit(&client, &cfg);
+
+    // A client that sends an ECU reset
+    ECUReset(&client, kHardReset);
+
+    // and receives a negative response
+    const uint8_t NEG_RESPONSE[] = {0x7F, 0x11, 0x10};
+    isotp_send(&g.srvPhysLink, NEG_RESPONSE, sizeof(NEG_RESPONSE));
+
+    // should return to the idle state
+    while (kRequestStateIdle != client.state) {
+        Iso14229ClientPoll(&client);
+        assert(g.ms++ < cfg.p2_ms); // before p2 ms has elapsed
+    }
+
     // with no error
-    ASSERT_INT_EQUAL(kRequestNoError, client.err);
+    ASSERT_INT_EQUAL(kISO14229_CLIENT_OK, client.err);
     TEST_TEARDOWN();
 }
 
@@ -980,7 +981,7 @@ void testClient0x22RDBITxBufferTooSmall() {
     client.link->send_buf_size = 4;
 
     // should return an error
-    ASSERT_INT_EQUAL(kRequestNotSentInvalidArgs,
+    ASSERT_INT_EQUAL(kISO14229_CLIENT_ERR_REQ_NOT_SENT_INVALID_ARGS,
                      ReadDataByIdentifier(&client, didList, ARRAY_SZ(didList)))
 
     // and no data should be sent
@@ -998,19 +999,19 @@ void testClient0x22RDBIUnpackResponse() {
     uint16_t offset = 0;
     int err = 0;
     err = RDBIReadDID(&resp, 0x1234, buf, 4, &offset);
-    ASSERT_INT_EQUAL(err, READ_DID_NO_ERR);
+    ASSERT_INT_EQUAL(err, kISO14229_CLIENT_OK);
     uint32_t d0 = (buf[0] << 24) + (buf[1] << 16) + (buf[2] << 8) + buf[3];
     ASSERT_INT_EQUAL(d0, 0x0000AA00);
     err = RDBIReadDID(&resp, 0x1234, buf, 2, &offset);
-    ASSERT_INT_EQUAL(err, READ_DID_ERR_DID_MISMATCH);
+    ASSERT_INT_EQUAL(err, kISO14229_CLIENT_ERR_RESP_DID_MISMATCH);
     err = RDBIReadDID(&resp, 0x5678, buf, 20, &offset);
-    ASSERT_INT_EQUAL(err, READ_DID_ERR_RESPONSE_TOO_SHORT);
+    ASSERT_INT_EQUAL(err, kISO14229_CLIENT_ERR_RESP_TOO_SHORT);
     err = RDBIReadDID(&resp, 0x5678, buf, 2, &offset);
-    ASSERT_INT_EQUAL(err, READ_DID_NO_ERR);
+    ASSERT_INT_EQUAL(err, kISO14229_CLIENT_OK);
     uint16_t d1 = (buf[0] << 8) + buf[1];
     ASSERT_INT_EQUAL(d1, 0xAABB);
     err = RDBIReadDID(&resp, 0x5678, buf, 1, &offset);
-    ASSERT_INT_EQUAL(err, READ_DID_ERR_RESPONSE_TOO_SHORT);
+    ASSERT_INT_EQUAL(err, kISO14229_CLIENT_ERR_RESP_TOO_SHORT);
     ASSERT_INT_EQUAL(offset, sizeof(RESPONSE));
     TEST_TEARDOWN();
 }
@@ -1051,7 +1052,7 @@ void testClient0x31RequestCorrectlyReceivedResponsePending() {
     }
 
     // with no error
-    ASSERT_INT_EQUAL(client.err, kRequestNoError);
+    ASSERT_INT_EQUAL(client.err, kISO14229_CLIENT_OK);
     TEST_TEARDOWN();
 }
 
@@ -1063,7 +1064,7 @@ void testClient0x34RequestDownload() {
     iso14229ClientInit(&client, &cfg);
 
     // When RequestDownload is called with these arguments
-    ASSERT_INT_EQUAL(kRequestNoError, RequestDownload(&client, 0x11, 0x33, 0x602000, 0x00FFFF));
+    ASSERT_INT_EQUAL(kISO14229_CLIENT_OK, RequestDownload(&client, 0x11, 0x33, 0x602000, 0x00FFFF));
 
     // the bytes sent should match ISO14229-1 2013 Table 415
     const uint8_t CORRECT_REQUEST[] = {0x34, 0x11, 0x33, 0x60, 0x20, 0x00, 0x00, 0xFF, 0xFF};
@@ -1084,10 +1085,10 @@ void testClient0x34UnpackRequestDownloadResponse() {
         .len = sizeof(RESPONSE),
     };
 
-    enum Iso14229ClientRequestError err = UnpackRequestDownloadResponse(&resp, &unpacked);
+    enum Iso14229ClientError err = UnpackRequestDownloadResponse(&resp, &unpacked);
 
     // they should unpack without error
-    ASSERT_INT_EQUAL(err, kRequestNoError);
+    ASSERT_INT_EQUAL(err, kISO14229_CLIENT_OK);
     ASSERT_INT_EQUAL(unpacked.maxNumberOfBlockLength, 0x81);
 }
 
@@ -1100,7 +1101,7 @@ void testClient0x36TransferData() {
 
     // This test is large because it implements ISO14229-1 2013 14.5.5
     // It would be perhaps be better implemented with the
-    // iso14229ClientSequenceRunBlocking API instead.
+    // iso14229SequenceRunBlocking API instead.
 
 #define MemorySize (0x00FFFF)
 
@@ -1145,7 +1146,7 @@ void testClient0x36TransferData() {
         assert(g.ms++ - g.t0 < client.p2_ms);
     }
     // and have no errors.
-    ASSERT_INT_EQUAL(kRequestNoError, client.err);
+    ASSERT_INT_EQUAL(kISO14229_CLIENT_OK, client.err);
 
     assert(!ferror(fd));
 
@@ -1166,7 +1167,7 @@ void testClient0x36TransferData() {
             Iso14229ClientPoll(&client);
             assert(g.ms++ - g.t0 < client.p2_ms); // in under p2 ms
         }
-        ASSERT_INT_EQUAL(kRequestNoError, client.err); // with no error.
+        ASSERT_INT_EQUAL(kISO14229_CLIENT_OK, client.err); // with no error.
 
         // and the server link should have received data
         g.ret = isotp_receive(&g.srvPhysLink, g.scratch, sizeof(g.scratch), &g.size);

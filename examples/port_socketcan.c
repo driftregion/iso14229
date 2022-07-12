@@ -118,13 +118,13 @@ uint32_t portGetms() {
     return milliseconds;
 }
 
-int portmsleep(long tms) {
+void portYieldms(long tms) {
     struct timespec ts;
     int ret;
 
     if (tms < 0) {
         errno = EINVAL;
-        return -1;
+        return;
     }
 
     ts.tv_sec = tms / 1000;
@@ -134,7 +134,7 @@ int portmsleep(long tms) {
         ret = nanosleep(&ts, &ts);
     } while (ret && errno == EINTR);
 
-    return ret;
+    // return ret;
 }
 
 void isotp_user_debug(const char *fmt, ...) {

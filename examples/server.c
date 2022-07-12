@@ -225,7 +225,7 @@ int run_server_blocking() {
         if (ecu_reset_scheduled && Iso14229TimeAfter(ecu_reset_timer, portGetms())) {
             mockECUReset();
         }
-        portmsleep(10);
+        portYieldms(10);
     }
     printf("server exiting\n");
     return 0;

@@ -16,6 +16,7 @@ static struct Iso14229ClientConfig cfg = {
     .recv_id = CLIENT_RECV_ID,
     .p2_ms = CLIENT_DEFAULT_P2_MS,
     .p2_star_ms = CLIENT_DEFAULT_P2_STAR_MS,
+    .yield_period_ms = ISO14229_CLIENT_DEFAULT_YIELD_PERIOD_MS,
     .link = &link,
     .link_receive_buffer = isotpRecvBuf,
     .link_recv_buf_size = sizeof(isotpRecvBuf),
@@ -24,6 +25,7 @@ static struct Iso14229ClientConfig cfg = {
     .userCANTransmit = portSendCAN,
     .userCANRxPoll = portCANRxPoll,
     .userGetms = portGetms,
+    .userYieldms = portYieldms,
     .userDebug = isotp_user_debug,
 };
 
@@ -96,20 +98,25 @@ static enum Iso14229ClientCallbackStatus sendExitReset(Iso14229Client *client, v
     return kISO14229_CLIENT_CALLBACK_DONE;
 }
 
+//
+// 流程定义
+// Sequence Definition
+//
+
 // clang-format off
-static struct Iso14229ClientStep sequence[] = {
-    {sendHardReset, NULL},
-    {awaitPositiveResponse, NULL},
+static Iso14229ClientCallback sequence[] = {
+    sendHardReset,
+    awaitPositiveResponse,
 
-    {requestSomeData, NULL},
-    {awaitPositiveResponse, NULL},
-    {printTheData, NULL},
+    requestSomeData,
+    awaitPositiveResponse,
+    printTheData,
 
-    {enterDiagnosticSession, NULL}, 
-    {awaitResponse, NULL},
+    enterDiagnosticSession, 
+    awaitResponse,
 
-    {sendExitReset, NULL},
-    {awaitPositiveResponse, NULL},
+    sendExitReset,
+    awaitPositiveResponse,
 };
 // clang-format on
 
@@ -119,7 +126,7 @@ int run_client_blocking() {
     int idx = 0;
     printf("running client sequence. . .\n");
     int err = iso14229ClientSequenceRunBlocking(&client, sequence,
-                                                sizeof(sequence) / sizeof(sequence[0]), &idx);
+                                                sizeof(sequence) / sizeof(sequence[0]), NULL, &idx);
     printf("sequence completed with status: %d\n", err);
     if (err) {
         printf("client state: %d\n", client.state);
