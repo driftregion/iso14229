@@ -103,13 +103,11 @@ typedef struct Iso14229Client {
     enum Iso14229ClientOptions _options_copy; // a copy of the options at the time a request is made
 } Iso14229Client;
 
-enum Iso14229ClientCallbackStatus {
-    kISO14229_CLIENT_CALLBACK_DONE = kISO14229_CLIENT_OK, // 完成成功、可以跳到下一步函数
-    kISO14229_CLIENT_CALLBACK_PENDING = kISO14229_CLIENT_SEQUENCE_RUNNING, // 未完成、继续调用本函数
-};
+#define kISO14229_CLIENT_CALLBACK_DONE kISO14229_CLIENT_OK // 完成成功、可以跳到下一步函数
+#define kISO14229_CLIENT_CALLBACK_PENDING                                                          \
+    kISO14229_CLIENT_SEQUENCE_RUNNING // 未完成、继续调用本函数
 
-typedef enum Iso14229ClientCallbackStatus (*Iso14229ClientCallback)(Iso14229Client *client,
-                                                                    void *args);
+typedef enum Iso14229ClientError (*Iso14229ClientCallback)(Iso14229Client *client, void *args);
 
 struct Iso14229Runner;
 
@@ -150,12 +148,12 @@ enum Iso14229ClientError iso14229SequenceRunBlocking(const struct Iso14229Sequen
  *
  * @param client
  * @param args
- * @return enum Iso14229ClientCallbackStatus
+ * @return enum Iso14229ClientError
     kISO14229_CLIENT_CALLBACK_ERROR : 客户端有故障
     kISO14229_CLIENT_CALLBACK_DONE : 客户端没有故障并回到了休闲状态
     kISO14229_CLIENT_CALLBACK_PENDING : 客户端没有故障并还没回到休闲状态
  */
-enum Iso14229ClientCallbackStatus Iso14229ClientAwaitIdle(Iso14229Client *client, void *args);
+enum Iso14229ClientError Iso14229ClientAwaitIdle(Iso14229Client *client, void *args);
 
 /**
  * @brief simple example of a runner

@@ -10,7 +10,7 @@ extern void isotp_user_debug(const char *fmt, ...);
 
 enum Iso14229CANRxStatus portCANRxPoll(uint32_t *arb_id, uint8_t *data, uint8_t *size);
 int portSendCAN(const uint32_t arbitration_id, const uint8_t *data, const uint8_t size);
-void portYieldms(long tms);
+void portYieldms(uint32_t tms);
 uint32_t portGetms();
 
 #endif

@@ -678,7 +678,7 @@ enum Iso14229ClientError iso14229SequenceRunBlocking(const struct Iso14229Sequen
     return kISO14229_SEQ_ERR_TIMEOUT;
 }
 
-enum Iso14229ClientCallbackStatus Iso14229ClientAwaitIdle(Iso14229Client *client, void *args) {
+enum Iso14229ClientError Iso14229ClientAwaitIdle(Iso14229Client *client, void *args) {
     (void)args;
     if (client->err) {
         return client->err;
@@ -689,7 +689,7 @@ enum Iso14229ClientCallbackStatus Iso14229ClientAwaitIdle(Iso14229Client *client
     }
 }
 
-static enum Iso14229ClientCallbackStatus sendRequest(Iso14229Client *client, void *args) {
+static enum Iso14229ClientError sendRequest(Iso14229Client *client, void *args) {
     struct Iso14229SimpleRunner *runner = (struct Iso14229SimpleRunner *)args;
     return kISO14229_CLIENT_OK;
 }

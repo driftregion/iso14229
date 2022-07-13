@@ -118,14 +118,9 @@ uint32_t portGetms() {
     return milliseconds;
 }
 
-void portYieldms(long tms) {
+void portYieldms(uint32_t tms) {
     struct timespec ts;
     int ret;
-
-    if (tms < 0) {
-        errno = EINVAL;
-        return;
-    }
 
     ts.tv_sec = tms / 1000;
     ts.tv_nsec = (tms % 1000) * 1000000;
