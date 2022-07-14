@@ -1,7 +1,7 @@
 # iso14229
 
 <p align="center">
-<a href="https://github.com/driftregion/iso14229/actions"><img src="https://github.com/driftregion/iso14229/workflows/CI/badge.svg" alt="Build Status"></a>
+<a href="https://github.com/driftregion/iso14229/actions"><img src="https://github.com/driftregion/iso14229/actions/workflows/runtests.yml/badge.svg" alt="Build Status"></a>
 <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
 </p>
 
