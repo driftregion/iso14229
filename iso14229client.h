@@ -128,51 +128,6 @@ struct Iso14229Sequence {
     size_t len;
 };
 
-/**
- * @brief Run a client sequence until completion or error
- * @param client
- * @param sequence
- * @param seqLen
- * @param idx a pointer to an integer to be used as the sequence index
- * @param args
- * @return int
- */
-enum Iso14229ClientError iso14229SequenceRunBlocking(const struct Iso14229Sequence *seq,
-                                                     Iso14229Client *client,
-                                                     struct Iso14229Runner *runner);
-
-/**
- * @brief Wait after request transmission for a response to be received
- * @note if suppressPositiveResponse is set, this function will return
- kISO14229_CLIENT_CALLBACK_DONE as soon as the transport layer has completed transmission.
- *
- * @param client
- * @param args
- * @return enum Iso14229ClientError
-    kISO14229_CLIENT_CALLBACK_ERROR : 客户端有故障
-    kISO14229_CLIENT_CALLBACK_DONE : 客户端没有故障并回到了休闲状态
-    kISO14229_CLIENT_CALLBACK_PENDING : 客户端没有故障并还没回到休闲状态
- */
-enum Iso14229ClientError Iso14229ClientAwaitIdle(Iso14229Client *client, void *args);
-
-/**
- * @brief simple example of a runner
- */
-struct Iso14229SimpleRunner {
-    ISO14229_RUNNER_STRUCT_MEMBERS
-
-    uint8_t sid;
-
-    uint16_t send_id;
-    uint16_t recv_id;
-
-    bool isFunctional;
-    bool suppressPositiveResponse;
-
-    uint8_t send_buf[64];
-    uint8_t recv_buf[64];
-};
-
 struct SecurityAccessResponse {
     uint8_t securityAccessType;
     const uint8_t *securitySeed;
@@ -190,15 +145,8 @@ struct RoutineControlResponse {
     uint16_t routineStatusRecordLength;
 };
 
-/**
- * @brief Initialize the Iso14229Client
- *
- * @param self
- * @param cfg
- */
 void iso14229ClientInit(Iso14229Client *self, const struct Iso14229ClientConfig *cfg);
-
-typedef int (*UserSequenceFunction)(Iso14229Client *client, void *userContext);
+void Iso14229ClientPoll(Iso14229Client *self);
 
 enum Iso14229ClientError ECUReset(Iso14229Client *client, enum Iso14229ECUResetResetType type);
 enum Iso14229ClientError DiagnosticSessionControl(Iso14229Client *client,
@@ -235,49 +183,33 @@ enum Iso14229ClientError UnpackRoutineControlResponse(Iso14229Client *client,
                                                       struct RoutineControlResponse *resp);
 enum Iso14229ClientError UnpackRequestDownloadResponse(const struct Iso14229Response *resp,
                                                        struct RequestDownloadResponse *unpacked);
+int RDBIReadDID(const struct Iso14229Response *resp, uint16_t did, uint8_t *data, uint16_t size,
+                uint16_t *offset);
 
 /**
- * @brief Helper function for reading RDBI responses
+ * @brief Run a client sequence until completion or error
+ * @param client
+ * @param sequence
+ * @param seqLen
+ * @param idx a pointer to an integer to be used as the sequence index
+ * @param args
+ * @return int
+ */
+enum Iso14229ClientError iso14229SequenceRunBlocking(const struct Iso14229Sequence *seq,
+                                                     Iso14229Client *client,
+                                                     struct Iso14229Runner *runner);
+
+/**
+ * @brief Wait after request transmission for a response to be received
+ * @note if suppressPositiveResponse is set, this function will return
+ kISO14229_CLIENT_CALLBACK_DONE as soon as the transport layer has completed transmission.
  *
- * @param resp
- * @param did expected DID
- * @param data pointer to receive buffer
- * @param size number of bytes to read
- * @param offset incremented with each call
- * @return int 0 on success
+ * @param client
+ * @param args
+ * @return enum Iso14229ClientError
+    kISO14229_CLIENT_OK = 0,                                 // 流程完成
+    kISO14229_CLIENT_SEQUENCE_RUNNING = 1,                   // 流程正在跑、还没完成
  */
-static inline int RDBIReadDID(const struct Iso14229Response *resp, uint16_t did, uint8_t *data,
-                              uint16_t size, uint16_t *offset) {
-    assert(resp);
-    assert(data);
-    assert(offset);
-    if (0 == *offset) {
-        *offset = ISO14229_0X22_RESP_BASE_LEN;
-    }
-
-    if (*offset + sizeof(did) > resp->len) {
-        return kISO14229_CLIENT_ERR_RESP_TOO_SHORT;
-    }
-
-    uint16_t theirDID = (resp->buf[*offset] << 8) + resp->buf[*offset + 1];
-    if (theirDID != did) {
-        return kISO14229_CLIENT_ERR_RESP_DID_MISMATCH;
-    }
-
-    if (*offset + sizeof(uint16_t) + size > resp->len) {
-        return kISO14229_CLIENT_ERR_RESP_TOO_SHORT;
-    }
-
-    memmove(data, &resp->buf[*offset + sizeof(uint16_t)], size);
-
-    *offset += sizeof(uint16_t) + size;
-    return kISO14229_CLIENT_OK;
-}
-
-/**
- * @brief Poll the client request state machine.
- * @param self
- */
-void Iso14229ClientPoll(Iso14229Client *self);
+enum Iso14229ClientError Iso14229ClientAwaitIdle(Iso14229Client *client, void *args);
 
 #endif

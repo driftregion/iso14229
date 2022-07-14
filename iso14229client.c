@@ -694,7 +694,40 @@ static enum Iso14229ClientError sendRequest(Iso14229Client *client, void *args) 
     return kISO14229_CLIENT_OK;
 }
 
-Iso14229ClientCallback simple_sequence = {
+/**
+ * @brief Helper function for reading RDBI responses
+ *
+ * @param resp
+ * @param did expected DID
+ * @param data pointer to receive buffer
+ * @param size number of bytes to read
+ * @param offset incremented with each call
+ * @return int 0 on success
+ */
+int RDBIReadDID(const struct Iso14229Response *resp, uint16_t did, uint8_t *data, uint16_t size,
+                uint16_t *offset) {
+    assert(resp);
+    assert(data);
+    assert(offset);
+    if (0 == *offset) {
+        *offset = ISO14229_0X22_RESP_BASE_LEN;
+    }
 
-    Iso14229ClientAwaitIdle,
-};
+    if (*offset + sizeof(did) > resp->len) {
+        return kISO14229_CLIENT_ERR_RESP_TOO_SHORT;
+    }
+
+    uint16_t theirDID = (resp->buf[*offset] << 8) + resp->buf[*offset + 1];
+    if (theirDID != did) {
+        return kISO14229_CLIENT_ERR_RESP_DID_MISMATCH;
+    }
+
+    if (*offset + sizeof(uint16_t) + size > resp->len) {
+        return kISO14229_CLIENT_ERR_RESP_TOO_SHORT;
+    }
+
+    memmove(data, &resp->buf[*offset + sizeof(uint16_t)], size);
+
+    *offset += sizeof(uint16_t) + size;
+    return kISO14229_CLIENT_OK;
+}
