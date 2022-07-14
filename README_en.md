@@ -1,18 +1,8 @@
 # iso14229
 
-iso14229是个针对嵌入式系统的UDS(ISO14229-1:2013)服务器和客户端实现。这一套已包含[`isotp-c`](https://github.com/lishen2/isotp-c) ISO15765-2 (ISO-TP)传输层。
-
 iso14229 is a UDS server and client implementation (ISO14229-1:2013) targeting embedded systems. It embeds the [`isotp-c`](https://github.com/lishen2/isotp-c) ISO15765-2 (ISO-TP) transport layer. 
 
-API状态: **不稳定** / API status: **unstable**
-
-特点:
-- 依赖性注入
-- 静态内存分配
-- 独立于处理器架构
-    - 测试了: arm, x86-64, ppc
-    - 可以用qemu测试更多
-- 单元测试又多又容易扩展
+API status: **unstable**
 
 Features:
 - dependency injection gives you complete control
@@ -22,7 +12,7 @@ Features:
     - tests run under qemu 
 - has many existing unit-tests and tests are easy to extend
 
-##  支持服务(服务器和客户端) / supported functions (server and client )
+##  supported functions (server and client )
 
 | SID | name | supported |
 | - | - | - |
@@ -52,17 +42,17 @@ Features:
 | 0x85 | control DTC setting | ✅ |
 | 0x86 | response on event | ❌ |
 
-# iso14229 文档 / Documentation
+# Documentation
 
-## 例子 / Examples
+## Examples
 
 [examples/README.md](examples/README.md)
 
-## 测试 / Tests
+## Tests
 
 [test_iso14229.c](test_iso14229.c)
 
-### 运行测试 / running tests
+### Running Tests
 
 ```sh
 make test
@@ -82,56 +72,54 @@ wine test_bin.exe
 ```
 
 
-# 贡献 / Contributing
+# Contributing
 
-欢迎提交贡献/contributions are welcome
+contributions are welcome
 
 
-# 感谢 / Acknowledgements
+# Acknowledgements
 
 - [`isotp`](https://github.com/lishen2/isotp-c) which this project embeds
 
-# 许可 / License
+# License
 
 MIT
 
-# 变更记录 / Changelog
+# Changelog
 
 ## 0.0.0
-- 初次发布 / initial release
+- initial release
 
 ## 0.1.0
-- 加客户端 / Add client
-- 加服务器SID 0x27安全访问 / Add server SID 0x27 SecurityAccess
-- API更改 / API changes
+- Add client
+- Add server SID 0x27 SecurityAccess
+- API changes
 
 ## 0.2.0
 - 
-- 删除所有`__attribute__((packed))` / removed all instances of `__attribute__((packed))`
-- 为了简化测试、重构服务器下载功能单元 / refactored server download functional unit API to simplify testing
-- 重构测试 / refactored tests
-    - 按服务排列 / ordered by service
-    - 给宏定义写文档 / documented macros
-- 删掉了中间件 / removed middleware 
-- 简化了服务器例程控制API / simplified server routine control API
-- 删掉了重复函数`iso14229ServerEnableService` / removed redundant function `iso14229ServerEnableService`
-- 更新例子 / updated example
+- removed all instances of `__attribute__((packed))`
+- refactored server download functional unit API to simplify testing
+- refactored tests
+    - ordered by service
+    - documented macros
+- removed middleware 
+- simplified server routine control API
+- removed redundant function `iso14229ServerEnableService`
+- updated example
 
 ## 0.3.0
-- 加`iso14229ClientRunSequenceBlocking(...)` / added `iso14229ClientRunSequenceBlocking(...)`
-- 加了服务器和客户端例子 / added server and client examples
-- 简化测试流程、删掉了过分模糊宏定义和switch结构 / simplified test flow, deleted opaque macros and switch statements
-- 服务器和客户端结构体简化：尽量用一层深度 / flattened client and server main structs
-- 简化使用、放isotp-c初始化参数到服务器/客户端配置里面 / simplified usage by moving isotp-c initialization parameters into server/client config structs 
-- 删除重复服务器缓冲器 / remove redundant buffers in server
+- added `iso14229ClientRunSequenceBlocking(...)`
+- added server and client examples
+- simplified test flow, deleted opaque macros and switch statements
+- flattened client and server main structs
+- simplified usage by moving isotp-c initialization parameters into server/client config structs 
+- remove redundant buffers in server
 
 ---
 
+# Design Docs
 
-# iso14229开发文档 / design docs
-
-
-## 客户端请求状态机
+## Client State Machine
 
 ```plantuml
 @startuml
@@ -225,8 +213,7 @@ else (时间超过<b>20ms)
 @enduml
 ```
 
-## 服务器 0x78 requestCorrectlyReceived-ResponsePending
-
+## Server 0x78 requestCorrectlyReceived-ResponsePending
 
 ```plantuml
 @startuml
