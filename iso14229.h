@@ -53,31 +53,35 @@ library
 #define ISO14229_0X85_REQ_BASE_LEN 2U
 #define ISO14229_0X85_RESP_LEN 2U
 
+/**
+ * @brief List of tuples of (SID_IDENTIFIER, SID, internalHandlerFunction) for all services
+ * services with a NULL internalHandlerFunction are currently unsupported.
+ */
 #define ISO14229_SID_LIST                                                                          \
-    X(DIAGNOSTIC_SESSION_CONTROL, 0x10, iso14229DiagnosticSessionControl)                          \
-    X(ECU_RESET, 0x11, iso14229ECUReset)                                                           \
+    X(DIAGNOSTIC_SESSION_CONTROL, 0x10, _0x10_DiagnosticSessionControl)                            \
+    X(ECU_RESET, 0x11, _0x11_ECUReset)                                                             \
     X(CLEAR_DIAGNOSTIC_INFORMATION, 0x14, NULL)                                                    \
     X(READ_DTC_INFORMATION, 0x19, NULL)                                                            \
-    X(READ_DATA_BY_IDENTIFIER, 0x22, iso14229ReadDataByIdentifier)                                 \
+    X(READ_DATA_BY_IDENTIFIER, 0x22, _0x22_ReadDataByIdentifier)                                   \
     X(READ_MEMORY_BY_ADDRESS, 0x23, NULL)                                                          \
     X(READ_SCALING_DATA_BY_IDENTIFIER, 0x24, NULL)                                                 \
-    X(SECURITY_ACCESS, 0x27, iso14229SecurityAccess)                                               \
-    X(COMMUNICATION_CONTROL, 0x28, iso14229CommunicationControl)                                   \
+    X(SECURITY_ACCESS, 0x27, _0x27_SecurityAccess)                                                 \
+    X(COMMUNICATION_CONTROL, 0x28, _0x28_CommunicationControl)                                     \
     X(READ_PERIODIC_DATA_BY_IDENTIFIER, 0x2A, NULL)                                                \
     X(DYNAMICALLY_DEFINE_DATA_IDENTIFIER, 0x2C, NULL)                                              \
-    X(WRITE_DATA_BY_IDENTIFIER, 0x2E, iso14229WriteDataByIdentifier)                               \
+    X(WRITE_DATA_BY_IDENTIFIER, 0x2E, _0x2E_WriteDataByIdentifier)                                 \
     X(INPUT_CONTROL_BY_IDENTIFIER, 0x2F, NULL)                                                     \
-    X(ROUTINE_CONTROL, 0x31, iso14229RoutineControl)                                               \
-    X(REQUEST_DOWNLOAD, 0x34, iso14229RequestDownload)                                             \
+    X(ROUTINE_CONTROL, 0x31, _0x31_RoutineControl)                                                 \
+    X(REQUEST_DOWNLOAD, 0x34, _0x34_RequestDownload)                                               \
     X(REQUEST_UPLOAD, 0x35, NULL)                                                                  \
-    X(TRANSFER_DATA, 0x36, iso14229TransferData)                                                   \
-    X(REQUEST_TRANSFER_EXIT, 0x37, iso14229RequestTransferExit)                                    \
+    X(TRANSFER_DATA, 0x36, _0x36_TransferData)                                                     \
+    X(REQUEST_TRANSFER_EXIT, 0x37, _0x37_RequestTransferExit)                                      \
     X(REQUEST_FILE_TRANSFER, 0x38, NULL)                                                           \
     X(WRITE_MEMORY_BY_ADDRESS, 0x3D, NULL)                                                         \
-    X(TESTER_PRESENT, 0x3E, iso14229TesterPresent)                                                 \
+    X(TESTER_PRESENT, 0x3E, _0x3E_TesterPresent)                                                   \
     X(ACCESS_TIMING_PARAMETER, 0x83, NULL)                                                         \
     X(SECURED_DATA_TRANSMISSION, 0x84, NULL)                                                       \
-    X(CONTROL_DTC_SETTING, 0x85, iso14229ControlDtcSetting)                                        \
+    X(CONTROL_DTC_SETTING, 0x85, _0x85_ControlDTCSetting)                                          \
     X(RESPONSE_ON_EVENT, 0x86, NULL)
 
 #define X(str_ident, sid, func) kSID_##str_ident = sid,
@@ -97,7 +101,6 @@ enum Iso14229DiagnosticSessionType {
     kProgrammingSession = 0x02,
     kExtendedDiagnostic = 0x03,
     kSafetySystemDiagnostic = 0x04,
-    ISO14229_SERVER_USER_DIAGNOSTIC_MODES
 };
 
 enum Iso14229ResponseCode {
@@ -208,7 +211,7 @@ enum DTCSettingType {
 };
 
 struct Iso14229NegativeResponse {
-    uint8_t negResponseSid; // always 0x7F
+    uint8_t negResponseSid;
     uint8_t requestSid;
     uint8_t responseCode;
 };
@@ -230,10 +233,6 @@ enum Iso14229CANRxStatus { kCANRxNone = 0, kCANRxSome };
 // ========================================================================
 //                              Helper functions
 // ========================================================================
-
-static inline bool responseIsNegative(const struct Iso14229Response *resp) {
-    return 0x7F == resp->buf[0];
-}
 
 /* returns true if `a` is after `b` */
 static inline bool Iso14229TimeAfter(uint32_t a, uint32_t b) {

@@ -16,6 +16,7 @@ static struct Iso14229ClientConfig cfg = {
     .recv_id = CLIENT_RECV_ID,
     .p2_ms = CLIENT_DEFAULT_P2_MS,
     .p2_star_ms = CLIENT_DEFAULT_P2_STAR_MS,
+    .yield_period_ms = ISO14229_CLIENT_DEFAULT_YIELD_PERIOD_MS,
     .link = &link,
     .link_receive_buffer = isotpRecvBuf,
     .link_recv_buf_size = sizeof(isotpRecvBuf),
@@ -24,10 +25,11 @@ static struct Iso14229ClientConfig cfg = {
     .userCANTransmit = portSendCAN,
     .userCANRxPoll = portCANRxPoll,
     .userGetms = portGetms,
+    .userYieldms = portYieldms,
     .userDebug = isotp_user_debug,
 };
 
-static enum Iso14229ClientCallbackStatus sendHardReset(Iso14229Client *client, void *args) {
+static enum Iso14229ClientError sendHardReset(Iso14229Client *client, void *args) {
     (void)args;
     uint8_t resetType = kHardReset;
     printf("sending ECU reset type: %d\n", resetType);
@@ -35,20 +37,19 @@ static enum Iso14229ClientCallbackStatus sendHardReset(Iso14229Client *client, v
     return kISO14229_CLIENT_CALLBACK_DONE;
 }
 
-static enum Iso14229ClientCallbackStatus awaitPositiveResponse(Iso14229Client *client, void *args) {
+static enum Iso14229ClientError awaitPositiveResponse(Iso14229Client *client, void *args) {
     (void)args;
+    if (client->err) {
+        return client->err;
+    }
     if (kRequestStateIdle == client->state) {
-        if (kRequestNoError == client->err) {
-            return kISO14229_CLIENT_CALLBACK_DONE;
-        } else {
-            return kISO14229_CLIENT_CALLBACK_ERROR;
-        }
+        return kISO14229_CLIENT_CALLBACK_DONE;
     } else {
         return kISO14229_CLIENT_CALLBACK_PENDING;
     }
 }
 
-static enum Iso14229ClientCallbackStatus awaitResponse(Iso14229Client *client, void *args) {
+static enum Iso14229ClientError awaitResponse(Iso14229Client *client, void *args) {
     (void)args;
     if (kRequestStateIdle == client->state) {
         return kISO14229_CLIENT_CALLBACK_DONE;
@@ -57,38 +58,43 @@ static enum Iso14229ClientCallbackStatus awaitResponse(Iso14229Client *client, v
     }
 }
 
-static enum Iso14229ClientCallbackStatus requestSomeData(Iso14229Client *client, void *args) {
+static enum Iso14229ClientError requestSomeData(Iso14229Client *client, void *args) {
     (void)args;
     static const uint16_t didList[] = {0x0001, 0x0008};
     ReadDataByIdentifier(client, didList, 2);
     return kISO14229_CLIENT_CALLBACK_DONE;
 }
 
-static enum Iso14229ClientCallbackStatus printTheData(Iso14229Client *client, void *args) {
+static enum Iso14229ClientError printTheData(Iso14229Client *client, void *args) {
     (void)args;
     printf("The raw RDBI response looks like this: \n");
     PRINTHEX(client->resp.buf, client->resp.len);
 
     uint8_t buf[21];
     uint16_t offset = 0;
-    if (READ_DID_NO_ERR == RDBIReadDID(&client->resp, 0x0001, buf, DID_0x0001_LEN, &offset)) {
-        printf("0x%04x: %d\n", 0x0001, buf[0]);
+    int err;
+
+    err = RDBIReadDID(&client->resp, 0x0001, buf, DID_0x0001_LEN, &offset);
+    if (err) {
+        return err;
     }
-    if (READ_DID_NO_ERR == RDBIReadDID(&client->resp, 0x0008, buf, DID_0x0008_LEN, &offset)) {
-        printf("0x%04x: %s\n", 0x0008, buf);
+    printf("0x%04x: %d\n", 0x0001, buf[0]);
+
+    err = RDBIReadDID(&client->resp, 0x0008, buf, DID_0x0008_LEN, &offset);
+    if (err) {
+        return err;
     }
+    printf("0x%04x: %s\n", 0x0008, buf);
     return kISO14229_CLIENT_CALLBACK_DONE;
 }
 
-static enum Iso14229ClientCallbackStatus enterDiagnosticSession(Iso14229Client *client,
-                                                                void *args) {
+static enum Iso14229ClientError enterDiagnosticSession(Iso14229Client *client, void *args) {
     (void)args;
-    client->negativeResponseIsError = false;
     DiagnosticSessionControl(client, kExtendedDiagnostic);
     return kISO14229_CLIENT_CALLBACK_DONE;
 }
 
-static enum Iso14229ClientCallbackStatus sendExitReset(Iso14229Client *client, void *args) {
+static enum Iso14229ClientError sendExitReset(Iso14229Client *client, void *args) {
     (void)args;
     uint8_t resetType = RESET_TYPE_EXIT;
     printf("sending ECU reset type: %d\n", resetType);
@@ -96,30 +102,40 @@ static enum Iso14229ClientCallbackStatus sendExitReset(Iso14229Client *client, v
     return kISO14229_CLIENT_CALLBACK_DONE;
 }
 
+//
+// 流程定义
+// Sequence Definition
+//
+
 // clang-format off
-static struct Iso14229ClientStep sequence[] = {
-    {sendHardReset, NULL},
-    {awaitPositiveResponse, NULL},
+static Iso14229ClientCallback callbacks[] = {
+    sendHardReset,
+    awaitPositiveResponse,
 
-    {requestSomeData, NULL},
-    {awaitPositiveResponse, NULL},
-    {printTheData, NULL},
+    requestSomeData,
+    awaitPositiveResponse,
+    printTheData,
 
-    {enterDiagnosticSession, NULL}, 
-    {awaitResponse, NULL},
+    enterDiagnosticSession, 
+    awaitResponse,
 
-    {sendExitReset, NULL},
-    {awaitPositiveResponse, NULL},
+    sendExitReset,
+    awaitPositiveResponse,
 };
 // clang-format on
 
 int run_client_blocking() {
     Iso14229Client client;
     iso14229ClientInit(&client, &cfg);
-    int idx = 0;
-    printf("running client sequence. . .\n");
-    int err = iso14229ClientSequenceRunBlocking(&client, sequence,
-                                                sizeof(sequence) / sizeof(sequence[0]), &idx);
+
+    struct Iso14229Sequence sequence = {
+        .list = callbacks,
+        .len = sizeof(callbacks) / sizeof(callbacks[0]),
+    };
+    struct Iso14229Runner runner = {0};
+
+    printf("running sequence. . .\n");
+    int err = iso14229SequenceRunBlocking(&sequence, &client, &runner);
     printf("sequence completed with status: %d\n", err);
     if (err) {
         printf("client state: %d\n", client.state);
