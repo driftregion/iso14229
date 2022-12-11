@@ -1,66 +1,25 @@
-SRCS= \
-isotp-c/isotp.c \
-iso14229server.c \
-iso14229client.c
 
-HDRS= \
-iso14229.h \
-iso14229server.h \
-iso14229serverconfig.h \
-isotp-c/isotp.h \
-isotp-c/isotp_config.h \
-isotp-c/isotp_defines.h
+unit_test: CFLAGS+=-DUDS_TP=UDS_TP_CUSTOM -DUDS_CUSTOM_MILLIS
+unit_test: Makefile iso14229.h iso14229.c test_iso14229.c
+	$(CC) iso14229.c test_iso14229.c $(CFLAGS) $(LDFLAGS) -o test_iso14229
+	$(RUN) ./test_iso14229
 
-INCLUDES= \
-isotp-c
+client: examples/client.c examples/uds_params.h iso14229.h iso14229.c Makefile
+	$(CC) iso14229.c $< $(CFLAGS) -o $@
 
-#
-# Unit tests
-#
-DEFINES=\
+server: examples/server.c examples/uds_params.h iso14229.h iso14229.c Makefile
+	$(CC) iso14229.c $< $(CFLAGS) -o $@
 
-TEST_CFLAGS += $(foreach i,$(INCLUDES),-I$(i))
-TEST_CFLAGS += $(foreach d,$(DEFINES),-D$(d))
+test_examples: client server test_examples.sh
+	@./test_examples.sh
 
-TEST_SRCS= \
-test_iso14229.c
+uds_prefix: CFLAGS+=-DUDS_TP=UDS_TP_CUSTOM -DUDS_CUSTOM_MILLIS
+uds_prefix: iso14229.c iso14229.h
+	$(CC) iso14229.c $(CFLAGS) -c -o /tmp/x.o && nm /tmp/x.o | grep ' T ' | grep -v 'UDS' ; test $$? = 1
 
-TEST_CFLAGS += -g
-
-test_bin: $(TEST_SRCS) $(SRCS) $(HDRS) Makefile
-	$(CC) -o $@ $(TEST_CFLAGS) $(TEST_SRCS) $(SRCS) 
-
-test: test_bin
-	./test_bin
-
-test_interactive: test_bin
-	gdb test_bin
+test: unit_test test_examples uds_prefix 
 
 clean:
-	rm -rf test_bin
+	rm -f client server test_iso14229
 
-#
-# Example program
-#
-EXAMPLE_SRCS=\
-examples/client.c \
-examples/main.c \
-examples/server.c \
-examples/port_socketcan.c
-
-EXAMPLE_HDRS=\
-examples/client.h \
-examples/server.h \
-examples/port.h \
-examples/shared.h
-
-EXAMPLE_INCLUDES=\
-examples
-
-EXAMPLE_CFLAGS += $(foreach i,$(INCLUDES),-I$(i))
-EXAMPLE_CFLAGS += $(foreach i,$(EXAMPLE_INCLUDES),-I$(i))
-EXAMPLE_CFLAGS += $(foreach d,$(DEFINES),-D$(d))
-EXAMPLE_CFLAGS += -g 
-
-example: $(SRCS) $(EXAMPLE_SRCS) $(HDRS) $(EXAMPLE_HDRS) Makefile
-	$(CC) $(EXAMPLE_CFLAGS) -o $@ $(EXAMPLE_SRCS) $(SRCS) 
+.phony: clean test_examples

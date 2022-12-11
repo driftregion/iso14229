@@ -1,117 +1,97 @@
-#define ISO14229USERDEBUG printf
-#include "../iso14229client.h"
-#include "shared.h"
-#include "client.h"
-#include "port.h"
+#define UDS_DBG_PRINT printf
+#include "../iso14229.h"
+#include "uds_params.h"
+#include <stdlib.h>
+#include <errno.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <time.h>
 
-#define ISOTP_BUFSIZE 256
-static IsoTpLink link;
-
-static uint8_t isotpRecvBuf[ISOTP_BUFSIZE];
-static uint8_t isotpSendBuf[ISOTP_BUFSIZE];
-
-static struct Iso14229ClientConfig cfg = {
-    .func_send_id = CLIENT_FUNC_SEND_ID,
-    .phys_send_id = CLIENT_PHYS_SEND_ID,
-    .recv_id = CLIENT_RECV_ID,
-    .p2_ms = CLIENT_DEFAULT_P2_MS,
-    .p2_star_ms = CLIENT_DEFAULT_P2_STAR_MS,
-    .yield_period_ms = ISO14229_CLIENT_DEFAULT_YIELD_PERIOD_MS,
-    .link = &link,
-    .link_receive_buffer = isotpRecvBuf,
-    .link_recv_buf_size = sizeof(isotpRecvBuf),
-    .link_send_buffer = isotpSendBuf,
-    .link_send_buf_size = sizeof(isotpSendBuf),
-    .userCANTransmit = portSendCAN,
-    .userCANRxPoll = portCANRxPoll,
-    .userGetms = portGetms,
-    .userYieldms = portYieldms,
-    .userDebug = isotp_user_debug,
-};
-
-static enum Iso14229ClientError sendHardReset(Iso14229Client *client, void *args) {
-    (void)args;
+static UDSClientError_t sendHardReset(UDSClient_t *client, UDSSequence_t *seq) {
     uint8_t resetType = kHardReset;
-    printf("sending ECU reset type: %d\n", resetType);
-    ECUReset(client, resetType);
-    return kISO14229_CLIENT_CALLBACK_DONE;
+    printf("%s: sending ECU reset type: %d\n", __func__, resetType);
+    UDSSendECUReset(client, resetType);
+    return kUDS_SEQ_ADVANCE;
 }
 
-static enum Iso14229ClientError awaitPositiveResponse(Iso14229Client *client, void *args) {
-    (void)args;
+static UDSClientError_t awaitPositiveResponse(UDSClient_t *client, UDSSequence_t *seq) {
     if (client->err) {
         return client->err;
     }
     if (kRequestStateIdle == client->state) {
-        return kISO14229_CLIENT_CALLBACK_DONE;
+        printf("got positive response\n");
+        return kUDS_SEQ_ADVANCE;
     } else {
-        return kISO14229_CLIENT_CALLBACK_PENDING;
+        return kUDS_SEQ_RUNNING;
     }
 }
 
-static enum Iso14229ClientError awaitResponse(Iso14229Client *client, void *args) {
-    (void)args;
+static UDSClientError_t awaitResponse(UDSClient_t *client, UDSSequence_t *seq) {
     if (kRequestStateIdle == client->state) {
-        return kISO14229_CLIENT_CALLBACK_DONE;
+        printf("got response\n");
+        return kUDS_SEQ_ADVANCE;
     } else {
-        return kISO14229_CLIENT_CALLBACK_PENDING;
+        return kUDS_SEQ_RUNNING;
     }
 }
 
-static enum Iso14229ClientError requestSomeData(Iso14229Client *client, void *args) {
-    (void)args;
+static UDSClientError_t requestSomeData(UDSClient_t *client, UDSSequence_t *seq) {
+    printf("%s: calling ReadDataByIdentifier\n", __func__);
     static const uint16_t didList[] = {0x0001, 0x0008};
-    ReadDataByIdentifier(client, didList, 2);
-    return kISO14229_CLIENT_CALLBACK_DONE;
+    UDSSendRDBI(client, didList, 2);
+    return kUDS_SEQ_ADVANCE;
 }
 
-static enum Iso14229ClientError printTheData(Iso14229Client *client, void *args) {
-    (void)args;
-    printf("The raw RDBI response looks like this: \n");
-    PRINTHEX(client->resp.buf, client->resp.len);
-
+static UDSClientError_t printTheData(UDSClient_t *client, UDSSequence_t *seq) {
     uint8_t buf[21];
     uint16_t offset = 0;
     int err;
 
-    err = RDBIReadDID(&client->resp, 0x0001, buf, DID_0x0001_LEN, &offset);
+    printf("Unpacked:\n");
+    err = UDSUnpackRDBIResponse(client, 0x0001, buf, DID_0x0001_LEN, &offset);
     if (err) {
         return err;
     }
-    printf("0x%04x: %d\n", 0x0001, buf[0]);
+    printf("DID 0x%04x: %d\n", 0x0001, buf[0]);
 
-    err = RDBIReadDID(&client->resp, 0x0008, buf, DID_0x0008_LEN, &offset);
+    err = UDSUnpackRDBIResponse(client, 0x0008, buf, DID_0x0008_LEN, &offset);
     if (err) {
         return err;
     }
-    printf("0x%04x: %s\n", 0x0008, buf);
-    return kISO14229_CLIENT_CALLBACK_DONE;
+    printf("DID 0x%04x: %s\n", 0x0008, buf);
+    return kUDS_SEQ_ADVANCE;
 }
 
-static enum Iso14229ClientError enterDiagnosticSession(Iso14229Client *client, void *args) {
-    (void)args;
-    DiagnosticSessionControl(client, kExtendedDiagnostic);
-    return kISO14229_CLIENT_CALLBACK_DONE;
+static UDSClientError_t enterDiagnosticSession(UDSClient_t *client, UDSSequence_t *seq) {
+    const uint8_t session = kExtendedDiagnostic;
+    UDSSendDiagSessCtrl(client, session);
+    printf("%s: entering diagnostic session %d\n", __func__, session);
+    return kUDS_SEQ_ADVANCE;
 }
 
-static enum Iso14229ClientError sendExitReset(Iso14229Client *client, void *args) {
-    (void)args;
-    uint8_t resetType = RESET_TYPE_EXIT;
-    printf("sending ECU reset type: %d\n", resetType);
-    ECUReset(client, resetType);
-    return kISO14229_CLIENT_CALLBACK_DONE;
+static UDSClientError_t terminateServerProcess(UDSClient_t *client, UDSSequence_t *seq) {
+    printf("%s: requesting server shutdown...\n", __func__);
+    client->options |= SUPPRESS_POS_RESP;
+    UDSSendRoutineCtrl(client, kStartRoutine, RID_TERMINATE_PROCESS, NULL, 0);
+    return kUDS_SEQ_ADVANCE;
 }
 
-//
-// 流程定义
-// Sequence Definition
-//
+static int SleepMillis(uint32_t tms) {
+    struct timespec ts;
+    int ret;
+    ts.tv_sec = tms / 1000;
+    ts.tv_nsec = (tms % 1000) * 1000000;
+    do {
+        ret = nanosleep(&ts, &ts);
+    } while (ret && errno == EINTR);
+    return ret;
+}
 
 // clang-format off
-static Iso14229ClientCallback callbacks[] = {
-    sendHardReset,
-    awaitPositiveResponse,
-
+/**
+ * @brief 流程定义 Sequence Definition
+ */
+static UDSClientCallback callbacks[] = {
     requestSomeData,
     awaitPositiveResponse,
     printTheData,
@@ -119,29 +99,44 @@ static Iso14229ClientCallback callbacks[] = {
     enterDiagnosticSession, 
     awaitResponse,
 
-    sendExitReset,
-    awaitPositiveResponse,
+    terminateServerProcess,
+    NULL,
 };
 // clang-format on
 
-int run_client_blocking() {
-    Iso14229Client client;
-    iso14229ClientInit(&client, &cfg);
+int main(int ac, char **av) {
+    const char *ifname = "can0";
+    if (ac >= 2) {
+        ifname = av[1];
+    }
+    UDSClient_t client;
 
-    struct Iso14229Sequence sequence = {
-        .list = callbacks,
-        .len = sizeof(callbacks) / sizeof(callbacks[0]),
+    UDSClientConfig_t cfg = {
+        .if_name = ifname,
+        .phys_recv_id = 0x7E8,
+        .phys_send_id = 0x7E0,
+        .func_send_id = 0x7DF,
     };
-    struct Iso14229Runner runner = {0};
+
+    if (UDSClientInit(&client, &cfg)) {
+        exit(-1);
+    }
+
+    UDSSequence_t sequence;
+    UDSSequenceInit(&sequence, callbacks, NULL);
 
     printf("running sequence. . .\n");
-    int err = iso14229SequenceRunBlocking(&sequence, &client, &runner);
-    printf("sequence completed with status: %d\n", err);
-    if (err) {
+    int ret = 0;
+    do {
+        ret = UDSSequencePoll(&client, &sequence);
+        SleepMillis(1);
+    } while (ret > 0);
+    printf("sequence completed with status: %d\n", ret);
+    if (ret) {
         printf("client state: %d\n", client.state);
         printf("client err: %d\n", client.err);
-        printf("link receive status: %d\n", link.receive_status);
-        printf("link send status: %d\n", link.send_status);
     }
-    return err;
+
+    UDSClientDeInit(&client);
+    return ret;
 }

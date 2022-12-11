@@ -1,77 +1,33 @@
-#define ISO14229USERDEBUG printf
-#include "../iso14229server.h"
-#include "server.h"
-#include "shared.h"
-#include "port.h"
+#define UDS_DBG_PRINT printf
+#include "../iso14229.h"
+#include "uds_params.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <time.h>
+#include <string.h>
 
-static void sessionTimeout();
-static enum Iso14229ResponseCode ECUResetHandler(const struct Iso14229ServerStatus *status,
-                                                 uint8_t resetType, uint8_t *powerDownTime);
-static enum Iso14229ResponseCode
-diagnosticSessionControlHandler(const struct Iso14229ServerStatus *status,
-                                enum Iso14229DiagnosticSessionType type);
-static enum Iso14229ResponseCode
-securityAccessGenerateSeed(const struct Iso14229ServerStatus *status, uint8_t level,
-                           const uint8_t *in_data, uint16_t in_size, uint8_t *out_data,
-                           uint16_t out_bufsize, uint16_t *out_size);
-static enum Iso14229ResponseCode
-securityAccessValidateKey(const struct Iso14229ServerStatus *status, uint8_t level,
-                          const uint8_t *key, uint16_t size);
-static enum Iso14229ResponseCode rdbiHandler(const struct Iso14229ServerStatus *status,
-                                             uint16_t dataId, const uint8_t **data_location,
-                                             uint16_t *len);
-static enum Iso14229ResponseCode wdbiHandler(const struct Iso14229ServerStatus *status,
-                                             uint16_t dataId, const uint8_t *data, uint16_t len);
+static uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg);
 
-#define ISOTP_BUFSIZE 256
-
-static uint8_t isotpPhysRecvBuf[ISOTP_BUFSIZE];
-static uint8_t isotpPhysSendBuf[ISOTP_BUFSIZE];
-static uint8_t isotpFuncRecvBuf[ISOTP_BUFSIZE];
-static uint8_t isotpFuncSendBuf[ISOTP_BUFSIZE];
-static IsoTpLink isotpPhysLink;
-static IsoTpLink isotpFuncLink;
-
-static const Iso14229ServerConfig cfg = {
-    .phys_recv_id = SRV_PHYS_RECV_ID,
-    .func_recv_id = SRV_FUNC_RECV_ID,
-    .send_id = SRV_SEND_ID,
-    .phys_link = &isotpPhysLink,
-    .func_link = &isotpFuncLink,
-    .phys_link_receive_buffer = isotpPhysRecvBuf,
-    .phys_link_recv_buf_size = sizeof(isotpPhysRecvBuf),
-    .phys_link_send_buffer = isotpPhysSendBuf,
-    .phys_link_send_buf_size = sizeof(isotpPhysSendBuf),
-    .func_link_receive_buffer = isotpFuncRecvBuf,
-    .func_link_recv_buf_size = sizeof(isotpFuncRecvBuf),
-    .func_link_send_buffer = isotpFuncSendBuf,
-    .func_link_send_buf_size = sizeof(isotpFuncSendBuf),
-    .userGetms = portGetms,
-    .userCANTransmit = portSendCAN,
-    .userCANRxPoll = portCANRxPoll,
-    .userSessionTimeoutCallback = sessionTimeout,
-    .userECUResetHandler = ECUResetHandler,
-    .userDiagnosticSessionControlHandler = diagnosticSessionControlHandler,
-    .userSecurityAccessGenerateSeed = securityAccessGenerateSeed,
-    .userSecurityAccessValidateKey = securityAccessValidateKey,
-    .userRDBIHandler = rdbiHandler,
-    .userWDBIHandler = wdbiHandler,
-    .p2_ms = 50,
-    .p2_star_ms = 2000,
-    .s3_ms = 5000,
+static UDSServer_t srv;
+static UDSServerConfig_t cfg = {
+    .fn = fn,
+    .if_name = "can0",
+    .phys_send_id = SERVER_SEND_ID,
+    .phys_recv_id = SERVER_PHYS_RECV_ID,
+    .func_recv_id = SERVER_FUNC_RECV_ID,
 };
-
-static Iso14229Server srv;
+static bool serverWantsExit = false;
 static uint8_t ecu_reset_scheduled = 0;
 static int ecu_reset_timer = 0;
 static struct RWDBIData {
-    uint8_t d0001;
-    int8_t d0002;
-    uint16_t d0003;
-    int16_t d0004;
+    uint8_t d1;
+    int8_t d2;
+    uint16_t d3;
+    int16_t d4;
 } myData = {0};
 
 // 用初始化服务器实例来简单模拟一个ECU复位
@@ -81,11 +37,9 @@ static void mockECUReset() {
     switch (ecu_reset_scheduled) {
     case kHardReset:
     case kSoftReset:
-        Iso14229ServerInit(&srv, &cfg);
+        UDSServerDeInit(&srv);
+        UDSServerInit(&srv, &cfg);
         break;
-    case RESET_TYPE_EXIT:
-        printf("server exiting. . .\n");
-        exit(0);
     default:
         printf("unknown reset type %d\n", ecu_reset_scheduled);
         break;
@@ -93,113 +47,26 @@ static void mockECUReset() {
     ecu_reset_scheduled = 0;
 }
 
-static void sessionTimeout() {
-    printf("server session timed out!\n");
-    mockECUReset();
-}
-
-static void scheduleReset(int when, uint8_t resetType) {
-    ecu_reset_scheduled = resetType;
-    ecu_reset_timer = portGetms() + when;
-    printf("scheduled ECUReset for %d ms from now\n", when);
-}
-
-static enum Iso14229ResponseCode ECUResetHandler(const struct Iso14229ServerStatus *status,
-                                                 uint8_t resetType, uint8_t *powerDownTime) {
-    (void)status;
-    (void)powerDownTime;
-    printf("got ECUReset request of type %x\n", resetType);
-    switch (resetType) {
-    case kHardReset:
-    case kSoftReset:
-    case RESET_TYPE_EXIT:
-        scheduleReset(50, resetType);
-        return kPositiveResponse;
-        break;
-    default:
-        return kSubFunctionNotSupported;
-    }
-}
-
-static enum Iso14229ResponseCode
-diagnosticSessionControlHandler(const struct Iso14229ServerStatus *status,
-                                enum Iso14229DiagnosticSessionType type) {
-    switch (type) {
-    case kDefaultSession:
-        return kPositiveResponse;
-    case kProgrammingSession:
-    case kExtendedDiagnostic:
-        if (status->securityLevel > 0) {
-            return kPositiveResponse;
-        } else {
-            return kSecurityAccessDenied;
-        }
-        break;
-    default:
-        return kSubFunctionNotSupported;
-    }
-}
-
-static enum Iso14229ResponseCode
-securityAccessGenerateSeed(const struct Iso14229ServerStatus *status, uint8_t level,
-                           const uint8_t *in_data, uint16_t in_size, uint8_t *out_data,
-                           uint16_t out_bufsize, uint16_t *out_size) {
-    (void)status;
-    (void)level;
-    (void)in_data;
-    (void)in_size;
-    const uint8_t seed[] = {1, 2, 3, 4};
-    if (out_bufsize < sizeof(seed)) {
-        return kResponseTooLong;
-    }
-    *out_size = sizeof(seed);
-    if (level == status->securityLevel) {
-        memset(out_data, 0, sizeof(seed));
-    } else {
-        memmove(out_data, seed, sizeof(seed));
-    }
-    return kPositiveResponse;
-}
-
-static enum Iso14229ResponseCode
-securityAccessValidateKey(const struct Iso14229ServerStatus *status, uint8_t level,
-                          const uint8_t *key, uint16_t size) {
-    (void)status;
-    (void)level;
-    (void)key;
-    (void)size;
-    // doValidation(key, size);
-    return kPositiveResponse;
-}
-
-static enum Iso14229ResponseCode rdbiHandler(const struct Iso14229ServerStatus *status,
-                                             uint16_t dataId, const uint8_t **data_location,
-                                             uint16_t *len) {
-    (void)status;
+static uint8_t RDBI(UDSServer_t *srv, UDSRDBIArgs_t *r) {
     static const uint8_t msg[] = "I'm a UDS server    ";
-    switch (dataId) {
-    case 0x0001:
-        *data_location = &myData.d0001;
-        *len = DID_0x0001_LEN;
-        break;
-    case 0x0008:
-        *data_location = msg;
-        *len = DID_0x0008_LEN;
-        break;
+    switch (r->dataId) {
+    case 0x1:
+        return r->copy(srv, &myData.d1, sizeof(myData.d1));
+    case 0x8:
+        return r->copy(srv, (void *)msg, sizeof(msg));
     default:
         return kRequestOutOfRange;
     }
     return kPositiveResponse;
 }
-static enum Iso14229ResponseCode wdbiHandler(const struct Iso14229ServerStatus *status,
-                                             uint16_t dataId, const uint8_t *data, uint16_t len) {
-    (void)status;
-    switch (dataId) {
-    case 0x0001:
-        if (len != sizeof(myData.d0001)) {
+
+static uint8_t WDBI(UDSServer_t *srv, UDSWDBIArgs_t *r) {
+    switch (r->dataId) {
+    case 0x1:
+        if (r->len != sizeof(myData.d1)) {
             return kIncorrectMessageLengthOrInvalidFormat;
         }
-        myData.d0001 = *data;
+        myData.d1 = r->data[0];
         break;
     default:
         return kRequestOutOfRange;
@@ -207,26 +74,100 @@ static enum Iso14229ResponseCode wdbiHandler(const struct Iso14229ServerStatus *
     return kPositiveResponse;
 }
 
-// =====================================
-// STEP 2: initialize the server
-// =====================================
+static uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
+    switch (ev) {
+    case UDS_SRV_EVT_EcuReset: { // 0x10
+        UDSECUResetArgs_t *r = (UDSECUResetArgs_t *)arg;
+        printf("got ECUReset request of type %x\n", r->type);
+        switch (r->type) {
+        case kHardReset:
+        case kSoftReset:
+            return kPositiveResponse;
+            break;
+        default:
+            return kSubFunctionNotSupported;
+        }
+        break;
+    }
+    case UDS_SRV_EVT_DiagSessCtrl: { // 0x11
+        UDSDiagSessCtrlArgs_t *r = (UDSDiagSessCtrlArgs_t *)arg;
+        switch (r->type) {
+        case kDefaultSession:
+            return kPositiveResponse;
+        case kProgrammingSession:
+        case kExtendedDiagnostic:
+            if (srv->securityLevel > 0) {
+                return kPositiveResponse;
+            } else {
+                return kSecurityAccessDenied;
+            }
+            break;
+        default:
+            return kSubFunctionNotSupported;
+        }
+    }
+    case UDS_SRV_EVT_ReadDataByIdent: // 0x22
+        return RDBI(srv, (UDSRDBIArgs_t *)arg);
+    case UDS_SRV_EVT_SecAccessGenerateSeed: { // 0x27
+        const uint8_t seed[] = {1, 2, 3, 4};
+        UDSSecAccessGenerateSeedArgs_t *r = (UDSSecAccessGenerateSeedArgs_t *)arg;
+        return r->copySeed(srv, seed, sizeof(seed));
+    }
+    case UDS_SRV_EVT_SecAccessValidateKey: { // 0x27
+        return kPositiveResponse;
+    }
+    case UDS_SRV_EVT_WriteDataByIdent: // 0x2E
+        return WDBI(srv, (UDSWDBIArgs_t *)arg);
+    case UDS_SRV_EVT_RoutineCtrl: { // 0x31
+        UDSRoutineCtrlArgs_t *r = (UDSRoutineCtrlArgs_t *)arg;
+        if (RID_TERMINATE_PROCESS == r->id) {
+            serverWantsExit = true;
+            return kPositiveResponse;
+        } else {
+            return kRequestOutOfRange;
+        }
+        break;
+    }
+    case UDS_SRV_EVT_SessionTimeout:
+        printf("server session timed out!\n");
+        mockECUReset();
+        break;
+    default:
+        printf("Unhandled event: %d\n", ev);
+        return kServiceNotSupported;
+    }
+    return kGeneralProgrammingFailure;
+}
 
-int run_server_blocking() {
+static int SleepMillis(uint32_t tms) {
+    struct timespec ts;
+    int ret;
+    ts.tv_sec = tms / 1000;
+    ts.tv_nsec = (tms % 1000) * 1000000;
+    do {
+        ret = nanosleep(&ts, &ts);
+    } while (ret && errno == EINTR);
+    return ret;
+}
 
-    Iso14229ServerInit(&srv, &cfg);
+int main(int ac, char **av) {
+    if (ac >= 2) {
+        cfg.if_name = av[1];
+    }
 
-    // =====================================
-    // STEP 3: poll the server
-    // =====================================
+    if (UDSServerInit(&srv, &cfg)) {
+        exit(-1);
+    }
 
     printf("server up, polling . . .\n");
-    while (!port_should_exit) {
-        Iso14229ServerPoll(&srv);
-        if (ecu_reset_scheduled && Iso14229TimeAfter(ecu_reset_timer, portGetms())) {
+    while (!serverWantsExit) {
+        UDSServerPoll(&srv);
+        if (ecu_reset_scheduled && UDSTimeAfter(ecu_reset_timer, UDSMillis())) {
             mockECUReset();
         }
-        portYieldms(10);
+        SleepMillis(1);
     }
     printf("server exiting\n");
+    UDSServerDeInit(&srv);
     return 0;
 }

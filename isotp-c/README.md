@@ -61,10 +61,7 @@ You can use isotp-c in the following way:
         /* Initialize link, 0x7TT is the CAN ID you send with */
         isotp_init_link(&g_link, 0x7TT,
 						g_isotpSendBuf, sizeof(g_isotpSendBuf), 
-						g_isotpRecvBuf, sizeof(g_isotpRecvBuf),
-                        isotp_user_get_ms,
-                        isotp_user_send_can,
-                        isotp_user_debug);
+						g_isotpRecvBuf, sizeof(g_isotpRecvBuf));
         
         while(1) {
         
@@ -131,16 +128,10 @@ If you need handle functional addressing, you must use two separate links, one f
         /* Initialize link, 0x7TT is the CAN ID you send with */
         isotp_init_link(&g_phylink, 0x7TT,
 						g_isotpPhySendBuf, sizeof(g_isotpPhySendBuf), 
-						g_isotpPhyRecvBuf, sizeof(g_isotpPhyRecvBuf),
-                        isotp_user_get_ms,
-                        isotp_user_send_can,
-                        isotp_user_debug);
+						g_isotpPhyRecvBuf, sizeof(g_isotpPhyRecvBuf));
         isotp_init_link(&g_funclink, 0x7TT,
 						g_isotpFuncSendBuf, sizeof(g_isotpFuncSendBuf), 
-						g_isotpFuncRecvBuf, sizeof(g_isotpFuncRecvBuf),
-                        isotp_user_get_ms,
-                        isotp_user_send_can,
-                        isotp_user_debug);
+						g_isotpFuncRecvBuf, sizeof(g_isotpFuncRecvBuf));
         
         while(1) {
         
@@ -191,7 +182,7 @@ If you need handle functional addressing, you must use two separate links, one f
 ## Authors
 
 * **shen.li lishen5@gmail.com** (Original author!)
-* **Simon Cahill** **s.cahill@grimme.de** (or **simon@h3lix.de**)
+* **Simon Cahill** **s.cahill@grimme.de** (or **contact@simonc.eu**)
 
 ## License
 
