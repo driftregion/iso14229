@@ -5,12 +5,38 @@
 <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
 </p>
 
-iso14229是个针对嵌入式系统的UDS(ISO14229-1:2013)服务器和客户端实现。这一套已包含[`isotp-c`](https://github.com/lishen2/isotp-c) ISO15765-2 (ISO-TP)传输层。
+iso14229是个针对嵌入式系统的UDS(ISO14229-1:2013)服务器和客户端会话层实现。为了让你能够更快上手、本库已包含[`isotp-c`](https://github.com/lishen2/isotp-c)以及linux内核ISO15765-2 (ISO-TP)传输层实现。
 
-API状态: **不稳定** 
+API状态: **未稳定** 
+
+## 快速上手: 服务器
+
+```c
+#include "iso14229.h"
+
+static uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
+    return kServiceNotSupported;
+}
+
+int main() {
+    UDSServer_t server;
+    UDSServerConfig_t cfg = {
+        .fn = &fn,
+    };
+    UDSServerInit(&server, &cfg);
+    for (;;) {
+        UDSServerPoll(&server);
+    }
+}
+```
+
+## 快速上手: 客户端
+
+```c
+// 参考 examples/client.c
+```
 
 特点:
-- 依赖性注入
 - 静态内存分配
 - 独立于处理器架构
     - 测试了: arm, x86-64, ppc
@@ -55,7 +81,7 @@ API状态: **不稳定**
 
 ## 测试
 
-[test_iso14229.c](test_iso14229.c)
+[test_uds.c](test_uds.c)
 
 ### 运行测试 
 
@@ -101,7 +127,6 @@ MIT
 - API更改
 
 ## 0.2.0
-- 
 - 删除所有`__attribute__((packed))`
 - 为了简化测试、重构服务器下载功能单元
 - 重构测试 
@@ -109,21 +134,31 @@ MIT
     - 给宏定义写文档 
 - 删掉了中间件 
 - 简化了服务器例程控制API 
-- 删掉了重复函数`iso14229ServerEnableService` 
+- 删掉了重复函数`udsServerEnableService` 
 - 更新例子 
 
 ## 0.3.0
-- 加`iso14229ClientRunSequenceBlocking(...)` 
+- 加`udsClientRunSequenceBlocking(...)` 
 - 加了服务器和客户端例子 
 - 简化测试流程、删掉了过分模糊宏定义和switch结构 
 - 服务器和客户端结构体简化：尽量用一层深度 
 - 简化使用、放isotp-c初始化参数到服务器/客户端配置里面 
 - 删除重复服务器缓冲器 
 
+# 0.4.0
+- 重构RDBIHandler：用安全memmove
+- 尽可能不用enum在结构体里面
+- 传输层可插件。现在支持linux内核ISO-TP驱动。`isotp-c`同时也支持。看看例子 [examples](./examples/README.md)
+
+## 0.5.0
+- 可用性: 重构成单个.c/.h模块
+- 可用性: 默认传输层配置现在自带
+- API整理: 用`UDS`前缀在所有导出函数上
+- API整理: 服务器事件用单个回调函数
 ---
 
 
-# iso14229开发文档 
+# uds开发文档 
 
 
 ## 客户端请求状态机
@@ -142,7 +177,7 @@ static inline bool isRequestComplete() {return state==Idle;}
 
 while (Idle != client->state) {
     receiveCAN(client);
-    Iso14229ClientPoll(client);
+    UDSClientPoll(client);
 }
 end note
 

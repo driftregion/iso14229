@@ -9,6 +9,7 @@
 ###
 *.o
 bin/
+build/
 
 ###
 # Ignore Backups

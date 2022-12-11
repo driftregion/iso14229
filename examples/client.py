@@ -11,9 +11,9 @@ from udsoncan.client import Client
 from udsoncan.connections import PythonIsoTpConnection
 from udsoncan.services import *
 
-SRV_PHYS_RECV_ID = 0x701 
-SRV_FUNC_RECV_ID = 0x702 
-SRV_SEND_ID = 0x700
+SRV_SEND_ID = 0x7E8
+SRV_PHYS_RECV_ID = 0x7E0
+SRV_FUNC_RECV_ID = 0x7DF
 
 def security_algo(level, seed, params):
     print(f"level: {level}, seed: {seed}, params: {params}")

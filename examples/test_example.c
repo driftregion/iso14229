@@ -38,14 +38,12 @@ int main() {
     int result = 0;
     server_pid = fork();
     if (0 == server_pid) {
-        portSetup(2, (char **)argv);
         result = run_server_blocking();
         assert(result == 0);
         exit(0);
     }
     client_pid = fork();
     if (0 == client_pid) {
-        portSetup(2, (char **)argv);
         result = run_client_blocking();
         assert(result == 0);
         exit(0);
