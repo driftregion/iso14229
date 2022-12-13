@@ -398,8 +398,8 @@ void testServer0x22RDBI1() {
 
 uint8_t fn4(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
     switch (ev) {
-    case UDS_SRV_EVT_SecAccessGenerateSeed: {
-        UDSSecAccessGenerateSeedArgs_t *r = (UDSSecAccessGenerateSeedArgs_t *)arg;
+    case UDS_SRV_EVT_SecAccessRequestSeed: {
+        UDSSecAccessRequestSeedArgs_t *r = (UDSSecAccessRequestSeedArgs_t *)arg;
         const uint8_t seed[] = {0x36, 0x57};
         ASSERT_INT_NE(r->level, srv->securityLevel);
         return r->copySeed(srv, seed, sizeof(seed));
@@ -408,7 +408,7 @@ uint8_t fn4(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
     case UDS_SRV_EVT_SecAccessValidateKey: {
         UDSSecAccessValidateKeyArgs_t *r = (UDSSecAccessValidateKeyArgs_t *)arg;
         const uint8_t expected_key[] = {0xC9, 0xA9};
-        ASSERT_INT_EQUAL(r->key_len, sizeof(expected_key));
+        ASSERT_INT_EQUAL(r->len, sizeof(expected_key));
         ASSERT_MEMORY_EQUAL(r->key, expected_key, sizeof(expected_key));
         break;
     }
@@ -457,7 +457,7 @@ void testServer0x27SecurityAccess() {
 }
 
 uint8_t fn5(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
-    ASSERT_INT_EQUAL(ev, UDS_SRV_EVT_SecAccessGenerateSeed);
+    ASSERT_INT_EQUAL(ev, UDS_SRV_EVT_SecAccessRequestSeed);
     return kPositiveResponse;
 }
 

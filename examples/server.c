@@ -108,9 +108,9 @@ static uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
     }
     case UDS_SRV_EVT_ReadDataByIdent: // 0x22
         return RDBI(srv, (UDSRDBIArgs_t *)arg);
-    case UDS_SRV_EVT_SecAccessGenerateSeed: { // 0x27
+    case UDS_SRV_EVT_SecAccessRequestSeed: { // 0x27
         const uint8_t seed[] = {1, 2, 3, 4};
-        UDSSecAccessGenerateSeedArgs_t *r = (UDSSecAccessGenerateSeedArgs_t *)arg;
+        UDSSecAccessRequestSeedArgs_t *r = (UDSSecAccessRequestSeedArgs_t *)arg;
         return r->copySeed(srv, seed, sizeof(seed));
     }
     case UDS_SRV_EVT_SecAccessValidateKey: { // 0x27

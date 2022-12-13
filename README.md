@@ -87,13 +87,249 @@ Features:
 
 # Documentation
 
+## Server Events
+
+see `enum UDSServerEvent` in [iso14229.h](./iso14229.h)
+
+### `UDS_SRV_EVT_DiagSessCtrl` (0x10)
+
+#### Arguments
+
+```c
+typedef struct {
+    const enum UDSDiagnosticSessionType type; /**< requested session type */
+    uint16_t p2_ms;                           /**< optional return value: p2 timing override */
+    uint32_t p2_star_ms;                      /**< optional return value: p2* timing override */
+} UDSDiagSessCtrlArgs_t;
+```
+
+#### Supported Responses
+
+| Value  | enum                 | Meaning | 
+| - | - | - | 
+| `0x00` | `kPositiveResponse` | Request to change diagnostic level accepted. |
+| `0x12` | `kSubFunctionNotSupported` | The server doesn't support this diagnostic level |
+| `0x22` | `kConditionsNotCorrect` | The server can't/won't transition to the specified diagnostic level at this time |
+
+### `UDS_SRV_EVT_ECUReset` (0x11)
+
+#### Arguments
+
+```c
+typedef struct {
+    const enum UDSECUResetType type; /**< reset type requested by client */
+    uint8_t powerDownTime; /**< Optional response: notify client of time until shutdown (0-254) 255
+                              indicates that a time is not available. */
+} UDSECUResetArgs_t;
+```
+
+#### Supported Responses
+
+| Value  | enum                 | Meaning | 
+| - | - | - | 
+| `0x00` | `kPositiveResponse` | Request to reset ECU accepted.  |
+| `0x12` | `kSubFunctionNotSupported` | The server doesn't support the specified type of ECU reset |
+| `0x22` | `kConditionsNotCorrect` | The server can't reset now |
+| `0x33` | `kSecurityAccessDenied` | The current level of security access doesn't permit this type of ECU reset |
+
+### `UDS_SRV_EVT_ReadDataByIdent` (0x22)
+
+#### Arguments
+
+```c
+typedef struct {
+    const uint16_t dataId; /*! data identifier */
+    /*! function for copying to the server send buffer. Returns `kPositiveResponse` on success and `kResponseTooLong` if the length of the data to be copied exceeds that of the server send buffer */
+    const uint8_t (*copy)(UDSServer_t *srv, const void *src,
+                    uint16_t count); 
+} UDSRDBIArgs_t;
+```
+
+#### Supported Responses
+
+| Value  | enum                 | Meaning | 
+| - | - | - | 
+| `0x00` | `kPositiveResponse` | Request to read data accepted (be sure to call `copy(...)`) |
+| `0x14` | `kResponseTooLong` | The total length of the response message exceeds the transport buffer size |
+| `0x31` | `kRequestOutOfRange` | The requested data identifer isn't supported |
+| `0x33` | `kSecurityAccessDenied` | The current level of security access doesn't permit reading the requested data identifier |
+
+### `UDS_SRV_EVT_SecAccessRequestSeed`, `UDS_SRV_EVT_SecAccessValidateKey` (0x27)
+
+#### Arguments
+
+```c
+typedef struct {
+    const uint8_t level;             /*! requested security level */
+    const uint8_t *const dataRecord; /*! pointer to request data */
+    const uint16_t len;              /*! size of request data */
+    /*! function for copying to the server send buffer. Returns `kPositiveResponse` on success and `kResponseTooLong` if the length of the data to be copied exceeds that of the server send buffer */
+    uint8_t (*copySeed)(UDSServer_t *srv, const void *src,
+                        uint16_t len);
+} UDSSecAccessRequestSeedArgs_t;
+
+typedef struct {
+    const uint8_t level;      /*! security level to be validated */
+    const uint8_t *const key; /*! key sent by client */
+    const uint16_t len;       /*! length of key */
+} UDSSecAccessValidateKeyArgs_t;
+```
+#### Supported Responses
+
+| Value  | enum                 | Meaning | 
+| - | - | - | 
+| `0x00` | `kPositiveResponse` | Request accepted  |
+| `0x12` | `kSubFunctionNotSupported` | The requested security level is not supported |
+| `0x22` | `kConditionsNotCorrect` | The server can't handle the request right now |
+| `0x31` | `kRequestOutOfRange` | The `dataRecord` contains invalid data |
+| `0x35` | `kInvalidKey` | The key doesn't match |
+| `0x36` | `kExceededNumberOfAttempts` | False attempt limit reached |
+| `0x37` | `kRequiredTimeDelayNotExpired` | RequestSeed request received and delay timer is still active |
+
+### `UDS_SRV_EVT_CommCtrl` (0x28)
+
+#### Arguments
+
+```c
+typedef struct {
+    enum UDSCommunicationControlType ctrlType; 
+    enum UDSCommunicationType commType;
+} UDSCommCtrlArgs_t;
+```
+#### Supported Responses
+
+| Value  | enum                 | Meaning | 
+| - | - | - | 
+| `0x00` | `kPositiveResponse` | Request accepted  |
+| `0x12` | `kSubFunctionNotSupported` | The requested control type is not supported |
+| `0x22` | `kConditionsNotCorrect` | The server can't enable/disable the selected communication type now |
+| `0x31` | `kRequestOutOfRange` | The requested control type or communication type is erroneous |
+
+### `UDS_SRV_EVT_WriteDataByIdent` (0x2E)
+
+#### Arguments
+
+```c
+typedef struct {
+    const uint16_t dataId;     /*! WDBI Data Identifier */
+    const uint8_t *const data; /*! pointer to data */
+    const uint16_t len;        /*! length of data */
+} UDSWDBIArgs_t;
+```
+
+#### Supported Responses
+
+| Value  | enum                 | Meaning | 
+| - | - | - | 
+| `0x00` | `kPositiveResponse` | Request to write data accepted  |
+| `0x22` | `kConditionsNotCorrect` | The server can't write this data now |
+| `0x31` | `kRequestOutOfRange` | The requested data identifer isn't supported or the data is invalid |
+| `0x33` | `kSecurityAccessDenied` | The current level of security access doesn't permit writing to the requested data identifier |
+| `0x72` | `kGeneralProgrammingFailure` | Memory write failed |
+
+### `UDS_SRV_EVT_RoutineCtrl` (0x31)
+
+#### Arguments
+
+```c
+typedef struct {
+    const uint8_t ctrlType;      /*! routineControlType */
+    const uint16_t id;           /*! routineIdentifier */
+    const uint8_t *optionRecord; /*! optional data */
+    const uint16_t len;          /*! length of optional data */
+    /*! function for copying to the server send buffer. Returns `kPositiveResponse` on success and `kResponseTooLong` if the length of the data to be copied exceeds that of the server send buffer */
+    uint8_t (*copyStatusRecord)(UDSServer_t *srv, const void *src,
+                                uint16_t len);
+} UDSRoutineCtrlArgs_t;
+```
+
+#### Supported Responses
+
+| Value  | enum                 | Meaning | 
+| - | - | - | 
+| `0x00` | `kPositiveResponse` | Request accepted  |
+| `0x22` | `kConditionsNotCorrect` | The server can't perform this operation now |
+| `0x24` | `kRequestSequenceError` | Stop requested but routine hasn't started. Start requested but routine has already started (optional). Results are not available becuase routine has never started. |
+| `0x31` | `kRequestOutOfRange` | The requested routine identifer isn't supported or the `optionRecord` is invalid |
+| `0x33` | `kSecurityAccessDenied` | The current level of security access doesn't permit this operation |
+| `0x72` | `kGeneralProgrammingFailure` | internal memory operation failed (e.g. erasing flash) |
+
+### `UDS_SRV_EVT_RequestDownload` (0x34)
+
+#### Arguments
+
+```c
+typedef struct {
+    const void *addr;                   /*! requested address */
+    const size_t size;                  /*! requested download size */
+    const uint8_t dataFormatIdentifier; /*! optional specifier for format of data */
+    uint16_t maxNumberOfBlockLength; /*! response: inform client how many data bytes to send in each
+                                        `TransferData` request */
+} UDSRequestDownloadArgs_t;
+```
+
+#### Supported Responses
+
+| Value  | enum                 | Meaning | 
+| - | - | - | 
+| `0x00` | `kPositiveResponse` | Request accepted  |
+| `0x22` | `kConditionsNotCorrect` | The server can't perform this operation now |
+| `0x31` | `kRequestOutOfRange` | `dataFormatIdentifier` invalid, `addr` or `size` invalid |
+| `0x33` | `kSecurityAccessDenied` | The current level of security access doesn't permit this operation |
+| `0x34` | `kAuthenticationRequired` | Client rights insufficient |
+| `0x70` | `kUploadDownloadNotAccepted` | download cannot be accomplished due to fault |
+
+
+### `UDS_SRV_EVT_TransferData` (0x36)
+
+#### Arguments
+
+```c
+typedef struct {
+    const uint8_t *const data; /*! transfer data */
+    const uint16_t len;        /*! transfer data length */
+    /*! function for copying to the server send buffer. Returns `kPositiveResponse` on success and `kResponseTooLong` if the length of the data to be copied exceeds that of the server send buffer */
+    uint8_t (*copyResponse)(
+        UDSServer_t *srv, const void *src,
+        uint16_t len);
+} UDSTransferDataArgs_t;
+```
+
+#### Supported Responses
+
+| Value  | enum                 | Meaning | 
+| - | - | - | 
+| `0x00` | `kPositiveResponse` | Request accepted  |
+| `0x31` | `kRequestOutOfRange` | `data` contents invalid, length incorrect |
+| `0x72` | `kGeneralProgrammingFailure` | Memory write failed |
+| `0x92` | `kVoltageTooHigh` | Can't write flash: voltage too high |
+| `0x93` | `kVoltageTooLow` | Can't write flash: voltage too low |
+
+### `UDS_SRV_EVT_RequestTransferExit` (0x37)
+
+#### Arguments
+
+```c
+typedef struct {
+    const uint8_t *const data; /*! request data */
+    const uint16_t len;        /*! request data length */
+    /*! function for copying to the server send buffer. Returns `kPositiveResponse` on success and `kResponseTooLong` if the length of the data to be copied exceeds that of the server send buffer */
+    uint8_t (*copyResponse)(UDSServer_t *srv, const void *src,
+                            uint16_t len);
+} UDSRequestTransferExitArgs_t;
+```
+
+#### Supported Responses
+
+| Value  | enum                 | Meaning | 
+| - | - | - | 
+| `0x00` | `kPositiveResponse` | Request accepted  |
+| `0x31` | `kRequestOutOfRange` | `data` contents invalid, length incorrect |
+| `0x72` | `kGeneralProgrammingFailure` | finalizing the data transfer failed |
+
 ## Examples
 
 [examples/README.md](examples/README.md)
-
-## Tests
-
-[test_uds.c](test_uds.c)
 
 ### Running Tests
 
