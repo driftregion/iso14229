@@ -73,7 +73,245 @@ int main() {
 | 0x85 | control DTC setting | ✅ |
 | 0x86 | response on event | ❌ |
 
-# iso14229 文档 
+# 文档 
+
+## 服务器事件
+
+参考[iso14229.h](./iso14229.h) `enum UDSServerEvent`
+
+### `UDS_SRV_EVT_DiagSessCtrl` (0x10) 会话控制
+
+#### 参数
+
+```c
+typedef struct {
+    const enum UDSDiagnosticSessionType type; /**< 请求会话类型 */
+    uint16_t p2_ms;                           /**< 可选返回值: p2时间设置 */
+    uint32_t p2_star_ms;                      /**< 可选返回值: p2*时间设置 */
+} UDSDiagSessCtrlArgs_t;
+```
+
+#### 支持返回值
+
+| 值 | 枚举 | 意义 | 
+| - | - | - | 
+| `0x00` | `kPositiveResponse` | 允许进入请求中的会话类型 |
+| `0x12` | `kSubFunctionNotSupported` | 本器不支持请求中的会话类型 |
+| `0x22` | `kConditionsNotCorrect` | 本器当前无法进入请求的会话类型 |
+
+### `UDS_SRV_EVT_ECUReset` (0x11)  ECU复位
+
+#### 参数
+
+```c
+typedef struct {
+    const enum UDSECUResetType type; /**< 请求的复位类型 */
+    uint8_t powerDownTime; /**< 可选返回值: 通知客户端离关机的时间(0-254秒) 255表示无法判断具体关机时间*/
+} UDSECUResetArgs_t;
+```
+
+#### 支持返回值
+
+| 值 | 枚举 | 意义 | 
+| - | - | - | 
+| `0x00` | `kPositiveResponse` | 允许复位  |
+| `0x12` | `kSubFunctionNotSupported` | 本器不支持请求的复位类型 |
+| `0x22` | `kConditionsNotCorrect` | 本器目前无法复位 |
+| `0x33` | `kSecurityAccessDenied` | 当前安全级别不允许复位 |
+
+### `UDS_SRV_EVT_ReadDataByIdent` (0x22) 读取数据
+
+#### 参数
+
+```c
+typedef struct {
+    const uint16_t dataId; /*! 数据标识符 */
+    /*! 函数：拷贝数据到服务器发送缓冲器. 成功会返回`kPositiveResponse`。若数据大小超过了服务器发送缓冲器的大小、会返回`kResponseTooLong`。*/
+    const uint8_t (*copy)(UDSServer_t *srv, const void *src,
+                    uint16_t count); 
+} UDSRDBIArgs_t;
+```
+
+#### 支持返回值
+
+| 值 | 枚举 | 意义 | 
+| - | - | - | 
+| `0x00` | `kPositiveResponse` | 允许读取 (注意调用`copy(...)`) |
+| `0x14` | `kResponseTooLong` | 响应大小超过发送缓冲器大小 |
+| `0x31` | `kRequestOutOfRange` | 请求的标识符不支持 |
+| `0x33` | `kSecurityAccessDenied` | 当前安全级别不允许读取请求的数据标识符 |
+
+### `UDS_SRV_EVT_SecAccessRequestSeed`, `UDS_SRV_EVT_SecAccessValidateKey` (0x27) 安全访问
+
+#### 参数
+
+```c
+typedef struct {
+    const uint8_t level;             /*! 请求安全级别 */
+    const uint8_t *const dataRecord; /*! 请求数据 */
+    const uint16_t len;              /*! 请求数据大小 */
+    /*! 函数：拷贝数据到服务器发送缓冲器. 成功会返回`kPositiveResponse`。若数据大小超过了服务器发送缓冲器的大小、会返回`kResponseTooLong`。*/
+    uint8_t (*copySeed)(UDSServer_t *srv, const void *src,
+                        uint16_t len);
+} UDSSecAccessRequestSeedArgs_t;
+
+typedef struct {
+    const uint8_t level;      /*! 请求安全访问级别 */
+    const uint8_t *const key; /*! 客户端发过来的密钥 */
+    const uint16_t len;       /*! 密钥大小 */
+} UDSSecAccessValidateKeyArgs_t;
+```
+#### 支持返回值
+
+| 值 | 枚举 | 意义 | 
+| - | - | - | 
+| `0x00` | `kPositiveResponse` | 肯定响应 |
+| `0x12` | `kSubFunctionNotSupported` | 该安全级别未支持 |
+| `0x22` | `kConditionsNotCorrect` | 当前无法处理该请求 |
+| `0x31` | `kRequestOutOfRange` | `dataRecord`的数据无效 |
+| `0x35` | `kInvalidKey` | 密钥对不上 |
+| `0x36` | `kExceededNumberOfAttempts` | 密码错误太多 |
+| `0x37` | `kRequiredTimeDelayNotExpired` | 不晓得 |
+
+### `UDS_SRV_EVT_CommCtrl` (0x28) 通讯控制
+
+#### 参数
+
+```c
+typedef struct {
+    enum UDSCommunicationControlType ctrlType; 
+    enum UDSCommunicationType commType;
+} UDSCommCtrlArgs_t;
+```
+#### 支持返回值
+
+| 值 | 枚举 | 意义 | 
+| - | - | - | 
+| `0x00` | `kPositiveResponse` | 肯定响应 |
+| `0x12` | `kSubFunctionNotSupported` | 请求中的通讯控制类型未支持 |
+| `0x22` | `kConditionsNotCorrect` | 当前无法开启/关闭请求中的通讯控制类型|
+| `0x31` | `kRequestOutOfRange` | 请求中的通讯控制类型或者通讯类型有错 |
+
+### `UDS_SRV_EVT_WriteDataByIdent` (0x2E) 写入数据
+
+#### 参数
+
+```c
+typedef struct {
+    const uint16_t dataId;     /*! 数据标识符 */
+    const uint8_t *const data; /*! 数据 */
+    const uint16_t len;        /*! 数据大小 */
+} UDSWDBIArgs_t;
+```
+
+#### 支持返回值
+
+| 值 | 枚举 | 意义 | 
+| - | - | - | 
+| `0x00` | `kPositiveResponse` | 写入成功 |
+| `0x22` | `kConditionsNotCorrect` | 当前无法写入 |
+| `0x31` | `kRequestOutOfRange` | 数据标识符不支持或者数据内容有错 |
+| `0x33` | `kSecurityAccessDenied` | 当前安全级别不允许写入请求中的数据标识符 |
+| `0x72` | `kGeneralProgrammingFailure` | 写入内存失败 |
+
+### `UDS_SRV_EVT_RoutineCtrl` (0x31) 例程控制
+
+#### 参数
+
+```c
+typedef struct {
+    const uint8_t ctrlType;      /*! 例程控制类型 */
+    const uint16_t id;           /*! 例程标识符 */
+    const uint8_t *optionRecord; /*! 客户端可选数据 */
+    const uint16_t len;          /*! 数据大小 */
+    /*! 函数：拷贝数据到服务器发送缓冲器. 成功会返回`kPositiveResponse`。若数据大小超过了服务器发送缓冲器的大小、会返回`kResponseTooLong`。*/
+    uint8_t (*copyStatusRecord)(UDSServer_t *srv, const void *src,
+                                uint16_t len); 
+} UDSRoutineCtrlArgs_t;
+```
+
+#### 支持返回值
+
+| 值 | 枚举 | 意义 | 
+| - | - | - | 
+| `0x00` | `kPositiveResponse` | 肯定响应 |
+| `0x22` | `kConditionsNotCorrect` | 当前无法操作 |
+| `0x24` | `kRequestSequenceError` | 要求停止但未开始。要求开始但已开始(可选)。没有结果因为例程从来没有开始。|
+| `0x31` | `kRequestOutOfRange` | 请求中的例程标识符未支持或者`optionRecord`无效 |
+| `0x33` | `kSecurityAccessDenied` | 当前安全访问级别不允许请求的操作 |
+| `0x72` | `kGeneralProgrammingFailure` | 内部内存操作失败(如：擦除flash) |
+
+
+### `UDS_SRV_EVT_RequestDownload` (0x34) 请求下载
+
+#### 参数
+
+```c
+typedef struct {
+    const void *addr;                   /*! 请求下载地址 */
+    const size_t size;                  /*! 请求下载大小 */
+    const uint8_t dataFormatIdentifier; /*! 可选：数据格式标识符 */
+    uint16_t maxNumberOfBlockLength; /*! 返回值: 通知客户端能接受的`TransferData`长度是多长 */
+} UDSRequestDownloadArgs_t;
+```
+
+#### 支持返回值
+
+| 值 | 枚举 | 意义 | 
+| - | - | - | 
+| `0x00` | `kPositiveResponse` | 肯定响应 |
+| `0x22` | `kConditionsNotCorrect` | 当前无法操作 |
+| `0x31` | `kRequestOutOfRange` | `dataFormatIdentifier`,`addr`或者`size`无效。 |
+| `0x33` | `kSecurityAccessDenied` | 当前安全访问级别不允许请求的操作 |
+| `0x34` | `kAuthenticationRequired` | 客户端权利不足 |
+| `0x70` | `kUploadDownloadNotAccepted` | 因故障无法下载 |
+
+### `UDS_SRV_EVT_TransferData` (0x36) 传输数据
+
+#### 参数
+
+```c
+typedef struct {
+    const uint8_t *const data; /*! 数据 */
+    const uint16_t len;        /*! 数据大小 */
+    /*! 函数：拷贝数据到服务器发送缓冲器. 成功会返回`kPositiveResponse`。若数据大小超过了服务器发送缓冲器的大小、会返回`kResponseTooLong`。*/
+    uint8_t (*copyResponse)(
+        UDSServer_t *srv, const void *src,
+        uint16_t len);
+} UDSTransferDataArgs_t;
+```
+
+#### 支持返回值
+
+| 值 | 枚举 | 意义 | 
+| - | - | - | 
+| `0x00` | `kPositiveResponse` | 肯定响应 |
+| `0x31` | `kRequestOutOfRange` | `data`内容无效或者大小不对 |
+| `0x72` | `kGeneralProgrammingFailure` | 写入内存失败 |
+| `0x92` | `kVoltageTooHigh` | 无法写flash：电压过高 |
+| `0x93` | `kVoltageTooLow` | 无法写flash：电压过低 |
+
+### `UDS_SRV_EVT_RequestTransferExit` (0x37) 请求传输结束
+
+#### 参数
+
+```c
+typedef struct {
+    const uint8_t *const data; /*! 数据 */
+    const uint16_t len;        /*! 数据大小 */
+    /*! 函数：拷贝数据到服务器发送缓冲器. 成功会返回`kPositiveResponse`。若数据大小超过了服务器发送缓冲器的大小、会返回`kResponseTooLong`。*/
+    uint8_t (*copyResponse)(UDSServer_t *srv, const void *src,
+                            uint16_t len);
+} UDSRequestTransferExitArgs_t;
+```
+
+#### 支持返回值
+
+| 值 | 枚举 | 意义 | 
+| - | - | - | 
+| `0x00` | `kPositiveResponse` | 肯定响应 |
+| `0x31` | `kRequestOutOfRange` | `data`内容无效或者大小不对 |
+| `0x72` | `kGeneralProgrammingFailure` | 完成数据传输失败 |
 
 ## 例子
 
@@ -158,7 +396,7 @@ MIT
 ---
 
 
-# uds开发文档 
+# 开发者文档 
 
 
 ## 客户端请求状态机

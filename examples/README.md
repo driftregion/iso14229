@@ -19,14 +19,14 @@ make example
 
 # 在vcan0接口上运行例子服务器 / run the server on vcan0
 ```sh
-./example server vcan0
+./server vcan0
 # 服务器会一直跑。用 ctrl+c 推出
 # The server will run continuously. Use ctrl+c to exit
 ```
 
 # 在vcan0接口上运行客户端 (打开另一个终端) / run the client on vcan0 (open another shell)
 ```sh
-./example client vcan0
+./client vcan0
 # 客户端跑完流程后会自动退出
 # The client will exit after it has executed its sequence
 ```

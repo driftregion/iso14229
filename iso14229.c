@@ -14,6 +14,7 @@
 #define UDS_REQUEST_SID_OF(response_sid) (response_sid - 0x40)
 
 #define UDS_NEG_RESP_LEN 3U
+#define UDS_0X10_REQ_LEN 2U
 #define UDS_0X10_RESP_LEN 6U
 #define UDS_0X11_REQ_MIN_LEN 2U
 #define UDS_0X11_RESP_BASE_LEN 2U
@@ -285,6 +286,8 @@ static bool UDSSecurityAccessLevelIsReserved(uint8_t securityLevel) {
 //                              Server
 // ========================================================================
 
+typedef uint8_t (*UDSService)(UDSServer_t *self);
+
 static inline uint8_t NegativeResponse(UDSServer_t *self, uint8_t response_code) {
     self->send_buf[0] = 0x7F;
     self->send_buf[1] = self->recv_buf[0];
@@ -296,7 +299,7 @@ static inline uint8_t NegativeResponse(UDSServer_t *self, uint8_t response_code)
 static inline void NoResponse(UDSServer_t *self) { self->send_size = 0; }
 
 static uint8_t _0x10_DiagnosticSessionControl(UDSServer_t *self) {
-    if (self->recv_size < 1) {
+    if (self->recv_size < UDS_0X10_REQ_LEN) {
         return NegativeResponse(self, kIncorrectMessageLengthOrInvalidFormat);
     }
 
@@ -463,7 +466,7 @@ static uint8_t _0x27_SecurityAccess(UDSServer_t *self) {
         UDSSecAccessValidateKeyArgs_t args = {
             .level = requestedLevel,
             .key = &self->recv_buf[UDS_0X27_REQ_BASE_LEN],
-            .key_len = self->recv_size - UDS_0X27_REQ_BASE_LEN,
+            .len = self->recv_size - UDS_0X27_REQ_BASE_LEN,
         };
 
         response = self->fn(self, UDS_SRV_EVT_SecAccessValidateKey, &args);
@@ -496,14 +499,14 @@ static uint8_t _0x27_SecurityAccess(UDSServer_t *self) {
             const uint8_t already_unlocked[] = {0x00, 0x00};
             return safe_copy(self, already_unlocked, sizeof(already_unlocked));
         } else {
-            UDSSecAccessGenerateSeedArgs_t args = {
+            UDSSecAccessRequestSeedArgs_t args = {
                 .level = subFunction,
-                .in_data = &self->recv_buf[UDS_0X27_REQ_BASE_LEN],
-                .in_size = self->recv_size - UDS_0X27_REQ_BASE_LEN,
+                .dataRecord = &self->recv_buf[UDS_0X27_REQ_BASE_LEN],
+                .len = self->recv_size - UDS_0X27_REQ_BASE_LEN,
                 .copySeed = safe_copy,
             };
 
-            response = self->fn(self, UDS_SRV_EVT_SecAccessGenerateSeed, &args);
+            response = self->fn(self, UDS_SRV_EVT_SecAccessRequestSeed, &args);
 
             if (kPositiveResponse != response) {
                 return NegativeResponse(self, response);
@@ -586,7 +589,7 @@ static uint8_t _0x31_RoutineControl(UDSServer_t *self) {
         .ctrlType = routineControlType,
         .id = routineIdentifier,
         .optionRecord = &self->recv_buf[UDS_0X31_REQ_MIN_LEN],
-        .optionRecordLength = self->recv_size - UDS_0X31_REQ_MIN_LEN,
+        .len = self->recv_size - UDS_0X31_REQ_MIN_LEN,
         .copyStatusRecord = safe_copy,
     };
 
@@ -737,8 +740,8 @@ static uint8_t _0x36_TransferData(UDSServer_t *self) {
     }
 
     UDSTransferDataArgs_t args = {
-        .req = &self->recv_buf[UDS_0X36_REQ_BASE_LEN],
-        .req_len = self->recv_size - UDS_0X36_REQ_BASE_LEN,
+        .data = &self->recv_buf[UDS_0X36_REQ_BASE_LEN],
+        .len = self->recv_size - UDS_0X36_REQ_BASE_LEN,
         .copyResponse = safe_copy,
     };
 
@@ -771,24 +774,27 @@ static uint8_t _0x37_RequestTransferExit(UDSServer_t *self) {
         return NegativeResponse(self, kUploadDownloadNotAccepted);
     }
 
-    ResetTransfer(self);
-
     self->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_REQUEST_TRANSFER_EXIT);
     self->send_size = UDS_0X37_RESP_BASE_LEN;
 
     UDSRequestTransferExitArgs_t args = {
-        .req = &self->recv_buf[UDS_0X37_REQ_BASE_LEN],
-        .req_len = self->recv_size - UDS_0X37_REQ_BASE_LEN,
+        .data = &self->recv_buf[UDS_0X37_REQ_BASE_LEN],
+        .len = self->recv_size - UDS_0X37_REQ_BASE_LEN,
         .copyResponse = safe_copy,
     };
 
     err = self->fn(self, UDS_SRV_EVT_RequestTransferExit, &args);
 
-    if (err != kPositiveResponse) {
+    switch (err) {
+    case kPositiveResponse:
+        ResetTransfer(self);
+        return kPositiveResponse;
+    case kRequestCorrectlyReceived_ResponsePending:
+        return NegativeResponse(self, kRequestCorrectlyReceived_ResponsePending);
+    default:
+        ResetTransfer(self);
         return NegativeResponse(self, err);
     }
-
-    return kPositiveResponse;
 }
 
 static uint8_t _0x3E_TesterPresent(UDSServer_t *self) {
@@ -1104,7 +1110,6 @@ void UDSServerPoll(UDSServer_t *self) {
         size = self->tp->recv(self->tp, self->recv_buf, self->recv_buf_size, &ta_type);
         assert(size >= 0); // what to do if recv fails?
         if (size > 0) {
-            printf("Received %d bytes on link %d\n", size, ta_type);
             self->recv_size = size;
             ProcessLink(self, ta_type);
             self->p2_timer = UDSMillis() + self->p2_ms;

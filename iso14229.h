@@ -536,38 +536,6 @@ UDSClientError_t UDSConfigDownload(UDSClientDownloadSequence_t *sequence,
 //                              Server
 // ========================================================================
 
-enum UDSServerEvent {
-    UDS_SRV_EVT_DiagSessCtrl, // const enum UDSDiagnosticSessionType *
-    UDS_SRV_EVT_EcuReset,     // UDSECUResetArgs_t *
-    UDS_SRV_EVT_ReadDataByIdent,
-    UDS_SRV_EVT_CommCtrl,
-    UDS_SRV_EVT_SecAccessGenerateSeed, // UDSSecAccessGenerateSeedArgs_t *
-    UDS_SRV_EVT_SecAccessValidateKey,  // UDSSecAccessValidateKeyArgs_t *
-    UDS_SRV_EVT_WriteDataByIdent,      // UDSWDBIArgs_t *
-    UDS_SRV_EVT_RoutineCtrl,           // UDSRoutineCtrlArgs_t*
-    UDS_SRV_EVT_RequestDownload,       // UDSRequestDownloadArgs_t*
-    UDS_SRV_EVT_RequestUpload,
-    UDS_SRV_EVT_TransferData,        // UDSTransferDataArgs_t *
-    UDS_SRV_EVT_RequestTransferExit, // UDSRequestTransferExitArgs_t *
-
-    UDS_SRV_EVT_SessionTimeout,
-    UDS_SRV_EVT_BootMgrCheckAppValid,
-    UDS_SRV_EVT_BootMgrJumpToApp,
-};
-
-/**
- * \~chinese @brief 用户定义诊断会话控制回调函数 \~ @brief user-provided DiagnosticSessionControl
- * handler
- * @addtogroup diagnosticSessionControl_0x10
- * @details \~chinese 允许响应: \~english Permitted responses:
- *  \li 0x00 positiveResponse
- *  \li 0x12 subFunctionNotSupported
- *  \li 0x13 incorrectMessageLengthOrInvalidFormat
- *  \li 0x22 conditionsNotCorrect
- */
-
-typedef int UDSServerEvent_t;
-
 #ifndef UDS_SERVER_DEFAULT_P2_MS
 #define UDS_SERVER_DEFAULT_P2_MS (50)
 #endif
@@ -592,265 +560,28 @@ TransferData request message from the client. */
 #define UDS_SERVER_DEFAULT_XFER_DATA_MAX_BLOCKLENGTH (UDS_BUFSIZE)
 #endif
 
-struct UDSServer;
-typedef struct UDSServer UDSServer_t;
-struct UDSServerStatus;
+enum UDSServerEvent {
+    UDS_SRV_EVT_DiagSessCtrl,         // UDSDiagSessCtrlArgs_t *
+    UDS_SRV_EVT_EcuReset,             // UDSECUResetArgs_t *
+    UDS_SRV_EVT_ReadDataByIdent,      // UDSRDBIArgs_t *
+    UDS_SRV_EVT_CommCtrl,             // UDSCommCtrlArgs_t *
+    UDS_SRV_EVT_SecAccessRequestSeed, // UDSSecAccessRequestSeedArgs_t *
+    UDS_SRV_EVT_SecAccessValidateKey, // UDSSecAccessValidateKeyArgs_t *
+    UDS_SRV_EVT_WriteDataByIdent,     // UDSWDBIArgs_t *
+    UDS_SRV_EVT_RoutineCtrl,          // UDSRoutineCtrlArgs_t*
+    UDS_SRV_EVT_RequestDownload,      // UDSRequestDownloadArgs_t*
+    UDS_SRV_EVT_RequestUpload,        // UDSRequestUploadArgs_t *
+    UDS_SRV_EVT_TransferData,         // UDSTransferDataArgs_t *
+    UDS_SRV_EVT_RequestTransferExit,  // UDSRequestTransferExitArgs_t *
+    UDS_SRV_EVT_SessionTimeout,       // NULL
+    UDS_SRV_EVT_PowerDown,            // UDSPowerDownArgs_t *
+};
 
-typedef uint8_t (*UDSService)(UDSServer_t *self);
-
-/**
- * @brief User-Defined handler for 0x34 RequestDownload, 0x36 TransferData, and
- * 0x37 RequestTransferExit
- *
- */
-typedef struct {
-
-    void *userCtx;                   // optional: pointer to context
-    uint16_t maxNumberOfBlockLength; // mandatory: server's maximum allowable size of data received
-                                     // in onTransfer(...)
-
-    /**
-     * @brief mandatory: callback function to process transferred data
-     * @param status
-     * @param userCtx
-     * @param data
-     * @param len
-     * @return 0x0 kPositiveResponse: the transfer was accepted
-     * @return 0x78 kRequestCorrectlyReceived_ResponsePending: the transfer was accepted. Notify the
-     * client before calling this function again
-     */
-    uint8_t (*onTransfer)(UDSServer_t *srv, void *userCtx, const uint8_t *data, uint32_t len);
-    /**
-     * @brief optional: callback function to complete transfer
-     * @param status
-     * @param userCtx
-     * @param buffer_size size of response buffer in bytes.
-     * @param transferResponseParameterRecord response buffer
-     * @param transferResponseParameterRecordSize pointer to size of response
-     */
-    uint8_t (*onExit)(UDSServer_t *srv, void *userCtx, uint16_t buffer_size,
-                      uint8_t *transferResponseParameterRecord,
-                      uint16_t *transferResponseParameterRecordSize);
-
-} UDSDownloadHandler;
-
-typedef uint8_t (*UDSServer0x10Handler_t)(UDSServer_t *srv, uint8_t type);
-
-typedef struct {
-    const enum UDSDiagnosticSessionType type; /*! requested session type */
-    uint16_t p2_ms;                           /*! optional: p2 timing override */
-    uint32_t p2_star_ms;                      /*! optional: p2* timing override */
-} UDSDiagSessCtrlArgs_t;
-
-typedef uint8_t (*UDSServer0x11Handler_t)(UDSServer_t *srv, uint8_t resetType,
-                                          uint8_t *powerDownTime);
-
-/**
- * @brief \~english ECU reset request arguments. \~chinese 用户定义ECU复位请求处理函数。
- * @addtogroup ecuReset_0x11
- * \~english Permitted responses: \~chinese 允许响应: \~
- *  \li 0x00 positiveResponse
- *  \li 0x12 sub-functionNotSupported
- *  \li 0x13 incorrectMessageLengthOrInvalidFormat
- *  \li 0x22 kConditionsNotCorrect
- *  \li 0x33 kSecurityAccessDenied
- *
- */
-typedef struct {
-    enum UDSECUResetType
-        type; /**< \~chinese 客户端请求的复位类型 \~english reset type requested by client */
-    uint8_t powerDownTime; /**< Optional response: notify client of time until shutdown (0-254) 255
-                              indicates that a time is not available. */
-} UDSECUResetArgs_t;
-
-/**
- * \~chinese @brief 用户定义读取标识符指定数据回调函数
- * \~english @brief user-provided RDBI handler
- * @addtogroup readDataByIdentifier_0x22
- * @details \~chinese 允许响应: \~english Permitted responses:
- *  \li 0x00 positiveResponse
- *  \li 0x13 incorrectMessageLengthOrInvalidFormat
- *  \li 0x22 conditionsNotCorrect
- *  \li 0x31 requestOutOfRange
- *  \li 0x33 securityAccessDenied
- */
-typedef uint8_t (*UDSServer0x22Handler_t)(UDSServer_t *srv, uint16_t dataId,
-                                          uint8_t (*safe_copy)(UDSServer_t *srv, const void *src,
-                                                               uint16_t count));
-
-typedef struct {
-    uint16_t dataId; /*! RDBI Data Identifier */
-    uint8_t (*copy)(UDSServer_t *srv, const void *src,
-                    uint16_t count); /*! function for copying data */
-} UDSRDBIArgs_t;
-
-/**
- * @brief \~chinese 用户定义写入标识符指定数据回调函数 \~english user-provided WDBI handler. \~
- * @addtogroup writeDataByIdentifier_0x2E
- * @details \~chinese 允许响应: \~english Permitted responses: \~
- *  \li 0x00 positiveResponse
- *  \li 0x13 incorrectMessageLengthOrInvalidFormat
- *  \li 0x22 conditionsNotCorrect
- *  \li 0x31 requestOutOfRange
- *  \li 0x33 securityAccessDenied
- *  \li 0x72 generalProgrammingFailure
- */
-typedef uint8_t (*UDSServer0x2eHandler_t)(UDSServer_t *srv, uint16_t dataId, const uint8_t *data,
-                                          uint16_t len);
-
-typedef struct {
-    const uint16_t dataId;
-    const uint8_t *const data;
-    const uint16_t len;
-} UDSWDBIArgs_t;
-
-/**
- * @brief \~chinese 用户定义CommunicationControl回调函数 \~english user-provided
- * CommunicationControl handler. \~
- * @addtogroup communicationControl_0x28
- * @details \~chinese 允许响应: \~english Permitted responses: \~
- *  \li 0x00 kPositiveResponse
- *  \li 0x12 sub-functionNotSupported
- *  \li 0x13 incorrectMessageLengthOrInvalidFormat
- *  \li 0x22 conditionsNotCorrect
- *  \li 0x31 requestOutOfRange
- *
- */
-typedef uint8_t (*UDSServer0x28Handler_t)(UDSServer_t *srv, uint8_t controlType,
-                                          uint8_t communicationType);
-
-typedef struct {
-    enum UDSCommunicationControlType ctrlType;
-    enum UDSCommunicationType commType;
-} UDSCommCtrlArgs_t;
-
-/**
- * @brief \~chinese 用户定义安全访问回调函数 \~english user-provided SecurityAccess handler. \~
- * @addtogroup securityAccess_0x27
- * @details \~chinese 允许响应: \~english Permitted responses: \~
- *  \li 0x00 positiveResponse
- *  \li 0x12 sub-functionNotSupported
- *  \li 0x13 incorrectMessageLengthOrInvalidFormat
- *  \li 0x22 kConditionsNotCorrect
- *  \li 0x24 kRequestSequenceError
- *  \li 0x31 kRequestOutOfRange
- *  \li 0x35 kInvalidKey
- *  \li 0x36 kExceededNumberOfAttempts
- *  \li 0x37 kRequiredTimeDelayNotExpired
- */
-typedef uint8_t (*UDSServer0x27HandlerGenerateSeed_t)(UDSServer_t *srv, uint8_t level,
-                                                      const uint8_t *in_data, uint16_t in_size,
-                                                      uint8_t *out_data, uint16_t out_bufsize,
-                                                      uint16_t *out_size);
-
-typedef struct {
-    const uint8_t level;          /*! requested security level */
-    const uint8_t *const in_data; /*! pointer to request data */
-    const uint16_t in_size;       /*! size of request data */
-    uint8_t (*copySeed)(UDSServer_t *srv, const void *src,
-                        uint16_t len); /*! function for copying data */
-} UDSSecAccessGenerateSeedArgs_t;
-
-typedef uint8_t (*UDSServer0x27HandlerValidateKey_t)(UDSServer_t *srv, uint8_t level,
-                                                     const uint8_t *key, uint16_t size);
-
-typedef struct {
-    const uint8_t level;      /*! security level to be validated */
-    const uint8_t *const key; /*! key sent by client */
-    const uint16_t key_len;   /*! length of key */
-} UDSSecAccessValidateKeyArgs_t;
-
-/**
- * @brief \~chinese 用户定义例程控制处理函数 \~english user-provided RoutineControl handler \~
- * @details \~chinese 允许响应: \~english Permitted responses: \~
- * @addtogroup routineControl_0x31
- *  \li 0x00 positiveResponse
- *  \li 0x12 subFunctionNotSupported
- *  \li 0x13 incorrectMessageLengthOrInvalidFormat
- *  \li 0x22 conditionsNotCorrect
- *  \li 0x24 requestSequenceError
- *  \li 0x31 requestOutOfRange
- *  \li 0x33 securityAccessDenied
- *  \li 0x72 generalProgrammingFailure
- *
- */
-typedef struct {
-    const uint8_t ctrlType;
-    const uint16_t id;
-
-    const uint8_t *optionRecord;
-    const uint16_t optionRecordLength;
-
-    uint8_t (*copyStatusRecord)(UDSServer_t *srv, const void *src,
-                                uint16_t len); /*! function for copying data */
-} UDSRoutineCtrlArgs_t;
-
-typedef uint8_t (*UDSServer0x31Handler_t)(UDSServer_t *srv, uint8_t routineControlType,
-                                          uint16_t routineIdentifier, UDSRoutineCtrlArgs_t *args);
-
-/**
- * @brief \~chinese 用户定义请求下载处理函数 \~english user-provided RequestDownload handler \~
- * @details \~chinese 允许响应: \~english Permitted responses: \~
- * @addtogroup requestDownload_0x34
- * @param memoryAddress
- * @param memorySize
- * @param dataFormatIdentifier
- * @param handler set this pointer to the address of an UDSDownloadHandler instance
- * @param maxNumberOfBlockLength inform the client how many data bytes to include. You must set
- * this to a value greater than or equal to 3. This is usually related to the size of your
- * receive buffer.
- * @return one of [kPositiveResponse, kRequestOutOfRange]
- */
-typedef uint8_t (*UDSServer0x34Handler_t)(UDSServer_t *srv, void *memoryAddress, size_t memorySize,
-                                          uint8_t dataFormatIdentifier,
-                                          UDSDownloadHandler **handler,
-                                          uint16_t *maxNumberOfBlockLength);
-
-typedef struct {
-    const void *addr;
-    const size_t size;
-    const uint8_t dataFormatIdentifier;
-    uint16_t maxNumberOfBlockLength;
-} UDSRequestDownloadArgs_t;
-
-typedef struct {
-    const uint8_t *const req;
-    const uint16_t req_len; /*! request data length */
-    uint8_t (*copyResponse)(
-        UDSServer_t *srv, const void *src,
-        uint16_t len); /*! function for copying transfer data response data (optional) */
-} UDSTransferDataArgs_t;
-
-typedef struct {
-    const uint8_t *const req; /*! request data */
-    const uint16_t req_len;   /*! request data length */
-    uint8_t (*copyResponse)(UDSServer_t *srv, const void *src,
-                            uint16_t len); /*! function for copying response data (optional) */
-} UDSRequestTransferExitArgs_t;
-
-typedef uint8_t(UDSSrvCbFn_t)(UDSServer_t *srv, UDSServerEvent_t event, const void *arg);
-
-typedef struct {
-    UDSSrvCbFn_t *fn;
-#if UDS_TP == UDS_TP_CUSTOM
-    UDSTpHandle_t *tp;
-#elif UDS_TP == UDS_TP_ISOTP_C
-    uint16_t phys_send_id;
-    uint16_t phys_recv_id;
-    uint16_t func_recv_id;
-#elif UDS_TP == UDS_TP_LINUX_SOCKET
-    const char *if_name;
-    uint16_t phys_send_id;
-    uint16_t phys_recv_id;
-    uint16_t func_recv_id;
-#else
-#error "transport undefined"
-#endif
-} UDSServerConfig_t;
+typedef int UDSServerEvent_t;
 
 typedef struct UDSServer {
     UDSTpHandle_t *tp;
-    UDSSrvCbFn_t *fn;
+    uint8_t (*fn)(struct UDSServer *srv, UDSServerEvent_t event, const void *arg);
     uint8_t recv_buf[UDS_BUFSIZE];
     uint8_t send_buf[UDS_BUFSIZE];
     uint16_t recv_size;
@@ -914,6 +645,105 @@ typedef struct UDSServer {
     UDSTpLinuxIsoTp_t tp_impl;
 #endif
 } UDSServer_t;
+
+typedef struct {
+    uint8_t (*fn)(UDSServer_t *srv, UDSServerEvent_t event, const void *arg);
+#if UDS_TP == UDS_TP_CUSTOM
+    UDSTpHandle_t *tp;
+#elif UDS_TP == UDS_TP_ISOTP_C
+    uint16_t phys_send_id;
+    uint16_t phys_recv_id;
+    uint16_t func_recv_id;
+#elif UDS_TP == UDS_TP_LINUX_SOCKET
+    const char *if_name;
+    uint16_t phys_send_id;
+    uint16_t phys_recv_id;
+    uint16_t func_recv_id;
+#else
+#error "transport undefined"
+#endif
+} UDSServerConfig_t;
+
+typedef struct {
+    const enum UDSDiagnosticSessionType type; /*! requested session type */
+    uint16_t p2_ms;                           /*! optional: p2 timing override */
+    uint32_t p2_star_ms;                      /*! optional: p2* timing override */
+} UDSDiagSessCtrlArgs_t;
+
+typedef struct {
+    const enum UDSECUResetType
+        type; /**< \~chinese 客户端请求的复位类型 \~english reset type requested by client */
+    uint8_t powerDownTime; /**< Optional response: notify client of time until shutdown (0-254) 255
+                              indicates that a time is not available. */
+} UDSECUResetArgs_t;
+
+typedef struct {
+    const enum UDSECUResetType
+        type; /**< \~chinese 客户端请求的复位类型 \~english reset type requested by client */
+} UDSPowerDownArgs_t;
+
+typedef struct {
+    const uint16_t dataId; /*! RDBI Data Identifier */
+    uint8_t (*copy)(UDSServer_t *srv, const void *src,
+                    uint16_t count); /*! function for copying data */
+} UDSRDBIArgs_t;
+
+typedef struct {
+    const uint16_t dataId;     /*! WDBI Data Identifier */
+    const uint8_t *const data; /*! pointer to data */
+    const uint16_t len;        /*! length of data */
+} UDSWDBIArgs_t;
+
+typedef struct {
+    enum UDSCommunicationControlType ctrlType;
+    enum UDSCommunicationType commType;
+} UDSCommCtrlArgs_t;
+
+typedef struct {
+    const uint8_t level;             /*! requested security level */
+    const uint8_t *const dataRecord; /*! pointer to request data */
+    const uint16_t len;              /*! size of request data */
+    uint8_t (*copySeed)(UDSServer_t *srv, const void *src,
+                        uint16_t len); /*! function for copying data */
+} UDSSecAccessRequestSeedArgs_t;
+
+typedef struct {
+    const uint8_t level;      /*! security level to be validated */
+    const uint8_t *const key; /*! key sent by client */
+    const uint16_t len;       /*! length of key */
+} UDSSecAccessValidateKeyArgs_t;
+
+typedef struct {
+    const uint8_t ctrlType;      /*! routineControlType */
+    const uint16_t id;           /*! routineIdentifier */
+    const uint8_t *optionRecord; /*! optional data */
+    const uint16_t len;          /*! length of optional data */
+    uint8_t (*copyStatusRecord)(UDSServer_t *srv, const void *src,
+                                uint16_t len); /*! function for copying response data */
+} UDSRoutineCtrlArgs_t;
+
+typedef struct {
+    const void *addr;                   /*! requested address */
+    const size_t size;                  /*! requested download size */
+    const uint8_t dataFormatIdentifier; /*! optional specifier for format of data */
+    uint16_t maxNumberOfBlockLength; /*! response: inform client how many data bytes to send in each
+                                        `TransferData` request */
+} UDSRequestDownloadArgs_t;
+
+typedef struct {
+    const uint8_t *const data; /*! transfer data */
+    const uint16_t len;        /*! transfer data length */
+    uint8_t (*copyResponse)(
+        UDSServer_t *srv, const void *src,
+        uint16_t len); /*! function for copying transfer data response data (optional) */
+} UDSTransferDataArgs_t;
+
+typedef struct {
+    const uint8_t *const data; /*! request data */
+    const uint16_t len;        /*! request data length */
+    uint8_t (*copyResponse)(UDSServer_t *srv, const void *src,
+                            uint16_t len); /*! function for copying response data (optional) */
+} UDSRequestTransferExitArgs_t;
 
 UDSErr_t UDSServerInit(UDSServer_t *self, const UDSServerConfig_t *cfg);
 void UDSServerDeInit(UDSServer_t *self);
