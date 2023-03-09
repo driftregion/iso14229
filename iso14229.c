@@ -195,7 +195,7 @@ static ssize_t tp_send(struct UDSTpHandle *hdl, const void *buf, size_t count,
 #endif
 
 #if UDS_TP == UDS_TP_LINUX_SOCKET
-static int LinuxSockBind(const char *if_name, uint16_t rxid, uint16_t txid) {
+static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid) {
     int fd = 0;
     if ((fd = socket(AF_CAN, SOCK_DGRAM | SOCK_NONBLOCK, CAN_ISOTP)) < 0) {
         perror("Socket");
@@ -232,7 +232,7 @@ static int LinuxSockBind(const char *if_name, uint16_t rxid, uint16_t txid) {
 }
 
 static int LinuxSockTpOpen(UDSTpHandle_t *hdl, const char *if_name, uint16_t phys_rxid,
-                           uint16_t phys_txid, uint16_t func_rxid, uint16_t func_txid) {
+                           uint16_t phys_txid, uint32_t func_rxid, uint32_t func_txid) {
     assert(if_name);
     UDSTpLinuxIsoTp_t *impl = (UDSTpLinuxIsoTp_t *)hdl->impl;
     hdl->recv = tp_recv;

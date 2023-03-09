@@ -335,14 +335,14 @@ typedef struct {
 #if UDS_TP == UDS_TP_CUSTOM
     UDSTpHandle_t *tp;
 #elif UDS_TP == UDS_TP_ISOTP_C
-    uint16_t phys_recv_id;
-    uint16_t phys_send_id;
-    uint16_t func_send_id;
+    uint32_t phys_recv_id;
+    uint32_t phys_send_id;
+    uint32_t func_send_id;
 #elif UDS_TP == UDS_TP_LINUX_SOCKET
     const char *if_name;
-    uint16_t phys_recv_id;
-    uint16_t phys_send_id;
-    uint16_t func_send_id;
+    uint32_t phys_recv_id;
+    uint32_t phys_send_id;
+    uint32_t func_send_id;
 #else
 #error "transport undefined"
 #endif
@@ -651,14 +651,14 @@ typedef struct {
 #if UDS_TP == UDS_TP_CUSTOM
     UDSTpHandle_t *tp;
 #elif UDS_TP == UDS_TP_ISOTP_C
-    uint16_t phys_send_id;
-    uint16_t phys_recv_id;
-    uint16_t func_recv_id;
+    uint32_t phys_send_id;
+    uint32_t phys_recv_id;
+    uint32_t func_recv_id;
 #elif UDS_TP == UDS_TP_LINUX_SOCKET
     const char *if_name;
-    uint16_t phys_send_id;
-    uint16_t phys_recv_id;
-    uint16_t func_recv_id;
+    uint32_t phys_send_id;
+    uint32_t phys_recv_id;
+    uint32_t func_recv_id;
 #else
 #error "transport undefined"
 #endif
