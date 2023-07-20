@@ -11,7 +11,7 @@
 
 iso14229 is a server and client session-layer implementation of (ISO14229-1:2013) targeting embedded systems. It is tested with [`isotp-c`](https://github.com/lishen2/isotp-c) as well as [linux kernel](https://github.com/linux-can/can-utils/blob/master/include/linux/can/isotp.h) ISO15765-2 (ISO-TP) transport layer implementations. 
 
-API status: **not yet stable**
+API status: **stabilizing**
 
 ## quickstart: server
 
@@ -19,7 +19,15 @@ API status: **not yet stable**
 #include "iso14229.h"
 
 static uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
-    return kServiceNotSupported;
+    switch (ev) {
+    case UDS_SRV_EVT_EcuReset: { // 0x10
+        UDSECUResetArgs_t *r = (UDSECUResetArgs_t *)arg;
+        printf("got ECUReset request of type %x\n", r->type);
+        return kPositiveResponse;
+    default:
+        return kServiceNotSupported;
+    }
+    }
 }
 
 int main() {
@@ -45,14 +53,12 @@ int main() {
 | Define | Description | Valid values |
 | - | - | - |
 | `UDS_ARCH` | Select a porting target | `UDS_ARCH_CUSTOM`, `UDS_ARCH_UNIX` |
-| `UDS_TP` | Select a transport layer | `UDS_TP_ISOTP_C`, `UDS_TP_LINUX_SOCKET` |
+| `UDS_TP` | Select a transport layer | `UDS_TP_ISOTP_C`, `UDS_TP_ISOTP_SOCKET` |
 | `UDS_CUSTOM_MILLIS` | Use your own `millis()` implementation | defined or not defined |
 
 Features:
 - all memory allocation is static
-- architecture-independent
-    - tested: arm, x86-64, ppc
-    - tests run under qemu 
+- architecture-independent. tested on arm, x86-64, ppc, ppc64. see [test_qemu.py](./test_qemu.py)
 - has many existing unit-tests and tests are easy to extend
 
 ##  supported functions (server and client )
@@ -74,7 +80,7 @@ Features:
 | 0x2F | input control by identifier | ❌ |
 | 0x31 | routine control | ✅ |
 | 0x34 | request download | ✅ |
-| 0x35 | request upload | ❌ |
+| 0x35 | request upload | ✅ |
 | 0x36 | transfer data | ✅ |
 | 0x37 | request transfer exit | ✅ |
 | 0x38 | request file transfer | ❌ |
@@ -337,20 +343,6 @@ typedef struct {
 make test
 ```
 
-## qemu
-
-```sh
-CC=powerpc-linux-gnu-gcc make test_bin
-qemu-ppc -L /usr/powerpc-linux-gnu test_bin
-```
-## wine
-
-```sh
-CC=x86_64-w64-mingw32-gcc make test_bin
-wine test_bin.exe
-```
-
-
 # Contributing
 
 contributions are welcome
@@ -405,10 +397,20 @@ MIT
 - API cleanup: use `UDS` prefix on all exported functions
 - API cleanup: use a single callback function for all server events
 
+## 0.6.0
+- breaking API changes:
+    - `UDSClientErr_t` merged into `UDSErr_t`
+    - `TP_SEND_INPROGRESS` renamed to `UDS_TP_SEND_IN_PROGRESS`
+    - refactored `UDSTpHandle_t` to encourage struct inheritance
+    - `UDS_TP_LINUX_SOCKET` renamed to `UDS_TP_ISOTP_SOCKET`
+- added server fuzz test and qemu tests
+- cleaned up example tests, added isotp-c on socketcan to examples
+- added `UDS_SRV_EVT_DoScheduledReset`
+- improve client error handling
+
 ---
 
 # Design Docs
-
 
 ## ISO-TP interface
 

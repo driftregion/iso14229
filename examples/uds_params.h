@@ -18,7 +18,7 @@
  *         -|--0x7E1->| Server 2
  *          |<-0x7E9--|
  *
- *  Client has one link that strictly sends functional requests.
+ *  Client has one link that strictly sends functional requests to 0x7DF.
  *  Functional responses are received on the other links
  *
  */

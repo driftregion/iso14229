@@ -15,7 +15,15 @@ API状态: **未稳定**
 #include "iso14229.h"
 
 static uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
-    return kServiceNotSupported;
+    switch (ev) {
+    case UDS_SRV_EVT_EcuReset: { // 0x10
+        UDSECUResetArgs_t *r = (UDSECUResetArgs_t *)arg;
+        printf("got ECUReset request of type %x\n", r->type);
+        return kPositiveResponse;
+    default:
+        return kServiceNotSupported;
+    }
+    }
 }
 
 int main() {
@@ -38,9 +46,7 @@ int main() {
 
 特点:
 - 静态内存分配
-- 独立于处理器架构
-    - 测试了: arm, x86-64, ppc
-    - 可以用qemu测试更多
+- 独立于处理器架构 测试了: arm, x86-64, ppc, ppc64。参考[test_qemu.py](./test_qemu.py)
 - 单元测试又多又容易扩展
 
 ##  支持服务(服务器和客户端)
@@ -62,7 +68,7 @@ int main() {
 | 0x2F | input control by identifier | ❌ |
 | 0x31 | routine control | ✅ |
 | 0x34 | request download | ✅ |
-| 0x35 | request upload | ❌ |
+| 0x35 | request upload | ✅ |
 | 0x36 | transfer data | ✅ |
 | 0x37 | request transfer exit | ✅ |
 | 0x38 | request file transfer | ❌ |
@@ -317,10 +323,6 @@ typedef struct {
 
 [examples/README.md](examples/README.md)
 
-## 测试
-
-[test_uds.c](test_uds.c)
-
 ### 运行测试 
 
 ```sh
@@ -383,7 +385,7 @@ MIT
 - 简化使用、放isotp-c初始化参数到服务器/客户端配置里面 
 - 删除重复服务器缓冲器 
 
-# 0.4.0
+## 0.4.0
 - 重构RDBIHandler：用安全memmove
 - 尽可能不用enum在结构体里面
 - 传输层可插件。现在支持linux内核ISO-TP驱动。`isotp-c`同时也支持。看看例子 [examples](./examples/README.md)
@@ -393,11 +395,20 @@ MIT
 - 可用性: 默认传输层配置现在自带
 - API整理: 用`UDS`前缀在所有导出函数上
 - API整理: 服务器事件用单个回调函数
+
+## 0.6.0
+- API更改:
+    - `UDSClientErr_t`合并到`UDSErr_t`
+    - `TP_SEND_INPROGRESS`改名为`UDS_TP_SEND_IN_PROGRESS`
+    - 重构了`UDSTpHandle_t`
+    - `UDS_TP_LINUX_SOCKET`改名为`UDS_TP_ISOTP_SOCKET`
+- 增加了服务器fuzz测试以及qemu测试
+- 整理例子测试,例子增加了isotp-c/socketcan传输
+- 增加了`UDS_SRV_EVT_DoScheduledReset`服务器事件
 ---
 
 
 # 开发者文档 
-
 
 ## 客户端请求状态机
 

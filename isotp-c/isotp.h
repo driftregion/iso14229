@@ -21,38 +21,38 @@ extern "C" {
  */
 typedef struct IsoTpLink {
     /* sender paramters */
-    uint32_t send_arbitration_id; /* used to reply consecutive frame */
+    uint32_t                    send_arbitration_id; /* used to reply consecutive frame */
     /* message buffer */
-    uint8_t *send_buffer;
-    uint16_t send_buf_size;
-    uint16_t send_size;
-    uint16_t send_offset;
+    uint8_t*                    send_buffer;
+    uint16_t                    send_buf_size;
+    uint16_t                    send_size;
+    uint16_t                    send_offset;
     /* multi-frame flags */
-    uint8_t send_sn;
-    uint16_t send_bs_remain; /* Remaining block size */
-    uint32_t send_st_min_us; /* Separation Time between consecutive frames */
-    uint8_t send_wtf_count;  /* Maximum number of FC.Wait frame transmissions  */
-    uint32_t send_timer_st;  /* Last time send consecutive frame */
-    uint32_t send_timer_bs;  /* Time until reception of the next FlowControl N_PDU
-                                start at sending FF, CF, receive FC
-                                end at receive FC */
-    int send_protocol_result;
-    uint8_t send_status;
+    uint8_t                     send_sn;
+    uint16_t                    send_bs_remain; /* Remaining block size */
+    uint32_t                    send_st_min_us; /* Separation Time between consecutive frames */
+    uint8_t                     send_wtf_count; /* Maximum number of FC.Wait frame transmissions  */
+    uint32_t                    send_timer_st;  /* Last time send consecutive frame */    
+    uint32_t                    send_timer_bs;  /* Time until reception of the next FlowControl N_PDU
+                                                   start at sending FF, CF, receive FC
+                                                   end at receive FC */
+    int                         send_protocol_result;
+    uint8_t                     send_status;
     /* receiver paramters */
-    uint32_t receive_arbitration_id;
+    uint32_t                    receive_arbitration_id;
     /* message buffer */
-    uint8_t *receive_buffer;
-    uint16_t receive_buf_size;
-    uint16_t receive_size;
-    uint16_t receive_offset;
+    uint8_t*                    receive_buffer;
+    uint16_t                    receive_buf_size;
+    uint16_t                    receive_size;
+    uint16_t                    receive_offset;
     /* multi-frame control */
-    uint8_t receive_sn;
-    uint8_t receive_bs_count;  /* Maximum number of FC.Wait frame transmissions  */
-    uint32_t receive_timer_cr; /* Time until transmission of the next ConsecutiveFrame N_PDU
-                                  start at sending FC, receive CF
-                                  end at receive FC */
-    int receive_protocol_result;
-    uint8_t receive_status;
+    uint8_t                     receive_sn;
+    uint8_t                     receive_bs_count; /* Maximum number of FC.Wait frame transmissions  */
+    uint32_t                    receive_timer_cr; /* Time until transmission of the next ConsecutiveFrame N_PDU
+                                                     start at sending FC, receive CF 
+                                                     end at receive FC */
+    int                         receive_protocol_result;
+    uint8_t                     receive_status;                                                     
 } IsoTpLink;
 
 /**
@@ -62,16 +62,15 @@ typedef struct IsoTpLink {
  * @param sendid The ID used to send data to other CAN nodes.
  * @param sendbuf A pointer to an area in memory which can be used as a buffer for data to be sent.
  * @param sendbufsize The size of the buffer area.
- * @param recvbuf A pointer to an area in memory which can be used as a buffer for data to be
- * received.
+ * @param recvbuf A pointer to an area in memory which can be used as a buffer for data to be received.
  * @param recvbufsize The size of the buffer area.
  */
-void isotp_init_link(IsoTpLink *link, uint32_t sendid, uint8_t *sendbuf, uint16_t sendbufsize,
+void isotp_init_link(IsoTpLink *link, uint32_t sendid, 
+                     uint8_t *sendbuf, uint16_t sendbufsize,
                      uint8_t *recvbuf, uint16_t recvbufsize);
 
 /**
- * @brief Polling function; call this function periodically to handle timeouts, send consecutive
- * frames, etc.
+ * @brief Polling function; call this function periodically to handle timeouts, send consecutive frames, etc.
  *
  * @param link The @code IsoTpLink @endcode instance used.
  */
@@ -106,29 +105,26 @@ void isotp_on_can_message(IsoTpLink *link, uint8_t *data, uint8_t len);
 int isotp_send(IsoTpLink *link, const uint8_t payload[], uint16_t size);
 
 /**
- * @brief See @link isotp_send @endlink, with the exception that this function is used only for
- * functional addressing.
+ * @brief See @link isotp_send @endlink, with the exception that this function is used only for functional addressing.
  */
 int isotp_send_with_id(IsoTpLink *link, uint32_t id, const uint8_t payload[], uint16_t size);
 
 /**
- * @brief Receives and parses the received data and copies the parsed data in to the internal
- * buffer.
+ * @brief Receives and parses the received data and copies the parsed data in to the internal buffer.
  * @param link The @link IsoTpLink @endlink instance used to transceive data.
  * @param payload A pointer to an area in memory where the raw data is copied from.
  * @param payload_size The size of the received (raw) CAN data.
- * @param out_size A reference to a variable which will contain the size of the actual (parsed)
- * data.
+ * @param out_size A reference to a variable which will contain the size of the actual (parsed) data.
  *
  * @return Possible return values:
  *      - @link ISOTP_RET_OK @endlink
  *      - @link ISOTP_RET_NO_DATA @endlink
  */
-int isotp_receive(IsoTpLink *link, uint8_t *payload, const uint16_t payload_size,
-                  uint16_t *out_size);
+int isotp_receive(IsoTpLink *link, uint8_t *payload, const uint16_t payload_size, uint16_t *out_size);
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif // __ISOTP_H__
+
