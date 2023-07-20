@@ -1,4 +1,3 @@
-#define UDS_DBG_PRINT printf
 #include "../iso14229.h"
 #include "uds_params.h"
 #include <assert.h>
@@ -9,20 +8,24 @@
 #include <sys/types.h>
 #include <time.h>
 #include <string.h>
+#if UDS_TP == UDS_TP_ISOTP_C
+#include "../isotp-c/isotp.h"
+#include "isotp-c_on_socketcan.h"
+#endif
 
 static uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg);
 
 static UDSServer_t srv;
-static UDSServerConfig_t cfg = {
+static const UDSServerConfig_t cfg = {
     .fn = fn,
-    .if_name = "can0",
+#if UDS_TP == UDS_TP_ISOTP_SOCKET
+    .if_name = "vcan0",
+#endif
     .phys_send_id = SERVER_SEND_ID,
     .phys_recv_id = SERVER_PHYS_RECV_ID,
     .func_recv_id = SERVER_FUNC_RECV_ID,
 };
 static bool serverWantsExit = false;
-static uint8_t ecu_reset_scheduled = 0;
-static int ecu_reset_timer = 0;
 static struct RWDBIData {
     uint8_t d1;
     int8_t d2;
@@ -32,19 +35,18 @@ static struct RWDBIData {
 
 // 用初始化服务器实例来简单模拟一个ECU复位
 // mock an ECU reset by resetting the server
-static void mockECUReset() {
-    printf("Resetting ECU (type: %d)\n", ecu_reset_scheduled);
-    switch (ecu_reset_scheduled) {
+static void mockECUReset(enum UDSECUResetType resetType) {
+    printf("Resetting ECU (type: %d)\n", resetType);
+    switch (resetType) {
     case kHardReset:
     case kSoftReset:
         UDSServerDeInit(&srv);
         UDSServerInit(&srv, &cfg);
         break;
     default:
-        printf("unknown reset type %d\n", ecu_reset_scheduled);
+        printf("unknown reset type %d\n", resetType);
         break;
     }
-    ecu_reset_scheduled = 0;
 }
 
 static uint8_t RDBI(UDSServer_t *srv, UDSRDBIArgs_t *r) {
@@ -130,7 +132,12 @@ static uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
     }
     case UDS_SRV_EVT_SessionTimeout:
         printf("server session timed out!\n");
-        mockECUReset();
+        UDSServerDeInit(srv);
+        UDSServerInit(srv, &cfg);
+        break;
+    case UDS_SRV_EVT_DoScheduledReset:
+        printf("powering down!\n");
+        mockECUReset(*((enum UDSECUResetType *)arg));
         break;
     default:
         printf("Unhandled event: %d\n", ev);
@@ -151,10 +158,6 @@ static int SleepMillis(uint32_t tms) {
 }
 
 int main(int ac, char **av) {
-    if (ac >= 2) {
-        cfg.if_name = av[1];
-    }
-
     if (UDSServerInit(&srv, &cfg)) {
         exit(-1);
     }
@@ -162,9 +165,9 @@ int main(int ac, char **av) {
     printf("server up, polling . . .\n");
     while (!serverWantsExit) {
         UDSServerPoll(&srv);
-        if (ecu_reset_scheduled && UDSTimeAfter(ecu_reset_timer, UDSMillis())) {
-            mockECUReset();
-        }
+#if UDS_TP == UDS_TP_ISOTP_C
+        SocketCANRecv((UDSTpIsoTpC_t *)srv.tp, cfg.phys_recv_id);
+#endif
         SleepMillis(1);
     }
     printf("server exiting\n");

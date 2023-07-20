@@ -53,8 +53,3 @@ cc_library(
     srcs=[":isotp_c_srcs"],
     copts=["-Wno-unused-parameter"],
 )
-
-cc_binary(
-    name="example_server",
-
-)
