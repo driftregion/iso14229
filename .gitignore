@@ -8,3 +8,5 @@ corpus
 *.profraw
 .gdb_history
 fuzzer
+*.o
+.vscode
