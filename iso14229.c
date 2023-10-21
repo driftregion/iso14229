@@ -239,7 +239,10 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid) {
     }
 
     strncpy(ifr.ifr_name, if_name, sizeof(ifr.ifr_name) - 1);
-    ioctl(fd, SIOCGIFINDEX, &ifr);
+    if (ioctl(fd, SIOCGIFINDEX, &ifr) < 0) {
+        printf("ioctl: %s %s\n", strerror(errno), if_name);
+        return -1;
+    }
 
     addr.can_family = AF_CAN;
     addr.can_addr.tp.rx_id = rxid;
