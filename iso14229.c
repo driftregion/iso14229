@@ -220,27 +220,27 @@ done:
 #if UDS_TP == UDS_TP_ISOTP_SOCKET
 static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid) {
     int fd = 0;
-    if ((fd = socket(AF_CAN, SOCK_DGRAM | SOCK_NONBLOCK, CAN_ISOTP)) < 0) {
-        perror("Socket");
-        return -1;
-    }
-
+    struct ifreq ifr = {0};
+    struct sockaddr_can addr = {0};
     struct can_isotp_fc_options fcopts = {
         .bs = 0x10,
         .stmin = 3,
         .wftmax = 0,
     };
+
+    if ((fd = socket(AF_CAN, SOCK_DGRAM | SOCK_NONBLOCK, CAN_ISOTP)) < 0) {
+        perror("Socket");
+        return -1;
+    }
+
     if (setsockopt(fd, SOL_CAN_ISOTP, CAN_ISOTP_RECV_FC, &fcopts, sizeof(fcopts)) < 0) {
         perror("setsockopt");
         return -1;
     }
 
-    struct ifreq ifr;
-    strncpy(ifr.ifr_name, if_name, sizeof(ifr.ifr_name));
+    strncpy(ifr.ifr_name, if_name, sizeof(ifr.ifr_name) - 1);
     ioctl(fd, SIOCGIFINDEX, &ifr);
 
-    struct sockaddr_can addr;
-    memset(&addr, 0, sizeof(addr));
     addr.can_family = AF_CAN;
     addr.can_addr.tp.rx_id = rxid;
     addr.can_addr.tp.tx_id = txid;
