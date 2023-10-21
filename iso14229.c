@@ -229,7 +229,7 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid) {
     };
 
     if ((fd = socket(AF_CAN, SOCK_DGRAM | SOCK_NONBLOCK, CAN_ISOTP)) < 0) {
-        perror("Socket");
+        perror("socket");
         return -1;
     }
 
@@ -240,7 +240,7 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid) {
 
     strncpy(ifr.ifr_name, if_name, sizeof(ifr.ifr_name) - 1);
     if (ioctl(fd, SIOCGIFINDEX, &ifr) < 0) {
-        printf("ioctl: %s %s\n", strerror(errno), if_name);
+        fprintf(stderr, "ioctl: %s %s\n", strerror(errno), if_name);
         return -1;
     }
 
@@ -250,7 +250,7 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid) {
     addr.can_ifindex = ifr.ifr_ifindex;
 
     if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-        printf("Bind: %s %s\n", strerror(errno), if_name);
+        fprintf(stderr, "bind: %s %s\n", strerror(errno), if_name);
         return -1;
     }
     printf("opened ISO-TP link fd: %d, rxid: %03x, txid: %03x\n", fd, rxid, txid);
