@@ -18,9 +18,9 @@ extern "C" {
 #define UDS_ARCH_UNIX 1
 #define UDS_ARCH_WINDOWS 2
 
-#define UDS_TP_CUSTOM 0         // bring your own transport layer
-#define UDS_TP_ISOTP_C 1        // use isotp-c
-#define UDS_TP_ISOTP_SOCKET 2   // use linux ISO-TP socket
+#define UDS_TP_CUSTOM 0       // bring your own transport layer
+#define UDS_TP_ISOTP_C 1      // use isotp-c
+#define UDS_TP_ISOTP_SOCKET 2 // use linux ISO-TP socket
 
 #if !defined(UDS_ARCH)
 #if defined(__unix__) || defined(__APPLE__)
@@ -260,14 +260,15 @@ typedef struct {
     uint16_t A_SA; // application source address
     uint16_t A_TA; // application target address
     UDS_A_TA_Type_t A_TA_Type;
-    uint16_t A_AE; // application layer remote address
+    uint16_t A_AE;     // application layer remote address
     uint32_t A_Length; // data length
     uint32_t A_DataBufSize;
     const uint8_t *A_Data;
 } UDSSDU_t;
 
 /**
- * @brief Transport Handle is the interface between the UDS application layer and the transport layer.
+ * @brief Transport Handle is the interface between the UDS application layer and the transport
+ * layer.
  */
 typedef struct UDSTpHandle {
     /**
@@ -315,7 +316,6 @@ typedef struct {
     int func_fd;
 } UDSTpLinuxIsoTp_t;
 #endif
-
 
 // ========================================================================
 //                          Utility Functions
@@ -449,7 +449,9 @@ void UDSClientDeInit(UDSClient_t *client);
  * @return UDS_CLIENT_IDLE if idle, otherwise UDS_CLIENT_RUNNING
  */
 bool UDSClientPoll(UDSClient_t *client);
-void UDSClientPoll2(UDSClient_t *client, int (*fn)(UDSClient_t *client, int evt, void *ev_data, void *fn_data), void *fn_data);
+void UDSClientPoll2(UDSClient_t *client,
+                    int (*fn)(UDSClient_t *client, int evt, void *ev_data, void *fn_data),
+                    void *fn_data);
 
 UDSErr_t UDSSendECUReset(UDSClient_t *client, UDSECUReset_t type);
 UDSErr_t UDSSendDiagSessCtrl(UDSClient_t *client, enum UDSDiagnosticSessionType mode);

@@ -26,7 +26,7 @@ void ENV_Send(UDSSDU_t *msg) {
             continue;
         }
         if (tp->)
-        UDSTpSend(tp, msg);
+            UDSTpSend(tp, msg);
     }
     UDSTpHandle_t *tp = msg->A_TP;
     if (tp == NULL) {

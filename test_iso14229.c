@@ -84,52 +84,53 @@
 #define SERVER_ONLY 0
 #define CLIENT_ONLY 1
 
-#define _TEST_SETUP_SILENT(test_type, param_str)                                                                       \
+#define _TEST_SETUP_SILENT(test_type, param_str)                                                   \
     memset(&ctx, 0, sizeof(ctx));                                                                  \
     ctx.func_name = __PRETTY_FUNCTION__;                                                           \
-    if (SERVER_ONLY == test_type) { \
-        UDSServerInit(&ctx.server, &(UDSServerConfig_t){ \
-            .tp = TPMockCreate("server"), \
-            .source_addr = SERVER_SOURCE_ADDR, \
-            .target_addr = SERVER_TARGET_ADDR, \
-            .source_addr_func = SERVER_SOURCE_ADDR_FUNC, \
-            }); \
-        ctx.mock_tp = TPMockCreate("mock_client");   \
-    } \
-    if (CLIENT_ONLY == test_type) { \
-        UDSClientInit(&ctx.client, &(UDSClientConfig_t){ \
-            .tp = TPMockCreate("client"), \
-            .target_addr = CLIENT_TARGET_ADDR, \
-            .source_addr = CLIENT_SOURCE_ADDR, \
-            .target_addr_func = CLIENT_TARGET_ADDR_FUNC, \
-            });                    \
-        ctx.mock_tp = TPMockCreate("mock_server");   \
-    } \
+    if (SERVER_ONLY == test_type) {                                                                \
+        UDSServerInit(&ctx.server, &(UDSServerConfig_t){                                           \
+                                       .tp = TPMockCreate("server"),                               \
+                                       .source_addr = SERVER_SOURCE_ADDR,                          \
+                                       .target_addr = SERVER_TARGET_ADDR,                          \
+                                       .source_addr_func = SERVER_SOURCE_ADDR_FUNC,                \
+                                   });                                                             \
+        ctx.mock_tp = TPMockCreate("mock_client");                                                 \
+    }                                                                                              \
+    if (CLIENT_ONLY == test_type) {                                                                \
+        UDSClientInit(&ctx.client, &(UDSClientConfig_t){                                           \
+                                       .tp = TPMockCreate("client"),                               \
+                                       .target_addr = CLIENT_TARGET_ADDR,                          \
+                                       .source_addr = CLIENT_SOURCE_ADDR,                          \
+                                       .target_addr_func = CLIENT_TARGET_ADDR_FUNC,                \
+                                   });                                                             \
+        ctx.mock_tp = TPMockCreate("mock_server");                                                 \
+    }                                                                                              \
     char logfilename[256] = {0};                                                                   \
-    snprintf(logfilename, sizeof(logfilename), "%s%s.log", ctx.func_name, param_str);                            \
+    snprintf(logfilename, sizeof(logfilename), "%s%s.log", ctx.func_name, param_str);              \
     TPMockLogToFile(logfilename);
 
-#define TEST_SETUP(test_type)                                                                               \
-    _TEST_SETUP_SILENT(test_type, "");                                                                          \
+#define TEST_SETUP(test_type)                                                                      \
+    _TEST_SETUP_SILENT(test_type, "");                                                             \
     printf("%s\n", ctx.func_name);
 
-#define TEST_SETUP_PARAMETRIZED(test_type, params_list)                                                       \
+#define TEST_SETUP_PARAMETRIZED(test_type, params_list)                                            \
     for (size_t i = 0; i < sizeof(params_list) / sizeof(params_list[0]); i++) {                    \
-        char _param_str[128];    \
-        snprintf(_param_str, sizeof(_param_str), "%s_p_%ld_%s", ctx.func_name, i, (*(char **)(&(params_list[i])))); \
-        _TEST_SETUP_SILENT(test_type, _param_str);                                                                      \
+        char _param_str[128];                                                                      \
+        snprintf(_param_str, sizeof(_param_str), "%s_p_%ld_%s", ctx.func_name, i,                  \
+                 (*(char **)(&(params_list[i]))));                                                 \
+        _TEST_SETUP_SILENT(test_type, _param_str);                                                 \
         printf("%s\n", _param_str);
 
 #define TEST_TEARDOWN_PARAMETRIZED()                                                               \
-    TPMockReset(); \
+    TPMockReset();                                                                                 \
     printf(ANSI_BOLD "OK [p:%ld]\n" ANSI_RESET, i);                                                \
     }
 
-#define TEST_TEARDOWN()  \
-{ \
-    TPMockReset(); \
-    printf(ANSI_BOLD "OK\n" ANSI_RESET); \
-}
+#define TEST_TEARDOWN()                                                                            \
+    {                                                                                              \
+        TPMockReset();                                                                             \
+        printf(ANSI_BOLD "OK\n" ANSI_RESET);                                                       \
+    }
 
 // TODO: parameterize and fuzz this
 #define DEFAULT_ISOTP_BUFSIZE (2048U)
@@ -225,47 +226,47 @@ static void poll_ctx(Ctx_t *ctx) {
 */
 
 #define SEND_TO_SERVER(d1, reqType)                                                                \
-    { \
-        UDSSDU_t msg = { \
-            .A_Mtype = UDS_A_MTYPE_DIAG,  \
-            .A_Data = d1, \
-            .A_Length = sizeof(d1), \
-            .A_SA = CLIENT_SOURCE_ADDR, \
-            .A_TA = reqType == kTpAddrTypePhysical ? SERVER_SOURCE_ADDR: SERVER_SOURCE_ADDR_FUNC, \
-            .A_TA_Type = (int)reqType, \
-        };                                                                        \
-        ctx.mock_tp->send(ctx.mock_tp, &msg); \
-    } \
+    {                                                                                              \
+        UDSSDU_t msg = {                                                                           \
+            .A_Mtype = UDS_A_MTYPE_DIAG,                                                           \
+            .A_Data = d1,                                                                          \
+            .A_Length = sizeof(d1),                                                                \
+            .A_SA = CLIENT_SOURCE_ADDR,                                                            \
+            .A_TA = reqType == kTpAddrTypePhysical ? SERVER_SOURCE_ADDR : SERVER_SOURCE_ADDR_FUNC, \
+            .A_TA_Type = (int)reqType,                                                             \
+        };                                                                                         \
+        ctx.mock_tp->send(ctx.mock_tp, &msg);                                                      \
+    }
 
 #define ASSERT_CLIENT_SENT(d1, reqType)                                                            \
-    { \
-        UDSSDU_t msg = { \
-            .A_DataBufSize = DEFAULT_ISOTP_BUFSIZE, \
-            .A_Data = ctx.mock_recv_buf, \
-        }; \
-        int recv_len = ctx.mock_tp->recv(ctx.mock_tp,  &msg); \
-        ASSERT_INT_EQUAL(recv_len, sizeof(d1));                                         \
-        ASSERT_MEMORY_EQUAL(ctx.mock_recv_buf, d1, sizeof(d1));                                   \
-        if (reqType == kTpAddrTypePhysical) { \
-            ASSERT_INT_EQUAL(msg.A_TA, SERVER_SOURCE_ADDR); \
-        } else if (reqType == kTpAddrTypeFunctional) { \
-            ASSERT_INT_EQUAL(msg.A_TA, SERVER_SOURCE_ADDR_FUNC); \
-        } else { \
-            assert(0); \
-        } \
+    {                                                                                              \
+        UDSSDU_t msg = {                                                                           \
+            .A_DataBufSize = DEFAULT_ISOTP_BUFSIZE,                                                \
+            .A_Data = ctx.mock_recv_buf,                                                           \
+        };                                                                                         \
+        int recv_len = ctx.mock_tp->recv(ctx.mock_tp, &msg);                                       \
+        ASSERT_INT_EQUAL(recv_len, sizeof(d1));                                                    \
+        ASSERT_MEMORY_EQUAL(ctx.mock_recv_buf, d1, sizeof(d1));                                    \
+        if (reqType == kTpAddrTypePhysical) {                                                      \
+            ASSERT_INT_EQUAL(msg.A_TA, SERVER_SOURCE_ADDR);                                        \
+        } else if (reqType == kTpAddrTypeFunctional) {                                             \
+            ASSERT_INT_EQUAL(msg.A_TA, SERVER_SOURCE_ADDR_FUNC);                                   \
+        } else {                                                                                   \
+            assert(0);                                                                             \
+        }                                                                                          \
     }
 
 // send data to the client
 static void send_to_client(const uint8_t *d1, size_t len, UDSTpAddr_t reqType) {
     assert(len <= sizeof(ctx.client_tp.recv_buf));
     ctx.mock_tp->send(ctx.mock_tp, &(UDSSDU_t){
-        .A_Mtype = UDS_A_MTYPE_DIAG,
-        .A_Data = d1,
-        .A_Length = len,
-        .A_SA = SERVER_SOURCE_ADDR,
-        .A_TA = SERVER_TARGET_ADDR,
-        .A_TA_Type = (int)reqType,
-    });
+                                       .A_Mtype = UDS_A_MTYPE_DIAG,
+                                       .A_Data = d1,
+                                       .A_Length = len,
+                                       .A_SA = SERVER_SOURCE_ADDR,
+                                       .A_TA = SERVER_TARGET_ADDR,
+                                       .A_TA_Type = (int)reqType,
+                                   });
     // memmove(&ctx.client_tp.recv_buf, d1, len);
     // ctx.client_tp.recv_ta_type = reqType;
     // ctx.client_tp.recv_size = len;
@@ -283,34 +284,34 @@ static void send_to_client(const uint8_t *d1, size_t len, UDSTpAddr_t reqType) {
 // expect a server response within a timeout
 #define EXPECT_RESPONSE_WITHIN_MILLIS(d1, reqType, timeout_ms)                                     \
     {                                                                                              \
-        uint32_t deadline = ctx.time_ms + timeout_ms + 1;                                              \
-        UDSSDU_t msg = { \
-            .A_DataBufSize = DEFAULT_ISOTP_BUFSIZE, \
-            .A_Data = ctx.mock_recv_buf, \
-        }; \
-        while (0 == ctx.mock_tp->recv(ctx.mock_tp, &msg)) {                                                     \
+        uint32_t deadline = ctx.time_ms + timeout_ms + 1;                                          \
+        UDSSDU_t msg = {                                                                           \
+            .A_DataBufSize = DEFAULT_ISOTP_BUFSIZE,                                                \
+            .A_Data = ctx.mock_recv_buf,                                                           \
+        };                                                                                         \
+        while (0 == ctx.mock_tp->recv(ctx.mock_tp, &msg)) {                                        \
             poll_ctx(&ctx);                                                                        \
-            printf("%d, %d, %d\n", UDSMillis(), ctx.time_ms, deadline); \
+            printf("%d, %d, %d\n", UDSMillis(), ctx.time_ms, deadline);                            \
             ASSERT_INT_LE(ctx.time_ms, deadline);                                                  \
         }                                                                                          \
         printhex(msg.A_Data, msg.A_Length);                                                        \
-        ASSERT_INT_EQUAL(msg.A_Length, sizeof(d1));                                     \
-        ASSERT_MEMORY_EQUAL(msg.A_Data, d1, sizeof(d1));                               \
-        ASSERT_INT_EQUAL((int)msg.A_TA_Type, reqType);                                     \
+        ASSERT_INT_EQUAL(msg.A_Length, sizeof(d1));                                                \
+        ASSERT_MEMORY_EQUAL(msg.A_Data, d1, sizeof(d1));                                           \
+        ASSERT_INT_EQUAL((int)msg.A_TA_Type, reqType);                                             \
     }
 
 // expect no server response within a timeout
 #define EXPECT_NO_RESPONSE_FOR_MILLIS(timeout_ms)                                                  \
     {                                                                                              \
         uint32_t deadline = ctx.time_ms + timeout_ms;                                              \
-        while (ctx.time_ms <= deadline) {                                                           \
+        while (ctx.time_ms <= deadline) {                                                          \
             poll_ctx(&ctx);                                                                        \
-            UDSSDU_t msg = { \
-                .A_DataBufSize = DEFAULT_ISOTP_BUFSIZE, \
-                .A_Data = ctx.mock_recv_buf, \
-            }; \
-            int resp_len = ctx.mock_tp->recv(ctx.mock_tp, &msg); \
-            ASSERT_INT_EQUAL(resp_len, 0);                                              \
+            UDSSDU_t msg = {                                                                       \
+                .A_DataBufSize = DEFAULT_ISOTP_BUFSIZE,                                            \
+                .A_Data = ctx.mock_recv_buf,                                                       \
+            };                                                                                     \
+            int resp_len = ctx.mock_tp->recv(ctx.mock_tp, &msg);                                   \
+            ASSERT_INT_EQUAL(resp_len, 0);                                                         \
         }                                                                                          \
     }
 

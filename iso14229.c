@@ -1340,8 +1340,8 @@ UDSErr_t UDSClientInit(UDSClient_t *client, const UDSClientConfig_t *cfg) {
     UDSTpIsoTpC_t *tp = (UDSTpIsoTpC_t *)&client->tp_impl;
     isotp_init_link(&tp->phys_link, cfg->target_addr, client->send_buf, client->send_buf_size,
                     client->recv_buf, client->recv_buf_size);
-    isotp_init_link(&tp->func_link, cfg->target_addr_func, tp->func_send_buf, sizeof(tp->func_send_buf),
-                    tp->func_recv_buf, sizeof(tp->func_recv_buf));
+    isotp_init_link(&tp->func_link, cfg->target_addr_func, tp->func_send_buf,
+                    sizeof(tp->func_send_buf), tp->func_recv_buf, sizeof(tp->func_recv_buf));
     client->tp = (UDSTpHandle_t *)tp;
     client->tp->poll = tp_poll;
     client->tp->send = tp_send;
@@ -1524,9 +1524,8 @@ static void PollLowLevel(UDSClient_t *client) {
             .A_DataBufSize = client->recv_buf_size,
             .A_Data = client->recv_buf,
         };
-        ssize_t ret =
-            client->tp->recv(client->tp, &msg);
-        
+        ssize_t ret = client->tp->recv(client->tp, &msg);
+
         if (kTpAddrTypeFunctional == ta_type) {
             break;
         }
@@ -2071,9 +2070,10 @@ bool UDSClientPoll(UDSClient_t *client) {
     }
 }
 
-void UDSClientPoll2(UDSClient_t *client, int (*fn)(UDSClient_t *client, UDSEvent_t evt, void *ev_data, void *fn_data), void *fn_data) {
+void UDSClientPoll2(UDSClient_t *client,
+                    int (*fn)(UDSClient_t *client, UDSEvent_t evt, void *ev_data, void *fn_data),
+                    void *fn_data) {
     UDSClientPoll(client);
-    
 }
 
 UDSSeqState_t UDSClientAwaitIdle(UDSClient_t *client) {

@@ -10,11 +10,11 @@ uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
 
 int main() {
     UDSServer_t srv;
-    UDSTpHandle_t *tp = ENV_TpNew(); 
+    UDSTpHandle_t *tp = ENV_TpNew();
     UDSServerInit(&srv, &(UDSServerConfig_t){
-        .fn = fn,
-        .tp = tp,
-    });
+                            .fn = fn,
+                            .tp = tp,
+                        });
 
     const uint8_t REQ[] = {0x10, 0x02};
 
@@ -26,9 +26,8 @@ int main() {
         .A_Length = sizeof(REQ),
         .A_Data = REQ,
     };
-    
-    ENV_Send(&req);
 
+    ENV_Send(&req);
 
     UDSSDU_t resp;
     ENV_EXPECT_MSG_WITHIN_MILLIS(&resp, 50);
