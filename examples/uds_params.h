@@ -18,13 +18,13 @@
  *         -|--0x7E1->| Server 2
  *          |<-0x7E9--|
  *
- *  Client has one link that strictly sends functional requests to 0x7DF.
+ *  Client has one link that strictly sends functional requests to 0x7DD.
  *  Functional responses are received on the other links
  *
  */
 
 // 服务器响应地址
-#define SERVER_SEND_ID (0x7E8) /* server sends */
+#define SERVER_FUNC_ID (0x7E8) /* server sends */
 // 服务器物理接收地址 (1:1)
 #define SERVER_PHYS_RECV_ID (0x7E0) /* server listens for physically (1:1) addressed messages */
 // 服务器功能接收地址 (1:n)

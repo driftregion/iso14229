@@ -408,6 +408,10 @@ MIT
 - added `UDS_SRV_EVT_DoScheduledReset`
 - improve client error handling
 
+## 0.7.0
+- breaking API changes:
+    - rename `phys_send_id`, `phys_recv_id`, `func_send_id`, and `func_recv_id` to be consistent with the standard. Now mandatory for all UDSServerConfig_t and UDSClientConfig_t regardless of transport layer implementation
+
 ---
 
 # Design Docs

@@ -1151,7 +1151,15 @@ static void ProcessLink(UDSServer_t *self, const UDSTpAddr_t ta_type) {
     }
 
     if (self->send_size) {
-        int result = self->tp->send(self->tp, self->send_buf, self->send_size, ta_type);
+        UDSSDU_t msg = {
+            .A_Mtype = UDS_A_MTYPE_DIAG,
+            .A_SA = self->source_addr,
+            .A_TA = self->target_addr,
+            .A_TA_Type = UDS_A_TA_TYPE_PHYSICAL, // server responses are always physical
+            .A_Length = self->send_size,
+            .A_Data = self->send_buf,
+        };
+        int result = self->tp->send(self->tp, &msg);
         assert(result == self->send_size); // how should it be handled if send fails?
     }
 }
@@ -1170,6 +1178,9 @@ static void ProcessLink(UDSServer_t *self, const UDSTpAddr_t ta_type) {
 UDSErr_t UDSServerInit(UDSServer_t *self, const UDSServerConfig_t *cfg) {
     assert(self);
     assert(cfg);
+    assert(cfg->source_addr != cfg->target_addr);
+    assert(cfg->target_addr != cfg->source_addr_func);
+    assert(cfg->source_addr_func != cfg->source_addr);
     memset(self, 0, sizeof(UDSServer_t));
     self->recv_buf_size = sizeof(self->recv_buf);
     self->send_buf_size = sizeof(self->send_buf);
@@ -1178,6 +1189,9 @@ UDSErr_t UDSServerInit(UDSServer_t *self, const UDSServerConfig_t *cfg) {
     self->s3_ms = UDS_SERVER_DEFAULT_S3_MS;
     self->fn = cfg->fn;
     self->sessionType = kDefaultSession;
+    self->source_addr = cfg->source_addr;
+    self->target_addr = cfg->target_addr;
+    self->source_addr_func = cfg->source_addr_func;
 
     // Initialize p2_timer to an already past time, otherwise the server's
     // response to incoming messages will be delayed.
@@ -1193,11 +1207,11 @@ UDSErr_t UDSServerInit(UDSServer_t *self, const UDSServerConfig_t *cfg) {
     assert(cfg->tp->poll);
     self->tp = cfg->tp;
 #elif UDS_TP == UDS_TP_ISOTP_C
-    assert(cfg->phys_send_id != cfg->func_recv_id && cfg->func_recv_id != cfg->phys_recv_id);
+    assert(cfg->target_addr != cfg->source_addr_func && cfg->source_addr_func != cfg->source_addr);
     UDSTpIsoTpC_t *tp = &self->tp_impl;
-    isotp_init_link(&tp->phys_link, cfg->phys_send_id, self->send_buf, self->send_buf_size,
+    isotp_init_link(&tp->phys_link, cfg->target_addr, self->send_buf, self->send_buf_size,
                     self->recv_buf, self->recv_buf_size);
-    isotp_init_link(&tp->func_link, cfg->phys_send_id, tp->func_send_buf, sizeof(tp->func_send_buf),
+    isotp_init_link(&tp->func_link, cfg->target_addr, tp->func_send_buf, sizeof(tp->func_send_buf),
                     tp->func_recv_buf, sizeof(tp->func_recv_buf));
     self->tp = (UDSTpHandle_t *)tp;
     self->tp->poll = tp_poll;
@@ -1205,8 +1219,8 @@ UDSErr_t UDSServerInit(UDSServer_t *self, const UDSServerConfig_t *cfg) {
     self->tp->recv = tp_recv;
 #elif UDS_TP == UDS_TP_ISOTP_SOCKET
     self->tp = (UDSTpHandle_t *)&self->tp_impl;
-    if (LinuxSockTpOpen(self->tp, cfg->if_name, cfg->phys_recv_id, cfg->phys_send_id,
-                        cfg->func_recv_id, cfg->phys_send_id)) {
+    if (LinuxSockTpOpen(self->tp, cfg->if_name, cfg->source_addr, cfg->target_addr,
+                        cfg->source_addr_func, cfg->target_addr)) {
         return UDS_ERR;
     }
 #endif
@@ -1253,12 +1267,23 @@ void UDSServerPoll(UDSServer_t *self) {
 
     // new data may be processed only after p2 has elapsed
     int size = 0;
-    UDSTpAddr_t ta_type = kTpAddrTypePhysical;
     if (UDSTimeAfter(UDSMillis(), self->p2_timer)) {
-        size = self->tp->recv(self->tp, self->recv_buf, self->recv_buf_size, &ta_type);
+        UDSSDU_t msg = {
+            .A_DataBufSize = self->recv_buf_size,
+            .A_Data = self->recv_buf,
+        };
+        size = self->tp->recv(self->tp, &msg);
         if (size > 0) {
+            if (msg.A_TA == self->source_addr) {
+                msg.A_TA_Type = UDS_A_TA_TYPE_PHYSICAL;
+            } else if (msg.A_TA == self->source_addr_func) {
+                msg.A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL;
+            } else {
+                UDS_DBG_PRINT("received message from unknown source address %x\n", msg.A_TA);
+                return;
+            }
             self->recv_size = size;
-            ProcessLink(self, ta_type);
+            ProcessLink(self, msg.A_TA_Type);
             self->p2_timer = UDSMillis() + self->p2_ms;
         } else if (size == 0) {
             ;
@@ -1286,14 +1311,21 @@ static void clearRequestContext(UDSClient_t *client) {
 UDSErr_t UDSClientInit(UDSClient_t *client, const UDSClientConfig_t *cfg) {
     assert(client);
     assert(cfg);
+    assert(cfg->target_addr != cfg->source_addr);
+    assert(cfg->source_addr != cfg->target_addr_func);
+    assert(cfg->target_addr_func != cfg->target_addr);
     memset(client, 0, sizeof(*client));
 
     client->p2_ms = UDS_CLIENT_DEFAULT_P2_MS;
     client->p2_star_ms = UDS_CLIENT_DEFAULT_P2_STAR_MS;
     client->recv_buf_size = sizeof(client->recv_buf);
     client->send_buf_size = sizeof(client->send_buf);
+    client->source_addr = cfg->source_addr;
+    client->target_addr = cfg->target_addr;
+    client->target_addr_func = cfg->target_addr_func;
 
     if (client->p2_star_ms < client->p2_ms) {
+        fprintf(stderr, "p2_star_ms must be >= p2_ms\n");
         client->p2_star_ms = client->p2_ms;
     }
 
@@ -1304,11 +1336,11 @@ UDSErr_t UDSClientInit(UDSClient_t *client, const UDSClientConfig_t *cfg) {
     assert(cfg->tp->poll);
     client->tp = cfg->tp;
 #elif UDS_TP == UDS_TP_ISOTP_C
-    assert(cfg->phys_recv_id != cfg->func_send_id && cfg->func_send_id != cfg->phys_send_id);
+    assert(cfg->source_addr != cfg->target_addr_func && cfg->target_addr_func != cfg->target_addr);
     UDSTpIsoTpC_t *tp = (UDSTpIsoTpC_t *)&client->tp_impl;
-    isotp_init_link(&tp->phys_link, cfg->phys_send_id, client->send_buf, client->send_buf_size,
+    isotp_init_link(&tp->phys_link, cfg->target_addr, client->send_buf, client->send_buf_size,
                     client->recv_buf, client->recv_buf_size);
-    isotp_init_link(&tp->func_link, cfg->func_send_id, tp->func_send_buf, sizeof(tp->func_send_buf),
+    isotp_init_link(&tp->func_link, cfg->target_addr_func, tp->func_send_buf, sizeof(tp->func_send_buf),
                     tp->func_recv_buf, sizeof(tp->func_recv_buf));
     client->tp = (UDSTpHandle_t *)tp;
     client->tp->poll = tp_poll;
@@ -1316,8 +1348,8 @@ UDSErr_t UDSClientInit(UDSClient_t *client, const UDSClientConfig_t *cfg) {
     client->tp->recv = tp_recv;
 #elif UDS_TP == UDS_TP_ISOTP_SOCKET
     client->tp = (UDSTpHandle_t *)&client->tp_impl;
-    if (LinuxSockTpOpen(client->tp, cfg->if_name, cfg->phys_recv_id, cfg->phys_send_id,
-                        cfg->phys_recv_id, cfg->func_send_id)) {
+    if (LinuxSockTpOpen(client->tp, cfg->if_name, cfg->source_addr, cfg->target_addr,
+                        cfg->source_addr, cfg->target_addr_func)) {
         return UDS_ERR;
     }
     assert(client->tp);
@@ -1445,7 +1477,15 @@ static void PollLowLevel(UDSClient_t *client) {
         UDSTpAddr_t ta_type =
             client->_options_copy & UDS_FUNCTIONAL ? kTpAddrTypeFunctional : kTpAddrTypePhysical;
         ssize_t ret = 0;
-        ret = client->tp->send(client->tp, client->send_buf, client->send_size, ta_type);
+        UDSSDU_t msg = {
+            .A_Mtype = UDS_A_MTYPE_DIAG,
+            .A_SA = client->source_addr,
+            .A_TA = ta_type == kTpAddrTypePhysical ? client->target_addr : client->target_addr_func,
+            .A_TA_Type = ta_type,
+            .A_Length = client->send_size,
+            .A_Data = client->send_buf,
+        };
+        ret = client->tp->send(client->tp, &msg);
 
         if (ret < 0) {
             client->err = UDS_ERR_TPORT;
@@ -1480,9 +1520,13 @@ static void PollLowLevel(UDSClient_t *client) {
     }
     case kRequestStateAwaitResponse: {
         UDSTpAddr_t ta_type = kTpAddrTypePhysical;
+        UDSSDU_t msg = {
+            .A_DataBufSize = client->recv_buf_size,
+            .A_Data = client->recv_buf,
+        };
         ssize_t ret =
-            client->tp->recv(client->tp, client->recv_buf, client->recv_buf_size, &ta_type);
-
+            client->tp->recv(client->tp, &msg);
+        
         if (kTpAddrTypeFunctional == ta_type) {
             break;
         }
@@ -2025,6 +2069,11 @@ bool UDSClientPoll(UDSClient_t *client) {
         assert(0);
         return UDS_CLIENT_IDLE;
     }
+}
+
+void UDSClientPoll2(UDSClient_t *client, int (*fn)(UDSClient_t *client, UDSEvent_t evt, void *ev_data, void *fn_data), void *fn_data) {
+    UDSClientPoll(client);
+    
 }
 
 UDSSeqState_t UDSClientAwaitIdle(UDSClient_t *client) {

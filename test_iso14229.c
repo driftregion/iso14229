@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <errno.h>
 #include "iso14229.h"
+#include "tp_mock.h"
 
 #define _ASSERT_INT_COND(a, b, cond)                                                               \
     {                                                                                              \
@@ -59,38 +60,76 @@
 #define ANSI_BRIGHT_GREEN "\033[92m"
 #define ANSI_BRIGHT_MAGENTA "\033[95m"
 
-#define _TEST_SETUP_SILENT()                                                                       \
-    memset(&ctx, 0, sizeof(ctx));                                                                  \
-    ctx.func_name = __PRETTY_FUNCTION__;                                                           \
-    ctx.server_tp = (struct MockTransport){.hdl = {.recv = mock_transport_recv,                    \
+#define CLIENT_TARGET_ADDR (0x7E0U)
+#define CLIENT_TARGET_ADDR_FUNC (0x7DFU)
+#define CLIENT_SOURCE_ADDR (0x7E8U)
+
+#define SERVER_TARGET_ADDR (0x7E8U)
+#define SERVER_SOURCE_ADDR (0x7E0U)
+#define SERVER_SOURCE_ADDR_FUNC (0x7DFU)
+
+/*
+    ctx.server_tp = (struct mocktransport){.hdl = {.recv = mock_transport_recv,                    \
                                                    .send = mock_transport_send,                    \
                                                    .poll = mock_transport_poll},                   \
                                            .tag = "server"};                                       \
-    ctx.client_tp = (struct MockTransport){.hdl = {.recv = mock_transport_recv,                    \
+    ctx.client_tp = (struct mocktransport){.hdl = {.recv = mock_transport_recv,                    \
                                                    .send = mock_transport_send,                    \
                                                    .poll = mock_transport_poll},                   \
                                            .tag = "client"};                                       \
     UDSClientInit(&ctx.client, &(UDSClientConfig_t){.tp = &ctx.client_tp.hdl});                    \
     UDSServerInit(&ctx.server, &(UDSServerConfig_t){.tp = &ctx.server_tp.hdl});
+    */
 
-#define TEST_SETUP()                                                                               \
-    _TEST_SETUP_SILENT();                                                                          \
+#define SERVER_ONLY 0
+#define CLIENT_ONLY 1
+
+#define _TEST_SETUP_SILENT(test_type, param_str)                                                                       \
+    memset(&ctx, 0, sizeof(ctx));                                                                  \
+    ctx.func_name = __PRETTY_FUNCTION__;                                                           \
+    if (SERVER_ONLY == test_type) { \
+        UDSServerInit(&ctx.server, &(UDSServerConfig_t){ \
+            .tp = TPMockCreate("server"), \
+            .source_addr = SERVER_SOURCE_ADDR, \
+            .target_addr = SERVER_TARGET_ADDR, \
+            .source_addr_func = SERVER_SOURCE_ADDR_FUNC, \
+            }); \
+        ctx.mock_tp = TPMockCreate("mock_client");   \
+    } \
+    if (CLIENT_ONLY == test_type) { \
+        UDSClientInit(&ctx.client, &(UDSClientConfig_t){ \
+            .tp = TPMockCreate("client"), \
+            .target_addr = CLIENT_TARGET_ADDR, \
+            .source_addr = CLIENT_SOURCE_ADDR, \
+            .target_addr_func = CLIENT_TARGET_ADDR_FUNC, \
+            });                    \
+        ctx.mock_tp = TPMockCreate("mock_server");   \
+    } \
+    char logfilename[256] = {0};                                                                   \
+    snprintf(logfilename, sizeof(logfilename), "%s%s.log", ctx.func_name, param_str);                            \
+    TPMockLogToFile(logfilename);
+
+#define TEST_SETUP(test_type)                                                                               \
+    _TEST_SETUP_SILENT(test_type, "");                                                                          \
     printf("%s\n", ctx.func_name);
 
-struct hmm {
-    const char *tag;
-};
-
-#define TEST_SETUP_PARAMETRIZED(params_list)                                                       \
+#define TEST_SETUP_PARAMETRIZED(test_type, params_list)                                                       \
     for (size_t i = 0; i < sizeof(params_list) / sizeof(params_list[0]); i++) {                    \
-        _TEST_SETUP_SILENT();                                                                      \
-        printf("%s [p:%ld] %s\n", ctx.func_name, i, ((struct hmm *)(&(params_list[i])))->tag);
+        char _param_str[128];    \
+        snprintf(_param_str, sizeof(_param_str), "%s_p_%ld_%s", ctx.func_name, i, (*(char **)(&(params_list[i])))); \
+        _TEST_SETUP_SILENT(test_type, _param_str);                                                                      \
+        printf("%s\n", _param_str);
 
 #define TEST_TEARDOWN_PARAMETRIZED()                                                               \
+    TPMockReset(); \
     printf(ANSI_BOLD "OK [p:%ld]\n" ANSI_RESET, i);                                                \
     }
 
-#define TEST_TEARDOWN() printf(ANSI_BOLD "OK\n" ANSI_RESET);
+#define TEST_TEARDOWN()  \
+{ \
+    TPMockReset(); \
+    printf(ANSI_BOLD "OK\n" ANSI_RESET); \
+}
 
 // TODO: parameterize and fuzz this
 #define DEFAULT_ISOTP_BUFSIZE (2048U)
@@ -114,58 +153,53 @@ static void printhex(const uint8_t *addr, int len) {
     printf("\n");
 }
 
-#define SERVER_ONLY (0U)
-#define CLIENT_ONLY (1U)
-#define SERVER_CLIENT (2U)
+// static ssize_t mock_transport_recv(UDSTpHandle_t *hdl, UDSSDU_t *msg) {
+//     assert(hdl);
+//     struct MockTransport *tp = (struct MockTransport *)hdl;
+//     size_t size = tp->recv_size;
 
-static ssize_t mock_transport_recv(UDSTpHandle_t *hdl, void *buf, size_t bufsize,
-                                   UDSTpAddr_t *ta_type) {
-    assert(hdl);
-    struct MockTransport *tp = (struct MockTransport *)hdl;
-    size_t size = tp->recv_size;
+//     if (msg->A_DataBufSize < size) {
+//         return -ENOBUFS;
+//     }
 
-    if (bufsize < size) {
-        return -ENOBUFS;
-    }
+//     if (size) {
+//         memmove((void *)msg->A_Data, tp->recv_buf, size);
+//         tp->recv_size = 0;
+//         memset(tp->recv_buf, 0, sizeof(tp->recv_buf));
+//         printf(ANSI_BRIGHT_MAGENTA "<-%s_tp_recv-%04d- [%02ld] ", tp->tag, UDSMillis(), size);
+//         printhex(msg->A_Data, size);
+//         printf(ANSI_RESET);
+//     }
+//     return size;
+// }
 
-    if (size) {
-        memmove(buf, tp->recv_buf, size);
-        tp->recv_size = 0;
-        memset(tp->recv_buf, 0, sizeof(tp->recv_buf));
-        printf(ANSI_BRIGHT_MAGENTA "<-%s_tp_recv-%04d- [%02ld] ", tp->tag, UDSMillis(), size);
-        printhex(buf, size);
-        printf(ANSI_RESET);
-    }
-    return size;
-}
+// static ssize_t mock_transport_send(UDSTpHandle_t *hdl, UDSSDU_t *msg) {
+//     assert(hdl);
+//     struct MockTransport *tp = (struct MockTransport *)hdl;
+//     printf(ANSI_BRIGHT_GREEN "--%s_tp_send-%04d->[%02d] ", tp->tag, UDSMillis(), msg->A_Length);
+//     printhex(msg->A_Data, msg->A_Length);
+//     printf(ANSI_RESET);
+//     assert(msg->A_Length); // why send zero?
+//     memmove(tp->send_buf, msg->A_Data, msg->A_Length);
+//     tp->send_size = msg->A_Length;
+//     return msg->A_Length;
+// }
 
-static ssize_t mock_transport_send(UDSTpHandle_t *hdl, const void *buf, size_t count,
-                                   UDSTpAddr_t ta_type) {
-    assert(hdl);
-    struct MockTransport *tp = (struct MockTransport *)hdl;
-    printf(ANSI_BRIGHT_GREEN "--%s_tp_send-%04d->[%02ld] ", tp->tag, UDSMillis(), count);
-    printhex(buf, count);
-    printf(ANSI_RESET);
-    assert(count); // why send zero?
-    memmove(tp->send_buf, buf, count);
-    tp->send_size = count;
-    return count;
-}
-
-static UDSTpStatus_t mock_transport_poll(UDSTpHandle_t *hdl) {
-    assert(hdl);
-    struct MockTransport *tp = (struct MockTransport *)hdl;
-    return tp->status;
-}
+// static UDSTpStatus_t mock_transport_poll(UDSTpHandle_t *hdl) {
+//     assert(hdl);
+//     struct MockTransport *tp = (struct MockTransport *)hdl;
+//     return tp->status;
+// }
 
 typedef struct {
     UDSServer_t server;
-    struct MockTransport server_tp;
     UDSClient_t client;
+    UDSTpHandle_t *mock_tp;
+    uint8_t mock_recv_buf[DEFAULT_ISOTP_BUFSIZE];
     struct MockTransport client_tp;
     uint32_t time_ms;
     uint32_t deadline;
-    uint32_t call_count;
+    int call_count;
     const char *func_name;
 } Ctx_t;
 
@@ -174,60 +208,114 @@ Ctx_t ctx;
 uint32_t UDSMillis() { return ctx.time_ms; }
 
 static void poll_ctx(Ctx_t *ctx) {
-    UDSServerPoll(&ctx->server);
-    UDSClientPoll(&ctx->client);
+    if (ctx->server.tp) {
+        UDSServerPoll(&ctx->server);
+    }
+    if (ctx->client.tp) {
+        UDSClientPoll(&ctx->client);
+    }
     ctx->time_ms++;
 }
 
-#define SEND_TO_SERVER(d1, reqType)                                                                \
+/*
     memmove(&ctx.server_tp.recv_buf, d1, sizeof(d1));                                              \
     ctx.server_tp.recv_ta_type = reqType;                                                          \
     ctx.server_tp.recv_size = sizeof(d1);                                                          \
     poll_ctx(&ctx);
+*/
+
+#define SEND_TO_SERVER(d1, reqType)                                                                \
+    { \
+        UDSSDU_t msg = { \
+            .A_Mtype = UDS_A_MTYPE_DIAG,  \
+            .A_Data = d1, \
+            .A_Length = sizeof(d1), \
+            .A_SA = CLIENT_SOURCE_ADDR, \
+            .A_TA = reqType == kTpAddrTypePhysical ? SERVER_SOURCE_ADDR: SERVER_SOURCE_ADDR_FUNC, \
+            .A_TA_Type = (int)reqType, \
+        };                                                                        \
+        ctx.mock_tp->send(ctx.mock_tp, &msg); \
+    } \
 
 #define ASSERT_CLIENT_SENT(d1, reqType)                                                            \
-    ASSERT_INT_EQUAL(ctx.client_tp.send_size, sizeof(d1));                                         \
-    ASSERT_MEMORY_EQUAL(ctx.client_tp.send_buf, d1, sizeof(d1));                                   \
-    ASSERT_INT_EQUAL(ctx.client_tp.send_ta_type, reqType);
+    { \
+        UDSSDU_t msg = { \
+            .A_DataBufSize = DEFAULT_ISOTP_BUFSIZE, \
+            .A_Data = ctx.mock_recv_buf, \
+        }; \
+        int recv_len = ctx.mock_tp->recv(ctx.mock_tp,  &msg); \
+        ASSERT_INT_EQUAL(recv_len, sizeof(d1));                                         \
+        ASSERT_MEMORY_EQUAL(ctx.mock_recv_buf, d1, sizeof(d1));                                   \
+        if (reqType == kTpAddrTypePhysical) { \
+            ASSERT_INT_EQUAL(msg.A_TA, SERVER_SOURCE_ADDR); \
+        } else if (reqType == kTpAddrTypeFunctional) { \
+            ASSERT_INT_EQUAL(msg.A_TA, SERVER_SOURCE_ADDR_FUNC); \
+        } else { \
+            assert(0); \
+        } \
+    }
 
 // send data to the client
 static void send_to_client(const uint8_t *d1, size_t len, UDSTpAddr_t reqType) {
     assert(len <= sizeof(ctx.client_tp.recv_buf));
-    memmove(&ctx.client_tp.recv_buf, d1, len);
-    ctx.client_tp.recv_ta_type = reqType;
-    ctx.client_tp.recv_size = len;
+    ctx.mock_tp->send(ctx.mock_tp, &(UDSSDU_t){
+        .A_Mtype = UDS_A_MTYPE_DIAG,
+        .A_Data = d1,
+        .A_Length = len,
+        .A_SA = SERVER_SOURCE_ADDR,
+        .A_TA = SERVER_TARGET_ADDR,
+        .A_TA_Type = (int)reqType,
+    });
+    // memmove(&ctx.client_tp.recv_buf, d1, len);
+    // ctx.client_tp.recv_ta_type = reqType;
+    // ctx.client_tp.recv_size = len;
     poll_ctx(&ctx);
 }
 
 #define SEND_TO_CLIENT(d1, reqType) send_to_client(d1, sizeof(d1), reqType);
-
-// expect a server response within a timeout
-#define EXPECT_RESPONSE_WITHIN_MILLIS(d1, reqType, timeout_ms)                                     \
-    {                                                                                              \
-        uint32_t deadline = ctx.time_ms + timeout_ms;                                              \
+/*
         while (0 == ctx.server_tp.send_size) {                                                     \
             poll_ctx(&ctx);                                                                        \
             ASSERT_INT_LE(ctx.time_ms, deadline);                                                  \
         }                                                                                          \
-        ASSERT_INT_EQUAL(ctx.server_tp.send_size, sizeof(d1));                                     \
-        ASSERT_MEMORY_EQUAL(ctx.server_tp.send_buf, d1, sizeof(d1));                               \
-        ASSERT_INT_EQUAL(ctx.server_tp.send_ta_type, reqType);                                     \
-        memset(ctx.server_tp.send_buf, 0, sizeof(ctx.server_tp.send_buf));                         \
-        ctx.server_tp.send_size = 0;                                                               \
+        */
+
+// expect a server response within a timeout
+#define EXPECT_RESPONSE_WITHIN_MILLIS(d1, reqType, timeout_ms)                                     \
+    {                                                                                              \
+        uint32_t deadline = ctx.time_ms + timeout_ms + 1;                                              \
+        UDSSDU_t msg = { \
+            .A_DataBufSize = DEFAULT_ISOTP_BUFSIZE, \
+            .A_Data = ctx.mock_recv_buf, \
+        }; \
+        while (0 == ctx.mock_tp->recv(ctx.mock_tp, &msg)) {                                                     \
+            poll_ctx(&ctx);                                                                        \
+            printf("%d, %d, %d\n", UDSMillis(), ctx.time_ms, deadline); \
+            ASSERT_INT_LE(ctx.time_ms, deadline);                                                  \
+        }                                                                                          \
+        printhex(msg.A_Data, msg.A_Length);                                                        \
+        ASSERT_INT_EQUAL(msg.A_Length, sizeof(d1));                                     \
+        ASSERT_MEMORY_EQUAL(msg.A_Data, d1, sizeof(d1));                               \
+        ASSERT_INT_EQUAL((int)msg.A_TA_Type, reqType);                                     \
     }
 
 // expect no server response within a timeout
 #define EXPECT_NO_RESPONSE_FOR_MILLIS(timeout_ms)                                                  \
     {                                                                                              \
         uint32_t deadline = ctx.time_ms + timeout_ms;                                              \
-        while (deadline < ctx.time_ms) {                                                           \
+        while (ctx.time_ms <= deadline) {                                                           \
             poll_ctx(&ctx);                                                                        \
+            UDSSDU_t msg = { \
+                .A_DataBufSize = DEFAULT_ISOTP_BUFSIZE, \
+                .A_Data = ctx.mock_recv_buf, \
+            }; \
+            int resp_len = ctx.mock_tp->recv(ctx.mock_tp, &msg); \
+            ASSERT_INT_EQUAL(resp_len, 0);                                              \
         }                                                                                          \
-        ASSERT_INT_EQUAL(ctx.server_tp.send_size, 0);                                              \
     }
 
 void testServer0x10DiagSessCtrlIsDisabledByDefault() {
-    TEST_SETUP();
+    TEST_SETUP(SERVER_ONLY);
     const uint8_t REQ[] = {0x10, 0x02};
     SEND_TO_SERVER(REQ, kTpAddrTypePhysical);
     const uint8_t RESP[] = {0x7f, 0x10, 0x11};
@@ -236,7 +324,7 @@ void testServer0x10DiagSessCtrlIsDisabledByDefault() {
 }
 
 void testServer0x10DiagSessCtrlFunctionalRequest() {
-    TEST_SETUP();
+    TEST_SETUP(SERVER_ONLY);
     // sending a diagnostic session control request functional broadcast
     const uint8_t REQ[] = {0x10, 0x03};
     SEND_TO_SERVER(REQ, kTpAddrTypeFunctional);
@@ -264,7 +352,7 @@ uint8_t fn1(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
 // reset request: It is recommended that during this time the ECU does not accept any request
 // messages and send any response messages.
 void testServer0x11DoesNotSendOrReceiveMessagesAfterECUReset() {
-    TEST_SETUP();
+    TEST_SETUP(SERVER_ONLY);
     ctx.server.fn = fn1;
 
     const uint8_t REQ[] = {0x11, 0x01};
@@ -305,7 +393,7 @@ uint8_t fn2(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
 }
 
 void testServer0x22RDBI1() {
-    TEST_SETUP();
+    TEST_SETUP(SERVER_ONLY);
     ctx.server.fn = fn2;
     {
         uint8_t REQ[] = {0x22, 0xF1, 0x90};
@@ -334,7 +422,7 @@ uint8_t fn10(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
 }
 
 void testServer0x23ReadMemoryByAddress() {
-    TEST_SETUP();
+    TEST_SETUP(SERVER_ONLY);
     ctx.server.fn = fn10;
     uint8_t REQ[] = {0x23, 0x18, 0x00, 0x00, 0x55, 0x55, 0x55, 0x55, 0xf0, 0xc8, 0x04};
     SEND_TO_SERVER(REQ, kTpAddrTypePhysical);
@@ -368,7 +456,7 @@ uint8_t fn4(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
 // UDS-1 2013 9.4.5.2
 // UDS-1 2013 9.4.5.3
 void testServer0x27SecurityAccess() {
-    TEST_SETUP();
+    TEST_SETUP(SERVER_ONLY);
     ctx.server.fn = fn4;
 
     // the server security level after initialization should be 0
@@ -406,7 +494,7 @@ static uint8_t ReturnPositiveResponse(UDSServer_t *srv, UDSServerEvent_t ev, con
 // ISO-14229-1 2013 Table A.1 Byte Value 0x78: requestCorrectlyReceived-ResponsePending
 // "This NRC is in general supported by each diagnostic service".
 void testServer0x31RCRRP() {
-    TEST_SETUP();
+    TEST_SETUP(SERVER_ONLY);
     // When a server handler func initially returns RRCRP
     ctx.server.fn = ReturnRCRRP;
 
@@ -435,7 +523,7 @@ void testServer0x31RCRRP() {
 }
 
 void testServer0x34NotEnabled() {
-    TEST_SETUP();
+    TEST_SETUP(SERVER_ONLY);
     // when no handler function is installed, sending this request to the server
     const uint8_t IN[] = {0x34, 0x11, 0x33, 0x60, 0x20, 0x00, 0x00, 0xFF, 0xFF};
     SEND_TO_SERVER(IN, kTpAddrTypePhysical);
@@ -458,7 +546,7 @@ uint8_t fn7(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
 }
 
 void testServer0x34() {
-    TEST_SETUP();
+    TEST_SETUP(SERVER_ONLY);
     // when a handler is installed that implements UDS-1:2013 Table 415
     ctx.server.fn = fn7;
 
@@ -474,7 +562,7 @@ void testServer0x34() {
 
 /* UDS-1 2013 Table 72 */
 void testServer0x3ESuppressPositiveResponse() {
-    TEST_SETUP();
+    TEST_SETUP(SERVER_ONLY);
     ctx.server.fn = ReturnPositiveResponse;
     // when the suppressPositiveResponse bit is set
     const uint8_t REQ[] = {0x3E, 0x80};
@@ -485,7 +573,7 @@ void testServer0x3ESuppressPositiveResponse() {
 }
 
 void testServer0x83DiagnosticSessionControl() {
-    TEST_SETUP();
+    TEST_SETUP(SERVER_ONLY);
     ctx.server.fn = ReturnPositiveResponse;
     // the server sessionType after initialization should be kDefaultSession.
     ASSERT_INT_EQUAL(ctx.server.sessionType, kDefaultSession);
@@ -516,7 +604,7 @@ void testServerSessionTimeout() {
         {.tag = "timeout", .fn = fn9, .sessType = kProgrammingSession, .expectedCallCount = 1},
         {.tag = "no handler", .fn = NULL, .sessType = kProgrammingSession, .expectedCallCount = 0},
     };
-    TEST_SETUP_PARAMETRIZED(p);
+    TEST_SETUP_PARAMETRIZED(SERVER_ONLY, p);
     ctx.server.fn = p[i].fn;
     ctx.server.sessionType = p[i].sessType;
     while (ctx.time_ms < 5000)
@@ -537,7 +625,7 @@ void testServerSessionTimeout() {
     }
 
 void testClientP2TimeoutExceeded() {
-    TEST_SETUP();
+    TEST_SETUP(CLIENT_ONLY);
     // when sending a request that receives no response
     UDSSendECUReset(&ctx.client, kHardReset);
 
@@ -552,7 +640,7 @@ void testClientP2TimeoutExceeded() {
 }
 
 void testClientP2TimeoutNotExceeded() {
-    TEST_SETUP();
+    TEST_SETUP(CLIENT_ONLY);
     // a client that sends an request
     UDSSendECUReset(&ctx.client, kHardReset);
 
@@ -569,7 +657,7 @@ void testClientP2TimeoutNotExceeded() {
 }
 
 void testClientSuppressPositiveResponse() {
-    TEST_SETUP();
+    TEST_SETUP(CLIENT_ONLY);
     // Setting the suppressPositiveResponse flag before sending a request
     ctx.client.options |= UDS_SUPPRESS_POS_RESP;
     UDSSendECUReset(&ctx.client, kHardReset);
@@ -584,7 +672,7 @@ void testClientSuppressPositiveResponse() {
 }
 
 void testClientBusy() {
-    TEST_SETUP();
+    TEST_SETUP(CLIENT_ONLY);
     // Sending a request should not return an error
     ASSERT_INT_EQUAL(UDS_OK, UDSSendECUReset(&ctx.client, kHardReset));
 
@@ -594,7 +682,7 @@ void testClientBusy() {
 }
 
 void testClient0x11ECUReset() {
-    TEST_SETUP();
+    TEST_SETUP(CLIENT_ONLY);
     const uint8_t GOOD[] = {0x51, 0x01};
     const uint8_t BAD_SID[] = {0x50, 0x01};
     const uint8_t TOO_SHORT[] = {0x51};
@@ -620,7 +708,7 @@ void testClient0x11ECUReset() {
         CASE(NEG, UDS_NEG_RESP_IS_ERR, UDS_ERR_NEG_RESP),
     };
 #undef CASE
-    TEST_SETUP_PARAMETRIZED(p);
+    TEST_SETUP_PARAMETRIZED(CLIENT_ONLY, p);
     // sending a request with these options
     ctx.client.options = p[i].options;
     UDSSendECUReset(&ctx.client, kHardReset);
@@ -635,7 +723,7 @@ void testClient0x11ECUReset() {
 }
 
 void testClient0x22RDBITxBufferTooSmall() {
-    TEST_SETUP();
+    TEST_SETUP(CLIENT_ONLY);
 
     // attempting to send a request payload of 6 bytes
     uint16_t didList[] = {0x0001, 0x0002, 0x0003};
@@ -653,7 +741,7 @@ void testClient0x22RDBITxBufferTooSmall() {
 }
 
 void testClient0x22RDBIUnpackResponse() {
-    TEST_SETUP();
+    TEST_SETUP(CLIENT_ONLY);
     uint8_t RESPONSE[] = {0x72, 0x12, 0x34, 0x00, 0x00, 0xAA, 0x00, 0x56, 0x78, 0xAA, 0xBB};
     UDSClient_t client;
     memmove(client.recv_buf, RESPONSE, sizeof(RESPONSE));
@@ -680,7 +768,7 @@ void testClient0x22RDBIUnpackResponse() {
 }
 
 void testClient0x31RCRRP() {
-    TEST_SETUP();
+    TEST_SETUP(CLIENT_ONLY);
 
     { // Case 1: RCRRP Timeout
         // When a request is sent
@@ -730,7 +818,7 @@ void testClient0x31RCRRP() {
 }
 
 void testClient0x34RequestDownload() {
-    TEST_SETUP();
+    TEST_SETUP(CLIENT_ONLY);
     // When RequestDownload is called with these arguments
     ASSERT_INT_EQUAL(UDS_OK, UDSSendRequestDownload(&ctx.client, 0x11, 0x33, 0x602000, 0x00FFFF));
 
@@ -741,7 +829,7 @@ void testClient0x34RequestDownload() {
 }
 
 void testClient0x34UDSUnpackRequestDownloadResponse() {
-    TEST_SETUP();
+    TEST_SETUP(CLIENT_ONLY);
     struct RequestDownloadResponse resp;
 
     // When the following raw bytes are received

@@ -115,9 +115,9 @@ int main(int ac, char **av) {
 #if UDS_TP == UDS_TP_ISOTP_SOCKET
         .if_name = "vcan0",
 #endif
-        .phys_recv_id = 0x7E8,
-        .phys_send_id = 0x7E0,
-        .func_send_id = 0x7DF,
+        .source_addr = 0x7E8,
+        .target_addr = 0x7E0,
+        .target_addr_func = 0x7DF,
     };
 
     if (UDSClientInit(&client, &cfg)) {
@@ -132,7 +132,7 @@ int main(int ac, char **av) {
     do {
         running = UDSClientPoll(&client);
 #if UDS_TP == UDS_TP_ISOTP_C
-        SocketCANRecv((UDSTpIsoTpC_t *)client.tp, cfg.phys_recv_id);
+        SocketCANRecv((UDSTpIsoTpC_t *)client.tp, cfg.source_addr);
 #endif
         SleepMillis(1);
     } while (running);

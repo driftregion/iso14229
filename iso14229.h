@@ -18,9 +18,9 @@ extern "C" {
 #define UDS_ARCH_UNIX 1
 #define UDS_ARCH_WINDOWS 2
 
-#define UDS_TP_CUSTOM 0
-#define UDS_TP_ISOTP_C 1
-#define UDS_TP_ISOTP_SOCKET 2
+#define UDS_TP_CUSTOM 0         // bring your own transport layer
+#define UDS_TP_ISOTP_C 1        // use isotp-c
+#define UDS_TP_ISOTP_SOCKET 2   // use linux ISO-TP socket
 
 #if !defined(UDS_ARCH)
 #if defined(__unix__) || defined(__APPLE__)
@@ -240,8 +240,34 @@ enum UDSTpStatusFlags {
 
 typedef uint32_t UDSTpStatus_t;
 
+typedef enum {
+    UDS_A_MTYPE_DIAG = 0,
+    UDS_A_MTYPE_REMOTE_DIAG,
+    UDS_A_MTYPE_SECURE_DIAG,
+    UDS_A_MTYPE_SECURE_REMOTE_DIAG,
+} UDS_A_Mtype_t;
+
+typedef enum {
+    UDS_A_TA_TYPE_PHYSICAL = 0, // unicast (1:1)
+    UDS_A_TA_TYPE_FUNCTIONAL,   // multicast
+} UDS_A_TA_Type_t;
+
 /**
- * @brief 传输层把柄
+ * @brief Service data unit (SDU) for the transport layer
+ */
+typedef struct {
+    UDS_A_Mtype_t A_Mtype;
+    uint16_t A_SA; // application source address
+    uint16_t A_TA; // application target address
+    UDS_A_TA_Type_t A_TA_Type;
+    uint16_t A_AE; // application layer remote address
+    uint32_t A_Length; // data length
+    uint32_t A_DataBufSize;
+    const uint8_t *A_Data;
+} UDSSDU_t;
+
+/**
+ * @brief Transport Handle is the interface between the UDS application layer and the transport layer.
  */
 typedef struct UDSTpHandle {
     /**
@@ -256,7 +282,7 @@ typedef struct UDSTpHandle {
      * == 0 没有数据
      * > 0 接收了、返回值是大小
      */
-    ssize_t (*recv)(struct UDSTpHandle *hdl, void *buf, size_t count, UDSTpAddr_t *ta_type);
+    ssize_t (*recv)(struct UDSTpHandle *hdl, UDSSDU_t *msg);
     /**
      * @brief 发送
      * @param hdl: pointer to transport handle
@@ -267,7 +293,7 @@ typedef struct UDSTpHandle {
      * < 0 故障
      * >= 0 发送成功了
      */
-    ssize_t (*send)(struct UDSTpHandle *hdl, const void *buf, size_t count, UDSTpAddr_t ta_type);
+    ssize_t (*send)(struct UDSTpHandle *hdl, UDSSDU_t *msg);
     /**
      * @brief 轮询
      */
@@ -289,6 +315,7 @@ typedef struct {
     int func_fd;
 } UDSTpLinuxIsoTp_t;
 #endif
+
 
 // ========================================================================
 //                          Utility Functions
@@ -330,17 +357,14 @@ enum UDSClientRequestState {
 typedef uint8_t UDSClientRequestState_t;
 
 typedef struct {
+    uint32_t source_addr;
+    uint32_t target_addr;
+    uint32_t target_addr_func;
 #if UDS_TP == UDS_TP_CUSTOM
     UDSTpHandle_t *tp;
 #elif UDS_TP == UDS_TP_ISOTP_C
-    uint32_t phys_recv_id;
-    uint32_t phys_send_id;
-    uint32_t func_send_id;
 #elif UDS_TP == UDS_TP_ISOTP_SOCKET
     const char *if_name;
-    uint32_t phys_recv_id;
-    uint32_t phys_send_id;
-    uint32_t func_send_id;
 #else
 #error "transport undefined"
 #endif
@@ -370,6 +394,9 @@ typedef struct UDSClient {
     uint16_t send_buf_size;
     uint16_t recv_size;
     uint16_t send_size;
+    uint32_t source_addr;
+    uint32_t target_addr;
+    uint32_t target_addr_func;
     UDSErr_t err;
     UDSClientRequestState_t state;
 
@@ -377,6 +404,7 @@ typedef struct UDSClient {
     uint8_t defaultOptions; // enum udsclientoptions
     // a copy of the options at the time a request is made
     uint8_t _options_copy; // enum udsclientoptions
+    int (*fn)(struct UDSClient *, int, void *, void *);
 
     const UDSClientCallback *cbList; // null-terminated list of callback functions
     size_t cbIdx;                    // index of currently active callback function
@@ -421,6 +449,7 @@ void UDSClientDeInit(UDSClient_t *client);
  * @return UDS_CLIENT_IDLE if idle, otherwise UDS_CLIENT_RUNNING
  */
 bool UDSClientPoll(UDSClient_t *client);
+void UDSClientPoll2(UDSClient_t *client, int (*fn)(UDSClient_t *client, int evt, void *ev_data, void *fn_data), void *fn_data);
 
 UDSErr_t UDSSendECUReset(UDSClient_t *client, UDSECUReset_t type);
 UDSErr_t UDSSendDiagSessCtrl(UDSClient_t *client, enum UDSDiagnosticSessionType mode);
@@ -524,9 +553,12 @@ enum UDSServerEvent {
     UDS_SRV_EVT_RequestTransferExit,  // UDSRequestTransferExitArgs_t *
     UDS_SRV_EVT_SessionTimeout,       // NULL
     UDS_SRV_EVT_DoScheduledReset,     // enum UDSEcuResetType *
+    UDS_EVT_IDLE,
+    UDS_EVT_RESP_RECV,
 };
 
 typedef int UDSServerEvent_t;
+typedef UDSServerEvent_t UDSEvent_t;
 
 typedef struct UDSServer {
     UDSTpHandle_t *tp;
@@ -537,6 +569,9 @@ typedef struct UDSServer {
     uint16_t send_size;
     uint16_t recv_buf_size;
     uint16_t send_buf_size;
+    uint32_t target_addr;
+    uint32_t source_addr;
+    uint32_t source_addr_func;
 
     /**
      * @brief \~chinese 服务器时间参数（毫秒） \~ Server time constants (milliseconds) \~
@@ -595,18 +630,15 @@ typedef struct UDSServer {
 } UDSServer_t;
 
 typedef struct {
+    uint32_t target_addr;
+    uint32_t source_addr;
+    uint32_t source_addr_func;
     uint8_t (*fn)(UDSServer_t *srv, UDSServerEvent_t event, const void *arg);
 #if UDS_TP == UDS_TP_CUSTOM
     UDSTpHandle_t *tp;
 #elif UDS_TP == UDS_TP_ISOTP_C
-    uint32_t phys_send_id;
-    uint32_t phys_recv_id;
-    uint32_t func_recv_id;
 #elif UDS_TP == UDS_TP_ISOTP_SOCKET
     const char *if_name;
-    uint32_t phys_send_id;
-    uint32_t phys_recv_id;
-    uint32_t func_recv_id;
 #else
 #error "transport undefined"
 #endif

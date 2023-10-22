@@ -60,7 +60,7 @@ static void printhex(const uint8_t *addr, int len) {
     printf("\n");
 }
 
-void SocketCANRecv(UDSTpIsoTpC_t *tp, int phys_recv_id, int func_recv_id) {
+void SocketCANRecv(UDSTpIsoTpC_t *tp, int source_addr, int source_addr_func) {
     assert(tp);
     SetupOnce();
     struct can_frame frame = {0};
@@ -76,11 +76,11 @@ void SocketCANRecv(UDSTpIsoTpC_t *tp, int phys_recv_id, int func_recv_id) {
         } else if (nbytes == 0) {
             break;
         } else {
-            if (frame.can_id == phys_recv_id) {
+            if (frame.can_id == source_addr) {
                 UDS_DBG_PRINT("phys recvd can\n");
                 UDS_DBG_PRINTHEX(frame.data, frame.can_dlc);
                 isotp_on_can_message(&tp->phys_link, frame.data, frame.can_dlc);
-            } else if (frame.can_id == func_recv_id) {
+            } else if (frame.can_id == source_addr_func) {
                 UDS_DBG_PRINT("func recvd can\n");
                 UDS_DBG_PRINTHEX(frame.data, frame.can_dlc);
                 isotp_on_can_message(&tp->func_link, frame.data, frame.can_dlc);

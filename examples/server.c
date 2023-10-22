@@ -21,8 +21,8 @@ static const UDSServerConfig_t cfg = {
 #if UDS_TP == UDS_TP_ISOTP_SOCKET
     .if_name = "vcan0",
 #endif
-    .phys_send_id = SERVER_SEND_ID,
-    .phys_recv_id = SERVER_PHYS_RECV_ID,
+    .target_addr = SERVER_FUNC_ID,
+    .source_addr = SERVER_source_addr,
     .func_recv_id = SERVER_FUNC_RECV_ID,
 };
 static bool serverWantsExit = false;
@@ -166,7 +166,7 @@ int main(int ac, char **av) {
     while (!serverWantsExit) {
         UDSServerPoll(&srv);
 #if UDS_TP == UDS_TP_ISOTP_C
-        SocketCANRecv((UDSTpIsoTpC_t *)srv.tp, cfg.phys_recv_id);
+        SocketCANRecv((UDSTpIsoTpC_t *)srv.tp, cfg.source_addr);
 #endif
         SleepMillis(1);
     }
