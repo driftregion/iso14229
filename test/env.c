@@ -4,8 +4,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "tp/mock.h"
 #include "tp/isotp_sock.h"
+#include "tp/isotp_c_socketcan.h"
 
 static UDSServer_t *registeredServer = NULL;
 static UDSClient_t *registeredClient = NULL;
@@ -23,6 +25,7 @@ struct IntOpt {
 enum {
     OPTS_TP_TYPE_MOCK,
     OPTS_TP_TYPE_ISOTP_SOCK,
+    OPTS_TP_TYPE_ISOTPC,
 };
 
 typedef struct {
@@ -50,6 +53,15 @@ void ENV_ServerInit(UDSServer_t *srv) {
         assert(UDS_OK == UDSTpIsoTpSockInitServer(isotp, cfg.ifname,
                                                   cfg.srv_src_addr, cfg.srv_target_addr,
                                                   cfg.srv_src_addr_func));
+        tp = (UDSTpHandle_t *)isotp;
+        break;
+    }
+    case OPTS_TP_TYPE_ISOTPC: {
+        UDSTpISOTpC_t *isotp = malloc(sizeof(UDSTpISOTpC_t));
+        strcpy(isotp->tag, "server");
+        assert(UDS_OK == UDSTpISOTpCInitServer(isotp, srv, cfg.ifname,
+                                                cfg.srv_src_addr, cfg.srv_target_addr,
+                                                cfg.srv_src_addr_func));
         tp = (UDSTpHandle_t *)isotp;
         break;
     }
@@ -83,6 +95,15 @@ void ENV_ClientInit(UDSClient_t *cli) {
         tp = (UDSTpHandle_t *)isotp;
         break;
     }
+    case OPTS_TP_TYPE_ISOTPC: {
+        UDSTpISOTpC_t *isotp = malloc(sizeof(UDSTpISOTpC_t));
+        strcpy(isotp->tag, "client");
+        assert(UDS_OK == UDSTpISOTpCInitClient(isotp, cli, cfg.ifname,
+                                                cfg.cli_src_addr, cfg.cli_target_addr,
+                                                cfg.cli_tgt_addr_func));
+        tp = (UDSTpHandle_t *)isotp;
+        break;
+    }
     default:
         printf("unknown TP type: %d\n", cfg.tp_type);
         exit(1);
@@ -109,6 +130,15 @@ void ENV_SessInit(UDSSess_t *sess, const char *name) {
         assert(UDS_OK == UDSTpIsoTpSockInitClient(isotp, cfg.ifname,
                                                   cfg.cli_src_addr, cfg.cli_target_addr,
                                                   cfg.cli_tgt_addr_func));
+        tp = (UDSTpHandle_t *)isotp;
+        break;
+    }
+    case OPTS_TP_TYPE_ISOTPC: {
+        UDSTpISOTpC_t *isotp = malloc(sizeof(UDSTpISOTpC_t));
+        strncpy(isotp->tag, name, sizeof(isotp->tag));
+        assert(UDS_OK == UDSTpISOTpCInitSess(isotp, sess, cfg.ifname,
+                                                cfg.cli_src_addr, cfg.cli_target_addr,
+                                                cfg.cli_tgt_addr_func));
         tp = (UDSTpHandle_t *)isotp;
         break;
     }
@@ -139,6 +169,10 @@ void msleep(int ms) {
     usleep(ms * 1000);
 }
 
+static bool IsNetworkedTransport(int tp_type) {
+    return tp_type == OPTS_TP_TYPE_ISOTP_SOCK || tp_type == OPTS_TP_TYPE_ISOTPC;
+}
+
 void ENV_RunMillis(uint32_t millis) {
     uint32_t end = UDSMillis() + millis;
     while (UDSMillis() < end) {
@@ -154,7 +188,7 @@ void ENV_RunMillis(uint32_t millis) {
         TimeNowMillis++;
 
         // uses vcan, needs delay
-        if (cfg.tp_type == OPTS_TP_TYPE_ISOTP_SOCK) {
+        if (IsNetworkedTransport(cfg.tp_type)) {
             usleep(10);
             // msleep(1);
         }
@@ -180,6 +214,8 @@ void ENV_ParseOpts(int argc, char **argv) {
         cfg.tp_type = OPTS_TP_TYPE_MOCK;
     } else if (0 == strcasecmp(tp, "isotp_sock")) {
         cfg.tp_type = OPTS_TP_TYPE_ISOTP_SOCK;
+    } else if (0 == strcasecmp(tp, "isotp-c")) {
+        cfg.tp_type = OPTS_TP_TYPE_ISOTPC;
     } else {
         printf("unknown TP: %s\n", tp);
         exit(1);

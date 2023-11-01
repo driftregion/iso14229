@@ -132,7 +132,7 @@ int main(int ac, char **av) {
     do {
         running = UDSClientPoll(&client);
 #if UDS_TP == UDS_TP_ISOTP_C
-        SocketCANRecv((UDSTpIsoTpC_t *)client.tp, cfg.source_addr);
+        SocketCANRecv((UDSTpISOTpC_t *)client.tp, cfg.source_addr);
 #endif
         SleepMillis(1);
     } while (running);

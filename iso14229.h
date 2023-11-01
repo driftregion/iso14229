@@ -311,7 +311,7 @@ typedef struct {
     IsoTpLink func_link;
     uint8_t func_recv_buf[8];
     uint8_t func_send_buf[8];
-} UDSTpIsoTpC_t;
+} UDSTpISOTpC_t;
 #elif UDS_TP == UDS_TP_ISOTP_SOCKET
 typedef struct {
     UDSTpHandle_t hdl;
@@ -448,7 +448,7 @@ typedef struct UDSClient {
 
 #if UDS_TP == UDS_TP_CUSTOM
 #elif UDS_TP == UDS_TP_ISOTP_C
-    UDSTpIsoTpC_t tp_impl;
+    UDSTpISOTpC_t tp_impl;
 #elif UDS_TP == UDS_TP_ISOTP_SOCKET
     UDSTpLinuxIsoTp_t tp_impl;
 #endif
@@ -662,7 +662,7 @@ typedef struct UDSServer {
 
 #if UDS_TP == UDS_TP_CUSTOM
 #elif UDS_TP == UDS_TP_ISOTP_C
-    UDSTpIsoTpC_t tp_impl;
+    UDSTpISOTpC_t tp_impl;
 #elif UDS_TP == UDS_TP_ISOTP_SOCKET
     UDSTpLinuxIsoTp_t tp_impl;
 #endif

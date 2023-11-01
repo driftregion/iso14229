@@ -273,7 +273,7 @@ static int LinuxSockTpOpen(UDSTpHandle_t *hdl, const char *if_name, uint32_t phy
     return 0;
 }
 
-void LinuxSockTpClose(UDSTpHandle_t *hdl) {
+static void LinuxSockTpClose(UDSTpHandle_t *hdl) {
     if (hdl) {
         UDSTpLinuxIsoTp_t *impl = (UDSTpLinuxIsoTp_t *)hdl;
         if (impl) {

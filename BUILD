@@ -42,24 +42,6 @@ cc_test(
     size = "small",
 )
 
-
-filegroup(
-    name="isotp_c_srcs",
-    srcs=[
-        "isotp-c/isotp.c",
-        "isotp-c/isotp.h",
-        "isotp-c/isotp_config.h",
-        "isotp-c/isotp_defines.h",
-        "isotp-c/isotp_user.h",
-    ],
-)
-
-cc_library(
-    name="isotp_c",
-    srcs=[":isotp_c_srcs"],
-    copts=["-Wno-unused-parameter"],
-)
-
 cc_library(
     name="iso14229",
     srcs=[":iso14229_srcs"],

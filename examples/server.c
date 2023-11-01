@@ -166,7 +166,7 @@ int main(int ac, char **av) {
     while (!serverWantsExit) {
         UDSServerPoll(&srv);
 #if UDS_TP == UDS_TP_ISOTP_C
-        SocketCANRecv((UDSTpIsoTpC_t *)srv.tp, cfg.source_addr);
+        SocketCANRecv((UDSTpISOTpC_t *)srv.tp, cfg.source_addr);
 #endif
         SleepMillis(1);
     }

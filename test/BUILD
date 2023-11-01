@@ -8,8 +8,9 @@ cc_library(
         "//tp:srcs",
     ],
     deps = [
-        # "//tp:mock",
-        # "//tp:isotp_sock",
+        "//tp:mock",
+        "//tp:isotp_sock",
+        "//tp:isotp_c_socketcan",
     ],
     defines = [
         "UDS_TP=UDS_TP_CUSTOM",
@@ -26,6 +27,7 @@ cc_library(
         size = "small",
         env={
             # "TP": "isotp_sock",
+            # "TP": "isotp-c",
             "TP": "mock",
         }
     )

@@ -159,7 +159,7 @@ UDSErr_t UDSTpIsoTpSockInitServer(UDSTpIsoTpSock_t *tp, const char *ifname, uint
     if (tp->phys_fd < 0 || tp->func_fd < 0) {
         return UDS_ERR;
     }
-    printf("%s initialized phys link rx 0x%03x tx 0x%03x func link rx 0x%03x tx 0x%03x\n",
+    UDS_DBG_PRINT("%s initialized phys link rx 0x%03x tx 0x%03x func link rx 0x%03x tx 0x%03x\n",
            tp->tag ? tp->tag : "server", source_addr, target_addr, source_addr_func, target_addr);
     return UDS_OK;
 }

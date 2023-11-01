@@ -1,5 +1,5 @@
-#include "../iso14229.h"
-#include "../isotp-c/isotp.h"
+#include "tp/isotp_c_socketcan.h"
+#include "iso14229.h"
 #include <linux/can.h>
 #include <linux/can/raw.h>
 #include <net/if.h>
@@ -13,6 +13,8 @@
 static int sockfd = 0;
 static bool HasSetup = false;
 
+
+
 static void SetupOnce() {
     if (HasSetup) {
         return;
@@ -24,6 +26,15 @@ static void SetupOnce() {
         perror("socket");
         exit(-1);
     }
+
+    // TODO: https://github.com/lishen2/isotp-c/issues/14
+    int recv_own_msgs = 1;
+    if (setsockopt(sockfd, SOL_CAN_RAW, CAN_RAW_RECV_OWN_MSGS, &recv_own_msgs, sizeof(recv_own_msgs)) < 0) {
+        perror("setsockopt (CAN_RAW_LOOPBACK):");
+        exit(-1);
+    }
+
+
     strcpy(ifr.ifr_name, "vcan0");
     ioctl(sockfd, SIOCGIFINDEX, &ifr);
     memset(&addr, 0, sizeof(addr));
@@ -60,9 +71,8 @@ static void printhex(const uint8_t *addr, int len) {
     printf("\n");
 }
 
-void SocketCANRecv(UDSTpIsoTpC_t *tp, int source_addr, int source_addr_func) {
+static void SocketCANRecv(UDSTpISOTpC_t *tp) {
     assert(tp);
-    SetupOnce();
     struct can_frame frame = {0};
     int nbytes = 0;
     for (;;) {
@@ -76,15 +86,176 @@ void SocketCANRecv(UDSTpIsoTpC_t *tp, int source_addr, int source_addr_func) {
         } else if (nbytes == 0) {
             break;
         } else {
-            if (frame.can_id == source_addr) {
+            if (frame.can_id == tp->phys_sa) {
                 UDS_DBG_PRINT("phys recvd can\n");
                 UDS_DBG_PRINTHEX(frame.data, frame.can_dlc);
                 isotp_on_can_message(&tp->phys_link, frame.data, frame.can_dlc);
-            } else if (frame.can_id == source_addr_func) {
+            } else if (frame.can_id == tp->func_sa) {
                 UDS_DBG_PRINT("func recvd can\n");
                 UDS_DBG_PRINTHEX(frame.data, frame.can_dlc);
                 isotp_on_can_message(&tp->func_link, frame.data, frame.can_dlc);
             }
         }
     }
+}
+
+static UDSTpStatus_t tp_poll(UDSTpHandle_t *hdl) {
+    assert(hdl);
+    UDSTpStatus_t status = 0;
+    UDSTpISOTpC_t *impl = (UDSTpISOTpC_t *)hdl;
+    SocketCANRecv(impl);
+
+    isotp_poll(&impl->phys_link);
+    isotp_poll(&impl->func_link);
+    if (impl->phys_link.send_status == ISOTP_SEND_STATUS_INPROGRESS) {
+        status |= UDS_TP_SEND_IN_PROGRESS;
+    }
+    return status;
+}
+
+static ssize_t tp_recv(UDSTpHandle_t *hdl, UDSSDU_t *msg) {
+    assert(hdl);
+    int ret = -1;
+    uint16_t size = 0;
+    UDSTpISOTpC_t *impl = (UDSTpISOTpC_t *)hdl;
+    struct {
+        IsoTpLink *link;
+        UDSTpAddr_t ta_type;
+    } arr[] = {{&impl->phys_link, kTpAddrTypePhysical}, {&impl->func_link, kTpAddrTypeFunctional}};
+    for (size_t i = 0; i < sizeof(arr) / sizeof(arr[0]); i++) {
+        ret = isotp_receive(arr[i].link, msg->A_Data, msg->A_DataBufSize, &size);
+        switch (ret) {
+        case ISOTP_RET_OK:
+            msg->A_TA_Type = arr[i].ta_type;
+            ret = size;
+            goto done;
+        case ISOTP_RET_NO_DATA:
+            ret = 0;
+            continue;
+        case ISOTP_RET_ERROR:
+            ret = -1;
+            goto done;
+        default:
+            ret = -2;
+            goto done;
+        }
+    }
+done:
+    if (ret > 0) {
+        msg->A_Length = size;
+        if (UDS_A_TA_TYPE_PHYSICAL == msg->A_TA_Type )  {
+            msg->A_TA = impl->phys_sa;
+            msg->A_SA = impl->phys_ta;
+        } else {
+            msg->A_TA = impl->func_sa;
+            msg->A_SA = impl->func_ta;
+        }
+        fprintf(stdout, "%06d, %s recv, 0x%03x (%s), ", UDSMillis(), impl->tag, msg->A_TA,
+                msg->A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
+        for (unsigned i = 0; i < msg->A_Length; i++) {
+            fprintf(stdout, "%02x ", msg->A_Data[i]);
+        }
+        fprintf(stdout, "\n");
+        fflush(stdout); // flush every time in case of crash
+
+    }
+    return ret;
+}
+
+static ssize_t tp_send(UDSTpHandle_t *hdl, UDSSDU_t *msg) {
+    assert(hdl);
+    ssize_t ret = -1;
+    UDSTpISOTpC_t *impl = (UDSTpISOTpC_t *)hdl;
+    IsoTpLink *link = NULL;
+    switch (msg->A_TA_Type) {
+    case kTpAddrTypePhysical:
+        link = &impl->phys_link;
+        break;
+    case kTpAddrTypeFunctional:
+        link = &impl->func_link;
+        break;
+    default:
+        ret = -4;
+        goto done;
+    }
+
+    int send_status = isotp_send(link, msg->A_Data, msg->A_Length);
+    switch (send_status) {
+    case ISOTP_RET_OK:
+        ret = msg->A_Length;
+        goto done;
+    case ISOTP_RET_INPROGRESS:
+    case ISOTP_RET_OVERFLOW:
+    default:
+        ret = send_status;
+        goto done;
+    }
+done:
+    fprintf(stdout, "%06d, %s sends, 0x%03x (%s), ", UDSMillis(), impl->tag, msg->A_TA,
+            msg->A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
+    for (unsigned i = 0; i < msg->A_Length; i++) {
+        fprintf(stdout, "%02x ", msg->A_Data[i]);
+    }
+    fprintf(stdout, "\n");
+    fflush(stdout); // flush every time in case of crash
+
+    return ret;
+}
+
+
+UDSErr_t UDSTpISOTpCInitServer(UDSTpISOTpC_t *tp, UDSServer_t* srv, const char *ifname, uint32_t source_addr,
+                               uint32_t target_addr, uint32_t target_addr_func) {
+    assert(tp);
+    assert(ifname);
+    tp->hdl.poll = tp_poll;
+    tp->hdl.recv = tp_recv;
+    tp->hdl.send = tp_send;
+    tp->phys_sa = source_addr;
+    tp->phys_ta = target_addr;
+    tp->func_sa = source_addr;
+    tp->func_ta = target_addr_func;
+
+    isotp_init_link(&tp->phys_link, target_addr, srv->send_buf, sizeof(srv->send_buf),
+                    srv->recv_buf, sizeof(srv->recv_buf));
+    isotp_init_link(&tp->func_link, target_addr, tp->func_send_buf, sizeof(tp->func_send_buf),
+                    tp->func_recv_buf, sizeof(tp->func_recv_buf));
+    return UDS_OK;
+}
+
+UDSErr_t UDSTpISOTpCInitClient(UDSTpISOTpC_t *tp, UDSClient_t *client, const char *ifname, uint32_t source_addr, uint32_t target_addr, uint32_t source_addr_func) {
+    assert(tp);
+    assert(ifname);
+    tp->hdl.poll = tp_poll;
+    tp->hdl.recv = tp_recv;
+    tp->hdl.send = tp_send;
+    tp->phys_sa = source_addr;
+    tp->phys_ta = target_addr;
+    tp->func_sa = source_addr_func;
+    tp->func_ta = target_addr;
+
+    isotp_init_link(&tp->phys_link, target_addr, client->send_buf, sizeof(client->send_buf),
+                    client->recv_buf, sizeof(client->recv_buf));
+    isotp_init_link(&tp->func_link, target_addr, tp->func_send_buf, sizeof(tp->func_send_buf),
+                    tp->func_recv_buf, sizeof(tp->func_recv_buf));
+    return UDS_OK;
+}
+ 
+UDSErr_t UDSTpISOTpCInitSess(UDSTpISOTpC_t *tp, UDSSess_t *sess, const char *ifname, uint32_t source_addr, uint32_t target_addr, uint32_t source_addr_func) {
+    assert(tp);
+    assert(ifname);
+    tp->hdl.poll = tp_poll;
+    tp->hdl.recv = tp_recv;
+    tp->hdl.send = tp_send;
+
+    tp->phys_sa = source_addr;
+    tp->phys_ta = target_addr;
+    tp->func_sa = source_addr_func;
+    tp->func_ta = target_addr;
+
+
+    isotp_init_link(&tp->phys_link, target_addr, sess->send_buf, sizeof(sess->send_buf),
+                    sess->recv_buf, sizeof(sess->recv_buf));
+    isotp_init_link(&tp->func_link, target_addr, tp->func_send_buf, sizeof(tp->func_send_buf),
+                    tp->func_recv_buf, sizeof(tp->func_recv_buf));
+    return UDS_OK;
 }

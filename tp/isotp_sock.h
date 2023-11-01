@@ -6,9 +6,9 @@
 typedef struct {
     UDSTpHandle_t hdl;
     int phys_fd;
-    int phys_sa, phys_ta;
     int func_fd;
-    int func_sa, func_ta;
+    uint32_t phys_sa, phys_ta;
+    uint32_t func_sa, func_ta;
     char tag[16];
 } UDSTpIsoTpSock_t;
 
