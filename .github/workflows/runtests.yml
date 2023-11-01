@@ -13,6 +13,5 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-      
     - name: build and run unit test
-      run: make unit_test
+      run: bazel test //test:all

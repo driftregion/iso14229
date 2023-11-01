@@ -22,8 +22,8 @@ static const UDSServerConfig_t cfg = {
     .if_name = "vcan0",
 #endif
     .target_addr = SERVER_FUNC_ID,
-    .source_addr = SERVER_source_addr,
-    .func_recv_id = SERVER_FUNC_RECV_ID,
+    .source_addr = SERVER_PHYS_RECV_ID,
+    .source_addr_func = SERVER_FUNC_RECV_ID,
 };
 static bool serverWantsExit = false;
 static struct RWDBIData {

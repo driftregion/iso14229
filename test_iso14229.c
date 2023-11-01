@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include <errno.h>
 #include "iso14229.h"
-#include "tp_mock.h"
+#include "tp/mock.h"
 
 #define _ASSERT_INT_COND(a, b, cond)                                                               \
     {                                                                                              \

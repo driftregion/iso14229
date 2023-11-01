@@ -1,13 +1,8 @@
 package(default_visibility = ["//visibility:public"])
 
 
-config_setting(
-    name = "tp",
-    values = {"tp": "mock,isotp-c-vcan,isotp-c-udp"},
-)
-
 filegroup(
-    name = "srcs",
+    name = "iso14229_srcs",
     srcs = [
         "iso14229.c",
         "iso14229.h",
@@ -16,13 +11,13 @@ filegroup(
 )
 
 cc_test(
-    name="test",
+    name="test_all",
     srcs=[
-        ":srcs",
+        ":iso14229_srcs",
         "test_iso14229.c",
     ],
     deps = [
-        ":tp_mock",
+        "//tp:mock",
     ],
     copts=[
         "-Wall",
@@ -67,14 +62,5 @@ cc_library(
 
 cc_library(
     name="iso14229",
-    srcs=[":srcs"],
-)
-
-cc_library(
-    name="tp_mock",
-    srcs=[
-        "tp_mock.c",
-        "tp_mock.h",
-        "iso14229.h",
-    ],
+    srcs=[":iso14229_srcs"],
 )

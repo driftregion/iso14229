@@ -15,12 +15,16 @@
  */
 UDSTpHandle_t *TPMockCreate(const char *name);
 
+void TPMockSend(UDSTpHandle_t *tp, UDSSDU_t *msg);
+int TPMockRecv(UDSTpHandle_t *tp, UDSSDU_t *msg, uint32_t millis);
+
 /**
  * @brief write all messages to a file
  * @note uses UDSMillis() to get the current time
  * @param filename log file name (will be overwritten)
  */
 void TPMockLogToFile(const char *filename);
+void TPMockLogToStdout();
 
 /**
  * @brief clear all transports and close the log file

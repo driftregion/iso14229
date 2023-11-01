@@ -3,15 +3,30 @@
 
 #include "iso14229.h"
 #include <stdint.h>
+#include <string.h>
+#include <stdlib.h>
 
-UDSTpHandle_t *ENV_TpNew();
+void ENV_ServerInit(UDSServer_t *srv);
+void ENV_ClientInit(UDSClient_t *client);
+void ENV_SessInit(UDSSess_t *sess, const char *name);
 
-void ENV_Send(UDSSDU_t *msg);
+#define ENV_SERVER_INIT(srv)                                                                       \
+    ENV_ParseOpts(0, NULL);                                                                        \
+    ENV_ServerInit(&srv);                                                                          \
+    TPMockLogToStdout();
 
-#define ENV_EXPECT_MSG_WITHIN_MILLIS(msg_ptr, millis)                                              \
-    do {                                                                                           \
-        UDSSDU_t *msg = (msg_ptr);                                                                 \
-        ENV_ExpectBytesWithinMillis(ENV_TpNew(), msg->A_Data, msg->A_Length, millis);              \
-    } while (0)
+#define ENV_CLIENT_INIT(client)                                                                    \
+    ENV_ClientInit(&client);                                                                       \
+    TPMockLogToStdout();
+
+#define ENV_SESS_INIT(sess)                                                                        \
+    ENV_SessInit(&sess, #sess);                                                                    \
+    TPMockLogToStdout();
+
+void ENV_RegisterServer(UDSServer_t *server);
+void ENV_RegisterClient(UDSClient_t *client);
+void ENV_RegisterSess(UDSSess_t *sess);
+void ENV_RunMillis(uint32_t millis);
+void ENV_ParseOpts(int argc, char **argv);
 
 #endif

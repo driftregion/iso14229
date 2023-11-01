@@ -1,4 +1,4 @@
-#include "tp_mock.h"
+#include "tp/mock.h"
 #include "iso14229.h"
 #include <assert.h>
 #include <stddef.h>
@@ -125,11 +125,14 @@ void TPMockLogToFile(const char *filename) {
     }
 }
 
+void TPMockLogToStdout() {
+    if (LogFile) {
+        return;
+    }
+    LogFile = stdout;
+}
+
 void TPMockReset() {
     memset(TPs, 0, sizeof(TPs));
     TPCount = 0;
-    if (LogFile) {
-        fclose(LogFile);
-        LogFile = NULL;
-    }
 }

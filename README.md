@@ -358,44 +358,11 @@ MIT
 
 # Changelog
 
-## 0.0.0
-- initial release
 
-## 0.1.0
-- Add client
-- Add server SID 0x27 SecurityAccess
-- API changes
-
-## 0.2.0
-- removed all instances of `__attribute__((packed))`
-- refactored server download functional unit API to simplify testing
-- refactored tests
-    - ordered by service
-    - documented macros
-- removed middleware 
-- simplified server routine control API
-- removed redundant function `iso14229ServerEnableService`
-- updated example
-
-## 0.3.0
-- added `iso14229ClientRunSequenceBlocking(...)`
-- added server and client examples
-- simplified test flow, deleted opaque macros and switch statements
-- flattened client and server main structs
-- simplified usage by moving isotp-c initialization parameters into server/client config structs 
-- remove redundant buffers in server
-
-
-## 0.4.0
-- refactor RDBIHandler to pass a function pointer that implements safe memmove rather than requiring the user to keep valid data around for an indefinite time or risking a buffer overflow.
-- Prefer fixed-width. Avoid using `enum` types as return types and in structures.
-- Transport layer is now pluggable and supports the linux kernel ISO-TP driver in addition to `isotp-c`. See [examples](./examples/README.md).
-
-## 0.5.0
-- usability: refactored into a single .c/.h module
-- usability: default transport layer configs are now built-in
-- API cleanup: use `UDS` prefix on all exported functions
-- API cleanup: use a single callback function for all server events
+## 0.7.0
+- test refactoring. theme: test invariance across different transports and processor architectures
+- breaking API changes:
+    - rename `phys_send_id`, `phys_recv_id`, `func_send_id`, and `func_recv_id` to be consistent with the standard. Now mandatory for all UDSServerConfig_t and UDSClientConfig_t regardless of transport layer implementation
 
 ## 0.6.0
 - breaking API changes:
@@ -408,9 +375,43 @@ MIT
 - added `UDS_SRV_EVT_DoScheduledReset`
 - improve client error handling
 
-## 0.7.0
-- breaking API changes:
-    - rename `phys_send_id`, `phys_recv_id`, `func_send_id`, and `func_recv_id` to be consistent with the standard. Now mandatory for all UDSServerConfig_t and UDSClientConfig_t regardless of transport layer implementation
+## 0.5.0
+- usability: refactored into a single .c/.h module
+- usability: default transport layer configs are now built-in
+- API cleanup: use `UDS` prefix on all exported functions
+- API cleanup: use a single callback function for all server events
+
+## 0.4.0
+- refactor RDBIHandler to pass a function pointer that implements safe memmove rather than requiring the user to keep valid data around for an indefinite time or risking a buffer overflow.
+- Prefer fixed-width. Avoid using `enum` types as return types and in structures.
+- Transport layer is now pluggable and supports the linux kernel ISO-TP driver in addition to `isotp-c`. See [examples](./examples/README.md).
+
+## 0.3.0
+- added `iso14229ClientRunSequenceBlocking(...)`
+- added server and client examples
+- simplified test flow, deleted opaque macros and switch statements
+- flattened client and server main structs
+- simplified usage by moving isotp-c initialization parameters into server/client config structs 
+- remove redundant buffers in server
+
+## 0.2.0
+- removed all instances of `__attribute__((packed))`
+- refactored server download functional unit API to simplify testing
+- refactored tests
+    - ordered by service
+    - documented macros
+- removed middleware 
+- simplified server routine control API
+- removed redundant function `iso14229ServerEnableService`
+- updated example
+
+## 0.1.0
+- Add client
+- Add server SID 0x27 SecurityAccess
+- API changes
+
+## 0.0.0
+- initial release
 
 ---
 

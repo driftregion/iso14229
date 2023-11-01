@@ -236,6 +236,7 @@ typedef uint8_t UDSTpAddr_t;
 enum UDSTpStatusFlags {
     UDS_TP_IDLE = 0x00000000,
     UDS_TP_SEND_IN_PROGRESS = 0x00000001,
+    UDS_TP_RECV_COMPLETE = 0x00000002,
 };
 
 typedef uint32_t UDSTpStatus_t;
@@ -253,17 +254,19 @@ typedef enum {
 } UDS_A_TA_Type_t;
 
 /**
- * @brief Service data unit (SDU) for the transport layer
+ * @brief Service data unit (SDU)
+ * @details data interface between the application layer and the transport layer
  */
 typedef struct {
-    UDS_A_Mtype_t A_Mtype;
-    uint16_t A_SA; // application source address
-    uint16_t A_TA; // application target address
-    UDS_A_TA_Type_t A_TA_Type;
-    uint16_t A_AE;     // application layer remote address
-    uint32_t A_Length; // data length
-    uint32_t A_DataBufSize;
-    const uint8_t *A_Data;
+    UDS_A_Mtype_t A_Mtype; // message type (diagnostic, remote diagnostic, secure diagnostic, secure
+                           // remote diagnostic)
+    uint16_t A_SA;         // application source address
+    uint16_t A_TA;         // application target address
+    UDS_A_TA_Type_t A_TA_Type; // application target address type (physical or functional)
+    uint16_t A_AE;             // application layer remote address
+    uint32_t A_Length;         // data length
+    uint32_t A_DataBufSize;    // buffer size of A_Data
+    uint8_t *A_Data;           // pointer to data owned by the application layer
 } UDSSDU_t;
 
 /**
@@ -316,6 +319,39 @@ typedef struct {
     int func_fd;
 } UDSTpLinuxIsoTp_t;
 #endif
+
+ssize_t UDSTpSend(UDSTpHandle_t *tp, const uint8_t *buf, size_t len);
+ssize_t UDSTpRecv(UDSTpHandle_t *tp, uint8_t *buf, size_t size);
+
+/**
+ * @brief ISO14229-2 session layer implementation
+ */
+typedef struct {
+    UDSTpHandle_t *tp;
+    uint8_t recv_buf[UDS_BUFSIZE];
+    uint8_t send_buf[UDS_BUFSIZE];
+    uint16_t recv_size;
+    uint16_t send_size;
+    uint16_t recv_buf_size;
+    uint16_t send_buf_size;
+    uint32_t target_addr;
+    uint32_t target_addr_func;
+    uint32_t source_addr;
+    uint32_t source_addr_func;
+} UDSSess_t;
+
+typedef struct {
+    UDSTpHandle_t *tp;
+    uint32_t source_addr;
+    uint32_t source_addr_func;
+    uint32_t target_addr;
+    uint32_t target_addr_func;
+} UDSSessConfig_t;
+
+void UDSSessInit(UDSSess_t *sess, const UDSSessConfig_t *cfg);
+UDSErr_t UDSSessSend(UDSSess_t *sess, const uint8_t *data, size_t len);
+UDSErr_t UDSSessSendFunctional(UDSSess_t *sess, const uint8_t *msg, size_t size);
+void UDSSessPoll(UDSSess_t *sess);
 
 // ========================================================================
 //                          Utility Functions
@@ -453,6 +489,7 @@ void UDSClientPoll2(UDSClient_t *client,
                     int (*fn)(UDSClient_t *client, int evt, void *ev_data, void *fn_data),
                     void *fn_data);
 
+UDSErr_t UDSSendBytes(UDSClient_t *client, const uint8_t *data, uint16_t size);
 UDSErr_t UDSSendECUReset(UDSClient_t *client, UDSECUReset_t type);
 UDSErr_t UDSSendDiagSessCtrl(UDSClient_t *client, enum UDSDiagnosticSessionType mode);
 UDSErr_t UDSSendSecurityAccess(UDSClient_t *client, uint8_t level, uint8_t *data, uint16_t size);

@@ -236,12 +236,14 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid) {
     }
 
     struct ifreq ifr;
+    memset(&ifr, 0, sizeof(ifr));
     strncpy(ifr.ifr_name, if_name, sizeof(ifr.ifr_name));
     ioctl(fd, SIOCGIFINDEX, &ifr);
 
     struct sockaddr_can addr;
     memset(&addr, 0, sizeof(addr));
     addr.can_family = AF_CAN;
+
     addr.can_addr.tp.rx_id = rxid;
     addr.can_addr.tp.tx_id = txid;
     addr.can_ifindex = ifr.ifr_ifindex;
@@ -283,6 +285,69 @@ void LinuxSockTpClose(UDSTpHandle_t *hdl) {
     }
 }
 #endif // #if UDS_TP == UDS_TP_ISOTP_SOCKET
+
+ssize_t UDSTpSend(UDSTpHandle_t *tp, const uint8_t *msg, size_t size) {
+    return tp->send(tp, &(UDSSDU_t){
+                            .A_Mtype = UDS_A_MTYPE_DIAG,
+                            .A_SA = 0x7E0,
+                            .A_TA = 0x7E8,
+                            .A_TA_Type = UDS_A_TA_TYPE_PHYSICAL,
+                            .A_Length = size,
+                            .A_Data = msg,
+                        });
+}
+
+ssize_t UDSTpSendFunctional(UDSTpHandle_t *tp, const uint8_t *msg, size_t size) {
+    return tp->send(tp, &(UDSSDU_t){
+                            .A_Mtype = UDS_A_MTYPE_DIAG,
+                            .A_SA = 0x7E0,
+                            .A_TA = 0x7DF,
+                            .A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL,
+                            .A_Length = size,
+                            .A_Data = msg,
+                        });
+}
+
+void UDSSessInit(UDSSess_t *sess, const UDSSessConfig_t *cfg) {
+    assert(sess);
+    assert(cfg);
+    memset(sess, 0, sizeof(*sess));
+    sess->tp = cfg->tp;
+    sess->source_addr = cfg->source_addr;
+    sess->target_addr = cfg->target_addr;
+    sess->source_addr_func = cfg->source_addr_func;
+    sess->target_addr_func = cfg->target_addr_func;
+}
+
+UDSErr_t UDSSessSend(UDSSess_t *sess, const uint8_t *msg, size_t size) {
+    assert(sess);
+    assert(msg);
+    assert(size);
+    UDSTpSend(sess->tp, msg, size);
+    return UDS_OK;
+}
+
+UDSErr_t UDSSessSendFunctional(UDSSess_t *sess, const uint8_t *msg, size_t size) {
+    assert(sess);
+    assert(msg);
+    assert(size);
+    UDSTpSendFunctional(sess->tp, msg, size);
+    return UDS_OK;
+}
+
+void UDSSessPoll(UDSSess_t *sess) {
+    assert(sess);
+    UDSTpHandle_t *tp = sess->tp;
+    UDSSDU_t msg = {
+        .A_DataBufSize = sizeof(sess->recv_buf),
+        .A_Data = sess->recv_buf,
+    };
+    ssize_t ret = tp->recv(tp, &msg);
+    if (ret > 0) {
+        sess->recv_size = ret;
+    }
+}
+
 // ========================================================================
 //                              Common
 // ========================================================================
@@ -1288,7 +1353,7 @@ void UDSServerPoll(UDSServer_t *self) {
         } else if (size == 0) {
             ;
         } else {
-            UDS_DBG_PRINT("tp_recv failed with err %d on tp %d\n", size, ta_type);
+            UDS_DBG_PRINT("tp_recv failed with err %d on tp %d\n", size, msg.A_TA_Type);
         }
     }
 }
@@ -1576,6 +1641,16 @@ static UDSErr_t _SendRequest(UDSClient_t *client) {
         return UDS_ERR_BUSY;                                                                       \
     }                                                                                              \
     clearRequestContext(client);
+
+UDSErr_t UDSSendBytes(UDSClient_t *client, const uint8_t *data, uint16_t size) {
+    PRE_REQUEST_CHECK();
+    if (size > client->send_buf_size) {
+        return UDS_ERR_BUFSIZ;
+    }
+    memmove(client->send_buf, data, size);
+    client->send_size = size;
+    return _SendRequest(client);
+}
 
 UDSErr_t UDSSendECUReset(UDSClient_t *client, UDSECUReset_t type) {
     PRE_REQUEST_CHECK();

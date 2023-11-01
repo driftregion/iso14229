@@ -358,13 +358,34 @@ MIT
 
 # 变更记录
 
-## 0.0.0
-- 初次发布
+## 0.6.0
+- API更改:
+    - `UDSClientErr_t`合并到`UDSErr_t`
+    - `TP_SEND_INPROGRESS`改名为`UDS_TP_SEND_IN_PROGRESS`
+    - 重构了`UDSTpHandle_t`
+    - `UDS_TP_LINUX_SOCKET`改名为`UDS_TP_ISOTP_SOCKET`
+- 增加了服务器fuzz测试以及qemu测试
+- 整理例子测试,例子增加了isotp-c/socketcan传输
+- 增加了`UDS_SRV_EVT_DoScheduledReset`服务器事件
 
-## 0.1.0
-- 加客户端
-- 加服务器SID 0x27安全访问
-- API更改
+## 0.5.0
+- 可用性: 重构成单个.c/.h模块
+- 可用性: 默认传输层配置现在自带
+- API整理: 用`UDS`前缀在所有导出函数上
+- API整理: 服务器事件用单个回调函数
+
+## 0.4.0
+- 重构RDBIHandler：用安全memmove
+- 尽可能不用enum在结构体里面
+- 传输层可插件。现在支持linux内核ISO-TP驱动。`isotp-c`同时也支持。看看例子 [examples](./examples/README.md)
+
+## 0.3.0
+- 加`udsClientRunSequenceBlocking(...)` 
+- 加了服务器和客户端例子 
+- 简化测试流程、删掉了过分模糊宏定义和switch结构 
+- 服务器和客户端结构体简化：尽量用一层深度 
+- 简化使用、放isotp-c初始化参数到服务器/客户端配置里面 
+- 删除重复服务器缓冲器 
 
 ## 0.2.0
 - 删除所有`__attribute__((packed))`
@@ -377,34 +398,14 @@ MIT
 - 删掉了重复函数`udsServerEnableService` 
 - 更新例子 
 
-## 0.3.0
-- 加`udsClientRunSequenceBlocking(...)` 
-- 加了服务器和客户端例子 
-- 简化测试流程、删掉了过分模糊宏定义和switch结构 
-- 服务器和客户端结构体简化：尽量用一层深度 
-- 简化使用、放isotp-c初始化参数到服务器/客户端配置里面 
-- 删除重复服务器缓冲器 
+## 0.1.0
+- 加客户端
+- 加服务器SID 0x27安全访问
+- API更改
 
-## 0.4.0
-- 重构RDBIHandler：用安全memmove
-- 尽可能不用enum在结构体里面
-- 传输层可插件。现在支持linux内核ISO-TP驱动。`isotp-c`同时也支持。看看例子 [examples](./examples/README.md)
+## 0.0.0
+- 初次发布
 
-## 0.5.0
-- 可用性: 重构成单个.c/.h模块
-- 可用性: 默认传输层配置现在自带
-- API整理: 用`UDS`前缀在所有导出函数上
-- API整理: 服务器事件用单个回调函数
-
-## 0.6.0
-- API更改:
-    - `UDSClientErr_t`合并到`UDSErr_t`
-    - `TP_SEND_INPROGRESS`改名为`UDS_TP_SEND_IN_PROGRESS`
-    - 重构了`UDSTpHandle_t`
-    - `UDS_TP_LINUX_SOCKET`改名为`UDS_TP_ISOTP_SOCKET`
-- 增加了服务器fuzz测试以及qemu测试
-- 整理例子测试,例子增加了isotp-c/socketcan传输
-- 增加了`UDS_SRV_EVT_DoScheduledReset`服务器事件
 ---
 
 
