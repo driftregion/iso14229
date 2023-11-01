@@ -220,34 +220,37 @@ done:
 #if UDS_TP == UDS_TP_ISOTP_SOCKET
 static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid) {
     int fd = 0;
-    if ((fd = socket(AF_CAN, SOCK_DGRAM | SOCK_NONBLOCK, CAN_ISOTP)) < 0) {
-        perror("Socket");
-        return -1;
-    }
-
+    struct ifreq ifr = {0};
+    struct sockaddr_can addr = {0};
     struct can_isotp_fc_options fcopts = {
         .bs = 0x10,
         .stmin = 3,
         .wftmax = 0,
     };
+
+    if ((fd = socket(AF_CAN, SOCK_DGRAM | SOCK_NONBLOCK, CAN_ISOTP)) < 0) {
+        fprintf(stderr, "socket: %s", strerror(errno));
+        return -1;
+    }
+
     if (setsockopt(fd, SOL_CAN_ISOTP, CAN_ISOTP_RECV_FC, &fcopts, sizeof(fcopts)) < 0) {
         perror("setsockopt");
         return -1;
     }
 
-    struct ifreq ifr;
-    strncpy(ifr.ifr_name, if_name, sizeof(ifr.ifr_name));
-    ioctl(fd, SIOCGIFINDEX, &ifr);
+    strncpy(ifr.ifr_name, if_name, sizeof(ifr.ifr_name) - 1);
+    if (ioctl(fd, SIOCGIFINDEX, &ifr) < 0) {
+        fprintf(stderr, "ioctl: %s %s\n", strerror(errno), if_name);
+        return -1;
+    }
 
-    struct sockaddr_can addr;
-    memset(&addr, 0, sizeof(addr));
     addr.can_family = AF_CAN;
     addr.can_addr.tp.rx_id = rxid;
     addr.can_addr.tp.tx_id = txid;
     addr.can_ifindex = ifr.ifr_ifindex;
 
     if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-        printf("Bind: %s %s\n", strerror(errno), if_name);
+        fprintf(stderr, "bind: %s %s\n", strerror(errno), if_name);
         return -1;
     }
     printf("opened ISO-TP link fd: %d, rxid: %03x, txid: %03x\n", fd, rxid, txid);
