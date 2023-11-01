@@ -229,7 +229,7 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid) {
     };
 
     if ((fd = socket(AF_CAN, SOCK_DGRAM | SOCK_NONBLOCK, CAN_ISOTP)) < 0) {
-        perror("socket");
+        fprintf(stderr, "socket: %s", strerror(errno));
         return -1;
     }
 
