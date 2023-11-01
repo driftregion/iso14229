@@ -25,8 +25,8 @@ cc_library(
         deps=[":env"],
         size = "small",
         env={
-            "TP": "isotp_sock",
-            # "TP": "mock",
+            # "TP": "isotp_sock",
+            "TP": "mock",
         }
     )
 
