@@ -40,6 +40,7 @@
 #define UDS_0X37_REQ_BASE_LEN 1U
 #define UDS_0X37_RESP_BASE_LEN 1U
 #define UDS_0X3E_REQ_MIN_LEN 2U
+#define UDS_0X3E_REQ_MAX_LEN 2U
 #define UDS_0X3E_RESP_LEN 2U
 #define UDS_0X85_REQ_BASE_LEN 2U
 #define UDS_0X85_RESP_LEN 2U
@@ -940,15 +941,23 @@ static uint8_t _0x37_RequestTransferExit(UDSServer_t *self) {
 }
 
 static uint8_t _0x3E_TesterPresent(UDSServer_t *self) {
-    if (self->recv_size < UDS_0X3E_REQ_MIN_LEN) {
+    if ((self->recv_size < UDS_0X3E_REQ_MIN_LEN) ||
+        (self->recv_size > UDS_0X3E_REQ_MAX_LEN)) {
         return NegativeResponse(self, kIncorrectMessageLengthOrInvalidFormat);
     }
-    self->s3_session_timeout_timer = UDSMillis() + self->s3_ms;
     uint8_t zeroSubFunction = self->recv_buf[1];
-    self->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_TESTER_PRESENT);
-    self->send_buf[1] = zeroSubFunction & 0x3F;
-    self->send_size = UDS_0X3E_RESP_LEN;
-    return kPositiveResponse;
+
+    switch (zeroSubFunction) {
+    case 0x00:
+    case 0x80:
+        self->s3_session_timeout_timer = UDSMillis() + self->s3_ms;
+        self->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_TESTER_PRESENT);
+        self->send_buf[1] = 0x00;
+        self->send_size = UDS_0X3E_RESP_LEN;
+        return kPositiveResponse;
+    default:
+        return NegativeResponse(self, kSubFunctionNotSupported);
+    }
 }
 
 static uint8_t _0x85_ControlDTCSetting(UDSServer_t *self) {
