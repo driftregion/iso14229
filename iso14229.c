@@ -40,6 +40,7 @@
 #define UDS_0X37_REQ_BASE_LEN 1U
 #define UDS_0X37_RESP_BASE_LEN 1U
 #define UDS_0X3E_REQ_MIN_LEN 2U
+#define UDS_0X3E_REQ_MAX_LEN 2U
 #define UDS_0X3E_RESP_LEN 2U
 #define UDS_0X85_REQ_BASE_LEN 2U
 #define UDS_0X85_RESP_LEN 2U
@@ -1004,15 +1005,23 @@ static uint8_t _0x37_RequestTransferExit(UDSServer_t *self) {
 }
 
 static uint8_t _0x3E_TesterPresent(UDSServer_t *self) {
-    if (self->recv_size < UDS_0X3E_REQ_MIN_LEN) {
+    if ((self->recv_size < UDS_0X3E_REQ_MIN_LEN) ||
+        (self->recv_size > UDS_0X3E_REQ_MAX_LEN)) {
         return NegativeResponse(self, kIncorrectMessageLengthOrInvalidFormat);
     }
-    self->s3_session_timeout_timer = UDSMillis() + self->s3_ms;
     uint8_t zeroSubFunction = self->recv_buf[1];
-    self->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_TESTER_PRESENT);
-    self->send_buf[1] = zeroSubFunction & 0x3F;
-    self->send_size = UDS_0X3E_RESP_LEN;
-    return kPositiveResponse;
+
+    switch (zeroSubFunction) {
+    case 0x00:
+    case 0x80:
+        self->s3_session_timeout_timer = UDSMillis() + self->s3_ms;
+        self->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_TESTER_PRESENT);
+        self->send_buf[1] = 0x00;
+        self->send_size = UDS_0X3E_RESP_LEN;
+        return kPositiveResponse;
+    default:
+        return NegativeResponse(self, kSubFunctionNotSupported);
+    }
 }
 
 static uint8_t _0x85_ControlDTCSetting(UDSServer_t *self) {
@@ -1115,29 +1124,12 @@ static uint8_t evaluateServiceResponse(UDSServer_t *self, const uint8_t addressi
     /* test if service with sub-function is supported */
     case kSID_DIAGNOSTIC_SESSION_CONTROL:
     case kSID_ECU_RESET:
-    case kSID_READ_DTC_INFORMATION:
     case kSID_SECURITY_ACCESS:
     case kSID_COMMUNICATION_CONTROL:
     case kSID_ROUTINE_CONTROL:
     case kSID_TESTER_PRESENT:
-    case kSID_ACCESS_TIMING_PARAMETER:
-    case kSID_SECURED_DATA_TRANSMISSION:
-    case kSID_CONTROL_DTC_SETTING:
-    case kSID_RESPONSE_ON_EVENT: {
-
-        /* check minimum length of message with sub-function */
-        if (self->recv_size >= 2) {
-            /* get sub-function parameter value without bit 7 */
-            // switch (ctx->req.as.raw[0] & 0x7F) {
-
-            // }
-            // Let the service callback determine whether or not the sub-function parameter value is
-            // supported
-            response = service(self);
-        } else {
-            /* NRC 0x13: incorrectMessageLengthOrInvalidFormat */
-            response = kIncorrectMessageLengthOrInvalidFormat;
-        }
+    case kSID_CONTROL_DTC_SETTING: {
+        response = service(self);
 
         bool suppressPosRspMsgIndicationBit = self->recv_buf[1] & 0x80;
 
@@ -1157,22 +1149,28 @@ static uint8_t evaluateServiceResponse(UDSServer_t *self, const uint8_t addressi
     /* test if service without sub-function is supported */
     case kSID_READ_DATA_BY_IDENTIFIER:
     case kSID_READ_MEMORY_BY_ADDRESS:
-    case kSID_READ_SCALING_DATA_BY_IDENTIFIER:
-    case kSID_READ_PERIODIC_DATA_BY_IDENTIFIER:
-    case kSID_DYNAMICALLY_DEFINE_DATA_IDENTIFIER:
     case kSID_WRITE_DATA_BY_IDENTIFIER:
     case kSID_REQUEST_DOWNLOAD:
     case kSID_REQUEST_UPLOAD:
     case kSID_TRANSFER_DATA:
-    case kSID_REQUEST_TRANSFER_EXIT:
-    case kSID_REQUEST_FILE_TRANSFER:
-    case kSID_WRITE_MEMORY_BY_ADDRESS:
-    case kSID_CLEAR_DIAGNOSTIC_INFORMATION:
-    case kSID_INPUT_CONTROL_BY_IDENTIFIER: {
+    case kSID_REQUEST_TRANSFER_EXIT: {
         response = service(self);
         break;
     }
 
+    /* CASE Service_not_implemented */
+    /* shouldn't get this far as getServiceForSID(sid) will return NULL*/
+    case kSID_CLEAR_DIAGNOSTIC_INFORMATION:
+    case kSID_READ_DTC_INFORMATION:
+    case kSID_READ_SCALING_DATA_BY_IDENTIFIER:
+    case kSID_READ_PERIODIC_DATA_BY_IDENTIFIER:
+    case kSID_DYNAMICALLY_DEFINE_DATA_IDENTIFIER:
+    case kSID_INPUT_CONTROL_BY_IDENTIFIER:
+    case kSID_REQUEST_FILE_TRANSFER:
+    case kSID_WRITE_MEMORY_BY_ADDRESS:
+    case kSID_ACCESS_TIMING_PARAMETER:
+    case kSID_SECURED_DATA_TRANSMISSION:
+    case kSID_RESPONSE_ON_EVENT:
     default: {
         response = kServiceNotSupported;
         break;
