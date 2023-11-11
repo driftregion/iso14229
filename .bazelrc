@@ -1,0 +1,24 @@
+build --strip=never
+build --incompatible_enable_cc_toolchain_resolution
+
+build --extra_toolchains //toolchain:arm_gcc
+build --extra_toolchains //toolchain:ppc_gcc
+build --extra_toolchains //toolchain:ppc64_gcc
+build --extra_toolchains //toolchain:ppc64le_gcc
+build --extra_toolchains //toolchain:x86_64_clang
+
+build:arm --platforms=//platforms:arm
+build:ppc --platforms=//platforms:ppc
+build:ppc64 --platforms=//platforms:ppc64
+build:ppc64le --platforms=//platforms:ppc64le
+build:x86_64_clang --platforms=//platforms:x86_64_clang
+
+test:arm --run_under="qemu-arm -L /usr/arm-linux-gnueabihf/ "
+test:ppc --run_under="qemu-ppc -L /usr/powerpc-linux-gnu/ "
+test:ppc64 --run_under="qemu-ppc64 -L /usr/powerpc64-linux-gnu/ "
+test:ppc64le --run_under="qemu-ppc64le -L /usr/powerpc64le-linux-gnu/ "
+
+test: --test_output=all 
+
+# parallel tests break on a single vcan interface
+test: --local_test_jobs=1

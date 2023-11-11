@@ -32,11 +32,11 @@ test_qemu: Makefile iso14229.h iso14229.c test_iso14229.c test_qemu.py
 
 test: cxx unit_test test_examples uds_prefix test_qemu
 
-fuzz: CC=clang-14
+fuzz: CC=clang-15
 fuzz: ASAN = -fsanitize=fuzzer,signed-integer-overflow,address,undefined -fprofile-instr-generate -fcoverage-mapping
-fuzz: OPTS = -g -DUDS_TP=UDS_TP_CUSTOM -DUDS_CUSTOM_MILLIS
-fuzz: iso14229.c iso14229.h fuzz_server.c Makefile
-	$(CC) $(OPTS) $(WARN) $(INCS) $(TFLAGS) $(ASAN) fuzz_server.c iso14229.c -o fuzzer 
+fuzz: OPTS = -g -DUDS_TP=UDS_TP_CUSTOM -DUDS_CUSTOM_MILLIS -I.
+fuzz: iso14229.c iso14229.h test/test_fuzz_server.c Makefile
+	$(CC) $(OPTS) $(WARN) $(INCS) $(TFLAGS) $(ASAN) test/test_fuzz_server.c iso14229.c -o fuzzer 
 	$(RUN) ./fuzzer corpus
 
 clean:
