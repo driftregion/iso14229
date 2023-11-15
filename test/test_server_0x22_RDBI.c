@@ -1,3 +1,4 @@
+#include "iso14229.h"
 #include "test/test.h"
 
 uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
@@ -23,26 +24,25 @@ uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
 }
 
 int main() {
-    UDSSess_t mock_client;
+    UDSTpHandle_t *mock_client = ENV_GetMockTp("client");
     UDSServer_t srv;
     ENV_SERVER_INIT(srv);
     srv.fn = fn;
     ENV_SESS_INIT(mock_client);
     { // 11.2.5.2 Example #1 read single dataIdentifier 0xF190
         uint8_t REQ[] = {0x22, 0xF1, 0x90};
-        UDSSessSend(&mock_client, REQ, sizeof(REQ));
+        UDSTpSend(mock_client,  REQ, sizeof(REQ), NULL);
         uint8_t RESP[] = {0x62, 0xF1, 0x90, 0x57, 0x30, 0x4C, 0x30, 0x30, 0x30, 0x30,
                           0x34, 0x33, 0x4D, 0x42, 0x35, 0x34, 0x31, 0x33, 0x32, 0x36};
-        ENV_RunMillis(50);
-        TEST_INT_EQUAL(mock_client.recv_size, sizeof(RESP));
-        TEST_MEMORY_EQUAL(mock_client.recv_buf, RESP, sizeof(RESP));
+        EXPECT_IN_APPROX_MS(UDSTpGetRecvLen(mock_client) == sizeof(RESP), srv.p2_ms)
+        TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(mock_client, NULL), RESP, sizeof(RESP));
+       UDSTpAckRecv(mock_client);
     }
     { // Read a nonexistent dataIdentifier 0xF191
         uint8_t REQ[] = {0x22, 0xF1, 0x91};
-        UDSSessSend(&mock_client, REQ, sizeof(REQ));
+        UDSTpSend(mock_client,  REQ, sizeof(REQ), NULL);
         uint8_t RESP[] = {0x7F, 0x22, 0x31};
-        ENV_RunMillis(50);
-        TEST_INT_EQUAL(mock_client.recv_size, sizeof(RESP));
-        TEST_MEMORY_EQUAL(mock_client.recv_buf, RESP, sizeof(RESP));
+        EXPECT_IN_APPROX_MS(UDSTpGetRecvLen(mock_client) == sizeof(RESP), srv.p2_ms)
+        TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(mock_client, NULL), RESP, sizeof(RESP));
     }
 }

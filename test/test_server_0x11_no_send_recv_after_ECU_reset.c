@@ -1,3 +1,4 @@
+#include "iso14229.h"
 #include "test/test.h"
 
 uint8_t fn_callCount = 0;
@@ -13,7 +14,7 @@ uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
 }
 
 int main() {
-    UDSSess_t mock_client;
+    UDSTpHandle_t *mock_client = ENV_GetMockTp("client");
     UDSServer_t srv;
     ENV_SERVER_INIT(srv);
     ENV_SESS_INIT(mock_client);
@@ -23,17 +24,17 @@ int main() {
     const uint8_t RESP[] = {0x51, 0x01};
 
     // Sending the first ECU reset should result in a response
-    EXPECT_OK(UDSSessSend(&mock_client, REQ, sizeof(REQ)));
-    ENV_RunMillis(50);
-    TEST_MEMORY_EQUAL(mock_client.recv_buf, RESP, sizeof(RESP));
+    UDSTpSend(mock_client,  REQ, sizeof(REQ), NULL);   
+    EXPECT_IN_APPROX_MS(UDSTpGetRecvLen(mock_client), srv.p2_ms);
+    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(mock_client, NULL), RESP, sizeof(RESP));
 
-    mock_client.recv_size = 0;
+    UDSTpAckRecv(mock_client);
 
-    // Sending subsequent ECU reset requests should not receive any response
-    EXPECT_OK(UDSSessSend(&mock_client, REQ, sizeof(REQ)));
-    ENV_RunMillis(5000);
-    TEST_INT_EQUAL(mock_client.recv_size, 0);
+    // Sending subsequent ECU reset requests should never receive any response
+    const unsigned LONG_TIME_MS = 5000;
+    UDSTpSend(mock_client,  REQ, sizeof(REQ), NULL);
+    EXPECT_WHILE_MS(UDSTpGetRecvLen(mock_client) == 0, LONG_TIME_MS);
 
-    // The ECU reset handler should have been called once.
+    // Additionally the ECU reset handler should have been called exactly once.
     TEST_INT_EQUAL(fn_callCount, 1);
 }

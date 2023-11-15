@@ -363,6 +363,8 @@ MIT
 - test refactoring. theme: test invariance across different transports and processor architectures
 - breaking API changes:
     - rename `phys_send_id`, `phys_recv_id`, `func_send_id`, and `func_recv_id` to be consistent with the standard. Now mandatory for all UDSServerConfig_t and UDSClientConfig_t regardless of transport layer implementation
+    - overhauled transport layer implementation
+    - simplified client and server init
 
 ## 0.6.0
 - breaking API changes:
@@ -565,6 +567,103 @@ userServiceHandler -> server : Service Response
 server -> client : Service Response
 @enduml
 ```
+
+
+```plantuml
+@startuml
+' !pragma useVerticalIf on
+title UDSServerPoll Flowchart
+|Server|
+start
+
+if (DefaultSession != sessionType \n&& s3_timeout) then (true)
+:Emit SessionTimeout;
+else (false)
+endif
+
+if (ecuResetScheduled\n&& ecuResetTimer) then (false)
+else (true)
+:Emit DoScheduledReset;
+endif
+
+if (tp_status & TP_SEND_IN_PROGRESS) then (false)
+:UDSTpPeek();
+else (true)
+stop
+endif
+
+:evaluateServiceResponse();
+|User|
+:resp = handler();
+|Server|
+if (resp) then (anything else) 
+else (0x78)
+    fork
+    |Server|
+    :wait p2 ms;
+    :send response (0x78);
+    repeat
+        if (time after p2*) then (yes)
+            :send response (0x78);
+        else (no)
+        endif
+        :wait 1ms;
+    repeat while (resp) is (0x78 RCRRP)
+    ->anything else;
+    
+    ' while (resp)  is (0x78 RCRRP)
+    '     :wait p2* ms;
+    '     :send response (0x78);
+    ' endwhile (not 0x78 RCRRP)
+
+    fork again
+    while (resp)  is (0x78 RCRRP)
+        :evaluateServiceResponse();
+        |User|
+        :resp = handler();
+        |Server|
+        :wait 1ms;
+    endwhile (not 0x78 RCRRP)
+    end fork 
+endif
+|Server|
+:wait p2 ms;
+:send response;
+:UDSTpAckRecv();
+
+
+@enduml
+```
+
+```plantuml
+@startuml
+!pragma teoz true
+title Service Processing
+participant client
+participant server
+participant fn
+{t1} client -> server : request
+activate server
+server -> fn: call()
+fn -> server
+{t2} server -> client: response
+deactivate server
+{t1} <-> {t2} : p2_server
+
+@enduml
+```
+
+
+```plantuml
+@startuml
+title UDSServerPoll() Request Lifecycle
+[*] -> UDSTpPeek
+UDSTpPeek -> UDSTpPeek: recv_len == 0
+UDSTpPeek --> evaluateServiceResponse: recv_len > 0 &&\n !notReadyToReceive
+
+@enduml
+```
+
 
 ```plantuml
 @startuml

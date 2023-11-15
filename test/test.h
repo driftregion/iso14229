@@ -92,6 +92,7 @@
         }                                                                                          \
     }
 
+// Expect that a condition is true within a timeout
 #define EXPECT_WITHIN_MS(cond, timeout_ms)                                                         \
     {                                                                                              \
         uint32_t deadline = UDSMillis() + timeout_ms + 1;                                          \
@@ -100,5 +101,36 @@
             ENV_RunMillis(1);                                                                      \
         }                                                                                          \
     }
+
+// Expect that a condition is true for a duration
+#define EXPECT_WHILE_MS(cond, duration)                                                          \
+    {                                                                                              \
+        uint32_t deadline = UDSMillis() + duration;                                          \
+        while (UDSTimeAfter(deadline, UDSMillis())) {                                                                             \
+            assert(cond); \
+            ENV_RunMillis(1);                                                                      \
+        }                                                                                          \
+    }
+
+// Expect that a condition 
+// - is false until 90% of a duration has passed, 
+// - and true before 110% of the duration has passed
+#define EXPECT_IN_APPROX_MS(cond, duration)                                                          \
+    {                                                                                              \
+        const float tolerance = 0.1f; \
+        uint32_t pre_deadline = UDSMillis() + (int)(duration * (1.0f - tolerance));                                          \
+        uint32_t post_deadline = UDSMillis() + (int)(duration * (1.0f + tolerance));                                          \
+        while (UDSTimeAfter(pre_deadline, UDSMillis())) {                                                                             \
+            assert(!(cond)); \
+            ENV_RunMillis(1);                                                                      \
+        }                                                                                          \
+        while (!(cond)) {                                                                          \
+            TEST_INT_LE(UDSMillis(), post_deadline);                                                    \
+            ENV_RunMillis(1);                                                                      \
+        }                                                                                          \
+    }
+
+
+
 
 #endif

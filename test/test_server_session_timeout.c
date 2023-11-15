@@ -9,7 +9,7 @@ uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
 }
 
 int main() {
-    UDSSess_t mock_client;
+    UDSTpHandle_t *mock_client = ENV_GetMockTp("client");
     UDSServer_t srv;
 
     struct {

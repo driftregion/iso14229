@@ -2,7 +2,6 @@
 
 int main() {
     UDSClient_t client;
-    UDSSess_t mock_srv;
 
     const uint8_t GOOD[] = {0x51, 0x01};
     const uint8_t BAD_SID[] = {0x50, 0x01};
@@ -35,7 +34,7 @@ int main() {
 
     for (size_t i = 0; i < sizeof(p) / sizeof(p[0]); i++) {
         ENV_CLIENT_INIT(client);
-        ENV_SESS_INIT(mock_srv);
+        UDSTpHandle_t *mock_srv = ENV_GetMockTp("server");
         printf("test %ld: %s\n", i, p[i].tag);
 
         // when the client sends a ECU reset request with these options
@@ -43,7 +42,7 @@ int main() {
         UDSSendECUReset(&client, kHardReset);
 
         // and the server responds with this message
-        EXPECT_OK(UDSSessSend(&mock_srv, p[i].resp, p[i].resp_len));
+        UDSTpSend(mock_srv, p[i].resp, p[i].resp_len, NULL);
 
         // then the client should receive a response with this error code
         ENV_RunMillis(50);

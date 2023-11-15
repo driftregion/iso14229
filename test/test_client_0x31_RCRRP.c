@@ -2,7 +2,7 @@
 
 int main() {
     UDSClient_t client;
-    UDSSess_t sess;
+    UDSTpHandle_t *mock_srv = ENV_GetMockTp("server");
     ENV_SESS_INIT(sess)
 
     { // Case 1: RCRRP Timeout
@@ -12,7 +12,7 @@ int main() {
 
         // that receives an RCRRP response
         const uint8_t RCRRP[] = {0x7F, 0x31, 0x78}; // RequestCorrectly-ReceievedResponsePending
-        UDSSessSend(&sess, RCRRP, sizeof(RCRRP));
+        UDSTpSend(mock_srv,  RCRRP, sizeof(RCRRP), NULL);
 
         // that remains unresolved at a time between p2 ms and p2 star ms
         ENV_RunMillis(UDS_CLIENT_DEFAULT_P2_MS + 10);
@@ -32,7 +32,7 @@ int main() {
 
         // that receives an RCRRP response
         const uint8_t RCRRP[] = {0x7F, 0x31, 0x78}; // RequestCorrectly-ReceievedResponsePending
-        UDSSessSend(&sess, RCRRP, sizeof(RCRRP));
+        UDSTpSend(mock_srv,  RCRRP, sizeof(RCRRP), NULL);
 
         // that remains unresolved at a time between p2 ms and p2 star ms
         ENV_RunMillis(UDS_CLIENT_DEFAULT_P2_MS + 10);
@@ -42,7 +42,7 @@ int main() {
 
         // When the client receives a positive response from the server
         const uint8_t POSITIVE_RESPONSE[] = {0x71, 0x01, 0x12, 0x34};
-        UDSSessSend(&sess, POSITIVE_RESPONSE, sizeof(POSITIVE_RESPONSE));
+        UDSTpSend(mock_srv,  POSITIVE_RESPONSE, sizeof(POSITIVE_RESPONSE), NULL);
 
         ENV_RunMillis(5);
 

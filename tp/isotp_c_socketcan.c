@@ -121,7 +121,7 @@ static ssize_t tp_recv(UDSTpHandle_t *hdl, UDSSDU_t *msg) {
     struct {
         IsoTpLink *link;
         UDSTpAddr_t ta_type;
-    } arr[] = {{&impl->phys_link, kTpAddrTypePhysical}, {&impl->func_link, kTpAddrTypeFunctional}};
+    } arr[] = {{&impl->phys_link, UDS_A_TA_TYPE_PHYSICAL}, {&impl->func_link, UDS_A_TA_TYPE_FUNCTIONAL}};
     for (size_t i = 0; i < sizeof(arr) / sizeof(arr[0]); i++) {
         ret = isotp_receive(arr[i].link, msg->A_Data, msg->A_DataBufSize, &size);
         switch (ret) {
@@ -162,16 +162,16 @@ done:
     return ret;
 }
 
-static ssize_t tp_send(UDSTpHandle_t *hdl, UDSSDU_t *msg) {
+static ssize_t tp_send(UDSTpHandle_t *hdl, uint8_t *buf, ssize_t len, UDSSDU_t *info) {
     assert(hdl);
     ssize_t ret = -1;
     UDSTpISOTpC_t *impl = (UDSTpISOTpC_t *)hdl;
     IsoTpLink *link = NULL;
     switch (msg->A_TA_Type) {
-    case kTpAddrTypePhysical:
+    case UDS_A_TA_TYPE_PHYSICAL:
         link = &impl->phys_link;
         break;
-    case kTpAddrTypeFunctional:
+    case UDS_A_TA_TYPE_FUNCTIONAL:
         link = &impl->func_link;
         break;
     default:
@@ -240,22 +240,3 @@ UDSErr_t UDSTpISOTpCInitClient(UDSTpISOTpC_t *tp, UDSClient_t *client, const cha
     return UDS_OK;
 }
  
-UDSErr_t UDSTpISOTpCInitSess(UDSTpISOTpC_t *tp, UDSSess_t *sess, const char *ifname, uint32_t source_addr, uint32_t target_addr, uint32_t source_addr_func) {
-    assert(tp);
-    assert(ifname);
-    tp->hdl.poll = tp_poll;
-    tp->hdl.recv = tp_recv;
-    tp->hdl.send = tp_send;
-
-    tp->phys_sa = source_addr;
-    tp->phys_ta = target_addr;
-    tp->func_sa = source_addr_func;
-    tp->func_ta = target_addr;
-
-
-    isotp_init_link(&tp->phys_link, target_addr, sess->send_buf, sizeof(sess->send_buf),
-                    sess->recv_buf, sizeof(sess->recv_buf));
-    isotp_init_link(&tp->func_link, target_addr, tp->func_send_buf, sizeof(tp->func_send_buf),
-                    tp->func_recv_buf, sizeof(tp->func_recv_buf));
-    return UDS_OK;
-}

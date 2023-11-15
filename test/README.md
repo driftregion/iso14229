@@ -33,6 +33,12 @@ bazel test --config=arm //test:all
 bazel test --config=ppc //test:all
 bazel test --config=ppc64 //test:all
 bazel test --config=ppc64le //test:all
+
+# build the fuzzer
+bazel build -s --verbose_failures --config=x86_64_clang //test:test_fuzz_server
+# run the fuzzer
+mkdir .libfuzzer_artifacts .libfuzzer_corpus
+bazel-bin/test/test_fuzz_server -jobs=8 -artifact_prefix=./.libfuzzer_artifacts/ .libfuzzer_corpus
 ```
 
 

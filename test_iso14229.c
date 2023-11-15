@@ -232,7 +232,7 @@ static void poll_ctx(Ctx_t *ctx) {
             .A_Data = d1,                                                                          \
             .A_Length = sizeof(d1),                                                                \
             .A_SA = CLIENT_SOURCE_ADDR,                                                            \
-            .A_TA = reqType == kTpAddrTypePhysical ? SERVER_SOURCE_ADDR : SERVER_SOURCE_ADDR_FUNC, \
+            .A_TA = reqType == UDS_A_TA_TYPE_PHYSICAL ? SERVER_SOURCE_ADDR : SERVER_SOURCE_ADDR_FUNC, \
             .A_TA_Type = (int)reqType,                                                             \
         };                                                                                         \
         ctx.mock_tp->send(ctx.mock_tp, &msg);                                                      \
@@ -247,9 +247,9 @@ static void poll_ctx(Ctx_t *ctx) {
         int recv_len = ctx.mock_tp->recv(ctx.mock_tp, &msg);                                       \
         ASSERT_INT_EQUAL(recv_len, sizeof(d1));                                                    \
         ASSERT_MEMORY_EQUAL(ctx.mock_recv_buf, d1, sizeof(d1));                                    \
-        if (reqType == kTpAddrTypePhysical) {                                                      \
+        if (reqType == UDS_A_TA_TYPE_PHYSICAL) {                                                      \
             ASSERT_INT_EQUAL(msg.A_TA, SERVER_SOURCE_ADDR);                                        \
-        } else if (reqType == kTpAddrTypeFunctional) {                                             \
+        } else if (reqType == UDS_A_TA_TYPE_FUNCTIONAL) {                                             \
             ASSERT_INT_EQUAL(msg.A_TA, SERVER_SOURCE_ADDR_FUNC);                                   \
         } else {                                                                                   \
             assert(0);                                                                             \
@@ -318,9 +318,9 @@ static void send_to_client(const uint8_t *d1, size_t len, UDSTpAddr_t reqType) {
 void testServer0x10DiagSessCtrlIsDisabledByDefault() {
     TEST_SETUP(SERVER_ONLY);
     const uint8_t REQ[] = {0x10, 0x02};
-    SEND_TO_SERVER(REQ, kTpAddrTypePhysical);
+    SEND_TO_SERVER(REQ, UDS_A_TA_TYPE_PHYSICAL);
     const uint8_t RESP[] = {0x7f, 0x10, 0x11};
-    EXPECT_RESPONSE_WITHIN_MILLIS(RESP, kTpAddrTypePhysical, 50);
+    EXPECT_RESPONSE_WITHIN_MILLIS(RESP, UDS_A_TA_TYPE_PHYSICAL, 50);
     TEST_TEARDOWN();
 }
 
@@ -328,10 +328,10 @@ void testServer0x10DiagSessCtrlFunctionalRequest() {
     TEST_SETUP(SERVER_ONLY);
     // sending a diagnostic session control request functional broadcast
     const uint8_t REQ[] = {0x10, 0x03};
-    SEND_TO_SERVER(REQ, kTpAddrTypeFunctional);
+    SEND_TO_SERVER(REQ, UDS_A_TA_TYPE_FUNCTIONAL);
     // should receive a physical response
     const uint8_t RESP[] = {0x7f, 0x10, 0x11};
-    EXPECT_RESPONSE_WITHIN_MILLIS(RESP, kTpAddrTypePhysical, 50);
+    EXPECT_RESPONSE_WITHIN_MILLIS(RESP, UDS_A_TA_TYPE_PHYSICAL, 50);
     TEST_TEARDOWN();
 }
 
@@ -360,10 +360,10 @@ void testServer0x11DoesNotSendOrReceiveMessagesAfterECUReset() {
     const uint8_t RESP[] = {0x51, 0x01};
 
     // Sending the first ECU reset should result in a response
-    SEND_TO_SERVER(REQ, kTpAddrTypePhysical);
-    EXPECT_RESPONSE_WITHIN_MILLIS(RESP, kTpAddrTypePhysical, 50);
+    SEND_TO_SERVER(REQ, UDS_A_TA_TYPE_PHYSICAL);
+    EXPECT_RESPONSE_WITHIN_MILLIS(RESP, UDS_A_TA_TYPE_PHYSICAL, 50);
     // Sending subsequent ECU reset requests should not receive any response
-    SEND_TO_SERVER(REQ, kTpAddrTypePhysical);
+    SEND_TO_SERVER(REQ, UDS_A_TA_TYPE_PHYSICAL);
     EXPECT_NO_RESPONSE_FOR_MILLIS(5000);
 
     // The ECU reset handler should have been called once.
@@ -398,16 +398,16 @@ void testServer0x22RDBI1() {
     ctx.server.fn = fn2;
     {
         uint8_t REQ[] = {0x22, 0xF1, 0x90};
-        SEND_TO_SERVER(REQ, kTpAddrTypePhysical);
+        SEND_TO_SERVER(REQ, UDS_A_TA_TYPE_PHYSICAL);
         uint8_t RESP[] = {0x62, 0xF1, 0x90, 0x57, 0x30, 0x4C, 0x30, 0x30, 0x30, 0x30,
                           0x34, 0x33, 0x4D, 0x42, 0x35, 0x34, 0x31, 0x33, 0x32, 0x36};
-        EXPECT_RESPONSE_WITHIN_MILLIS(RESP, kTpAddrTypePhysical, 50);
+        EXPECT_RESPONSE_WITHIN_MILLIS(RESP, UDS_A_TA_TYPE_PHYSICAL, 50);
     }
     {
         uint8_t REQ[] = {0x22, 0xF1, 0x91};
-        SEND_TO_SERVER(REQ, kTpAddrTypePhysical);
+        SEND_TO_SERVER(REQ, UDS_A_TA_TYPE_PHYSICAL);
         uint8_t RESP[] = {0x7F, 0x22, 0x31};
-        EXPECT_RESPONSE_WITHIN_MILLIS(RESP, kTpAddrTypePhysical, 50);
+        EXPECT_RESPONSE_WITHIN_MILLIS(RESP, UDS_A_TA_TYPE_PHYSICAL, 50);
     }
     TEST_TEARDOWN();
 }
@@ -426,9 +426,9 @@ void testServer0x23ReadMemoryByAddress() {
     TEST_SETUP(SERVER_ONLY);
     ctx.server.fn = fn10;
     uint8_t REQ[] = {0x23, 0x18, 0x00, 0x00, 0x55, 0x55, 0x55, 0x55, 0xf0, 0xc8, 0x04};
-    SEND_TO_SERVER(REQ, kTpAddrTypePhysical);
+    SEND_TO_SERVER(REQ, UDS_A_TA_TYPE_PHYSICAL);
     uint8_t RESP[] = {0x63, 0x01, 0x02, 0x03, 0x04};
-    EXPECT_RESPONSE_WITHIN_MILLIS(RESP, kTpAddrTypePhysical, 50);
+    EXPECT_RESPONSE_WITHIN_MILLIS(RESP, UDS_A_TA_TYPE_PHYSICAL, 50);
     TEST_TEARDOWN();
 }
 
@@ -466,19 +466,19 @@ void testServer0x27SecurityAccess() {
     // sending a seed request should get this response
     const uint8_t SEED_REQUEST[] = {0x27, 0x01};
     const uint8_t SEED_RESPONSE[] = {0x67, 0x01, 0x36, 0x57};
-    SEND_TO_SERVER(SEED_REQUEST, kTpAddrTypePhysical);
-    EXPECT_RESPONSE_WITHIN_MILLIS(SEED_RESPONSE, kTpAddrTypePhysical, 50);
+    SEND_TO_SERVER(SEED_REQUEST, UDS_A_TA_TYPE_PHYSICAL);
+    EXPECT_RESPONSE_WITHIN_MILLIS(SEED_RESPONSE, UDS_A_TA_TYPE_PHYSICAL, 50);
 
     // subsequently sending an unlock request should get this response
     const uint8_t UNLOCK_REQUEST[] = {0x27, 0x02, 0xC9, 0xA9};
     const uint8_t UNLOCK_RESPONSE[] = {0x67, 0x02};
-    SEND_TO_SERVER(UNLOCK_REQUEST, kTpAddrTypePhysical);
-    EXPECT_RESPONSE_WITHIN_MILLIS(UNLOCK_RESPONSE, kTpAddrTypePhysical, 50);
+    SEND_TO_SERVER(UNLOCK_REQUEST, UDS_A_TA_TYPE_PHYSICAL);
+    EXPECT_RESPONSE_WITHIN_MILLIS(UNLOCK_RESPONSE, UDS_A_TA_TYPE_PHYSICAL, 50);
 
     // sending the same seed request should now result in the "already unlocked" response
     const uint8_t ALREADY_UNLOCKED_RESPONSE[] = {0x67, 0x01, 0x00, 0x00};
-    SEND_TO_SERVER(SEED_REQUEST, kTpAddrTypePhysical);
-    EXPECT_RESPONSE_WITHIN_MILLIS(ALREADY_UNLOCKED_RESPONSE, kTpAddrTypePhysical, 50);
+    SEND_TO_SERVER(SEED_REQUEST, UDS_A_TA_TYPE_PHYSICAL);
+    EXPECT_RESPONSE_WITHIN_MILLIS(ALREADY_UNLOCKED_RESPONSE, UDS_A_TA_TYPE_PHYSICAL, 50);
 
     // Additionally, the security level should now be 1
     ASSERT_INT_EQUAL(ctx.server.securityLevel, 1);
@@ -502,23 +502,23 @@ void testServer0x31RCRRP() {
     // sending a request to the server should return RCRRP
     const uint8_t REQUEST[] = {0x31, 0x01, 0x12, 0x34};
     const uint8_t RCRRP[] = {0x7F, 0x31, 0x78};
-    SEND_TO_SERVER(REQUEST, kTpAddrTypePhysical);
-    EXPECT_RESPONSE_WITHIN_MILLIS(RCRRP, kTpAddrTypePhysical, 50)
+    SEND_TO_SERVER(REQUEST, UDS_A_TA_TYPE_PHYSICAL);
+    EXPECT_RESPONSE_WITHIN_MILLIS(RCRRP, UDS_A_TA_TYPE_PHYSICAL, 50)
 
     // The server should again respond within p2_star ms, and keep responding
-    EXPECT_RESPONSE_WITHIN_MILLIS(RCRRP, kTpAddrTypePhysical, 50)
-    EXPECT_RESPONSE_WITHIN_MILLIS(RCRRP, kTpAddrTypePhysical, 50)
-    EXPECT_RESPONSE_WITHIN_MILLIS(RCRRP, kTpAddrTypePhysical, 50)
-    EXPECT_RESPONSE_WITHIN_MILLIS(RCRRP, kTpAddrTypePhysical, 50)
-    EXPECT_RESPONSE_WITHIN_MILLIS(RCRRP, kTpAddrTypePhysical, 50)
-    EXPECT_RESPONSE_WITHIN_MILLIS(RCRRP, kTpAddrTypePhysical, 50)
+    EXPECT_RESPONSE_WITHIN_MILLIS(RCRRP, UDS_A_TA_TYPE_PHYSICAL, 50)
+    EXPECT_RESPONSE_WITHIN_MILLIS(RCRRP, UDS_A_TA_TYPE_PHYSICAL, 50)
+    EXPECT_RESPONSE_WITHIN_MILLIS(RCRRP, UDS_A_TA_TYPE_PHYSICAL, 50)
+    EXPECT_RESPONSE_WITHIN_MILLIS(RCRRP, UDS_A_TA_TYPE_PHYSICAL, 50)
+    EXPECT_RESPONSE_WITHIN_MILLIS(RCRRP, UDS_A_TA_TYPE_PHYSICAL, 50)
+    EXPECT_RESPONSE_WITHIN_MILLIS(RCRRP, UDS_A_TA_TYPE_PHYSICAL, 50)
 
     // When the server handler func now returns a positive response
     ctx.server.fn = ReturnPositiveResponse;
 
     // the server's next response should be a positive one
     const uint8_t POSITIVE_RESPONSE[] = {0x71, 0x01, 0x12, 0x34};
-    EXPECT_RESPONSE_WITHIN_MILLIS(POSITIVE_RESPONSE, kTpAddrTypePhysical, 50)
+    EXPECT_RESPONSE_WITHIN_MILLIS(POSITIVE_RESPONSE, UDS_A_TA_TYPE_PHYSICAL, 50)
 
     TEST_TEARDOWN();
 }
@@ -527,11 +527,11 @@ void testServer0x34NotEnabled() {
     TEST_SETUP(SERVER_ONLY);
     // when no handler function is installed, sending this request to the server
     const uint8_t IN[] = {0x34, 0x11, 0x33, 0x60, 0x20, 0x00, 0x00, 0xFF, 0xFF};
-    SEND_TO_SERVER(IN, kTpAddrTypePhysical);
+    SEND_TO_SERVER(IN, UDS_A_TA_TYPE_PHYSICAL);
 
     // should return a kServiceNotSupported response
     const uint8_t OUT[] = {0x7F, 0x34, 0x11};
-    EXPECT_RESPONSE_WITHIN_MILLIS(OUT, kTpAddrTypePhysical, 50);
+    EXPECT_RESPONSE_WITHIN_MILLIS(OUT, UDS_A_TA_TYPE_PHYSICAL, 50);
     TEST_TEARDOWN();
 }
 
@@ -553,11 +553,11 @@ void testServer0x34() {
 
     // sending this request to the server
     uint8_t REQ[] = {0x34, 0x11, 0x33, 0x60, 0x20, 0x00, 0x00, 0xFF, 0xFF};
-    SEND_TO_SERVER(REQ, kTpAddrTypePhysical);
+    SEND_TO_SERVER(REQ, UDS_A_TA_TYPE_PHYSICAL);
 
     // should receive a positive response matching UDS-1:2013 Table 415
     uint8_t RESP[] = {0x74, 0x20, 0x00, 0x81};
-    EXPECT_RESPONSE_WITHIN_MILLIS(RESP, kTpAddrTypePhysical, 50)
+    EXPECT_RESPONSE_WITHIN_MILLIS(RESP, UDS_A_TA_TYPE_PHYSICAL, 50)
     TEST_TEARDOWN();
 }
 
@@ -568,7 +568,7 @@ void testServer0x3ESuppressPositiveResponse() {
     // when the suppressPositiveResponse bit is set
     const uint8_t REQ[] = {0x3E, 0x80};
     // there should be no response
-    SEND_TO_SERVER(REQ, kTpAddrTypePhysical);
+    SEND_TO_SERVER(REQ, UDS_A_TA_TYPE_PHYSICAL);
     EXPECT_NO_RESPONSE_FOR_MILLIS(5000);
     TEST_TEARDOWN();
 }
@@ -581,7 +581,7 @@ void testServer0x83DiagnosticSessionControl() {
 
     // When the suppressPositiveResponse bit is set, there should be no response.
     const uint8_t REQ[] = {0x10, 0x83};
-    SEND_TO_SERVER(REQ, kTpAddrTypePhysical);
+    SEND_TO_SERVER(REQ, UDS_A_TA_TYPE_PHYSICAL);
     EXPECT_NO_RESPONSE_FOR_MILLIS(5000);
     // and the server sessionType should have changed
     ASSERT_INT_EQUAL(ctx.server.sessionType, kExtendedDiagnostic);
@@ -647,7 +647,7 @@ void testClientP2TimeoutNotExceeded() {
 
     // which receives a positive response
     const uint8_t POSITIVE_RESPONSE[] = {0x51, 0x01};
-    SEND_TO_CLIENT(POSITIVE_RESPONSE, kTpAddrTypePhysical);
+    SEND_TO_CLIENT(POSITIVE_RESPONSE, UDS_A_TA_TYPE_PHYSICAL);
 
     POLL_UNTIL_TIME_MS(UDS_CLIENT_DEFAULT_P2_MS + 10);
     // should return to the idle state
@@ -714,7 +714,7 @@ void testClient0x11ECUReset() {
     ctx.client.options = p[i].options;
     UDSSendECUReset(&ctx.client, kHardReset);
     // that receives this response
-    send_to_client(p[i].resp, p[i].resp_len, kTpAddrTypePhysical);
+    send_to_client(p[i].resp, p[i].resp_len, UDS_A_TA_TYPE_PHYSICAL);
     // should return to the idle state
     POLL_UNTIL_TIME_MS(UDS_CLIENT_DEFAULT_P2_MS + 10);
     ASSERT_INT_EQUAL(kRequestStateIdle, ctx.client.state);
@@ -777,7 +777,7 @@ void testClient0x31RCRRP() {
 
         // that receives an RCRRP response
         const uint8_t RCRRP[] = {0x7F, 0x31, 0x78}; // RequestCorrectly-ReceievedResponsePending
-        SEND_TO_CLIENT(RCRRP, kTpAddrTypePhysical);
+        SEND_TO_CLIENT(RCRRP, UDS_A_TA_TYPE_PHYSICAL);
 
         // that remains unresolved at a time between p2 ms and p2 star ms
         POLL_FOR_MS(UDS_CLIENT_DEFAULT_P2_MS + 10);
@@ -796,7 +796,7 @@ void testClient0x31RCRRP() {
 
         // that receives an RCRRP response
         const uint8_t RCRRP[] = {0x7F, 0x31, 0x78}; // RequestCorrectly-ReceievedResponsePending
-        SEND_TO_CLIENT(RCRRP, kTpAddrTypePhysical);
+        SEND_TO_CLIENT(RCRRP, UDS_A_TA_TYPE_PHYSICAL);
 
         // that remains unresolved at a time between p2 ms and p2 star ms
         POLL_FOR_MS(UDS_CLIENT_DEFAULT_P2_MS + 10);
@@ -806,7 +806,7 @@ void testClient0x31RCRRP() {
 
         // When the client receives a positive response from the server
         const uint8_t POSITIVE_RESPONSE[] = {0x71, 0x01, 0x12, 0x34};
-        SEND_TO_CLIENT(POSITIVE_RESPONSE, kTpAddrTypePhysical);
+        SEND_TO_CLIENT(POSITIVE_RESPONSE, UDS_A_TA_TYPE_PHYSICAL);
 
         POLL_FOR_MS(5);
 
@@ -825,7 +825,7 @@ void testClient0x34RequestDownload() {
 
     // the bytes sent should match UDS-1 2013 Table 415
     const uint8_t CORRECT_REQUEST[] = {0x34, 0x11, 0x33, 0x60, 0x20, 0x00, 0x00, 0xFF, 0xFF};
-    ASSERT_CLIENT_SENT(CORRECT_REQUEST, kTpAddrTypePhysical);
+    ASSERT_CLIENT_SENT(CORRECT_REQUEST, UDS_A_TA_TYPE_PHYSICAL);
     TEST_TEARDOWN();
 }
 

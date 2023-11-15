@@ -5,7 +5,7 @@ static uint8_t ReturnPositiveResponse(UDSServer_t *srv, UDSServerEvent_t ev, con
 }
 
 int main() {
-    UDSSess_t mock_client;
+    UDSTpHandle_t *mock_client = ENV_GetMockTp("client");
     UDSServer_t srv;
     ENV_SERVER_INIT(srv);
     srv.fn = ReturnPositiveResponse;
@@ -16,12 +16,12 @@ int main() {
 
     // when a request is sent with the suppressPositiveResponse bit set
     const uint8_t REQ[] = {0x10, 0x83};
-    EXPECT_OK(UDSSessSend(&mock_client, REQ, sizeof(REQ)));
+    UDSTpSend(mock_client,  REQ, sizeof(REQ), NULL);
 
     // even after running for a long time
     ENV_RunMillis(5000);
     // there should be no response from the server
-    TEST_INT_EQUAL(mock_client.recv_size, 0);
+    TEST_INT_EQUAL(UDSTpGetRecvLen(mock_client), 0);
 
     // however, the server sessionType should have changed
     TEST_INT_EQUAL(srv.sessionType, kExtendedDiagnostic);

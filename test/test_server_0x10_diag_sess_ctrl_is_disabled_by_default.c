@@ -1,17 +1,17 @@
 #include "test/test.h"
 
 int main() {
-    UDSSess_t mock_client;
+    UDSTpHandle_t *mock_client = ENV_GetMockTp("client");
     UDSServer_t srv;
     ENV_SERVER_INIT(srv);
     ENV_SESS_INIT(mock_client);
 
     // When server is sent a diagnostic session control request
     const uint8_t REQ[] = {0x10, 0x02};
-    EXPECT_OK(UDSSessSend(&mock_client, REQ, sizeof(REQ)));
+    UDSTpSend(mock_client,  REQ, sizeof(REQ), NULL);
 
     // the server should respond with a negative response within p2 ms
     const uint8_t EXP_RESP[] = {0x7f, 0x10, 0x11};
-    EXPECT_WITHIN_MS((mock_client.recv_size > 0), 50);
-    TEST_MEMORY_EQUAL(mock_client.recv_buf, EXP_RESP, sizeof(EXP_RESP));
+    EXPECT_IN_APPROX_MS(UDSTpGetRecvLen(mock_client) > 0, srv.p2_ms);
+    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(mock_client, NULL), EXP_RESP, sizeof(EXP_RESP));
 }

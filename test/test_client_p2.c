@@ -1,9 +1,9 @@
+#include "iso14229.h"
 #include "test/test.h"
 
 int main() {
     UDSClient_t client;
-    UDSSess_t sess;
-    ENV_SESS_INIT(sess);
+    UDSTpHandle_t *tp = ENV_GetMockTp("server");
 
     { // Case 1: P2 not exceeded
         ENV_CLIENT_INIT(client);
@@ -13,7 +13,7 @@ int main() {
 
         // which receives a positive response
         const uint8_t POSITIVE_RESPONSE[] = {0x51, 0x01};
-        UDSSessSend(&sess, POSITIVE_RESPONSE, sizeof(POSITIVE_RESPONSE));
+        UDSTpSend(tp, POSITIVE_RESPONSE, sizeof(POSITIVE_RESPONSE), NULL);
         ENV_RunMillis(20);
 
         // after p2 ms has elapsed, the client should have a timeout error

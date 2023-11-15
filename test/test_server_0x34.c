@@ -13,24 +13,24 @@ uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
 
 int main() {
     { // case 0: No handler
-        UDSSess_t mock_client;
+        UDSTpHandle_t *mock_client = ENV_GetMockTp("client");
         UDSServer_t srv;
         ENV_SERVER_INIT(srv);
         ENV_SESS_INIT(mock_client);
 
         // when no handler function is installed, sending this request to the server
         uint8_t REQ[] = {0x34, 0x11, 0x33, 0x60, 0x20, 0x00, 0x00, 0xFF, 0xFF};
-        EXPECT_OK(UDSSessSend(&mock_client, REQ, sizeof(REQ)));
+        UDSTpSend(mock_client,  REQ, sizeof(REQ), NULL);
 
         // should return a kServiceNotSupported response
         uint8_t RESP[] = {0x7F, 0x34, 0x11};
-        ENV_RunMillis(50);
-        TEST_MEMORY_EQUAL(mock_client.recv_buf, RESP, sizeof(RESP));
+        EXPECT_IN_APPROX_MS(UDSTpGetRecvLen(mock_client) > 0, srv.p2_ms);
+        TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(mock_client, NULL), RESP, sizeof(RESP));
         TPMockReset();
     }
 
     { // case 1: handler installed
-        UDSSess_t mock_client;
+        UDSTpHandle_t *mock_client = ENV_GetMockTp("client");
         UDSServer_t srv;
         ENV_SERVER_INIT(srv);
         ENV_SESS_INIT(mock_client);
@@ -39,12 +39,12 @@ int main() {
 
         // sending this request to the server
         uint8_t REQ[] = {0x34, 0x11, 0x33, 0x60, 0x20, 0x00, 0x00, 0xFF, 0xFF};
-        EXPECT_OK(UDSSessSend(&mock_client, REQ, sizeof(REQ)));
+        UDSTpSend(mock_client,  REQ, sizeof(REQ), NULL);
 
         // should receive a positive response matching UDS-1:2013 Table 415
         uint8_t RESP[] = {0x74, 0x20, 0x00, 0x81};
-        ENV_RunMillis(50);
-        TEST_MEMORY_EQUAL(mock_client.recv_buf, RESP, sizeof(RESP));
+        EXPECT_IN_APPROX_MS(UDSTpGetRecvLen(mock_client) > 0, srv.p2_ms);
+        TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(mock_client, NULL), RESP, sizeof(RESP));
         TPMockReset();
     }
 }

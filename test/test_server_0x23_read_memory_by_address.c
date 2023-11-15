@@ -11,7 +11,7 @@ uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
 }
 
 int main() {
-    UDSSess_t mock_client;
+    UDSTpHandle_t *mock_client = ENV_GetMockTp("client");
     UDSServer_t srv;
     ENV_SERVER_INIT(srv);
     srv.fn = fn;
@@ -40,11 +40,11 @@ int main() {
         0x01, // memorySize byte #1 (MSB)
         0x03, // memorySize byte #2 (LSB)
     };
-    EXPECT_OK(UDSSessSend(&mock_client, REQ, sizeof(REQ)));
+    UDSTpSend(mock_client,  REQ, sizeof(REQ), NULL);
 
     // the server should respond with a positive response within p2 ms
-    EXPECT_WITHIN_MS((mock_client.recv_size > 0), 50);
-    TEST_MEMORY_EQUAL(mock_client.recv_buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+    EXPECT_IN_APPROX_MS(UDSTpGetRecvLen(mock_client) > 0, srv.p2_ms);
+    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(mock_client, NULL), EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
 // TODO: Tables 202-205

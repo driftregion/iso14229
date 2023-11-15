@@ -1,9 +1,11 @@
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include "iso14229.h"
+#include "tp/mock.h"
 
 #ifdef __cplusplus
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *, size_t);
@@ -11,67 +13,73 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *, size_t);
 int LLVMFuzzerTestOneInput(const uint8_t *, size_t);
 #endif
 
-uint8_t retval = kPositiveResponse;
+typedef struct {
+    uint8_t srv_retval;
+    uint16_t client_sa;
+    uint16_t client_ta;
+    uint8_t client_func_req;
+    uint8_t msg[UDS_BUFSIZE];
+} StuffToFuzz_t;
 
-static uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) { return retval; }
+static StuffToFuzz_t fuzz;
+static uint8_t client_recv_buf[UDS_BUFSIZE];
 
-struct Impl {
-    UDSTpHandle_t hdl;
-    uint8_t buf[8192];
-    size_t size;
-};
-
-static ssize_t tp_recv(UDSTpHandle_t *hdl, void *buf, size_t count, UDSTpAddr_t *ta_type) {
-    struct Impl *pL_Impl = (struct Impl *)hdl;
-    if (pL_Impl->size < count) {
-        count = pL_Impl->size;
-    }
-    memmove(buf, pL_Impl->buf, count);
-    pL_Impl->size = 0;
-    return count;
+static uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) { 
+    printf("Whoah, got event %d\n", ev);
+    return fuzz.srv_retval;
 }
-
-ssize_t tp_send(struct UDSTpHandle *hdl, const void *buf, size_t count, UDSTpAddr_t ta_type) {
-    return count;
-}
-
-UDSTpStatus_t tp_poll(struct UDSTpHandle *hdl) { return 0; }
-
-static struct Impl impl = {
-    .hdl =
-        {
-            .recv = tp_recv,
-            .send = tp_send,
-            .poll = tp_poll,
-        },
-    .buf = {0},
-    .size = 0,
-};
 
 static uint32_t g_ms = 0;
 uint32_t UDSMillis() { return g_ms; }
+static UDSServer_t srv;
+static UDSTpHandle_t *mock_client = NULL;
 
-int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-    UDSServer_t srv;
+void DoInitialization() {
     UDSServerConfig_t cfg = {
         .fn = fn,
-        .tp = &impl.hdl,
+        .tp = TPMockCreate("server"),
+        .target_addr = 0x7E0,
+        .source_addr = 0x7E8,
+        .source_addr_func = 0x7DF,
     };
-    if (size < 1) {
-        return 0;
-    }
-
-    retval = data[0];
-    size = size - 1;
-
-    if (size > sizeof(impl.buf)) {
-        size = sizeof(impl.buf);
-    }
-    memmove(impl.buf, data, size);
-    impl.size = size;
     UDSServerInit(&srv, &cfg);
+    mock_client = TPMockCreate("client");
+}
+
+
+int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
+    static bool initialized = false;
+    if (!initialized) {
+        DoInitialization();
+        initialized = true;
+    }
+    memset(&fuzz, 0, sizeof(fuzz));
+    memmove(&fuzz, data, size);
+    srv.tp = TPMockCreate("server");
+    mock_client = TPMockCreate("client");
+
+    UDSSDU_t msg = {
+        .A_Mtype = UDS_A_MTYPE_DIAG,
+        .A_SA = fuzz.client_sa,
+        .A_TA = fuzz.client_ta,
+        .A_TA_Type = fuzz.client_func_req ? UDS_A_TA_TYPE_FUNCTIONAL : UDS_A_TA_TYPE_PHYSICAL,
+        .A_Length = size > offsetof(StuffToFuzz_t, msg) ? size - offsetof(StuffToFuzz_t, msg) : 0,
+        .A_Data = (uint8_t *)data + offsetof(StuffToFuzz_t, msg),
+        .A_DataBufSize = sizeof(fuzz.msg),
+    };
+    mock_client->send(mock_client, &msg);
+
     for (g_ms = 0; g_ms < 100; g_ms++) {
         UDSServerPoll(&srv);
     }
+
+    {
+        UDSSDU_t msg2 = {
+            .A_Data = client_recv_buf,    
+            .A_DataBufSize = sizeof(client_recv_buf),
+        };
+        mock_client->recv(mock_client, &msg2);
+    }
+    TPMockReset();
     return 0;
 }
