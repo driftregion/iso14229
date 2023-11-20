@@ -282,7 +282,7 @@ typedef struct UDSTpHandle {
      * @brief Send the data in the buffer buf
      * @param hdl: pointer to transport handle
      * @param buf: a pointer to the data to send (this may be the buffer returned by @ref get_send_buf)
-     * @param info: pointer to SDU info (may be NULL)
+     * @param info: pointer to SDU info (may be NULL). If NULL, implementation should send with physical addressing
      */
     ssize_t (*send)(struct UDSTpHandle *hdl, uint8_t *buf, size_t len, UDSSDU_t *info);
     
@@ -320,7 +320,7 @@ typedef struct UDSTpHandle {
 ssize_t UDSTpGetSendBuf(UDSTpHandle_t *hdl, uint8_t **buf);
 ssize_t UDSTpSend(UDSTpHandle_t *hdl, const uint8_t *buf, ssize_t len, UDSSDU_t *info);
 UDSTpStatus_t UDSTpPoll(UDSTpHandle_t *hdl);
-ssize_t UDSTpRecv(UDSTpHandle_t *hdl, UDSSDU_t *info, uint8_t **buf);
+ssize_t UDSTpPeek(struct UDSTpHandle *hdl, uint8_t **buf, UDSSDU_t *info);
 const uint8_t *UDSTpGetRecvBuf(UDSTpHandle_t *hdl, size_t *len);
 size_t UDSTpGetRecvLen(UDSTpHandle_t *hdl);
 void UDSTpAckRecv(UDSTpHandle_t *hdl);

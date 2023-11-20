@@ -89,21 +89,21 @@
     ctx.func_name = __PRETTY_FUNCTION__;                                                           \
     if (SERVER_ONLY == test_type) {                                                                \
         UDSServerInit(&ctx.server, &(UDSServerConfig_t){                                           \
-                                       .tp = TPMockCreate("server"),                               \
+                                       .tp = TPMockNew("server"),                               \
                                        .source_addr = SERVER_SOURCE_ADDR,                          \
                                        .target_addr = SERVER_TARGET_ADDR,                          \
                                        .source_addr_func = SERVER_SOURCE_ADDR_FUNC,                \
                                    });                                                             \
-        ctx.mock_tp = TPMockCreate("mock_client");                                                 \
+        ctx.mock_tp = TPMockNew("mock_client");                                                 \
     }                                                                                              \
     if (CLIENT_ONLY == test_type) {                                                                \
         UDSClientInit(&ctx.client, &(UDSClientConfig_t){                                           \
-                                       .tp = TPMockCreate("client"),                               \
+                                       .tp = TPMockNew("client"),                               \
                                        .target_addr = CLIENT_TARGET_ADDR,                          \
                                        .source_addr = CLIENT_SOURCE_ADDR,                          \
                                        .target_addr_func = CLIENT_TARGET_ADDR_FUNC,                \
                                    });                                                             \
-        ctx.mock_tp = TPMockCreate("mock_server");                                                 \
+        ctx.mock_tp = TPMockNew("mock_server");                                                 \
     }                                                                                              \
     char logfilename[256] = {0};                                                                   \
     snprintf(logfilename, sizeof(logfilename), "%s%s.log", ctx.func_name, param_str);              \

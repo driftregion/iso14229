@@ -1,10 +1,9 @@
 #include "test/test.h"
 
 int main() {
-    UDSTpHandle_t *mock_client = ENV_GetMockTp("client");
+    UDSTpHandle_t *mock_client = ENV_TpNew("client");
     UDSServer_t srv;
     ENV_SERVER_INIT(srv);
-    ENV_SESS_INIT(mock_client);
 
     // When server is sent a diagnostic session control request
     const uint8_t REQ[] = {0x10, 0x02};

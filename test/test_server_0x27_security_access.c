@@ -26,12 +26,11 @@ uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
 }
 
 int main() {
-    UDSTpHandle_t *mock_client = ENV_GetMockTp("client");
-    // UDSTpHandle_t *mock_client = ENV_GetMockTp("client");
+    UDSTpHandle_t *mock_client = ENV_TpNew("client");
+    // UDSTpHandle_t *mock_client = ENV_TpNew("client");
     UDSServer_t srv;
     ENV_SERVER_INIT(srv);
     srv.fn = fn;
-    ENV_SESS_INIT(mock_client);
 
     // the server security level after initialization should be 0
     TEST_INT_EQUAL(srv.securityLevel, 0);

@@ -2,8 +2,7 @@
 
 int main() {
     UDSClient_t client;
-    UDSTpHandle_t *mock_srv = ENV_GetMockTp("server");
-    ENV_SESS_INIT(sess)
+    UDSTpHandle_t *mock_srv = ENV_TpNew("server");
 
     { // Case 1: RCRRP Timeout
         ENV_CLIENT_INIT(client);
@@ -23,6 +22,8 @@ int main() {
         ENV_RunMillis(UDS_CLIENT_DEFAULT_P2_STAR_MS + 10);
         TEST_INT_EQUAL(kRequestStateIdle, client.state)
         TEST_INT_EQUAL(client.err, UDS_ERR_TIMEOUT);
+
+        UDSTpAckRecv(mock_srv);
     }
 
     { // Case 2: Positive Response Received
@@ -49,5 +50,7 @@ int main() {
         // the client should return to the idle state with no error
         TEST_INT_EQUAL(kRequestStateIdle, client.state)
         TEST_INT_EQUAL(client.err, UDS_OK);
+
+        UDSTpAckRecv(mock_srv);
     }
 }

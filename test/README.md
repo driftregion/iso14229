@@ -48,3 +48,14 @@ If building fails with `/usr/bin/ld: cannot find -lstdc++: No such file or direc
 sudo apt install libc++-15-dev libc++abi-15-dev
 sudo ln -s /usr/lib/x86_64-linux-gnu/libstdc++.so  /usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.30
 ```
+
+
+# Why?
+
+Why bazel?
+
+> It's the best way I know to rigidly define multiple toolchains and architectures
+
+Why cmocka?
+
+> It is c

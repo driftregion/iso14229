@@ -15,3 +15,19 @@ http_archive(
 )
 load("@hedron_compile_commands//:workspace_setup.bzl", "hedron_compile_commands_setup")
 hedron_compile_commands_setup()
+
+http_archive(
+    name = "unity",
+    url = "https://github.com/ThrowTheSwitch/Unity/archive/refs/tags/v2.5.2.zip",
+    sha256 = "4598298723ecca1f242b8c540a253ae4ab591f6810cbde72f128961007683034",
+    strip_prefix = "Unity-2.5.2",
+    build_file = "//test:unity.BUILD",
+)
+
+http_archive(
+    name = "cmocka",
+    url = "https://cmocka.org/files/1.1/cmocka-1.1.7.tar.xz",
+    sha256 = "810570eb0b8d64804331f82b29ff47c790ce9cd6b163e98d47a4807047ecad82",
+    build_file = "//test:cmocka.BUILD",
+    strip_prefix = "cmocka-1.1.7",
+)

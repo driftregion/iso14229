@@ -5,11 +5,10 @@ static uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
 }
 
 int main() {
-    UDSTpHandle_t *mock_client = ENV_GetMockTp("client");
+    UDSTpHandle_t *mock_client = ENV_TpNew("client");
     UDSServer_t srv;
     ENV_SERVER_INIT(srv);
     srv.fn = fn;
-    ENV_SESS_INIT(mock_client);
 
     // when the suppressPositiveResponse bit is set
     const uint8_t REQ[] = {0x3E, 0x80};

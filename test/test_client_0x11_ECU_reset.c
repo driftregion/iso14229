@@ -1,4 +1,5 @@
 #include "test/test.h"
+#include <stdio.h>
 
 int main() {
     UDSClient_t client;
@@ -34,21 +35,24 @@ int main() {
 
     for (size_t i = 0; i < sizeof(p) / sizeof(p[0]); i++) {
         ENV_CLIENT_INIT(client);
-        UDSTpHandle_t *mock_srv = ENV_GetMockTp("server");
+        UDSTpHandle_t *srv = ENV_TpNew("server");
         printf("test %ld: %s\n", i, p[i].tag);
 
         // when the client sends a ECU reset request with these options
         client.options = p[i].options;
         UDSSendECUReset(&client, kHardReset);
+        printf("srv == NULL? : %d\n", srv == NULL);
+        fflush(stdout);
 
         // and the server responds with this message
-        UDSTpSend(mock_srv, p[i].resp, p[i].resp_len, NULL);
+        UDSTpSend(srv, p[i].resp, p[i].resp_len, NULL);
 
         // then the client should receive a response with this error code
         ENV_RunMillis(50);
         TEST_INT_EQUAL(client.state, kRequestStateIdle);
         TEST_INT_EQUAL(client.err, p[i].expected_err);
         // assert(client.err == p[i].expected_err);
-        TPMockReset();
+        ENV_TpFree(srv);
+        ENV_TpFree(client.tp);
     }
 }

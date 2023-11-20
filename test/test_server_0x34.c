@@ -13,10 +13,9 @@ uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
 
 int main() {
     { // case 0: No handler
-        UDSTpHandle_t *mock_client = ENV_GetMockTp("client");
+        UDSTpHandle_t *mock_client = ENV_TpNew("client");
         UDSServer_t srv;
         ENV_SERVER_INIT(srv);
-        ENV_SESS_INIT(mock_client);
 
         // when no handler function is installed, sending this request to the server
         uint8_t REQ[] = {0x34, 0x11, 0x33, 0x60, 0x20, 0x00, 0x00, 0xFF, 0xFF};
@@ -30,10 +29,9 @@ int main() {
     }
 
     { // case 1: handler installed
-        UDSTpHandle_t *mock_client = ENV_GetMockTp("client");
+        UDSTpHandle_t *mock_client = ENV_TpNew("client");
         UDSServer_t srv;
         ENV_SERVER_INIT(srv);
-        ENV_SESS_INIT(mock_client);
         // when a handler is installed that implements UDS-1:2013 Table 415
         srv.fn = fn;
 

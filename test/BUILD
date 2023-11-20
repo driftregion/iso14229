@@ -7,29 +7,31 @@ cc_library(
         "//:iso14229_srcs",
         "//tp:srcs",
     ],
-    deps = [
-        # "//tp:mock",
-        # "//tp:isotp_sock",
-        # "//tp:isotp_c_socketcan",
-    ],
+    deps = [ "@cmocka" ],
     defines = [
         "UDS_TP=UDS_TP_CUSTOM",
         "UDS_CUSTOM_MILLIS",
         "UDS_DBG_PRINT=printf",
-    ]
+    ],
+    copts = [ "-g", ],
 )
 
+
+# Generic unit tests
+# These should pass on all architectures and transports
 [
     cc_test(
         name=src.split(".c")[0] , 
         srcs=[src], 
         deps=[":env"],
         size = "small",
-        env={
-            # "TP": "isotp_sock",
-            # "TP": "isotp-c",
-            "TP": "mock",
+        env = {
+            "UDS_TP_TYPE": "2",
         },
+        copts = ["-g"],
+        tags = [
+            "exclusive",
+        ],
     )
     for src in [
         "test_client_0x11_ECU_reset.c",
@@ -50,10 +52,9 @@ cc_library(
         "test_server_0x3E_suppress_positive_response.c",
         "test_server_0x83_diagnostic_session_control.c",
         "test_server_session_timeout.c",
-        "test_tp_mock.c",
+        "test_tp_compliance.c",
     ]
 ]
-
 
 cc_test(
     name = "test_fuzz_server",

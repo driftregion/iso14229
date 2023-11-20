@@ -91,20 +91,24 @@ enum UDSDiagnosticServiceId {
  * @return ssize_t 
  */
 ssize_t UDSTpGetSendBuf(struct UDSTpHandle *hdl, uint8_t **buf) {
+    assert(hdl);
     assert(hdl->get_send_buf);
     return hdl->get_send_buf(hdl, buf);
 }
 ssize_t UDSTpSend(struct UDSTpHandle *hdl, const uint8_t *buf, ssize_t len, UDSSDU_t *info) {
+    assert(hdl);
     assert(hdl->send);
     return hdl->send(hdl, (uint8_t*)buf, len, info);
 }
 
 UDSTpStatus_t UDSTpPoll(struct UDSTpHandle *hdl) {
+    assert(hdl);
     assert(hdl->poll);
     return hdl->poll(hdl);
 }
 
 ssize_t UDSTpPeek(struct UDSTpHandle *hdl, uint8_t **buf, UDSSDU_t *info) {
+    assert(hdl);
     assert(hdl->peek);
     return hdl->peek(hdl, buf, info);
 }
@@ -1059,7 +1063,7 @@ void UDSServerPoll(UDSServer_t *srv) {
             if (ret < 0) {
                 UDSErr_t err  = UDS_ERR_TPORT;
                 EmitEvent(srv, UDS_SRV_EVT_Err, &err);
-                UDS_DBG_PRINT("UDSTpSend failed with %d\n", ret);
+                UDS_DBG_PRINT("UDSTpSend failed with %ld\n", ret);
             }
 
             if (srv->RCRRP) {
@@ -1295,7 +1299,6 @@ static void PollLowLevel(UDSClient_t *client) {
     case kRequestStateAwaitResponse: {
         UDSSDU_t info = {0};
         ssize_t len = UDSTpPeek(client->tp, &client->recv_buf, &info);
-        printf("peeked %ld bytes\n", len);
 
         if (UDS_A_TA_TYPE_FUNCTIONAL == info.A_TA_Type) {
             UDSTpAckRecv(client->tp);

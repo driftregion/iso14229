@@ -7,11 +7,10 @@ static uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) { retu
 // ISO-14229-1 2013 Table A.1 Byte Value 0x78: requestCorrectlyReceived-ResponsePending
 // "This NRC is in general supported by each diagnostic service".
 int main() {
-    UDSTpHandle_t *mock_client = ENV_GetMockTp("client");
+    UDSTpHandle_t *mock_client = ENV_TpNew("client");
     UDSServer_t srv;
     ENV_SERVER_INIT(srv);
     srv.fn = fn;
-    ENV_SESS_INIT(mock_client);
 
     // When a server handler func initially returns RRCRP
     resp = kRequestCorrectlyReceived_ResponsePending;

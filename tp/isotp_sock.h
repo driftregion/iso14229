@@ -5,8 +5,8 @@
 
 typedef struct {
     UDSTpHandle_t hdl;
-    uint8_t recv_buf[UDS_BUFSIZE];
-    uint8_t send_buf[UDS_BUFSIZE];
+    uint8_t recv_buf[UDS_ISOTP_MTU];
+    uint8_t send_buf[UDS_ISOTP_MTU];
     size_t recv_len;
     UDSSDU_t recv_info;
     int phys_fd;

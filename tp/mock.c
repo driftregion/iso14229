@@ -13,7 +13,7 @@ static TPMock_t *TPs[8];
 static unsigned TPCount = 0;
 static FILE *LogFile = NULL;
 static struct Msg {
-    uint8_t buf[UDS_BUFSIZE];
+    uint8_t buf[UDS_ISOTP_MTU];
     size_t len;
     UDSSDU_t info;
     uint32_t scheduled_tx_time;
@@ -81,9 +81,9 @@ static ssize_t tp_send(struct UDSTpHandle *hdl, uint8_t * buf, size_t len, UDSSD
         return -1;
     }
     struct Msg *m = &msgs[MsgCount++];
-    UDSTpAddr_t ta_type = info ? info->A_TA_Type : UDS_A_TA_TYPE_PHYSICAL;
+    UDSTpAddr_t ta_type = info == NULL ? UDS_A_TA_TYPE_PHYSICAL : info->A_TA_Type;
     m->len = len;
-    m->info.A_AE = info ? info->A_AE : 0;
+    m->info.A_AE = info == NULL ? 0 : info->A_AE;
     if (UDS_A_TA_TYPE_PHYSICAL == ta_type) {
         m->info.A_TA = tp->ta_phys;
         m->info.A_SA = tp->sa_phys;
@@ -94,6 +94,7 @@ static ssize_t tp_send(struct UDSTpHandle *hdl, uint8_t * buf, size_t len, UDSSD
         fprintf(stderr, "TPMock: unknown TA type: %d\n", ta_type);
         return -1;
     }
+    m->info.A_TA_Type = ta_type;
     m->scheduled_tx_time = UDSMillis() + tp->send_tx_delay_ms;
     memmove(m->buf, buf, len);
     LogMsg(tp->name, buf, len, &m->info);
@@ -122,8 +123,42 @@ static void tp_ack_recv(struct UDSTpHandle *hdl) {
 
 static_assert(offsetof(TPMock_t, hdl) == 0, "TPMock_t must not have any members before hdl");
 
-UDSTpHandle_t *TPMockCreate(const char *name, TPMockArgs_t *args) {
+static void TPMockAttach(TPMock_t *tp, TPMockArgs_t *args) {
+    assert(tp);
+    assert(args);
+    assert(TPCount < MAX_NUM_TP);
+    TPs[TPCount++] = tp;
+    tp->hdl.peek = tp_peek;
+    tp->hdl.send = tp_send;
+    tp->hdl.poll = tp_poll;
+    tp->hdl.get_send_buf = tp_get_send_buf;
+    tp->hdl.ack_recv = tp_ack_recv;
+    tp->sa_func = args->sa_func;
+    tp->sa_phys = args->sa_phys;
+    tp->ta_func = args->ta_func;
+    tp->ta_phys = args->ta_phys;
+    tp->recv_len = 0;
+}
+
+static void TPMockDetach(TPMock_t *tp) {
+    assert(tp);
+    for (unsigned i = 0; i < TPCount; i++) {
+        if (TPs[i] == tp) {
+            for (unsigned j = i + 1; j < TPCount; j++) {
+                TPs[j - 1] = TPs[j];
+            }
+            TPCount--;
+            printf("TPMock: detached %s. TPCount: %d\n", tp->name, TPCount);
+            return;
+        }
+    }
+    assert(false);
+}
+
+
+UDSTpHandle_t *TPMockNew(const char *name, TPMockArgs_t *args) {
     if (TPCount >= MAX_NUM_TP) {
+        printf("TPCount: %d, too many TPs\n", TPCount);
         return NULL;
     }
     TPMock_t *tp = malloc(sizeof(TPMock_t));
@@ -168,33 +203,8 @@ void TPMockReset(void) {
 }
 
 
-void TPMockAttach(TPMock_t *tp, TPMockArgs_t *args) {
-    assert(tp);
-    assert(args);
-    assert(TPCount < MAX_NUM_TP);
-    TPs[TPCount++] = tp;
-    tp->hdl.peek = tp_peek;
-    tp->hdl.send = tp_send;
-    tp->hdl.poll = tp_poll;
-    tp->hdl.get_send_buf = tp_get_send_buf;
-    tp->hdl.ack_recv = tp_ack_recv;
-    tp->sa_func = args->sa_func;
-    tp->sa_phys = args->sa_phys;
-    tp->ta_func = args->ta_func;
-    tp->ta_phys = args->ta_phys;
-    tp->recv_len = 0;
-}
-
-void TPMockDetach(TPMock_t *tp) {
-    assert(tp);
-    for (unsigned i = 0; i < TPCount; i++) {
-        if (TPs[i] == tp) {
-            for (unsigned j = i + 1; j < TPCount; j++) {
-                TPs[j - 1] = TPs[j];
-            }
-            TPCount--;
-            return;
-        }
-    }
-    assert(false);
+void TPMockFree(UDSTpHandle_t *tp) {
+    TPMock_t *tpm = (TPMock_t *)tp;
+    TPMockDetach(tpm);
+    free(tp);
 }

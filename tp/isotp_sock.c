@@ -84,16 +84,20 @@ static void tp_ack_recv(UDSTpHandle_t *hdl) {
     impl->recv_len = 0;
 }
 
-static ssize_t tp_send(UDSTpHandle_t *hdl, uint8_t *buf, ssize_t len, UDSSDU_t *info) {
+static ssize_t tp_send(UDSTpHandle_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
     assert(hdl);
     ssize_t ret = -1;
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
     int fd;
-    const UDSTpAddr_t ta_type = info ? info->A_TA : UDS_A_TA_TYPE_PHYSICAL;
+    const UDSTpAddr_t ta_type = info ? info->A_TA_Type : UDS_A_TA_TYPE_PHYSICAL;
 
     if (UDS_A_TA_TYPE_PHYSICAL == ta_type) {
         fd = impl->phys_fd;
     } else if (UDS_A_TA_TYPE_FUNCTIONAL == ta_type) {
+        if (len > 7) {
+            UDS_DBG_PRINT("UDSTpIsoTpSock: functional request too large\n");
+            return -1;
+        }
         fd = impl->func_fd;
     } else {
         ret = -4;
@@ -116,6 +120,13 @@ done:
     fflush(stdout); // flush every time in case of crash
 
     return ret;
+}
+
+static ssize_t tp_get_send_buf(UDSTpHandle_t *hdl, uint8_t **p_buf) {
+    assert(hdl);
+    UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
+    *p_buf = impl->send_buf;
+    return sizeof(impl->send_buf);
 }
 
 static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool functional) {
@@ -173,17 +184,20 @@ UDSErr_t UDSTpIsoTpSockInitServer(UDSTpIsoTpSock_t *tp, const char *ifname, uint
     tp->hdl.send = tp_send;
     tp->hdl.poll = tp_poll;
     tp->hdl.ack_recv = tp_ack_recv;
+    tp->hdl.get_send_buf = tp_get_send_buf;
     tp->phys_sa = source_addr;
     tp->phys_ta = target_addr;
     tp->func_sa = source_addr_func;
 
     tp->phys_fd = LinuxSockBind(ifname, source_addr, target_addr, false);
-    tp->func_fd = LinuxSockBind(ifname, source_addr_func, target_addr, true);
+    tp->func_fd = LinuxSockBind(ifname, source_addr_func, 0, true);
     if (tp->phys_fd < 0 || tp->func_fd < 0) {
+        printf ("foo\n");
+        fflush(stdout);
         return UDS_ERR;
     }
     UDS_DBG_PRINT("%s initialized phys link rx 0x%03x tx 0x%03x func link rx 0x%03x tx 0x%03x\n",
-           tp->tag ? tp->tag : "server", source_addr, target_addr, source_addr_func, target_addr);
+           strlen(tp->tag) ? tp->tag : "server", source_addr, target_addr, source_addr_func, target_addr);
     return UDS_OK;
 }
 
@@ -194,12 +208,13 @@ UDSErr_t UDSTpIsoTpSockInitClient(UDSTpIsoTpSock_t *tp, const char *ifname, uint
     tp->hdl.send = tp_send;
     tp->hdl.poll = tp_poll;
     tp->hdl.ack_recv = tp_ack_recv;
+    tp->hdl.get_send_buf = tp_get_send_buf;
     tp->func_ta = target_addr_func;
     tp->phys_ta = target_addr;
     tp->phys_sa = source_addr;
 
     tp->phys_fd = LinuxSockBind(ifname, source_addr, target_addr, false);
-    tp->func_fd = LinuxSockBind(ifname, source_addr + 1, target_addr_func, true);
+    tp->func_fd = LinuxSockBind(ifname, 0, target_addr_func, true);
     if (tp->phys_fd < 0 || tp->func_fd < 0) {
         return UDS_ERR;
     }

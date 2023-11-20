@@ -24,11 +24,10 @@ uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
 }
 
 int main() {
-    UDSTpHandle_t *mock_client = ENV_GetMockTp("client");
+    UDSTpHandle_t *mock_client = ENV_TpNew("client");
     UDSServer_t srv;
     ENV_SERVER_INIT(srv);
     srv.fn = fn;
-    ENV_SESS_INIT(mock_client);
     { // 11.2.5.2 Example #1 read single dataIdentifier 0xF190
         uint8_t REQ[] = {0x22, 0xF1, 0x90};
         UDSTpSend(mock_client,  REQ, sizeof(REQ), NULL);

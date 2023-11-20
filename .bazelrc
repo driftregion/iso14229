@@ -19,6 +19,5 @@ test:ppc64 --run_under="qemu-ppc64 -L /usr/powerpc64-linux-gnu/ "
 test:ppc64le --run_under="qemu-ppc64le -L /usr/powerpc64le-linux-gnu/ "
 
 
-test: --test_output=all 
 # parallel tests break on a single vcan interface
-test: --local_test_jobs=1
+test: --local_test_jobs=1 --test_output=all 

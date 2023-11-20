@@ -1,3 +1,4 @@
+#include "iso14229.h"
 #include "test/test.h"
 
 uint8_t FakeData[259];
@@ -11,11 +12,10 @@ uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
 }
 
 int main() {
-    UDSTpHandle_t *mock_client = ENV_GetMockTp("client");
+    UDSTpHandle_t *client_tp = ENV_TpNew("client");
     UDSServer_t srv;
     ENV_SERVER_INIT(srv);
     srv.fn = fn;
-    ENV_SESS_INIT(mock_client);
 
     // Prepare fake data
     for (int i = 0; i < sizeof(FakeData); i++) {
@@ -40,11 +40,17 @@ int main() {
         0x01, // memorySize byte #1 (MSB)
         0x03, // memorySize byte #2 (LSB)
     };
-    UDSTpSend(mock_client,  REQ, sizeof(REQ), NULL);
+    UDSTpSend(client_tp,  REQ, sizeof(REQ), NULL);
 
-    // the server should respond with a positive response within p2 ms
-    EXPECT_IN_APPROX_MS(UDSTpGetRecvLen(mock_client) > 0, srv.p2_ms);
-    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(mock_client, NULL), EXPECTED_RESP, sizeof(EXPECTED_RESP));
+    // the client transport should receive a positive response within client_p2 ms
+    // EXPECT_WITHIN_MS(UDSTpGetRecvLen(client_tp) > 0, UDS_CLIENT_DEFAULT_P2_MS)
+    uint32_t deadline = UDSMillis() + UDS_CLIENT_DEFAULT_P2_MS + 1;                                          
+    while (!(UDSTpGetRecvLen(client_tp) > 0)) {                                                                          
+        printf("UDSTpGetRecvLen(client_tp) = %ld\n", UDSTpGetRecvLen(client_tp));
+        TEST_INT_LE(UDSMillis(), deadline);                                                    
+        ENV_RunMillis(1);                                                                      
+    }                                                                                          
+    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(client_tp, NULL), EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
 // TODO: Tables 202-205

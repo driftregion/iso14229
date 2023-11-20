@@ -9,7 +9,6 @@ uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
 }
 
 int main() {
-    UDSTpHandle_t *mock_client = ENV_GetMockTp("client");
     UDSServer_t srv;
 
     struct {
@@ -24,7 +23,6 @@ int main() {
     };
 
     for (unsigned i = 0; i < sizeof(p) / sizeof(p[0]); i++) {
-        ENV_SESS_INIT(mock_client);
         ENV_SERVER_INIT(srv);
         srv.fn = p[i].fn;
         srv.sessionType = p[i].sessType;

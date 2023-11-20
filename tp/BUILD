@@ -26,7 +26,6 @@ filegroup(
         "isotp-c/isotp.h",
         "isotp-c/isotp_config.h",
         "isotp-c/isotp_defines.h",
-        "isotp-c/isotp_user.h",
     ],
 )
 
@@ -50,11 +49,13 @@ cc_library(
 
 filegroup(
     name="srcs",
-    # srcs=glob(["*.c", "*.h"])
     srcs = [
         "mock.c",
         "mock.h",
         "isotp_sock.c",
         "isotp_sock.h",
+        "isotp_c_socketcan.c",
+        "isotp_c_socketcan.h",
+        ":isotp_c_srcs",
     ]
 )

@@ -5,11 +5,10 @@ static uint8_t ReturnPositiveResponse(UDSServer_t *srv, UDSServerEvent_t ev, con
 }
 
 int main() {
-    UDSTpHandle_t *mock_client = ENV_GetMockTp("client");
+    UDSTpHandle_t *mock_client = ENV_TpNew("client");
     UDSServer_t srv;
     ENV_SERVER_INIT(srv);
     srv.fn = ReturnPositiveResponse;
-    ENV_SESS_INIT(mock_client);
 
     // the server sessionType after initialization should be kDefaultSession.
     TEST_INT_EQUAL(srv.sessionType, kDefaultSession);

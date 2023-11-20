@@ -1,5 +1,6 @@
 #include "tp/isotp_c_socketcan.h"
 #include "iso14229.h"
+#include "tp/isotp-c/isotp_defines.h"
 #include <linux/can.h>
 #include <linux/can/raw.h>
 #include <net/if.h>
@@ -10,49 +11,42 @@
 #include <unistd.h>
 #include <errno.h>
 
-static int sockfd = 0;
-static bool HasSetup = false;
-
-
-
-static void SetupOnce() {
-    if (HasSetup) {
-        return;
-    }
+static int SetupSocketCAN(const char *ifname) {
     UDS_DBG_PRINT("setting up CAN\n");
     struct sockaddr_can addr;
     struct ifreq ifr;
+    int sockfd = -1;
+
     if ((sockfd = socket(PF_CAN, SOCK_RAW | SOCK_NONBLOCK, CAN_RAW)) < 0) {
         perror("socket");
-        exit(-1);
+        goto done;
     }
 
-    // TODO: https://github.com/lishen2/isotp-c/issues/14
-    int recv_own_msgs = 1;
-    if (setsockopt(sockfd, SOL_CAN_RAW, CAN_RAW_RECV_OWN_MSGS, &recv_own_msgs, sizeof(recv_own_msgs)) < 0) {
-        perror("setsockopt (CAN_RAW_LOOPBACK):");
-        exit(-1);
-    }
-
-
-    strcpy(ifr.ifr_name, "vcan0");
+    strcpy(ifr.ifr_name, ifname);
     ioctl(sockfd, SIOCGIFINDEX, &ifr);
     memset(&addr, 0, sizeof(addr));
     addr.can_family = AF_CAN;
     addr.can_ifindex = ifr.ifr_ifindex;
     if (bind(sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
         perror("bind");
-        exit(-1);
     }
-    HasSetup = true;
+
+    done:
+    return sockfd;
 }
 
-uint32_t isotp_user_get_us() { return UDSMillis() * 1000; }
+uint32_t isotp_user_get_ms() { return UDSMillis(); }
 
-void isotp_user_debug(const char *message, ...) {}
+void isotp_user_debug(const char *message, ...) {
+    va_list args;
+    va_start(args, message);
+    vprintf(message, args);
+    va_end(args);
+}
 
-int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t *data, const uint8_t size) {
-    SetupOnce();
+int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t *data, const uint8_t size, void *user_data) {
+    assert(user_data);
+    int sockfd = *(int *)user_data;
     struct can_frame frame = {0};
     frame.can_id = arbitration_id;
     frame.can_dlc = size;
@@ -75,8 +69,9 @@ static void SocketCANRecv(UDSTpISOTpC_t *tp) {
     assert(tp);
     struct can_frame frame = {0};
     int nbytes = 0;
+
     for (;;) {
-        nbytes = read(sockfd, &frame, sizeof(struct can_frame));
+        nbytes = read(tp->fd, &frame, sizeof(struct can_frame));
         if (nbytes < 0) {
             if (EAGAIN == errno || EWOULDBLOCK == errno) {
                 break;
@@ -91,8 +86,11 @@ static void SocketCANRecv(UDSTpISOTpC_t *tp) {
                 UDS_DBG_PRINTHEX(frame.data, frame.can_dlc);
                 isotp_on_can_message(&tp->phys_link, frame.data, frame.can_dlc);
             } else if (frame.can_id == tp->func_sa) {
-                UDS_DBG_PRINT("func recvd can\n");
-                UDS_DBG_PRINTHEX(frame.data, frame.can_dlc);
+                if (ISOTP_RECEIVE_STATUS_IDLE != tp->phys_link.receive_status) {
+                    UDS_DBG_PRINT("func frame received but cannot process because link is not idle");
+                    return;
+                }
+                // TODO: reject if it's longer than a single frame
                 isotp_on_can_message(&tp->func_link, frame.data, frame.can_dlc);
             }
         }
@@ -104,56 +102,85 @@ static UDSTpStatus_t tp_poll(UDSTpHandle_t *hdl) {
     UDSTpStatus_t status = 0;
     UDSTpISOTpC_t *impl = (UDSTpISOTpC_t *)hdl;
     SocketCANRecv(impl);
-
     isotp_poll(&impl->phys_link);
-    isotp_poll(&impl->func_link);
     if (impl->phys_link.send_status == ISOTP_SEND_STATUS_INPROGRESS) {
         status |= UDS_TP_SEND_IN_PROGRESS;
     }
     return status;
 }
 
-static ssize_t tp_recv(UDSTpHandle_t *hdl, UDSSDU_t *msg) {
-    assert(hdl);
+int peek_link(IsoTpLink *link, uint8_t *buf, size_t bufsize, bool functional) {
+    assert(link);
+    assert(buf);
     int ret = -1;
-    uint16_t size = 0;
-    UDSTpISOTpC_t *impl = (UDSTpISOTpC_t *)hdl;
-    struct {
-        IsoTpLink *link;
-        UDSTpAddr_t ta_type;
-    } arr[] = {{&impl->phys_link, UDS_A_TA_TYPE_PHYSICAL}, {&impl->func_link, UDS_A_TA_TYPE_FUNCTIONAL}};
-    for (size_t i = 0; i < sizeof(arr) / sizeof(arr[0]); i++) {
-        ret = isotp_receive(arr[i].link, msg->A_Data, msg->A_DataBufSize, &size);
-        switch (ret) {
-        case ISOTP_RET_OK:
-            msg->A_TA_Type = arr[i].ta_type;
-            ret = size;
-            goto done;
-        case ISOTP_RET_NO_DATA:
+    switch (link->receive_status) {
+        case ISOTP_RECEIVE_STATUS_IDLE:
             ret = 0;
-            continue;
-        case ISOTP_RET_ERROR:
+            goto done;
+        case ISOTP_RECEIVE_STATUS_INPROGRESS:
+            ret = 0;
+            goto done;
+        case ISOTP_RECEIVE_STATUS_FULL:
+            ret = link->receive_size;
+            printf("The link is full. Copying %d bytes\n", ret);
+            memmove(buf, link->receive_buffer, link->receive_size);
+            break;
+        default:
+            UDS_DBG_PRINT("receive_status %d not implemented\n", link->receive_status);
             ret = -1;
             goto done;
-        default:
-            ret = -2;
+    }
+done:
+    return ret;
+}
+
+static ssize_t tp_peek(UDSTpHandle_t *hdl, uint8_t **p_buf, UDSSDU_t *info) {
+    assert(hdl);
+    assert(p_buf);
+    UDSTpISOTpC_t *tp= (UDSTpISOTpC_t *)hdl;
+    if (ISOTP_RECEIVE_STATUS_FULL == tp->phys_link.receive_status) { // recv not yet acked
+        *p_buf = tp->recv_buf;
+        return tp->phys_link.receive_size;
+    }
+    int ret = -1;
+    ret = peek_link(&tp->phys_link, tp->recv_buf, sizeof(tp->recv_buf), false);
+    UDS_A_TA_Type_t ta_type = UDS_A_TA_TYPE_PHYSICAL;
+    uint32_t ta = tp->phys_ta;
+    uint32_t sa = tp->phys_sa;
+
+    if (ret > 0) {
+        printf("just got %d bytes\n", ret);
+        ta = tp->phys_sa;
+        sa = tp->phys_ta;
+        ta_type = UDS_A_TA_TYPE_PHYSICAL;
+        *p_buf = tp->recv_buf;
+        goto done;
+    } else if (ret < 0) {
+        goto done;
+    } else {
+        ret = peek_link(&tp->func_link, tp->recv_buf, sizeof(tp->recv_buf), true);
+        if (ret > 0) {
+            printf("just got %d bytes on func link \n", ret);
+            ta = tp->func_sa;
+            sa = tp->func_ta;
+            ta_type = UDS_A_TA_TYPE_FUNCTIONAL;
+            *p_buf = tp->recv_buf;
+            goto done;
+        } else if (ret < 0) {
             goto done;
         }
     }
 done:
     if (ret > 0) {
-        msg->A_Length = size;
-        if (UDS_A_TA_TYPE_PHYSICAL == msg->A_TA_Type )  {
-            msg->A_TA = impl->phys_sa;
-            msg->A_SA = impl->phys_ta;
-        } else {
-            msg->A_TA = impl->func_sa;
-            msg->A_SA = impl->func_ta;
+        if (info) {
+            info->A_TA = ta;
+            info->A_SA = sa;
+            info->A_TA_Type = ta_type;
         }
-        fprintf(stdout, "%06d, %s recv, 0x%03x (%s), ", UDSMillis(), impl->tag, msg->A_TA,
-                msg->A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
-        for (unsigned i = 0; i < msg->A_Length; i++) {
-            fprintf(stdout, "%02x ", msg->A_Data[i]);
+        fprintf(stdout, "%06d, %s recv, 0x%03x (%s), ", UDSMillis(), tp->tag, ta,
+                ta_type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
+        for (unsigned i = 0; i < ret; i++) {
+            fprintf(stdout, "%02x ", (*p_buf)[i]);
         }
         fprintf(stdout, "\n");
         fflush(stdout); // flush every time in case of crash
@@ -162,27 +189,34 @@ done:
     return ret;
 }
 
-static ssize_t tp_send(UDSTpHandle_t *hdl, uint8_t *buf, ssize_t len, UDSSDU_t *info) {
+static ssize_t tp_send(UDSTpHandle_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
     assert(hdl);
     ssize_t ret = -1;
-    UDSTpISOTpC_t *impl = (UDSTpISOTpC_t *)hdl;
+    UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
     IsoTpLink *link = NULL;
-    switch (msg->A_TA_Type) {
+    const UDSTpAddr_t ta_type = info ? info->A_TA_Type : UDS_A_TA_TYPE_PHYSICAL;
+    const uint32_t ta = ta_type == UDS_A_TA_TYPE_PHYSICAL ? tp->phys_ta : tp->func_ta;
+    switch (ta_type) {
     case UDS_A_TA_TYPE_PHYSICAL:
-        link = &impl->phys_link;
+        link = &tp->phys_link;
         break;
     case UDS_A_TA_TYPE_FUNCTIONAL:
-        link = &impl->func_link;
+        link = &tp->func_link;
+        if (len > 7) {
+            UDS_DBG_PRINT("Cannot send more than 7 bytes via functional addressing\n");
+            ret = -3;
+            goto done;
+        }
         break;
     default:
         ret = -4;
         goto done;
     }
 
-    int send_status = isotp_send(link, msg->A_Data, msg->A_Length);
+    int send_status = isotp_send(link, buf, len);
     switch (send_status) {
     case ISOTP_RET_OK:
-        ret = msg->A_Length;
+        ret = len;
         goto done;
     case ISOTP_RET_INPROGRESS:
     case ISOTP_RET_OVERFLOW:
@@ -191,10 +225,10 @@ static ssize_t tp_send(UDSTpHandle_t *hdl, uint8_t *buf, ssize_t len, UDSSDU_t *
         goto done;
     }
 done:
-    fprintf(stdout, "%06d, %s sends, 0x%03x (%s), ", UDSMillis(), impl->tag, msg->A_TA,
-            msg->A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
-    for (unsigned i = 0; i < msg->A_Length; i++) {
-        fprintf(stdout, "%02x ", msg->A_Data[i]);
+    fprintf(stdout, "%06d, %s sends, 0x%03x (%s), ", UDSMillis(), tp->tag, ta,
+            ta_type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
+    for (unsigned i = 0; i < len; i++) {
+        fprintf(stdout, "%02x ", buf[i]);
     }
     fprintf(stdout, "\n");
     fflush(stdout); // flush every time in case of crash
@@ -202,41 +236,37 @@ done:
     return ret;
 }
 
-
-UDSErr_t UDSTpISOTpCInitServer(UDSTpISOTpC_t *tp, UDSServer_t* srv, const char *ifname, uint32_t source_addr,
-                               uint32_t target_addr, uint32_t target_addr_func) {
-    assert(tp);
-    assert(ifname);
-    tp->hdl.poll = tp_poll;
-    tp->hdl.recv = tp_recv;
-    tp->hdl.send = tp_send;
-    tp->phys_sa = source_addr;
-    tp->phys_ta = target_addr;
-    tp->func_sa = source_addr;
-    tp->func_ta = target_addr_func;
-
-    isotp_init_link(&tp->phys_link, target_addr, srv->send_buf, sizeof(srv->send_buf),
-                    srv->recv_buf, sizeof(srv->recv_buf));
-    isotp_init_link(&tp->func_link, target_addr, tp->func_send_buf, sizeof(tp->func_send_buf),
-                    tp->func_recv_buf, sizeof(tp->func_recv_buf));
-    return UDS_OK;
+static void tp_ack_recv(UDSTpHandle_t *hdl) {
+    assert(hdl);
+    printf("ack recv\n");
+    UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
 }
 
-UDSErr_t UDSTpISOTpCInitClient(UDSTpISOTpC_t *tp, UDSClient_t *client, const char *ifname, uint32_t source_addr, uint32_t target_addr, uint32_t source_addr_func) {
+
+UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, const char *ifname, uint32_t source_addr,
+                                  uint32_t target_addr, uint32_t source_addr_func, uint32_t target_addr_func)
+{
     assert(tp);
     assert(ifname);
     tp->hdl.poll = tp_poll;
-    tp->hdl.recv = tp_recv;
     tp->hdl.send = tp_send;
+    tp->hdl.peek = tp_peek;
+    tp->hdl.ack_recv = tp_ack_recv;
     tp->phys_sa = source_addr;
     tp->phys_ta = target_addr;
     tp->func_sa = source_addr_func;
     tp->func_ta = target_addr;
+    tp->fd = SetupSocketCAN(ifname);
 
-    isotp_init_link(&tp->phys_link, target_addr, client->send_buf, sizeof(client->send_buf),
-                    client->recv_buf, sizeof(client->recv_buf));
-    isotp_init_link(&tp->func_link, target_addr, tp->func_send_buf, sizeof(tp->func_send_buf),
-                    tp->func_recv_buf, sizeof(tp->func_recv_buf));
+    isotp_init_link(&tp->phys_link, target_addr, tp->send_buf, sizeof(tp->send_buf),
+                    tp->recv_buf, sizeof(tp->recv_buf), isotp_user_get_ms, isotp_user_send_can, isotp_user_debug, &tp->fd);
+    isotp_init_link(&tp->func_link, target_addr_func, tp->recv_buf, sizeof(tp->send_buf),
+                    tp->recv_buf, sizeof(tp->recv_buf), isotp_user_get_ms, isotp_user_send_can, isotp_user_debug, &tp->fd);
     return UDS_OK;
 }
- 
+
+void UDSTpISOTpCDeinit(UDSTpISOTpC_t *tp) {
+    assert(tp);
+    close(tp->fd);
+    tp->fd = -1;
+}

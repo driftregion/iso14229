@@ -37,13 +37,13 @@ static UDSTpHandle_t *mock_client = NULL;
 void DoInitialization() {
     UDSServerConfig_t cfg = {
         .fn = fn,
-        .tp = TPMockCreate("server"),
+        .tp = TPMockNew("server"),
         .target_addr = 0x7E0,
         .source_addr = 0x7E8,
         .source_addr_func = 0x7DF,
     };
     UDSServerInit(&srv, &cfg);
-    mock_client = TPMockCreate("client");
+    mock_client = TPMockNew("client");
 }
 
 
@@ -55,8 +55,8 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     }
     memset(&fuzz, 0, sizeof(fuzz));
     memmove(&fuzz, data, size);
-    srv.tp = TPMockCreate("server");
-    mock_client = TPMockCreate("client");
+    srv.tp = TPMockNew("server");
+    mock_client = TPMockNew("client");
 
     UDSSDU_t msg = {
         .A_Mtype = UDS_A_MTYPE_DIAG,

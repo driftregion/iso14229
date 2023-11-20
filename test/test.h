@@ -4,9 +4,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <setjmp.h>
 #include "iso14229.h"
 #include "test/env.h"
 #include "tp/mock.h"
+#include <cmocka.h>
 
 #define _TEST_INT_COND(a, b, cond)                                                                 \
     {                                                                                              \
@@ -52,33 +54,6 @@
             printf(" (%s)\n", #b);                                                                 \
             fflush(stdout);                                                                        \
             assert(0);                                                                             \
-        }                                                                                          \
-    }
-
-// expect a server response within a timeout
-#define EXPECT_RESPONSE_WITHIN_MILLIS(d1, timeout_ms)                                              \
-    {                                                                                              \
-        uint32_t deadline = UDSMillis() + timeout_ms + 1;                                          \
-        uint8_t buf[UDS_BUFSIZE];                                                                  \
-        UDSSDU_t msg = {                                                                           \
-            .A_DataBufSize = sizeof(buf),                                                          \
-            .A_Data = buf,                                                                         \
-        };                                                                                         \
-        while (0 == UDSTpRecv(mock_tp, &msg)) {                                                    \
-            TEST_INT_LE(UDSMillis(), deadline);                                                    \
-            ENV_RunMillis(1);                                                                      \
-        }                                                                                          \
-        TEST_INT_EQUAL(msg.A_Length, sizeof(d1));                                                  \
-        TEST_MEMORY_EQUAL(msg.A_Data, d1, sizeof(d1));                                             \
-    }
-
-#define EXPECT_RECV_WITHIN_MILLIS(tp, msg, timeout_ms)                                             \
-    {                                                                                              \
-                                                                                                   \
-        uint32_t deadline = UDSMillis() + timeout_ms + 1;                                          \
-        while (0 == UDSTpRecv(tp, msg)) {                                                          \
-            TEST_INT_LE(UDSMillis(), deadline);                                                    \
-            ENV_RunMillis(1);                                                                      \
         }                                                                                          \
     }
 

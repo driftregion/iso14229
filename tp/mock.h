@@ -42,10 +42,8 @@ typedef struct {
  * @param name optional name of the transport (can be NULL)
  * @return UDSTpHandle_t*
  */
-UDSTpHandle_t *TPMockCreate(const char *name, TPMockArgs_t *args);
-
-void TPMockAttach(TPMock_t *tp, TPMockArgs_t *args);
-void TPMockDetach(TPMock_t *tp);
+UDSTpHandle_t *TPMockNew(const char *name, TPMockArgs_t *args);
+void TPMockFree(UDSTpHandle_t *tp);
 
 /**
  * @brief write all messages to a file
