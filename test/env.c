@@ -11,7 +11,7 @@
 
 static UDSServer_t *registeredServer = NULL;
 static UDSClient_t *registeredClient = NULL;
-#define MAX_NUM_TP 8
+#define MAX_NUM_TP 16
 static UDSTpHandle_t *registeredTps[MAX_NUM_TP];
 static unsigned TPCount = 0;
 static uint32_t TimeNowMillis = 0;
@@ -110,6 +110,10 @@ void ENV_RunMillis(uint32_t millis) {
 UDSTpHandle_t *ENV_TpNew(const char *name) {
     ENV_ParseOpts();
     UDSTpHandle_t *tp = NULL;
+    if (MAX_NUM_TP == TPCount) {
+        printf("too many TPs\n");
+        return NULL;
+    }
     if (0 == strcasecmp(name, "server"))
         switch (opts.tp_type) {
         case ENV_TP_TYPE_MOCK:

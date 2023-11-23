@@ -10,6 +10,7 @@
 #include "tp/mock.h"
 #include <cmocka.h>
 
+
 #define _TEST_INT_COND(a, b, cond)                                                                 \
     {                                                                                              \
         int _a = a;                                                                                \
@@ -17,7 +18,7 @@
         if (!((_a)cond(_b))) {                                                                     \
             printf("%s:%d (%d %s %d)\n", __FILE__, __LINE__, _a, #cond, _b);                       \
             fflush(stdout);                                                                        \
-            assert(a cond b);                                                                      \
+            assert_true(a cond b);                                                                      \
         }                                                                                          \
     }
 
@@ -93,8 +94,8 @@
 #define EXPECT_IN_APPROX_MS(cond, duration)                                                          \
     {                                                                                              \
         const float tolerance = 0.1f; \
-        uint32_t pre_deadline = UDSMillis() + (int)(duration * (1.0f - tolerance));                                          \
-        uint32_t post_deadline = UDSMillis() + (int)(duration * (1.0f + tolerance));                                          \
+        uint32_t pre_deadline = UDSMillis() + (int)((duration) * (1.0f - tolerance));                                          \
+        uint32_t post_deadline = UDSMillis() + (int)((duration) * (1.0f + tolerance));                                          \
         while (UDSTimeAfter(pre_deadline, UDSMillis())) {                                                                             \
             assert(!(cond)); \
             ENV_RunMillis(1);                                                                      \

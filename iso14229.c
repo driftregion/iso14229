@@ -1069,7 +1069,8 @@ void UDSServerPoll(UDSServer_t *srv) {
             if (srv->RCRRP) {
                 // ISO14229-2:2013 Table 4 footnote b 
                 // min time between consecutive 0x78 responses is 0.3 * p2*
-                srv->p2_timer = UDSMillis() + 0.3f * srv->p2_star_ms;
+                uint32_t wait_time = srv->p2_star_ms * 3 / 10;
+                srv->p2_timer = UDSMillis() + wait_time;
             } else {
                 srv->p2_timer = UDSMillis() + srv->p2_ms;
                 UDSTpAckRecv(srv->tp);

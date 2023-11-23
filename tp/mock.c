@@ -7,9 +7,9 @@
 #include <stdlib.h>
 
 
-#define MAX_NUM_TP 8
+#define MAX_NUM_TP 16
 #define NUM_MSGS 8
-static TPMock_t *TPs[8];
+static TPMock_t *TPs[MAX_NUM_TP];
 static unsigned TPCount = 0;
 static FILE *LogFile = NULL;
 static struct Msg {

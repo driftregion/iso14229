@@ -26,7 +26,7 @@ cc_library(
         deps=[":env"],
         size = "small",
         env = {
-            "UDS_TP_TYPE": "2",
+            "UDS_TP_TYPE": "0",
         },
         copts = ["-g"],
         tags = [
