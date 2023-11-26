@@ -40,16 +40,16 @@ int main() {
         0x01, // memorySize byte #1 (MSB)
         0x03, // memorySize byte #2 (LSB)
     };
-    UDSTpSend(client_tp,  REQ, sizeof(REQ), NULL);
+    UDSTpSend(client_tp, REQ, sizeof(REQ), NULL);
 
     // the client transport should receive a positive response within client_p2 ms
     // EXPECT_WITHIN_MS(UDSTpGetRecvLen(client_tp) > 0, UDS_CLIENT_DEFAULT_P2_MS)
-    uint32_t deadline = UDSMillis() + UDS_CLIENT_DEFAULT_P2_MS + 1;                                          
-    while (!(UDSTpGetRecvLen(client_tp) > 0)) {                                                                          
+    uint32_t deadline = UDSMillis() + UDS_CLIENT_DEFAULT_P2_MS + 1;
+    while (!(UDSTpGetRecvLen(client_tp) > 0)) {
         printf("UDSTpGetRecvLen(client_tp) = %ld\n", UDSTpGetRecvLen(client_tp));
-        TEST_INT_LE(UDSMillis(), deadline);                                                    
-        ENV_RunMillis(1);                                                                      
-    }                                                                                          
+        TEST_INT_LE(UDSMillis(), deadline);
+        ENV_RunMillis(1);
+    }
     TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(client_tp, NULL), EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 

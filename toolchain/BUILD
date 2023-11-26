@@ -7,20 +7,39 @@ filegroup(
 )
 
 gcc_toolchain(
-    name="arm_gcc",
+    name="arm_linux_gcc",
     prefix="arm-linux-gnueabihf",
     target_compatible_with = [
-        "@platforms//os:linux",
         "@platforms//cpu:arm",
+        "@platforms//os:linux",
     ],
+)
+
+gcc_toolchain(
+    name="arm_none_gcc",
+    prefix="arm-none-eabi",
+    target_compatible_with = [
+        "@platforms//cpu:arm",
+        "@platforms//os:none",
+    ],
+    include_dirs = [
+        "/usr/lib/gcc/arm-none-eabi/10.3.1/include/",
+    ],
+    linkopts = [
+        "-Wl,--gc-sections",
+    ],
+    copts = [
+        "-g",
+        "-gdwarf-2",
+    ]
 )
 
 gcc_toolchain(
     name="ppc_gcc",
     prefix="powerpc-linux-gnu", 
     target_compatible_with = [
-        "@platforms//os:linux",
         "@platforms//cpu:ppc",
+        "@platforms//os:linux",
     ]
 )
 
@@ -28,8 +47,8 @@ gcc_toolchain(
     name="ppc64_gcc", 
     prefix="powerpc64-linux-gnu", 
     target_compatible_with = [
-        "@platforms//os:linux",
         "//platforms/cpu:ppc64",
+        "@platforms//os:linux",
     ]
 )
 
@@ -37,8 +56,8 @@ gcc_toolchain(
     name="ppc64le_gcc",
     prefix="powerpc64le-linux-gnu",
     target_compatible_with = [
-        "@platforms//os:linux",
         "//platforms/cpu:ppc64le",
+        "@platforms//os:linux",
     ]
 )
 

@@ -17,13 +17,13 @@ typedef struct TPMock {
     uint8_t send_buf[UDS_BUFSIZE];
     size_t recv_len;
     UDSSDU_t recv_info;
-    uint32_t sa_phys; // source address - physical messages are sent from this address
-    uint32_t ta_phys; // target address - physical messages are sent to this address
-    uint32_t sa_func; // source address - functional messages are sent from this address
-    uint32_t ta_func; // target address - functional messages are sent to this address
+    uint32_t sa_phys;          // source address - physical messages are sent from this address
+    uint32_t ta_phys;          // target address - physical messages are sent to this address
+    uint32_t sa_func;          // source address - functional messages are sent from this address
+    uint32_t ta_func;          // target address - functional messages are sent to this address
     uint32_t send_tx_delay_ms; // simulated delay
-    uint32_t send_buf_size; // simulated size of the send buffer
-    char name[32]; // name for logging
+    uint32_t send_buf_size;    // simulated size of the send buffer
+    char name[32];             // name for logging
 } TPMock_t;
 
 typedef struct {
@@ -33,8 +33,14 @@ typedef struct {
     uint32_t ta_func; // target address - functional messages are sent to this address
 } TPMockArgs_t;
 
-#define TPMOCK_DEFAULT_CLIENT_ARGS &(TPMockArgs_t){.sa_phys=0x7E8, .ta_phys=0x7E0, .sa_func=UDS_TP_NOOP_ADDR, .ta_func=0x7DF}
-#define TPMOCK_DEFAULT_SERVER_ARGS &(TPMockArgs_t){.sa_phys=0x7E0, .ta_phys=0x7E8, .sa_func=0x7DF, .ta_func=UDS_TP_NOOP_ADDR}
+#define TPMOCK_DEFAULT_CLIENT_ARGS                                                                 \
+    &(TPMockArgs_t) {                                                                              \
+        .sa_phys = 0x7E8, .ta_phys = 0x7E0, .sa_func = UDS_TP_NOOP_ADDR, .ta_func = 0x7DF          \
+    }
+#define TPMOCK_DEFAULT_SERVER_ARGS                                                                 \
+    &(TPMockArgs_t) {                                                                              \
+        .sa_phys = 0x7E0, .ta_phys = 0x7E8, .sa_func = 0x7DF, .ta_func = UDS_TP_NOOP_ADDR          \
+    }
 
 /**
  * @brief Create a mock transport. It is connected by default to a broadcast network of all other
@@ -61,4 +67,3 @@ void TPMockReset(void);
 #ifdef __cplusplus
 }
 #endif
-

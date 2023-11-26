@@ -24,7 +24,7 @@ typedef struct {
 static StuffToFuzz_t fuzz;
 static uint8_t client_recv_buf[UDS_BUFSIZE];
 
-static uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) { 
+static uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
     printf("Whoah, got event %d\n", ev);
     return fuzz.srv_retval;
 }
@@ -45,7 +45,6 @@ void DoInitialization() {
     UDSServerInit(&srv, &cfg);
     mock_client = TPMockNew("client");
 }
-
 
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     static bool initialized = false;
@@ -75,7 +74,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
     {
         UDSSDU_t msg2 = {
-            .A_Data = client_recv_buf,    
+            .A_Data = client_recv_buf,
             .A_DataBufSize = sizeof(client_recv_buf),
         };
         mock_client->recv(mock_client, &msg2);

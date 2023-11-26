@@ -6,7 +6,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-
 #define MAX_NUM_TP 16
 #define NUM_MSGS 8
 static TPMock_t *TPs[MAX_NUM_TP];
@@ -19,7 +18,6 @@ static struct Msg {
     uint32_t scheduled_tx_time;
 } msgs[NUM_MSGS];
 static unsigned MsgCount = 0;
-
 
 static void LogMsg(const char *prefix, const uint8_t *buf, size_t len, UDSSDU_t *info) {
     if (!LogFile) {
@@ -42,7 +40,8 @@ static void NetworkPoll() {
                 TPMock_t *tp = TPs[j];
                 if (tp->sa_phys == msg->info.A_TA || tp->sa_func == msg->info.A_TA) {
                     if (tp->recv_len > 0) {
-                        fprintf(stderr, "TPMock: %s recv buffer is already full. Message dropped\n", tp->name);
+                        fprintf(stderr, "TPMock: %s recv buffer is already full. Message dropped\n",
+                                tp->name);
                         continue;
                     }
                     memmove(tp->recv_buf, msg->buf, msg->len);
@@ -60,7 +59,7 @@ static void NetworkPoll() {
     }
 }
 
-static ssize_t tp_peek(struct UDSTpHandle *hdl,uint8_t **p_buf, UDSSDU_t *info) {
+static ssize_t tp_peek(struct UDSTpHandle *hdl, uint8_t **p_buf, UDSSDU_t *info) {
     assert(hdl);
     assert(p_buf);
     TPMock_t *tp = (TPMock_t *)hdl;
@@ -73,7 +72,7 @@ static ssize_t tp_peek(struct UDSTpHandle *hdl,uint8_t **p_buf, UDSSDU_t *info) 
     return tp->recv_len;
 }
 
-static ssize_t tp_send(struct UDSTpHandle *hdl, uint8_t * buf, size_t len, UDSSDU_t *info) {
+static ssize_t tp_send(struct UDSTpHandle *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
     assert(hdl);
     TPMock_t *tp = (TPMock_t *)hdl;
     if (MsgCount > NUM_MSGS) {
@@ -155,7 +154,6 @@ static void TPMockDetach(TPMock_t *tp) {
     assert(false);
 }
 
-
 UDSTpHandle_t *TPMockNew(const char *name, TPMockArgs_t *args) {
     if (TPCount >= MAX_NUM_TP) {
         printf("TPCount: %d, too many TPs\n", TPCount);
@@ -201,7 +199,6 @@ void TPMockReset(void) {
     memset(TPs, 0, sizeof(TPs));
     TPCount = 0;
 }
-
 
 void TPMockFree(UDSTpHandle_t *tp) {
     TPMock_t *tpm = (TPMock_t *)tp;

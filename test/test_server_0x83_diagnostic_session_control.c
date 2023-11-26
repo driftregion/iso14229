@@ -15,7 +15,7 @@ int main() {
 
     // when a request is sent with the suppressPositiveResponse bit set
     const uint8_t REQ[] = {0x10, 0x83};
-    UDSTpSend(mock_client,  REQ, sizeof(REQ), NULL);
+    UDSTpSend(mock_client, REQ, sizeof(REQ), NULL);
 
     // even after running for a long time
     ENV_RunMillis(5000);

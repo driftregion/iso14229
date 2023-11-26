@@ -38,7 +38,7 @@ int main() {
     // sending a seed request should get this response
     const uint8_t SEED_REQUEST[] = {0x27, 0x01};
     const uint8_t SEED_RESPONSE[] = {0x67, 0x01, 0x36, 0x57};
-    UDSTpSend(mock_client,  SEED_REQUEST, sizeof(SEED_REQUEST), NULL);
+    UDSTpSend(mock_client, SEED_REQUEST, sizeof(SEED_REQUEST), NULL);
     EXPECT_IN_APPROX_MS(UDSTpGetRecvLen(mock_client) != 0, srv.p2_ms);
     TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(mock_client, NULL), SEED_RESPONSE, sizeof(SEED_RESPONSE));
     UDSTpAckRecv(mock_client);
@@ -49,7 +49,7 @@ int main() {
     // subsequently sending an unlock request should get this response
     const uint8_t UNLOCK_REQUEST[] = {0x27, 0x02, 0xC9, 0xA9};
     const uint8_t UNLOCK_RESPONSE[] = {0x67, 0x02};
-    UDSTpSend(mock_client,  UNLOCK_REQUEST, sizeof(UNLOCK_REQUEST), NULL);
+    UDSTpSend(mock_client, UNLOCK_REQUEST, sizeof(UNLOCK_REQUEST), NULL);
     EXPECT_IN_APPROX_MS(UDSTpGetRecvLen(mock_client) != 0, srv.p2_ms);
     TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(mock_client, NULL), UNLOCK_RESPONSE, sizeof(UNLOCK_RESPONSE));
     UDSTpAckRecv(mock_client);
@@ -59,7 +59,7 @@ int main() {
 
     // sending the same seed request should now result in the "already unlocked" response
     const uint8_t ALREADY_UNLOCKED_RESPONSE[] = {0x67, 0x01, 0x00, 0x00};
-    UDSTpSend(mock_client,  SEED_REQUEST, sizeof(SEED_REQUEST), NULL);
+    UDSTpSend(mock_client, SEED_REQUEST, sizeof(SEED_REQUEST), NULL);
     EXPECT_IN_APPROX_MS(UDSTpGetRecvLen(mock_client) != 0, srv.p2_ms);
     TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(mock_client, NULL), ALREADY_UNLOCKED_RESPONSE,
                       sizeof(ALREADY_UNLOCKED_RESPONSE));

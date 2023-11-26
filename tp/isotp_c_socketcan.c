@@ -31,7 +31,7 @@ static int SetupSocketCAN(const char *ifname) {
         perror("bind");
     }
 
-    done:
+done:
     return sockfd;
 }
 
@@ -44,7 +44,8 @@ void isotp_user_debug(const char *message, ...) {
     va_end(args);
 }
 
-int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t *data, const uint8_t size, void *user_data) {
+int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t *data, const uint8_t size,
+                        void *user_data) {
     assert(user_data);
     int sockfd = *(int *)user_data;
     struct can_frame frame = {0};
@@ -87,7 +88,8 @@ static void SocketCANRecv(UDSTpISOTpC_t *tp) {
                 isotp_on_can_message(&tp->phys_link, frame.data, frame.can_dlc);
             } else if (frame.can_id == tp->func_sa) {
                 if (ISOTP_RECEIVE_STATUS_IDLE != tp->phys_link.receive_status) {
-                    UDS_DBG_PRINT("func frame received but cannot process because link is not idle");
+                    UDS_DBG_PRINT(
+                        "func frame received but cannot process because link is not idle");
                     return;
                 }
                 // TODO: reject if it's longer than a single frame
@@ -114,21 +116,21 @@ int peek_link(IsoTpLink *link, uint8_t *buf, size_t bufsize, bool functional) {
     assert(buf);
     int ret = -1;
     switch (link->receive_status) {
-        case ISOTP_RECEIVE_STATUS_IDLE:
-            ret = 0;
-            goto done;
-        case ISOTP_RECEIVE_STATUS_INPROGRESS:
-            ret = 0;
-            goto done;
-        case ISOTP_RECEIVE_STATUS_FULL:
-            ret = link->receive_size;
-            printf("The link is full. Copying %d bytes\n", ret);
-            memmove(buf, link->receive_buffer, link->receive_size);
-            break;
-        default:
-            UDS_DBG_PRINT("receive_status %d not implemented\n", link->receive_status);
-            ret = -1;
-            goto done;
+    case ISOTP_RECEIVE_STATUS_IDLE:
+        ret = 0;
+        goto done;
+    case ISOTP_RECEIVE_STATUS_INPROGRESS:
+        ret = 0;
+        goto done;
+    case ISOTP_RECEIVE_STATUS_FULL:
+        ret = link->receive_size;
+        printf("The link is full. Copying %d bytes\n", ret);
+        memmove(buf, link->receive_buffer, link->receive_size);
+        break;
+    default:
+        UDS_DBG_PRINT("receive_status %d not implemented\n", link->receive_status);
+        ret = -1;
+        goto done;
     }
 done:
     return ret;
@@ -137,7 +139,7 @@ done:
 static ssize_t tp_peek(UDSTpHandle_t *hdl, uint8_t **p_buf, UDSSDU_t *info) {
     assert(hdl);
     assert(p_buf);
-    UDSTpISOTpC_t *tp= (UDSTpISOTpC_t *)hdl;
+    UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
     if (ISOTP_RECEIVE_STATUS_FULL == tp->phys_link.receive_status) { // recv not yet acked
         *p_buf = tp->recv_buf;
         return tp->phys_link.receive_size;
@@ -184,7 +186,6 @@ done:
         }
         fprintf(stdout, "\n");
         fflush(stdout); // flush every time in case of crash
-
     }
     return ret;
 }
@@ -242,26 +243,35 @@ static void tp_ack_recv(UDSTpHandle_t *hdl) {
     UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
 }
 
+static ssize_t tp_get_send_buf(UDSTpHandle_t *hdl, uint8_t **p_buf) {
+    assert(hdl);
+    UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
+    *p_buf = tp->send_buf;
+    return sizeof(tp->send_buf);
+}
 
 UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, const char *ifname, uint32_t source_addr,
-                                  uint32_t target_addr, uint32_t source_addr_func, uint32_t target_addr_func)
-{
+                         uint32_t target_addr, uint32_t source_addr_func,
+                         uint32_t target_addr_func) {
     assert(tp);
     assert(ifname);
     tp->hdl.poll = tp_poll;
     tp->hdl.send = tp_send;
     tp->hdl.peek = tp_peek;
     tp->hdl.ack_recv = tp_ack_recv;
+    tp->hdl.get_send_buf = tp_get_send_buf;
     tp->phys_sa = source_addr;
     tp->phys_ta = target_addr;
     tp->func_sa = source_addr_func;
     tp->func_ta = target_addr;
     tp->fd = SetupSocketCAN(ifname);
 
-    isotp_init_link(&tp->phys_link, target_addr, tp->send_buf, sizeof(tp->send_buf),
-                    tp->recv_buf, sizeof(tp->recv_buf), isotp_user_get_ms, isotp_user_send_can, isotp_user_debug, &tp->fd);
+    isotp_init_link(&tp->phys_link, target_addr, tp->send_buf, sizeof(tp->send_buf), tp->recv_buf,
+                    sizeof(tp->recv_buf), isotp_user_get_ms, isotp_user_send_can, isotp_user_debug,
+                    &tp->fd);
     isotp_init_link(&tp->func_link, target_addr_func, tp->recv_buf, sizeof(tp->send_buf),
-                    tp->recv_buf, sizeof(tp->recv_buf), isotp_user_get_ms, isotp_user_send_can, isotp_user_debug, &tp->fd);
+                    tp->recv_buf, sizeof(tp->recv_buf), isotp_user_get_ms, isotp_user_send_can,
+                    isotp_user_debug, &tp->fd);
     return UDS_OK;
 }
 

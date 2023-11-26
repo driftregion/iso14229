@@ -226,8 +226,6 @@ enum DTCSettingType {
     kDTCSettingOFF = 0x02,
 };
 
-
-
 enum UDSTpStatusFlags {
     UDS_TP_IDLE = 0x00000000,
     UDS_TP_SEND_IN_PROGRESS = 0x00000001,
@@ -281,11 +279,13 @@ typedef struct UDSTpHandle {
     /**
      * @brief Send the data in the buffer buf
      * @param hdl: pointer to transport handle
-     * @param buf: a pointer to the data to send (this may be the buffer returned by @ref get_send_buf)
-     * @param info: pointer to SDU info (may be NULL). If NULL, implementation should send with physical addressing
+     * @param buf: a pointer to the data to send (this may be the buffer returned by @ref
+     * get_send_buf)
+     * @param info: pointer to SDU info (may be NULL). If NULL, implementation should send with
+     * physical addressing
      */
     ssize_t (*send)(struct UDSTpHandle *hdl, uint8_t *buf, size_t len, UDSSDU_t *info);
-    
+
     /**
      * @brief Poll the transport layer.
      * @param hdl: pointer to transport handle
@@ -309,7 +309,7 @@ typedef struct UDSTpHandle {
     /**
      * @brief Acknowledge that the received data has been processed and may be discarded
      * @param hdl: pointer to transport handle
-     * @note: after ack_recv() is called and before new messages are received, peek must return 0. 
+     * @note: after ack_recv() is called and before new messages are received, peek must return 0.
      */
     void (*ack_recv)(struct UDSTpHandle *hdl);
 } UDSTpHandle_t;
@@ -590,11 +590,12 @@ typedef struct UDSServer {
     size_t xferByteCounter; // total number of bytes transferred
     size_t xferBlockLength; // block length (convenience for the TransferData API)
 
-    uint8_t sessionType; // diagnostic session type (0x10)
+    uint8_t sessionType;   // diagnostic session type (0x10)
     uint8_t securityLevel; // SecurityAccess (0x27) level
 
-    bool RCRRP; // set to true when user fn returns 0x78 and false otherwise
-    bool requestInProgress; // set to true when a request has been processed but the response has not yet been sent
+    bool RCRRP;             // set to true when user fn returns 0x78 and false otherwise
+    bool requestInProgress; // set to true when a request has been processed but the response has
+                            // not yet been sent
 
     // UDS-1 2013 defines the following conditions under which the server does not
     // process incoming requests:
@@ -628,7 +629,8 @@ typedef struct {
 
 typedef struct {
     const uint16_t dataId; /*! RDBI Data Identifier */
-    uint8_t (*copy)(UDSServer_t *srv , const void *src, uint16_t count); /*! function for copying data */
+    uint8_t (*copy)(UDSServer_t *srv, const void *src,
+                    uint16_t count); /*! function for copying data */
 } UDSRDBIArgs_t;
 
 typedef struct {

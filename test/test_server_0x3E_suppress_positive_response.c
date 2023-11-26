@@ -12,7 +12,7 @@ int main() {
 
     // when the suppressPositiveResponse bit is set
     const uint8_t REQ[] = {0x3E, 0x80};
-    UDSTpSend(mock_client,  REQ, sizeof(REQ), NULL);
+    UDSTpSend(mock_client, REQ, sizeof(REQ), NULL);
 
     // there should be no response
     ENV_RunMillis(5000);

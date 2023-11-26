@@ -19,7 +19,7 @@ int main() {
 
         // when no handler function is installed, sending this request to the server
         uint8_t REQ[] = {0x34, 0x11, 0x33, 0x60, 0x20, 0x00, 0x00, 0xFF, 0xFF};
-        UDSTpSend(mock_client,  REQ, sizeof(REQ), NULL);
+        UDSTpSend(mock_client, REQ, sizeof(REQ), NULL);
 
         // should return a kServiceNotSupported response
         uint8_t RESP[] = {0x7F, 0x34, 0x11};
@@ -37,7 +37,7 @@ int main() {
 
         // sending this request to the server
         uint8_t REQ[] = {0x34, 0x11, 0x33, 0x60, 0x20, 0x00, 0x00, 0xFF, 0xFF};
-        UDSTpSend(mock_client,  REQ, sizeof(REQ), NULL);
+        UDSTpSend(mock_client, REQ, sizeof(REQ), NULL);
 
         // should receive a positive response matching UDS-1:2013 Table 415
         uint8_t RESP[] = {0x74, 0x20, 0x00, 0x81};

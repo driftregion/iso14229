@@ -89,21 +89,21 @@
     ctx.func_name = __PRETTY_FUNCTION__;                                                           \
     if (SERVER_ONLY == test_type) {                                                                \
         UDSServerInit(&ctx.server, &(UDSServerConfig_t){                                           \
-                                       .tp = TPMockNew("server"),                               \
+                                       .tp = TPMockNew("server"),                                  \
                                        .source_addr = SERVER_SOURCE_ADDR,                          \
                                        .target_addr = SERVER_TARGET_ADDR,                          \
                                        .source_addr_func = SERVER_SOURCE_ADDR_FUNC,                \
                                    });                                                             \
-        ctx.mock_tp = TPMockNew("mock_client");                                                 \
+        ctx.mock_tp = TPMockNew("mock_client");                                                    \
     }                                                                                              \
     if (CLIENT_ONLY == test_type) {                                                                \
         UDSClientInit(&ctx.client, &(UDSClientConfig_t){                                           \
-                                       .tp = TPMockNew("client"),                               \
+                                       .tp = TPMockNew("client"),                                  \
                                        .target_addr = CLIENT_TARGET_ADDR,                          \
                                        .source_addr = CLIENT_SOURCE_ADDR,                          \
                                        .target_addr_func = CLIENT_TARGET_ADDR_FUNC,                \
                                    });                                                             \
-        ctx.mock_tp = TPMockNew("mock_server");                                                 \
+        ctx.mock_tp = TPMockNew("mock_server");                                                    \
     }                                                                                              \
     char logfilename[256] = {0};                                                                   \
     snprintf(logfilename, sizeof(logfilename), "%s%s.log", ctx.func_name, param_str);              \
@@ -232,7 +232,8 @@ static void poll_ctx(Ctx_t *ctx) {
             .A_Data = d1,                                                                          \
             .A_Length = sizeof(d1),                                                                \
             .A_SA = CLIENT_SOURCE_ADDR,                                                            \
-            .A_TA = reqType == UDS_A_TA_TYPE_PHYSICAL ? SERVER_SOURCE_ADDR : SERVER_SOURCE_ADDR_FUNC, \
+            .A_TA =                                                                                \
+                reqType == UDS_A_TA_TYPE_PHYSICAL ? SERVER_SOURCE_ADDR : SERVER_SOURCE_ADDR_FUNC,  \
             .A_TA_Type = (int)reqType,                                                             \
         };                                                                                         \
         ctx.mock_tp->send(ctx.mock_tp, &msg);                                                      \
@@ -247,9 +248,9 @@ static void poll_ctx(Ctx_t *ctx) {
         int recv_len = ctx.mock_tp->recv(ctx.mock_tp, &msg);                                       \
         ASSERT_INT_EQUAL(recv_len, sizeof(d1));                                                    \
         ASSERT_MEMORY_EQUAL(ctx.mock_recv_buf, d1, sizeof(d1));                                    \
-        if (reqType == UDS_A_TA_TYPE_PHYSICAL) {                                                      \
+        if (reqType == UDS_A_TA_TYPE_PHYSICAL) {                                                   \
             ASSERT_INT_EQUAL(msg.A_TA, SERVER_SOURCE_ADDR);                                        \
-        } else if (reqType == UDS_A_TA_TYPE_FUNCTIONAL) {                                             \
+        } else if (reqType == UDS_A_TA_TYPE_FUNCTIONAL) {                                          \
             ASSERT_INT_EQUAL(msg.A_TA, SERVER_SOURCE_ADDR_FUNC);                                   \
         } else {                                                                                   \
             assert(0);                                                                             \

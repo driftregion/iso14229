@@ -7,9 +7,7 @@ int main() {
 
     // When server is sent a diagnostic session control request
     const uint8_t REQ[] = {0x10, 0x02};
-    UDSTpSend(mock_client, REQ, sizeof(REQ), &(UDSSDU_t){
-        .A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL
-    });
+    UDSTpSend(mock_client, REQ, sizeof(REQ), &(UDSSDU_t){.A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL});
 
     // the server should respond with a negative response within p2 ms
     const uint8_t EXP_RESP[] = {0x7f, 0x10, 0x11};

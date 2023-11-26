@@ -78,17 +78,17 @@ enum UDSDiagnosticServiceId {
 // ========================================================================
 
 /**
- * @brief 
- * 
- * @param hdl 
+ * @brief
+ *
+ * @param hdl
  * @param info, if NULL, the default values are used:
  *   A_Mtype: message type (diagnostic (DEFAULT), remote diagnostic, secure diagnostic, secure
-    * remote diagnostic)
-    * A_TA_Type: application target address type (physical (DEFAULT) or functional)
-    * A_SA: unused
-    * A_TA: unused
-    * A_AE: unused
- * @return ssize_t 
+ * remote diagnostic)
+ * A_TA_Type: application target address type (physical (DEFAULT) or functional)
+ * A_SA: unused
+ * A_TA: unused
+ * A_AE: unused
+ * @return ssize_t
  */
 ssize_t UDSTpGetSendBuf(struct UDSTpHandle *hdl, uint8_t **buf) {
     assert(hdl);
@@ -98,7 +98,7 @@ ssize_t UDSTpGetSendBuf(struct UDSTpHandle *hdl, uint8_t **buf) {
 ssize_t UDSTpSend(struct UDSTpHandle *hdl, const uint8_t *buf, ssize_t len, UDSSDU_t *info) {
     assert(hdl);
     assert(hdl->send);
-    return hdl->send(hdl, (uint8_t*)buf, len, info);
+    return hdl->send(hdl, (uint8_t *)buf, len, info);
 }
 
 UDSTpStatus_t UDSTpPoll(struct UDSTpHandle *hdl) {
@@ -191,7 +191,6 @@ static uint8_t EmitEvent(UDSServer_t *srv, UDSServerEvent_t evt, void *data) {
         return kGeneralReject;
     }
 }
-
 
 static uint8_t _0x10_DiagnosticSessionControl(UDSServer_t *srv, UDSReq_t *r) {
     if (r->recv_len < UDS_0X10_REQ_LEN) {
@@ -806,8 +805,7 @@ static uint8_t _0x37_RequestTransferExit(UDSServer_t *srv, UDSReq_t *r) {
 }
 
 static uint8_t _0x3E_TesterPresent(UDSServer_t *srv, UDSReq_t *r) {
-    if ((r->recv_len < UDS_0X3E_REQ_MIN_LEN) ||
-        (r->recv_len > UDS_0X3E_REQ_MAX_LEN)) {
+    if ((r->recv_len < UDS_0X3E_REQ_MIN_LEN) || (r->recv_len > UDS_0X3E_REQ_MAX_LEN)) {
         return NegativeResponse(r, kIncorrectMessageLengthOrInvalidFormat);
     }
     uint8_t zeroSubFunction = r->recv_buf[1];
@@ -1039,8 +1037,8 @@ void UDSServerPoll(UDSServer_t *srv) {
 
     if (srv->requestInProgress) {
         if (srv->RCRRP) {
-            // responds only if 
-            // 1. changed (no longer RCRRP), or 
+            // responds only if
+            // 1. changed (no longer RCRRP), or
             // 2. p2_timer has elapsed
             uint8_t response = evaluateServiceResponse(srv, r);
             if (kRequestCorrectlyReceived_ResponsePending == response) {
@@ -1061,13 +1059,13 @@ void UDSServerPoll(UDSServer_t *srv) {
             ssize_t ret = UDSTpSend(srv->tp, r->send_buf, r->send_len, NULL);
             // TODO test injection of transport errors:
             if (ret < 0) {
-                UDSErr_t err  = UDS_ERR_TPORT;
+                UDSErr_t err = UDS_ERR_TPORT;
                 EmitEvent(srv, UDS_SRV_EVT_Err, &err);
                 UDS_DBG_PRINT("UDSTpSend failed with %ld\n", ret);
             }
 
             if (srv->RCRRP) {
-                // ISO14229-2:2013 Table 4 footnote b 
+                // ISO14229-2:2013 Table 4 footnote b
                 // min time between consecutive 0x78 responses is 0.3 * p2*
                 uint32_t wait_time = srv->p2_star_ms * 3 / 10;
                 srv->p2_timer = UDSMillis() + wait_time;
@@ -1081,11 +1079,11 @@ void UDSServerPoll(UDSServer_t *srv) {
     } else {
         if (srv->notReadyToReceive) {
             return; // cannot respond to request right now
-        } 
+        }
         r->recv_len = UDSTpPeek(srv->tp, &r->recv_buf, &r->info);
         r->send_buf_size = UDSTpGetSendBuf(srv->tp, &r->send_buf);
         if (r->send_buf == NULL || r->recv_buf == NULL) {
-            UDSErr_t err  = UDS_ERR_TPORT;
+            UDSErr_t err = UDS_ERR_TPORT;
             EmitEvent(srv, UDS_SRV_EVT_Err, &err);
             UDS_DBG_PRINT("bad tport\n");
             return;
@@ -1099,7 +1097,6 @@ void UDSServerPoll(UDSServer_t *srv) {
         }
     }
 }
-
 
 // ========================================================================
 //                              Client
@@ -1135,11 +1132,11 @@ static const char *ClientStateName(enum UDSClientRequestState state) {
         return "Idle";
     case kRequestStateSending:
         return "Sending";
-        case kRequestStateAwaitSendComplete:
+    case kRequestStateAwaitSendComplete:
         return "AwaitSendComplete";
     case kRequestStateAwaitResponse:
         return "AwaitResponse";
-        case kRequestStateProcessResponse:
+    case kRequestStateProcessResponse:
         return "ProcessResponse";
     default:
         return "Unknown";
@@ -1147,7 +1144,8 @@ static const char *ClientStateName(enum UDSClientRequestState state) {
 }
 
 static void changeState(UDSClient_t *client, enum UDSClientRequestState state) {
-    printf("client state: %s (%d) -> %s (%d)\n", ClientStateName(client->state), client->state, ClientStateName(state), state);
+    printf("client state: %s (%d) -> %s (%d)\n", ClientStateName(client->state), client->state,
+           ClientStateName(state), state);
     client->state = state;
 }
 
@@ -1259,8 +1257,8 @@ static void PollLowLevel(UDSClient_t *client) {
         break;
     }
     case kRequestStateSending: {
-        UDSTpAddr_t ta_type =
-            client->_options_copy & UDS_FUNCTIONAL ? UDS_A_TA_TYPE_FUNCTIONAL : UDS_A_TA_TYPE_PHYSICAL;
+        UDSTpAddr_t ta_type = client->_options_copy & UDS_FUNCTIONAL ? UDS_A_TA_TYPE_FUNCTIONAL
+                                                                     : UDS_A_TA_TYPE_PHYSICAL;
         UDSSDU_t info = {
             .A_Mtype = UDS_A_MTYPE_DIAG,
             .A_TA_Type = ta_type,
@@ -1349,7 +1347,6 @@ static UDSErr_t _SendRequest(UDSClient_t *client) {
     return UDS_OK;
 }
 
-
 static UDSErr_t PreRequestCheck(UDSClient_t *client) {
     if (kRequestStateIdle != client->state) {
         return UDS_ERR_BUSY;
@@ -1368,9 +1365,9 @@ static UDSErr_t PreRequestCheck(UDSClient_t *client) {
 
 UDSErr_t UDSSendBytes(UDSClient_t *client, const uint8_t *data, uint16_t size) {
     UDSErr_t err = PreRequestCheck(client);
-if (err) {
-    return err;
-}
+    if (err) {
+        return err;
+    }
     if (size > client->send_buf_size) {
         return UDS_ERR_BUFSIZ;
     }
@@ -1381,9 +1378,9 @@ if (err) {
 
 UDSErr_t UDSSendECUReset(UDSClient_t *client, UDSECUReset_t type) {
     UDSErr_t err = PreRequestCheck(client);
-if (err) {
-    return err;
-}
+    if (err) {
+        return err;
+    }
     client->send_buf[0] = kSID_ECU_RESET;
     client->send_buf[1] = type;
     client->send_size = 2;
@@ -1392,9 +1389,9 @@ if (err) {
 
 UDSErr_t UDSSendDiagSessCtrl(UDSClient_t *client, enum UDSDiagnosticSessionType mode) {
     UDSErr_t err = PreRequestCheck(client);
-if (err) {
-    return err;
-}
+    if (err) {
+        return err;
+    }
     client->send_buf[0] = kSID_DIAGNOSTIC_SESSION_CONTROL;
     client->send_buf[1] = mode;
     client->send_size = 2;
@@ -1404,9 +1401,9 @@ if (err) {
 UDSErr_t UDSSendCommCtrl(UDSClient_t *client, enum UDSCommunicationControlType ctrl,
                          enum UDSCommunicationType comm) {
     UDSErr_t err = PreRequestCheck(client);
-if (err) {
-    return err;
-}
+    if (err) {
+        return err;
+    }
     client->send_buf[0] = kSID_COMMUNICATION_CONTROL;
     client->send_buf[1] = ctrl;
     client->send_buf[2] = comm;
@@ -1416,9 +1413,9 @@ if (err) {
 
 UDSErr_t UDSSendTesterPresent(UDSClient_t *client) {
     UDSErr_t err = PreRequestCheck(client);
-if (err) {
-    return err;
-}
+    if (err) {
+        return err;
+    }
     client->send_buf[0] = kSID_TESTER_PRESENT;
     client->send_buf[1] = 0;
     client->send_size = 2;
@@ -1428,9 +1425,9 @@ if (err) {
 UDSErr_t UDSSendRDBI(UDSClient_t *client, const uint16_t *didList,
                      const uint16_t numDataIdentifiers) {
     UDSErr_t err = PreRequestCheck(client);
-if (err) {
-    return err;
-}
+    if (err) {
+        return err;
+    }
     assert(didList);
     assert(numDataIdentifiers);
     client->send_buf[0] = kSID_READ_DATA_BY_IDENTIFIER;
@@ -1449,9 +1446,9 @@ if (err) {
 UDSErr_t UDSSendWDBI(UDSClient_t *client, uint16_t dataIdentifier, const uint8_t *data,
                      uint16_t size) {
     UDSErr_t err = PreRequestCheck(client);
-if (err) {
-    return err;
-}
+    if (err) {
+        return err;
+    }
     assert(data);
     assert(size);
     client->send_buf[0] = kSID_WRITE_DATA_BY_IDENTIFIER;
@@ -1479,9 +1476,9 @@ if (err) {
 UDSErr_t UDSSendRoutineCtrl(UDSClient_t *client, enum RoutineControlType type,
                             uint16_t routineIdentifier, const uint8_t *data, uint16_t size) {
     UDSErr_t err = PreRequestCheck(client);
-if (err) {
-    return err;
-}
+    if (err) {
+        return err;
+    }
     client->send_buf[0] = kSID_ROUTINE_CONTROL;
     client->send_buf[1] = type;
     client->send_buf[2] = routineIdentifier >> 8;
@@ -1514,9 +1511,9 @@ UDSErr_t UDSSendRequestDownload(UDSClient_t *client, uint8_t dataFormatIdentifie
                                 uint8_t addressAndLengthFormatIdentifier, size_t memoryAddress,
                                 size_t memorySize) {
     UDSErr_t err = PreRequestCheck(client);
-if (err) {
-    return err;
-}
+    if (err) {
+        return err;
+    }
     uint8_t numMemorySizeBytes = (addressAndLengthFormatIdentifier & 0xF0) >> 4;
     uint8_t numMemoryAddressBytes = addressAndLengthFormatIdentifier & 0x0F;
 
@@ -1555,9 +1552,9 @@ UDSErr_t UDSSendRequestUpload(UDSClient_t *client, uint8_t dataFormatIdentifier,
                               uint8_t addressAndLengthFormatIdentifier, size_t memoryAddress,
                               size_t memorySize) {
     UDSErr_t err = PreRequestCheck(client);
-if (err) {
-    return err;
-}
+    if (err) {
+        return err;
+    }
     uint8_t numMemorySizeBytes = (addressAndLengthFormatIdentifier & 0xF0) >> 4;
     uint8_t numMemoryAddressBytes = addressAndLengthFormatIdentifier & 0x0F;
 
@@ -1594,9 +1591,9 @@ if (err) {
 UDSErr_t UDSSendTransferData(UDSClient_t *client, uint8_t blockSequenceCounter,
                              const uint16_t blockLength, const uint8_t *data, uint16_t size) {
     UDSErr_t err = PreRequestCheck(client);
-if (err) {
-    return err;
-}
+    if (err) {
+        return err;
+    }
     assert(blockLength > 2);         // blockLength must include SID and sequenceCounter
     assert(size + 2 <= blockLength); // data must fit inside blockLength - 2
     client->send_buf[0] = kSID_TRANSFER_DATA;
@@ -1610,9 +1607,9 @@ if (err) {
 UDSErr_t UDSSendTransferDataStream(UDSClient_t *client, uint8_t blockSequenceCounter,
                                    const uint16_t blockLength, FILE *fd) {
     UDSErr_t err = PreRequestCheck(client);
-if (err) {
-    return err;
-}
+    if (err) {
+        return err;
+    }
     assert(blockLength > 2); // blockLength must include SID and sequenceCounter
     client->send_buf[0] = kSID_TRANSFER_DATA;
     client->send_buf[1] = blockSequenceCounter;
@@ -1632,9 +1629,9 @@ if (err) {
  */
 UDSErr_t UDSSendRequestTransferExit(UDSClient_t *client) {
     UDSErr_t err = PreRequestCheck(client);
-if (err) {
-    return err;
-}
+    if (err) {
+        return err;
+    }
     client->send_buf[0] = kSID_REQUEST_TRANSFER_EXIT;
     client->send_size = 1;
     return _SendRequest(client);
@@ -1653,9 +1650,9 @@ if (err) {
 UDSErr_t UDSCtrlDTCSetting(UDSClient_t *client, uint8_t dtcSettingType, uint8_t *data,
                            uint16_t size) {
     UDSErr_t err = PreRequestCheck(client);
-if (err) {
-    return err;
-}
+    if (err) {
+        return err;
+    }
     if (0x00 == dtcSettingType || 0x7F == dtcSettingType ||
         (0x03 <= dtcSettingType && dtcSettingType <= 0x3F)) {
         assert(0); // reserved vals
@@ -1688,9 +1685,9 @@ if (err) {
  */
 UDSErr_t UDSSendSecurityAccess(UDSClient_t *client, uint8_t level, uint8_t *data, uint16_t size) {
     UDSErr_t err = PreRequestCheck(client);
-if (err) {
-    return err;
-}
+    if (err) {
+        return err;
+    }
     if (UDSSecurityAccessLevelIsReserved(level)) {
         return UDS_ERR_INVALID_ARG;
     }

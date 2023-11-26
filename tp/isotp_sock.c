@@ -68,7 +68,7 @@ static ssize_t tp_peek(UDSTpHandle_t *hdl, uint8_t **p_buf, UDSSDU_t *info) {
         // UDS_DBG_PRINTHEX(, ret);
     }
 
-    done:
+done:
     if (ret > 0) {
         impl->recv_len = ret;
     }
@@ -111,7 +111,7 @@ done:
     // UDS_DBG_PRINT(">>> ");
     // UDS_DBG_PRINTHEX(buf, ret);
 
-    fprintf(stdout, "%06d, %s sends, (%s), ", UDSMillis(), impl->tag, 
+    fprintf(stdout, "%06d, %s sends, (%s), ", UDSMillis(), impl->tag,
             ta_type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
     for (unsigned i = 0; i < len; i++) {
         fprintf(stdout, "%02x ", buf[i]);
@@ -192,12 +192,13 @@ UDSErr_t UDSTpIsoTpSockInitServer(UDSTpIsoTpSock_t *tp, const char *ifname, uint
     tp->phys_fd = LinuxSockBind(ifname, source_addr, target_addr, false);
     tp->func_fd = LinuxSockBind(ifname, source_addr_func, 0, true);
     if (tp->phys_fd < 0 || tp->func_fd < 0) {
-        printf ("foo\n");
+        printf("foo\n");
         fflush(stdout);
         return UDS_ERR;
     }
     UDS_DBG_PRINT("%s initialized phys link rx 0x%03x tx 0x%03x func link rx 0x%03x tx 0x%03x\n",
-           strlen(tp->tag) ? tp->tag : "server", source_addr, target_addr, source_addr_func, target_addr);
+                  strlen(tp->tag) ? tp->tag : "server", source_addr, target_addr, source_addr_func,
+                  target_addr);
     return UDS_OK;
 }
 
@@ -218,8 +219,10 @@ UDSErr_t UDSTpIsoTpSockInitClient(UDSTpIsoTpSock_t *tp, const char *ifname, uint
     if (tp->phys_fd < 0 || tp->func_fd < 0) {
         return UDS_ERR;
     }
-    printf("%s initialized phys link (fd %d) rx 0x%03x tx 0x%03x func link (fd %d) rx 0x%03x tx 0x%03x\n",
-           strlen(tp->tag) ? tp->tag : "client", tp->phys_fd, source_addr, target_addr, tp->func_fd, source_addr, target_addr_func);
+    printf("%s initialized phys link (fd %d) rx 0x%03x tx 0x%03x func link (fd %d) rx 0x%03x tx "
+           "0x%03x\n",
+           strlen(tp->tag) ? tp->tag : "client", tp->phys_fd, source_addr, target_addr, tp->func_fd,
+           source_addr, target_addr_func);
     return UDS_OK;
 }
 

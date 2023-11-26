@@ -17,7 +17,8 @@ typedef struct {
 } UDSTpISOTpC_t;
 
 UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, const char *ifname, uint32_t source_addr,
-                                  uint32_t target_addr, uint32_t source_addr_func, uint32_t target_addr_func);
+                         uint32_t target_addr, uint32_t source_addr_func,
+                         uint32_t target_addr_func);
 void UDSTpISOTpCDeinit(UDSTpISOTpC_t *tp);
 
 #endif

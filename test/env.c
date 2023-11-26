@@ -68,7 +68,6 @@ void ENV_ClientInit(UDSClient_t *cli) {
     ENV_RegisterClient(cli);
 }
 
-
 void ENV_RegisterServer(UDSServer_t *server) { registeredServer = server; }
 
 void ENV_RegisterClient(UDSClient_t *client) { registeredClient = client; }
@@ -76,9 +75,7 @@ void ENV_RegisterClient(UDSClient_t *client) { registeredClient = client; }
 uint32_t UDSMillis() { return TimeNowMillis; }
 
 // actually sleep for milliseconds
-void msleep(int ms) { 
-    usleep(ms * 1000);
-}
+void msleep(int ms) { usleep(ms * 1000); }
 
 static bool IsNetworkedTransport(int tp_type) {
     return tp_type == ENV_TP_TYPE_ISOTP_SOCK || tp_type == ENV_TP_TYPE_ISOTPC;
@@ -106,7 +103,6 @@ void ENV_RunMillis(uint32_t millis) {
     }
 }
 
-
 UDSTpHandle_t *ENV_TpNew(const char *name) {
     ENV_ParseOpts();
     UDSTpHandle_t *tp = NULL;
@@ -122,19 +118,18 @@ UDSTpHandle_t *ENV_TpNew(const char *name) {
         case ENV_TP_TYPE_ISOTP_SOCK: {
             UDSTpIsoTpSock_t *isotp = malloc(sizeof(UDSTpIsoTpSock_t));
             strcpy(isotp->tag, "server");
-            assert(UDS_OK == UDSTpIsoTpSockInitServer(isotp, opts.ifname,
-                                                    opts.srv_src_addr, opts.srv_target_addr,
-                                                    opts.srv_src_addr_func));
+            assert(UDS_OK == UDSTpIsoTpSockInitServer(isotp, opts.ifname, opts.srv_src_addr,
+                                                      opts.srv_target_addr,
+                                                      opts.srv_src_addr_func));
             tp = (UDSTpHandle_t *)isotp;
             break;
         }
         case ENV_TP_TYPE_ISOTPC: {
             UDSTpISOTpC_t *isotp = malloc(sizeof(UDSTpISOTpC_t));
             strcpy(isotp->tag, "server");
- 
-            assert(UDS_OK == UDSTpISOTpCInit(isotp, opts.ifname,
-                                                    opts.srv_src_addr, opts.srv_target_addr,
-                                                    opts.srv_src_addr_func, 0));
+
+            assert(UDS_OK == UDSTpISOTpCInit(isotp, opts.ifname, opts.srv_src_addr,
+                                             opts.srv_target_addr, opts.srv_src_addr_func, 0));
             tp = (UDSTpHandle_t *)isotp;
             break;
         }
@@ -150,18 +145,17 @@ UDSTpHandle_t *ENV_TpNew(const char *name) {
         case ENV_TP_TYPE_ISOTP_SOCK: {
             UDSTpIsoTpSock_t *isotp = malloc(sizeof(UDSTpIsoTpSock_t));
             strcpy(isotp->tag, "client");
-            assert(UDS_OK == UDSTpIsoTpSockInitClient(isotp, opts.ifname,
-                                                    opts.cli_src_addr, opts.cli_target_addr,
-                                                    opts.cli_tgt_addr_func));
+            assert(UDS_OK == UDSTpIsoTpSockInitClient(isotp, opts.ifname, opts.cli_src_addr,
+                                                      opts.cli_target_addr,
+                                                      opts.cli_tgt_addr_func));
             tp = (UDSTpHandle_t *)isotp;
             break;
         }
         case ENV_TP_TYPE_ISOTPC: {
             UDSTpISOTpC_t *isotp = malloc(sizeof(UDSTpISOTpC_t));
             strcpy(isotp->tag, "client");
-            assert(UDS_OK == UDSTpISOTpCInit(isotp, opts.ifname,
-                                                    opts.cli_src_addr, opts.cli_target_addr, 0,
-                                                    opts.cli_tgt_addr_func));
+            assert(UDS_OK == UDSTpISOTpCInit(isotp, opts.ifname, opts.cli_src_addr,
+                                             opts.cli_target_addr, 0, opts.cli_tgt_addr_func));
             tp = (UDSTpHandle_t *)isotp;
             break;
         }
@@ -169,8 +163,7 @@ UDSTpHandle_t *ENV_TpNew(const char *name) {
             printf("unknown TP type: %d\n", opts.tp_type);
             return NULL;
         }
-    }
-    else {
+    } else {
         printf("unknown mock tp: %s\n", name);
         return NULL;
     }
@@ -180,16 +173,16 @@ UDSTpHandle_t *ENV_TpNew(const char *name) {
 
 void ENV_TpFree(UDSTpHandle_t *tp) {
     switch (opts.tp_type) {
-        case ENV_TP_TYPE_MOCK:
-            TPMockFree(tp);
-            break;
-        case ENV_TP_TYPE_ISOTP_SOCK:
-            UDSTpIsoTpSockDeinit((UDSTpIsoTpSock_t *)tp);
-            break;
-        case ENV_TP_TYPE_ISOTPC:
-            UDSTpISOTpCDeinit((UDSTpISOTpC_t *)tp);
-            free(tp);
-            break;
+    case ENV_TP_TYPE_MOCK:
+        TPMockFree(tp);
+        break;
+    case ENV_TP_TYPE_ISOTP_SOCK:
+        UDSTpIsoTpSockDeinit((UDSTpIsoTpSock_t *)tp);
+        break;
+    case ENV_TP_TYPE_ISOTPC:
+        UDSTpISOTpCDeinit((UDSTpISOTpC_t *)tp);
+        free(tp);
+        break;
     }
 }
 

@@ -56,6 +56,8 @@ filegroup(
         "isotp_sock.h",
         "isotp_c_socketcan.c",
         "isotp_c_socketcan.h",
+        "isotp_c.c",
+        "isotp_c.h",
         ":isotp_c_srcs",
     ]
 )

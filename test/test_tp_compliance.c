@@ -29,20 +29,17 @@ void TestSendRecv(void **state) {
     assert_memory_equal(UDSTpGetRecvBuf(srv, NULL), MSG, sizeof(MSG));
 }
 
-
 void TestSendRecvFunctional(void **state) {
     const uint8_t MSG[] = {0x10, 0x02};
     UDSSDU_t info = {0};
     uint8_t *buf = NULL;
 
     // When a small functional request is sent
-    UDSTpSend(client, MSG, sizeof(MSG), &(UDSSDU_t){
-        .A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL
-    });
+    UDSTpSend(client, MSG, sizeof(MSG), &(UDSSDU_t){.A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL});
 
     // the server should receive it quickly
     EXPECT_IN_APPROX_MS(UDSTpPeek(srv, &buf, &info) == sizeof(MSG), 1);
-    
+
     // it should be the same message
     assert_memory_equal(buf, MSG, sizeof(MSG));
 
@@ -59,13 +56,12 @@ void TestISOTPSendLargestSingleFrame(void **state) {
     uint8_t *buf = NULL;
 
     // When a functional request is sent
-    ssize_t ret = UDSTpSend(client, MSG, sizeof(MSG), &(UDSSDU_t){
-        .A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL
-    });
+    ssize_t ret =
+        UDSTpSend(client, MSG, sizeof(MSG), &(UDSSDU_t){.A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL});
 
     // the server should receive it quickly
     EXPECT_IN_APPROX_MS(UDSTpPeek(srv, &buf, &info) == sizeof(MSG), 1);
-    
+
     // it should be the same message
     assert_memory_equal(buf, MSG, sizeof(MSG));
 
@@ -82,9 +78,8 @@ void TestISOTPSendLargerThanSingleFrameFails(void **state) {
     uint8_t *buf = NULL;
 
     // When a small functional request is sent
-    ssize_t ret = UDSTpSend(client, MSG, sizeof(MSG), &(UDSSDU_t){
-        .A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL
-    });
+    ssize_t ret =
+        UDSTpSend(client, MSG, sizeof(MSG), &(UDSSDU_t){.A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL});
     assert_true(ret < 0);
 }
 
@@ -111,5 +106,3 @@ int main() {
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
-
-

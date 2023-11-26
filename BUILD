@@ -1,4 +1,5 @@
 package(default_visibility = ["//visibility:public"])
+load("@hedron_compile_commands//:refresh_compile_commands.bzl", "refresh_compile_commands")
 
 
 filegroup(
@@ -45,4 +46,12 @@ cc_test(
 cc_library(
     name="iso14229",
     srcs=[":iso14229_srcs"],
+)
+
+
+refresh_compile_commands(
+    name = "s32k_refresh_compile_commands",
+    targets = {
+        "//examples/s32k144/...": "--config=s32k",
+    }
 )

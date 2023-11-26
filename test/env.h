@@ -35,7 +35,7 @@ void ENV_ClientInit(UDSClient_t *client);
 
 /**
  * @brief return a transport configured as client
- * @return UDSTpHandle_t* 
+ * @return UDSTpHandle_t*
  */
 UDSTpHandle_t *ENV_TpNew(const char *name);
 void ENV_TpFree(UDSTpHandle_t *tp);

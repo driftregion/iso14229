@@ -36,13 +36,10 @@ int main() {
     for (size_t i = 0; i < sizeof(p) / sizeof(p[0]); i++) {
         ENV_CLIENT_INIT(client);
         UDSTpHandle_t *srv = ENV_TpNew("server");
-        printf("test %ld: %s\n", i, p[i].tag);
 
         // when the client sends a ECU reset request with these options
         client.options = p[i].options;
         UDSSendECUReset(&client, kHardReset);
-        printf("srv == NULL? : %d\n", srv == NULL);
-        fflush(stdout);
 
         // and the server responds with this message
         UDSTpSend(srv, p[i].resp, p[i].resp_len, NULL);

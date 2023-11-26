@@ -23,7 +23,7 @@ int main() {
     const uint8_t RESP[] = {0x51, 0x01};
 
     // Sending the first ECU reset should result in a response
-    UDSTpSend(mock_client,  REQ, sizeof(REQ), NULL);   
+    UDSTpSend(mock_client, REQ, sizeof(REQ), NULL);
     EXPECT_IN_APPROX_MS(UDSTpGetRecvLen(mock_client), srv.p2_ms);
     TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(mock_client, NULL), RESP, sizeof(RESP));
 
@@ -31,7 +31,7 @@ int main() {
 
     // Sending subsequent ECU reset requests should never receive any response
     const unsigned LONG_TIME_MS = 5000;
-    UDSTpSend(mock_client,  REQ, sizeof(REQ), NULL);
+    UDSTpSend(mock_client, REQ, sizeof(REQ), NULL);
     EXPECT_WHILE_MS(UDSTpGetRecvLen(mock_client) == 0, LONG_TIME_MS);
 
     // Additionally the ECU reset handler should have been called exactly once.

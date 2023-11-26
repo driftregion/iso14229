@@ -17,7 +17,7 @@ int main() {
 
     // sending a request to the server should return RCRRP within p2 ms
     const uint8_t REQUEST[] = {0x31, 0x01, 0x12, 0x34};
-    UDSTpSend(mock_client,  REQUEST, sizeof(REQUEST), NULL);
+    UDSTpSend(mock_client, REQUEST, sizeof(REQUEST), NULL);
 
     const uint8_t RCRRP[] = {0x7F, 0x31, 0x78};
 
@@ -47,5 +47,6 @@ int main() {
     // and it should arrive within p2 ms
     const uint8_t POSITIVE_RESPONSE[] = {0x71, 0x01, 0x12, 0x34};
     EXPECT_IN_APPROX_MS((UDSTpGetRecvLen(mock_client) > 0), srv.p2_ms)
-    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(mock_client, NULL), POSITIVE_RESPONSE, sizeof(POSITIVE_RESPONSE));
+    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(mock_client, NULL), POSITIVE_RESPONSE,
+                      sizeof(POSITIVE_RESPONSE));
 }

@@ -1,5 +1,12 @@
 package(default_visibility = ["//visibility:public"])
 
+constraint_setting(name = "mcu_series")
+
+constraint_value(
+    name = "s32k",
+    constraint_setting = ":mcu_series",
+)
+
 platform(
     name = "x86_64",
     constraint_values = [
@@ -17,10 +24,26 @@ platform(
 )
 
 platform(
-    name = "arm",
+    name = "arm_linux",
     constraint_values = [
         "@platforms//cpu:arm",
         "@platforms//os:linux",
+    ],
+)
+
+platform(
+    name = "arm_none",
+    constraint_values = [
+        "@platforms//cpu:arm",
+        "@platforms//os:none",
+    ],
+)
+
+platform(
+    name = "s32k_evb",
+    parents = [":arm_none"],
+    constraint_values = [
+        ":s32k",
     ],
 )
 
