@@ -1,7 +1,10 @@
-#ifndef ISOTP_C_H
-#define ISOTP_C_H
+#pragma once 
+#if UDS_TP == UDS_TP_ISOTP_C
 
-#include "iso14229.h"
+#include "sys.h"
+#include "config.h"
+#include "uds.h"
+#include "tp.h"
 #include "tp/isotp-c/isotp.h"
 
 typedef struct {
@@ -12,7 +15,7 @@ typedef struct {
     uint8_t recv_buf[UDS_ISOTP_MTU];
     uint32_t phys_sa, phys_ta;
     uint32_t func_sa, func_ta;
-} UDSTpISOTpC_t;
+} UDSISOTpC_t;
 
 typedef struct {
     uint32_t source_addr;
@@ -25,10 +28,10 @@ typedef struct {
     uint32_t (*isotp_user_get_ms)(void);                /* get millisecond */
     void (*isotp_user_debug)(const char *message, ...); /* print debug message */
     void *user_data;                                    /* user data */
-} UDSTpISOTpCConfig_t;
+} UDSISOTpCConfig_t;
 
-UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, UDSTpISOTpCConfig_t *cfg);
+UDSErr_t UDSISOTpCInit(UDSISOTpC_t *tp, const UDSISOTpCConfig_t *cfg);
 
-void UDSTpISOTpCDeinit(UDSTpISOTpC_t *tp);
+void UDSISOTpCDeinit(UDSISOTpC_t *tp);
 
-#endif
+#endif 

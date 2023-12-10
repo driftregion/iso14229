@@ -1,12 +1,15 @@
+
+#include <stdint.h>
+#if UDS_TP == UDS_TP_ISOTP_C
+
+#include "util.h"
 #include "tp/isotp_c.h"
 #include "tp/isotp-c/isotp.h"
-#include <assert.h>
-#include <stdint.h>
 
 static UDSTpStatus_t tp_poll(UDSTpHandle_t *hdl) {
     assert(hdl);
     UDSTpStatus_t status = 0;
-    UDSTpISOTpC_t *impl = (UDSTpISOTpC_t *)hdl;
+    UDSISOTpC_t *impl = (UDSISOTpC_t *)hdl;
     isotp_poll(&impl->phys_link);
     if (impl->phys_link.send_status == ISOTP_SEND_STATUS_INPROGRESS) {
         status |= UDS_TP_SEND_IN_PROGRESS;
@@ -42,7 +45,7 @@ done:
 static ssize_t tp_peek(UDSTpHandle_t *hdl, uint8_t **p_buf, UDSSDU_t *info) {
     assert(hdl);
     assert(p_buf);
-    UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
+    UDSISOTpC_t *tp = (UDSISOTpC_t *)hdl;
     if (ISOTP_RECEIVE_STATUS_FULL == tp->phys_link.receive_status) { // recv not yet acked
         *p_buf = tp->recv_buf;
         return tp->phys_link.receive_size;
@@ -89,7 +92,7 @@ done:
 static ssize_t tp_send(UDSTpHandle_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
     assert(hdl);
     ssize_t ret = -1;
-    UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
+    UDSISOTpC_t *tp = (UDSISOTpC_t *)hdl;
     IsoTpLink *link = NULL;
     const UDSTpAddr_t ta_type = info ? info->A_TA_Type : UDS_A_TA_TYPE_PHYSICAL;
     const uint32_t ta = ta_type == UDS_A_TA_TYPE_PHYSICAL ? tp->phys_ta : tp->func_ta;
@@ -128,17 +131,20 @@ done:
 static void tp_ack_recv(UDSTpHandle_t *hdl) {
     assert(hdl);
     printf("ack recv\n");
-    UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
+    UDSISOTpC_t *tp = (UDSISOTpC_t *)hdl;
+    uint16_t    out_size = 0;
+    isotp_receive(&tp->phys_link, tp->recv_buf, sizeof(tp->recv_buf), &out_size);
+
 }
 
 static ssize_t tp_get_send_buf(UDSTpHandle_t *hdl, uint8_t **p_buf) {
     assert(hdl);
-    UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
+    UDSISOTpC_t *tp = (UDSISOTpC_t *)hdl;
     *p_buf = tp->send_buf;
     return sizeof(tp->send_buf);
 }
 
-UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, UDSTpISOTpCConfig_t *cfg) {
+UDSErr_t UDSISOTpCInit(UDSISOTpC_t *tp, const UDSISOTpCConfig_t *cfg) {
     if (cfg == NULL || tp == NULL) {
         return UDS_ERR;
     }
@@ -160,3 +166,5 @@ UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, UDSTpISOTpCConfig_t *cfg) {
                     cfg->isotp_user_debug, cfg->user_data);
     return UDS_OK;
 }
+
+#endif

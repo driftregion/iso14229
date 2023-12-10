@@ -4,14 +4,18 @@ cc_library(
         "env.c",
         "env.h",
         "test.h",
-        "//:iso14229_srcs",
-        "//tp:srcs",
+        "//:iso14229.h",
+        "//:iso14229.c",
     ],
     deps = [ "@cmocka" ],
     defines = [
-        "UDS_TP=UDS_TP_CUSTOM",
+        "UDS_TP_ISOTP_C_SOCKETCAN",
+        "UDS_TP_ISOTP_SOCK",
+        "UDS_TP_MOCK",
         "UDS_CUSTOM_MILLIS",
-        "UDS_DBG_PRINT=printf",
+        "UDS_ENABLE_DBG_PRINT",
+        "UDS_ENABLE_ASSERT",
+        "UDS_LINES",
     ],
     copts = [ "-g", ],
 )
@@ -110,8 +114,8 @@ sh_test(
 cc_library(
     name = "ultra_strict",
     srcs = [
-        "//:iso14229_srcs",
-        "//tp:srcs",
+        "//:iso14229.h",
+        "//:iso14229.c",
     ],
     copts = [
         "-Werror",

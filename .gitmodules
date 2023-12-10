@@ -1,3 +1,3 @@
 [submodule "tp/isotp-c"]
-	path = tp/isotp-c
+	path = src/tp/isotp-c
 	url = https://github.com/driftregion/isotp-c.git

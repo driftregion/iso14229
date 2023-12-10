@@ -9,57 +9,37 @@
   <a href="README_zh.md">简体中文</a>
 </p>
 
-iso14229 is a server and client session-layer implementation of (ISO14229-1:2013) targeting embedded systems. It is tested with [`isotp-c`](https://github.com/lishen2/isotp-c) as well as [linux kernel](https://github.com/linux-can/can-utils/blob/master/include/linux/can/isotp.h) ISO15765-2 (ISO-TP) transport layer implementations. 
+iso14229 is an implementation of UDS (ISO14229-1:2013) targeting embedded systems. It is tested with [`isotp-c`](https://github.com/lishen2/isotp-c) as well as [linux kernel](https://github.com/linux-can/can-utils/blob/master/include/linux/can/isotp.h) ISO15765-2 (ISO-TP) transport layer implementations. 
 
-API status: **stabilizing**
+API status: **not yet stable**. 
 
-## quickstart: server
+## Features
 
-```c
-#include "iso14229.h"
+- static memory allocation. does not use `malloc`, `calloc`
+- highly portable. tested on arm, x86-64, ppc, ppc64
+- easy to integrate. Download `iso14229.c` and `iso14229.h` from the releases page and copy into your source tree.
+- supports:
+    - linux
+    - Windows
+    - esp32
+    - Arduino
+    - NXP s32k
+- cares about security
+    - server has fuzz test, see [test/README.md](test/README.md)
+    - 
 
-static uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
-    switch (ev) {
-    case UDS_SRV_EVT_EcuReset: { // 0x10
-        UDSECUResetArgs_t *r = (UDSECUResetArgs_t *)arg;
-        printf("got ECUReset request of type %x\n", r->type);
-        return kPositiveResponse;
-    default:
-        return kServiceNotSupported;
-    }
-    }
-}
+## Quick Start
 
-int main() {
-    UDSServer_t server;
-    UDSServerConfig_t cfg = {
-        .fn = &fn,
-    };
-    UDSServerInit(&server, &cfg);
-    for (;;) {
-        UDSServerPoll(&server);
-    }
-}
-```
-
-## quickstart: client
-
-```c
-// see examples/client.c
-```
+See [examples](./examples).
 
 ## Preprocessor Defines
 
 | Define | Description | Valid values |
 | - | - | - |
-| `UDS_ARCH` | Select a porting target | `UDS_ARCH_CUSTOM`, `UDS_ARCH_UNIX` |
+| `UDS_SYS` | Select a porting target | `UDS_SYS_CUSTOM`, `UDS_SYS_UNIX` |
 | `UDS_TP` | Select a transport layer | `UDS_TP_ISOTP_C`, `UDS_TP_ISOTP_SOCKET` |
 | `UDS_CUSTOM_MILLIS` | Use your own `millis()` implementation | defined or not defined |
 
-Features:
-- all memory allocation is static
-- architecture-independent. tested on arm, x86-64, ppc, ppc64. see [test_qemu.py](./test_qemu.py)
-- has many existing unit-tests and tests are easy to extend
 
 ##  supported functions (server and client )
 
@@ -362,9 +342,9 @@ MIT
 ## 0.7.0
 - test refactoring. theme: test invariance across different transports and processor architectures
 - breaking API changes:
-    - rename `phys_send_id`, `phys_recv_id`, `func_send_id`, and `func_recv_id` to be consistent with the standard. Now mandatory for all UDSServerConfig_t and UDSClientConfig_t regardless of transport layer implementation
     - overhauled transport layer implementation
     - simplified client and server init
+    - `UDS_ARCH_` renamed to `UDS_SYS_`
 
 ## 0.6.0
 - breaking API changes:

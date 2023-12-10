@@ -1,3 +1,5 @@
+#if defined(UDS_TP_ISOTP_C_SOCKETCAN)
+
 #include "tp/isotp_c_socketcan.h"
 #include "iso14229.h"
 #include "tp/isotp-c/isotp_defines.h"
@@ -99,7 +101,7 @@ static void SocketCANRecv(UDSTpISOTpC_t *tp) {
     }
 }
 
-static UDSTpStatus_t tp_poll(UDSTpHandle_t *hdl) {
+static UDSTpStatus_t isotp_c_socketcan_tp_poll(UDSTpHandle_t *hdl) {
     assert(hdl);
     UDSTpStatus_t status = 0;
     UDSTpISOTpC_t *impl = (UDSTpISOTpC_t *)hdl;
@@ -111,7 +113,7 @@ static UDSTpStatus_t tp_poll(UDSTpHandle_t *hdl) {
     return status;
 }
 
-int peek_link(IsoTpLink *link, uint8_t *buf, size_t bufsize, bool functional) {
+static int isotp_c_socketcan_tp_peek_link(IsoTpLink *link, uint8_t *buf, size_t bufsize, bool functional) {
     assert(link);
     assert(buf);
     int ret = -1;
@@ -136,7 +138,7 @@ done:
     return ret;
 }
 
-static ssize_t tp_peek(UDSTpHandle_t *hdl, uint8_t **p_buf, UDSSDU_t *info) {
+static ssize_t isotp_c_socketcan_tp_peek(UDSTpHandle_t *hdl, uint8_t **p_buf, UDSSDU_t *info) {
     assert(hdl);
     assert(p_buf);
     UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
@@ -145,7 +147,7 @@ static ssize_t tp_peek(UDSTpHandle_t *hdl, uint8_t **p_buf, UDSSDU_t *info) {
         return tp->phys_link.receive_size;
     }
     int ret = -1;
-    ret = peek_link(&tp->phys_link, tp->recv_buf, sizeof(tp->recv_buf), false);
+    ret = isotp_c_socketcan_tp_peek_link(&tp->phys_link, tp->recv_buf, sizeof(tp->recv_buf), false);
     UDS_A_TA_Type_t ta_type = UDS_A_TA_TYPE_PHYSICAL;
     uint32_t ta = tp->phys_ta;
     uint32_t sa = tp->phys_sa;
@@ -160,7 +162,7 @@ static ssize_t tp_peek(UDSTpHandle_t *hdl, uint8_t **p_buf, UDSSDU_t *info) {
     } else if (ret < 0) {
         goto done;
     } else {
-        ret = peek_link(&tp->func_link, tp->recv_buf, sizeof(tp->recv_buf), true);
+        ret = isotp_c_socketcan_tp_peek_link(&tp->func_link, tp->recv_buf, sizeof(tp->recv_buf), true);
         if (ret > 0) {
             printf("just got %d bytes on func link \n", ret);
             ta = tp->func_sa;
@@ -190,7 +192,7 @@ done:
     return ret;
 }
 
-static ssize_t tp_send(UDSTpHandle_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
+static ssize_t isotp_c_socketcan_tp_send(UDSTpHandle_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
     assert(hdl);
     ssize_t ret = -1;
     UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
@@ -237,13 +239,15 @@ done:
     return ret;
 }
 
-static void tp_ack_recv(UDSTpHandle_t *hdl) {
+static void isotp_c_socketcan_tp_ack_recv(UDSTpHandle_t *hdl) {
     assert(hdl);
     printf("ack recv\n");
     UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
+    uint16_t    out_size = 0;
+    isotp_receive(&tp->phys_link, tp->recv_buf, sizeof(tp->recv_buf), &out_size);
 }
 
-static ssize_t tp_get_send_buf(UDSTpHandle_t *hdl, uint8_t **p_buf) {
+static ssize_t isotp_c_socketcan_tp_get_send_buf(UDSTpHandle_t *hdl, uint8_t **p_buf) {
     assert(hdl);
     UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
     *p_buf = tp->send_buf;
@@ -255,11 +259,11 @@ UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, const char *ifname, uint32_t source_
                          uint32_t target_addr_func) {
     assert(tp);
     assert(ifname);
-    tp->hdl.poll = tp_poll;
-    tp->hdl.send = tp_send;
-    tp->hdl.peek = tp_peek;
-    tp->hdl.ack_recv = tp_ack_recv;
-    tp->hdl.get_send_buf = tp_get_send_buf;
+    tp->hdl.poll = isotp_c_socketcan_tp_poll;
+    tp->hdl.send = isotp_c_socketcan_tp_send;
+    tp->hdl.peek = isotp_c_socketcan_tp_peek;
+    tp->hdl.ack_recv = isotp_c_socketcan_tp_ack_recv;
+    tp->hdl.get_send_buf = isotp_c_socketcan_tp_get_send_buf;
     tp->phys_sa = source_addr;
     tp->phys_ta = target_addr;
     tp->func_sa = source_addr_func;
@@ -280,3 +284,5 @@ void UDSTpISOTpCDeinit(UDSTpISOTpC_t *tp) {
     close(tp->fd);
     tp->fd = -1;
 }
+
+#endif

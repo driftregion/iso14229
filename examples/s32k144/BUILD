@@ -6,10 +6,7 @@ cc_binary(
         "main.c",
         "bsp.c",
         "bsp.h",
-        "//:iso14229_srcs",
-        "//tp:isotp_c_srcs",
-        "//tp:isotp_c.c",
-        "//tp:isotp_c.h",
+        "//:srcs",
     ],
     deps = [
         ":runtime",

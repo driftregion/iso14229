@@ -1,3 +1,5 @@
+#if defined(UDS_TP_ISOTP_SOCK)
+
 #include "tp/isotp_sock.h"
 #include "iso14229.h"
 #include <string.h>
@@ -11,7 +13,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-static UDSTpStatus_t tp_poll(UDSTpHandle_t *hdl) { return 0; }
+static UDSTpStatus_t isotp_sock_tp_poll(UDSTpHandle_t *hdl) { return 0; }
 
 static ssize_t tp_recv_once(int fd, uint8_t *buf, size_t size) {
     ssize_t ret = read(fd, buf, size);
@@ -28,7 +30,7 @@ static ssize_t tp_recv_once(int fd, uint8_t *buf, size_t size) {
     return ret;
 }
 
-static ssize_t tp_peek(UDSTpHandle_t *hdl, uint8_t **p_buf, UDSSDU_t *info) {
+static ssize_t isotp_sock_tp_peek(UDSTpHandle_t *hdl, uint8_t **p_buf, UDSSDU_t *info) {
     assert(hdl);
     assert(p_buf);
     ssize_t ret = 0;
@@ -78,13 +80,13 @@ done:
     return ret;
 }
 
-static void tp_ack_recv(UDSTpHandle_t *hdl) {
+static void isotp_sock_tp_ack_recv(UDSTpHandle_t *hdl) {
     assert(hdl);
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
     impl->recv_len = 0;
 }
 
-static ssize_t tp_send(UDSTpHandle_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
+static ssize_t isotp_sock_tp_send(UDSTpHandle_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
     assert(hdl);
     ssize_t ret = -1;
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
@@ -122,7 +124,7 @@ done:
     return ret;
 }
 
-static ssize_t tp_get_send_buf(UDSTpHandle_t *hdl, uint8_t **p_buf) {
+static ssize_t isotp_sock_tp_get_send_buf(UDSTpHandle_t *hdl, uint8_t **p_buf) {
     assert(hdl);
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
     *p_buf = impl->send_buf;
@@ -180,11 +182,11 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool
 UDSErr_t UDSTpIsoTpSockInitServer(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
                                   uint32_t target_addr, uint32_t source_addr_func) {
     assert(tp);
-    tp->hdl.peek = tp_peek;
-    tp->hdl.send = tp_send;
-    tp->hdl.poll = tp_poll;
-    tp->hdl.ack_recv = tp_ack_recv;
-    tp->hdl.get_send_buf = tp_get_send_buf;
+    tp->hdl.peek = isotp_sock_tp_peek;
+    tp->hdl.send = isotp_sock_tp_send;
+    tp->hdl.poll = isotp_sock_tp_poll;
+    tp->hdl.ack_recv = isotp_sock_tp_ack_recv;
+    tp->hdl.get_send_buf = isotp_sock_tp_get_send_buf;
     tp->phys_sa = source_addr;
     tp->phys_ta = target_addr;
     tp->func_sa = source_addr_func;
@@ -205,11 +207,11 @@ UDSErr_t UDSTpIsoTpSockInitServer(UDSTpIsoTpSock_t *tp, const char *ifname, uint
 UDSErr_t UDSTpIsoTpSockInitClient(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
                                   uint32_t target_addr, uint32_t target_addr_func) {
     assert(tp);
-    tp->hdl.peek = tp_peek;
-    tp->hdl.send = tp_send;
-    tp->hdl.poll = tp_poll;
-    tp->hdl.ack_recv = tp_ack_recv;
-    tp->hdl.get_send_buf = tp_get_send_buf;
+    tp->hdl.peek = isotp_sock_tp_peek;
+    tp->hdl.send = isotp_sock_tp_send;
+    tp->hdl.poll = isotp_sock_tp_poll;
+    tp->hdl.ack_recv = isotp_sock_tp_ack_recv;
+    tp->hdl.get_send_buf = isotp_sock_tp_get_send_buf;
     tp->func_ta = target_addr_func;
     tp->phys_ta = target_addr;
     tp->phys_sa = source_addr;
@@ -236,3 +238,6 @@ void UDSTpIsoTpSockDeinit(UDSTpIsoTpSock_t *tp) {
         }
     }
 }
+
+#endif 
+

@@ -1,3 +1,5 @@
+#if defined(UDS_TP_MOCK)
+
 #include "tp/mock.h"
 #include "iso14229.h"
 #include <assert.h>
@@ -59,7 +61,7 @@ static void NetworkPoll() {
     }
 }
 
-static ssize_t tp_peek(struct UDSTpHandle *hdl, uint8_t **p_buf, UDSSDU_t *info) {
+static ssize_t mock_tp_peek(struct UDSTpHandle *hdl, uint8_t **p_buf, UDSSDU_t *info) {
     assert(hdl);
     assert(p_buf);
     TPMock_t *tp = (TPMock_t *)hdl;
@@ -72,7 +74,7 @@ static ssize_t tp_peek(struct UDSTpHandle *hdl, uint8_t **p_buf, UDSSDU_t *info)
     return tp->recv_len;
 }
 
-static ssize_t tp_send(struct UDSTpHandle *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
+static ssize_t mock_tp_send(struct UDSTpHandle *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
     assert(hdl);
     TPMock_t *tp = (TPMock_t *)hdl;
     if (MsgCount > NUM_MSGS) {
@@ -100,13 +102,13 @@ static ssize_t tp_send(struct UDSTpHandle *hdl, uint8_t *buf, size_t len, UDSSDU
     return len;
 }
 
-static UDSTpStatus_t tp_poll(struct UDSTpHandle *hdl) {
+static UDSTpStatus_t mock_tp_poll(struct UDSTpHandle *hdl) {
     NetworkPoll();
     // todo: make this status reflect TX time
     return UDS_TP_IDLE;
 }
 
-static ssize_t tp_get_send_buf(struct UDSTpHandle *hdl, uint8_t **p_buf) {
+static ssize_t mock_tp_get_send_buf(struct UDSTpHandle *hdl, uint8_t **p_buf) {
     assert(hdl);
     assert(p_buf);
     TPMock_t *tp = (TPMock_t *)hdl;
@@ -114,7 +116,7 @@ static ssize_t tp_get_send_buf(struct UDSTpHandle *hdl, uint8_t **p_buf) {
     return sizeof(tp->send_buf);
 }
 
-static void tp_ack_recv(struct UDSTpHandle *hdl) {
+static void mock_tp_ack_recv(struct UDSTpHandle *hdl) {
     assert(hdl);
     TPMock_t *tp = (TPMock_t *)hdl;
     tp->recv_len = 0;
@@ -127,11 +129,11 @@ static void TPMockAttach(TPMock_t *tp, TPMockArgs_t *args) {
     assert(args);
     assert(TPCount < MAX_NUM_TP);
     TPs[TPCount++] = tp;
-    tp->hdl.peek = tp_peek;
-    tp->hdl.send = tp_send;
-    tp->hdl.poll = tp_poll;
-    tp->hdl.get_send_buf = tp_get_send_buf;
-    tp->hdl.ack_recv = tp_ack_recv;
+    tp->hdl.peek = mock_tp_peek;
+    tp->hdl.send = mock_tp_send;
+    tp->hdl.poll = mock_tp_poll;
+    tp->hdl.get_send_buf = mock_tp_get_send_buf;
+    tp->hdl.ack_recv = mock_tp_ack_recv;
     tp->sa_func = args->sa_func;
     tp->sa_phys = args->sa_phys;
     tp->ta_func = args->ta_func;
@@ -205,3 +207,5 @@ void TPMockFree(UDSTpHandle_t *tp) {
     TPMockDetach(tpm);
     free(tp);
 }
+
+#endif 

@@ -1,8 +1,9 @@
-#ifndef ISOTP_C_SOCKETCAN_H
-#define ISOTP_C_SOCKETCAN_H
+#pragma once
 
 #include "iso14229.h"
 #include "tp/isotp-c/isotp.h"
+
+#if defined(UDS_TP_ISOTP_C_SOCKETCAN)
 
 typedef struct {
     UDSTpHandle_t hdl;

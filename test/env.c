@@ -5,9 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "tp/isotp_c_socketcan.h"
-#include "tp/mock.h"
-#include "tp/isotp_sock.h"
 
 static UDSServer_t *registeredServer = NULL;
 static UDSClient_t *registeredClient = NULL;

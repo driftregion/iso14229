@@ -1,6 +1,6 @@
-#ifndef TP_ISOTP_SOCK_H
-#define TP_ISOTP_SOCK_H
+#if defined(UDS_TP_ISOTP_SOCK)
 
+#pragma once
 #include "iso14229.h"
 
 typedef struct {

@@ -4,17 +4,16 @@
  * @date 2023-10-21
  *
  */
+#if defined(UDS_TP_MOCK)
+
+#pragma once
 
 #include "iso14229.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct TPMock {
     UDSTpHandle_t hdl;
-    uint8_t recv_buf[UDS_BUFSIZE];
-    uint8_t send_buf[UDS_BUFSIZE];
+    uint8_t recv_buf[UDS_TP_MTU];
+    uint8_t send_buf[UDS_TP_MTU];
     size_t recv_len;
     UDSSDU_t recv_info;
     uint32_t sa_phys;          // source address - physical messages are sent from this address
@@ -64,6 +63,5 @@ void TPMockLogToStdout(void);
  */
 void TPMockReset(void);
 
-#ifdef __cplusplus
-}
 #endif
+

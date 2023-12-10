@@ -7,7 +7,6 @@
 #include <setjmp.h>
 #include "iso14229.h"
 #include "test/env.h"
-#include "tp/mock.h"
 #include <cmocka.h>
 
 #define _TEST_INT_COND(a, b, cond)                                                                 \

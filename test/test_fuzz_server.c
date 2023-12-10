@@ -18,11 +18,11 @@ typedef struct {
     uint16_t client_sa;
     uint16_t client_ta;
     uint8_t client_func_req;
-    uint8_t msg[UDS_BUFSIZE];
+    uint8_t msg[UDS_TP_MTU];
 } StuffToFuzz_t;
 
 static StuffToFuzz_t fuzz;
-static uint8_t client_recv_buf[UDS_BUFSIZE];
+static uint8_t client_recv_buf[UDS_TP_MTU];
 
 static uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
     printf("Whoah, got event %d\n", ev);
