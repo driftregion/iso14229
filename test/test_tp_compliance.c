@@ -1,4 +1,3 @@
-#include "test/env.h"
 #include "test/test.h"
 
 UDSTpHandle_t *srv = NULL;
