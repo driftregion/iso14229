@@ -12,6 +12,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        submodules: true
     - name: build and run unit test
       run: bazel test //test:all
