@@ -1,9 +1,9 @@
 #pragma once
 
-#include "iso14229.h"
-#include "tp/isotp-c/isotp.h"
-
 #if defined(UDS_TP_ISOTP_C_SOCKETCAN)
+
+#include "tp.h"
+#include "tp/isotp-c/isotp.h"
 
 typedef struct {
     UDSTpHandle_t hdl;

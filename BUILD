@@ -5,14 +5,14 @@ genrule(
     name = "isotp_c_wrapped_c",
     srcs = glob(["src/tp/isotp-c/*.c"]),
     outs = ["isotp_c_wrapped.c"],
-    cmd = "echo '#if defined(UDS_TP) && UDS_TP==UDS_TP_ISOTP_C' >> $(OUTS) ; for f in $(SRCS); do cat $$f >> $(OUTS); done ; echo '#endif' >> $(OUTS)",
+    cmd = "echo '#if defined(UDS_ISOTP_C)' >> $(OUTS) ; for f in $(SRCS); do cat $$f >> $(OUTS); done ; echo '#endif' >> $(OUTS)",
 )
 
 genrule(
     name = "isotp_c_wrapped_h",
     srcs = glob(["src/tp/isotp-c/*.h"]),
     outs = ["isotp_c_wrapped.h"],
-    cmd = "echo '#if defined(UDS_TP) && UDS_TP==UDS_TP_ISOTP_C' >> $(OUTS) ; for f in $(SRCS); do cat $$f >> $(OUTS); done ; echo '#endif' >> $(OUTS)",
+    cmd = "echo '#if defined(UDS_ISOTP_C)' >> $(OUTS) ; for f in $(SRCS); do cat $$f >> $(OUTS); done ; echo '#endif' >> $(OUTS)",
 )
 
 genrule(

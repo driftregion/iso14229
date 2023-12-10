@@ -2,34 +2,9 @@
 
 #include "sys.h"
 
-#if !defined(UDS_TP)
-#if (UDS_SYS == UDS_SYS_UNIX)
-#define UDS_TP UDS_TP_ISOTP_SOCKET
+#if defined(UDS_TP_ISOTP_C) || defined(UDS_TP_ISOTP_C_SOCKETCAN)
+#define UDS_ISOTP_C
 #endif
-#endif
-
-#include <stddef.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <assert.h>
-
-#if (UDS_TP == UDS_TP_ISOTP_C)
-#include "tp/isotp-c/isotp.h"
-#include "tp/isotp-c/isotp_config.h"
-#include "tp/isotp-c/isotp_defines.h"
-#elif (UDS_TP == UDS_TP_ISOTP_SOCKET)
-#include <errno.h>
-#include <linux/can.h>
-#include <linux/can/isotp.h>
-#include <net/if.h>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
-#endif
-
 
 enum UDSTpStatusFlags {
     UDS_TP_IDLE = 0x00000000,

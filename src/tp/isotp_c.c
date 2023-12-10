@@ -1,6 +1,4 @@
-
-#include <stdint.h>
-#if UDS_TP == UDS_TP_ISOTP_C
+#if defined(UDS_TP_ISOTP_C)
 
 #include "util.h"
 #include "tp/isotp_c.h"

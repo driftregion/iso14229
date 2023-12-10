@@ -48,31 +48,40 @@ TEST_NAMES = [ src.split(".c")[0] for src in TEST_SRCS ]
 # These should pass on all architectures and transports
 [
     cc_test(
-        name=name, 
+        name=name + "_tp_mock", 
         srcs=[src], 
         deps=[":env"],
         size = "small",
-        env = {
-            "UDS_TP_TYPE": "0",
-        },
+        env = { "UDS_TP_TYPE": "0", },
         copts = ["-g"],
-        tags = [
-            "exclusive",
-        ],
-    )
-    for name, src in zip(TEST_NAMES, TEST_SRCS)
+        tags = [ "exclusive", ],
+    ) for name, src in zip(TEST_NAMES, TEST_SRCS)
 ]
 
-py_test(
-    name = "test_matrix",
-    srcs = ["test_matrix.py"],
-    size = "small",
-    data = TEST_NAMES,
-    args = TEST_NAMES,
-    tags = [
-        "exclusive",
-    ],
-)
+[
+    cc_test(
+        name=name + "_tp_sock", 
+        srcs=[src], 
+        deps=[":env"],
+        size = "small",
+        env = { "UDS_TP_TYPE": "1"},
+        copts = ["-g"],
+        tags = [ "exclusive", ],
+    ) for name, src in zip(TEST_NAMES, TEST_SRCS)
+]
+
+[
+    cc_test(
+        name=name + "_tp_c", 
+        srcs=[src], 
+        deps=[":env"],
+        size = "small",
+        env = { "UDS_TP_TYPE": "2"},
+        copts = ["-g"],
+        tags = [ "exclusive", ],
+    ) for name, src in zip(TEST_NAMES, TEST_SRCS)
+]
+
 
 cc_test(
     name = "test_fuzz_server",
