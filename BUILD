@@ -30,7 +30,7 @@ genrule(
             ":isotp_c_wrapped_h",
         ],
     outs = ["iso14229.h"],
-    cmd = "echo $(SRCS); (cat ; echo '#ifndef ISO14229_H'; echo '#define ISO14229_H'; echo; echo '#ifdef __cplusplus'; echo 'extern \"C\" {'; echo '#endif'; cat src/sys.h src/sys_arduino.h src/sys_unix.h src/sys_win32.h src/sys_esp32.h src/config.h src/util.h src/tp.h src/uds.h src/client.h src/server.h $(location //:isotp_c_wrapped_h) src/tp/*.h |sed -e 's,#include \".*,,' -e 's,^#pragma once,,' ; echo '#endif'; echo '#ifdef __cplusplus'; echo '}'; echo '#endif';) > $(OUTS)",
+    cmd = "echo $(SRCS); (cat ; echo '#ifndef ISO14229_H'; echo '#define ISO14229_H'; echo; echo '#ifdef __cplusplus'; echo 'extern \"C\" {'; echo '#endif'; cat src/sys.h src/sys_arduino.h src/sys_unix.h src/sys_win32.h src/sys_esp32.h src/config.h src/util.h src/tp.h src/uds.h src/client.h src/server.h $(location //:isotp_c_wrapped_h) src/tp/*.h |sed -e 's,#include \".*,,' -e 's,^#pragma once,,' ; echo '#endif'; echo '#ifdef __cplusplus'; echo '}'; echo '#endif';) > $(OUTS) && cat $(OUTS)",
 )
 
 filegroup(
