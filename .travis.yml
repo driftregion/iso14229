@@ -1,0 +1,6 @@
+language: c++
+compiler:
+    - gcc
+    - g++
+    - clang
+script: make travis
