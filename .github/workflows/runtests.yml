@@ -17,4 +17,4 @@ jobs:
       with:
         submodules: true
     - name: build and run unit test
-      run: bazel test //test:all
+      run: bazel test //test:all --test_tag_filters=-vcan

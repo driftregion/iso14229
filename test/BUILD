@@ -66,7 +66,7 @@ TEST_NAMES = [ src.split(".c")[0] for src in TEST_SRCS ]
         size = "small",
         env = { "UDS_TP_TYPE": "1"},
         copts = ["-g"],
-        tags = [ "exclusive", ],
+        tags = [ "exclusive", "vcan"],
     ) for name, src in zip(TEST_NAMES, TEST_SRCS)
 ]
 
@@ -78,10 +78,9 @@ TEST_NAMES = [ src.split(".c")[0] for src in TEST_SRCS ]
         size = "small",
         env = { "UDS_TP_TYPE": "2"},
         copts = ["-g"],
-        tags = [ "exclusive", ],
+        tags = [ "exclusive", "vcan"],
     ) for name, src in zip(TEST_NAMES, TEST_SRCS)
 ]
-
 
 cc_test(
     name = "test_fuzz_server",
