@@ -12,7 +12,7 @@ genrule(
     name = "isotp_c_wrapped_h",
     srcs = glob(["src/tp/isotp-c/*.h"]),
     outs = ["isotp_c_wrapped.h"],
-    cmd = "echo '#if defined(UDS_ISOTP_C)' >> $(OUTS) ; for f in $(SRCS); do cat $$f >> $(OUTS); done ; echo '#endif' >> $(OUTS)",
+    cmd = "echo '#if defined(UDS_ISOTP_C)' >> $(OUTS) ; for f in $(SRCS); do cat $$f >> $(OUTS); done ; echo '#endif' >> $(OUTS); cat $(OUTS)",
 )
 
 genrule(
