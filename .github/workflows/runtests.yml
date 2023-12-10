@@ -16,5 +16,14 @@ jobs:
       uses: actions/checkout@v3
       with:
         submodules: true
+
     - name: build and run unit test
       run: bazel test //test:all --test_tag_filters=-vcan
+    
+    - name: upload artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: artifacts
+        path: |
+          bazel-bin/iso14229.h
+          bazel-bin/iso14229.c
