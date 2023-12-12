@@ -66,7 +66,7 @@ TEST_NAMES = [ src.split(".c")[0] for src in TEST_SRCS ]
         size = "small",
         env = { "UDS_TP_TYPE": "1"},
         copts = ["-g"],
-        tags = [ "exclusive", "vcan"],
+        tags = [ "exclusive", "vcan", "isotp_sock"],
     ) for name, src in zip(TEST_NAMES, TEST_SRCS)
 ]
 
@@ -86,11 +86,11 @@ cc_test(
     name = "test_fuzz_server",
     srcs = [
         "test_fuzz_server.c",
-        "//:iso14229_srcs",
-        "//tp:srcs",
+        "//:iso14229.h",
+        "//:iso14229.c",
     ],
     defines = [
-        "UDS_TP=UDS_TP_CUSTOM",
+        "UDS_TP_MOCK",
         "UDS_CUSTOM_MILLIS",
     # "UDS_DBG_PRINT=printf",
     ],

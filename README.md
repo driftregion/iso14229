@@ -16,17 +16,14 @@ API status: **not yet stable**.
 ## Features
 
 - static memory allocation. does not use `malloc`, `calloc`
-- highly portable. tested on arm, x86-64, ppc, ppc64
 - easy to integrate. Download `iso14229.c` and `iso14229.h` from the releases page and copy into your source tree.
-- supports:
-    - linux
-    - Windows
-    - esp32
-    - Arduino
-    - NXP s32k
+- highly portable and tested
+    - architectures: arm, x86-64, ppc, ppc64
+    - systems: linux, Windows, esp32, Arduino, NXP s32k
+    - transports: isotp-c, linux isotp sockets
 - cares about security
     - server has fuzz test, see [test/README.md](test/README.md)
-    - 
+    -
 
 ## Quick Start
 
@@ -36,10 +33,9 @@ See [examples](./examples).
 
 | Define | Description | Valid values |
 | - | - | - |
-| `UDS_SYS` | Select a porting target | `UDS_SYS_CUSTOM`, `UDS_SYS_UNIX` |
-| `UDS_TP` | Select a transport layer | `UDS_TP_ISOTP_C`, `UDS_TP_ISOTP_SOCKET` |
-| `UDS_CUSTOM_MILLIS` | Use your own `millis()` implementation | defined or not defined |
-
+| `UDS_SYS` | Select a porting target | see `sys.h` |
+| `UDS_TP` | Select a transport layer | see `tp.h` |
+| `UDS_...` | Additional compile-time config options | see `config.h` |
 
 ##  supported functions (server and client )
 

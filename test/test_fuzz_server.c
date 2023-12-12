@@ -5,7 +5,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include "iso14229.h"
-#include "tp/mock.h"
 
 #ifdef __cplusplus
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *, size_t);
@@ -35,15 +34,9 @@ static UDSServer_t srv;
 static UDSTpHandle_t *mock_client = NULL;
 
 void DoInitialization() {
-    UDSServerConfig_t cfg = {
-        .fn = fn,
-        .tp = TPMockNew("server"),
-        .target_addr = 0x7E0,
-        .source_addr = 0x7E8,
-        .source_addr_func = 0x7DF,
-    };
-    UDSServerInit(&srv, &cfg);
-    mock_client = TPMockNew("client");
+    UDSServerInit(&srv);
+    srv.tp = TPMockNew("server", TPMOCK_DEFAULT_SERVER_ARGS);
+    mock_client = TPMockNew("client", TPMOCK_DEFAULT_CLIENT_ARGS);
 }
 
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
@@ -54,8 +47,6 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     }
     memset(&fuzz, 0, sizeof(fuzz));
     memmove(&fuzz, data, size);
-    srv.tp = TPMockNew("server");
-    mock_client = TPMockNew("client");
 
     UDSSDU_t msg = {
         .A_Mtype = UDS_A_MTYPE_DIAG,

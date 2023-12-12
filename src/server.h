@@ -67,12 +67,6 @@ typedef struct UDSServer {
     UDSReq_t r;
 } UDSServer_t;
 
-// TODO: Remove
-typedef struct {
-    uint8_t (*fn)(UDSServer_t *srv, UDSServerEvent_t event, const void *arg);
-    UDSTpHandle_t *tp;
-} UDSServerConfig_t;
-
 typedef struct {
     const uint8_t type;  /*! requested diagnostic session type (enum UDSDiagnosticSessionType) */
     uint16_t p2_ms;      /*! optional: p2 timing override */

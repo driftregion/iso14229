@@ -29,7 +29,7 @@ clang-15 \
 bazel test //test:all
 
 # run tests in qemu
-bazel test --config=arm //test:all
+bazel test --config=arm_linux //test:all
 bazel test --config=ppc //test:all
 bazel test --config=ppc64 //test:all
 bazel test --config=ppc64le //test:all
@@ -40,7 +40,6 @@ bazel build -s --verbose_failures --config=x86_64_clang //test:test_fuzz_server
 mkdir .libfuzzer_artifacts .libfuzzer_corpus
 bazel-bin/test/test_fuzz_server -jobs=8 -artifact_prefix=./.libfuzzer_artifacts/ .libfuzzer_corpus
 ```
-
 
 If building fails with `/usr/bin/ld: cannot find -lstdc++: No such file or directory`
 

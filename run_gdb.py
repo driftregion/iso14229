@@ -9,6 +9,7 @@ so this script exists to automate the debugging process.
 
 import subprocess
 import argparse
+import os
 
 GDB = "gdb-multiarch"
 QEMU = "qemu-arm"
@@ -23,16 +24,18 @@ gdb_args = [GDB, "-q", "-ex", f"file bazel-bin/test/{args.test}"]
 
 print(f"building {args.test}...")
 bazel_args = ["bazel", "build", "-c", "dbg", "--copt=-g", f"//test:{args.test}"]
+if args.config:
+    bazel_args.append(f"--config={args.config}")
 
 subprocess.check_call(bazel_args)
 procs = []
-
 
 if args.config:
     qemu = subprocess.Popen(
         [QEMU, "-g", str(GDB_PORT), 
         "-L", "/usr/arm-linux-gnueabihf/", 
         f"bazel-bin/test/{args.test}"],
+        env=os.environ.copy(),
     )
 
     if qemu.returncode is not None:
@@ -43,7 +46,7 @@ if args.config:
 
 
 try:
-    gdb = subprocess.Popen(gdb_args)
+    gdb = subprocess.Popen(gdb_args, env=os.environ.copy())
     procs.append(gdb)
     gdb.wait()
 except KeyboardInterrupt:

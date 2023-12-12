@@ -12,6 +12,7 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <errno.h>
+#include <stdarg.h>
 
 static int SetupSocketCAN(const char *ifname) {
     UDS_DBG_PRINT("setting up CAN\n");
