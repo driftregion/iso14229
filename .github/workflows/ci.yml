@@ -34,9 +34,5 @@ jobs:
         files: |
           bazel-bin/iso14229.h
           bazel-bin/iso14229.c
-        tag_name: ${{ github.ref }}
-        body: ${{ github.event.head_commit.message }}
-        draft: false
-        prerelease: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
