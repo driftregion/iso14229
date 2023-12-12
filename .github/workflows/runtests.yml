@@ -12,12 +12,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout
+    - name: checkout
       uses: actions/checkout@v3
       with:
         submodules: true
 
-    - name: build and run unit test
+    - name: run unit tests
       run: bazel test //test:all --test_tag_filters=-vcan
     
     - name: upload artifacts
@@ -27,3 +27,16 @@ jobs:
         path: |
           bazel-bin/iso14229.h
           bazel-bin/iso14229.c
+
+    - name: release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          bazel-bin/iso14229.h
+          bazel-bin/iso14229.c
+        tag_name: ${{ github.ref }}
+        body: ${{ github.event.head_commit.message }}
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
