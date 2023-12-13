@@ -17,6 +17,10 @@ jobs:
       with:
         submodules: true
 
+    - name: lint
+      run: CHECK_FORMAT=1 ./run_clang_format.sh
+      continue-on-error: true
+
     - name: run unit tests
       run: bazel test //test:all --test_tag_filters=-vcan
     
