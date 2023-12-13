@@ -6,7 +6,6 @@
 #define UDS_SYS_ARDUINO 3
 #define UDS_SYS_ESP32 4
 
-
 #if !defined(UDS_SYS)
 
 #if defined(__unix__) || defined(__APPLE__)
@@ -27,4 +26,3 @@
 #include "sys_win32.h"
 #include "sys_arduino.h"
 #include "sys_esp32.h"
-

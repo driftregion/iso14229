@@ -1,6 +1,6 @@
 #pragma once
 
-#if UDS_SYS==UDS_SYS_UNIX
+#if UDS_SYS == UDS_SYS_UNIX
 
 #include <inttypes.h>
 #include <stdbool.h>
@@ -12,4 +12,4 @@
 #include <sys/types.h>
 #include <time.h>
 
-#endif 
+#endif

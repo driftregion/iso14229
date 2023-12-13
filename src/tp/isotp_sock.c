@@ -239,5 +239,4 @@ void UDSTpIsoTpSockDeinit(UDSTpIsoTpSock_t *tp) {
     }
 }
 
-#endif 
-
+#endif

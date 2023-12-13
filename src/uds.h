@@ -1,4 +1,4 @@
-#pragma once 
+#pragma once
 
 enum UDSServerEvent {
     UDS_SRV_EVT_DiagSessCtrl,         // UDSDiagSessCtrlArgs_t *
@@ -155,7 +155,6 @@ enum DTCSettingType {
     kDTCSettingON = 0x01,
     kDTCSettingOFF = 0x02,
 };
-
 
 // ISO-14229-1:2013 Table 2
 #define UDS_MAX_DIAGNOSTIC_SERVICES 0x7F

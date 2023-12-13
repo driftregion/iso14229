@@ -25,7 +25,6 @@
 
 _Static_assert(UDS_CLIENT_DEFAULT_P2_STAR_MS > UDS_CLIENT_DEFAULT_P2_MS, "");
 
-
 #ifndef UDS_SERVER_DEFAULT_POWER_DOWN_TIME_MS
 #define UDS_SERVER_DEFAULT_POWER_DOWN_TIME_MS (10)
 #endif
@@ -63,4 +62,3 @@ message to inform the client how many data bytes (maxNumberOfBlockLength) to inc
 TransferData request message from the client. */
 #define UDS_SERVER_DEFAULT_XFER_DATA_MAX_BLOCKLENGTH (UDS_TP_MTU)
 #endif
-

@@ -1,4 +1,4 @@
-#pragma once 
+#pragma once
 #if defined(UDS_TP_ISOTP_C)
 
 #include "sys.h"
@@ -34,4 +34,4 @@ UDSErr_t UDSISOTpCInit(UDSISOTpC_t *tp, const UDSISOTpCConfig_t *cfg);
 
 void UDSISOTpCDeinit(UDSISOTpC_t *tp);
 
-#endif 
+#endif

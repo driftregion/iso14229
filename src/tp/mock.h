@@ -64,4 +64,3 @@ void TPMockLogToStdout(void);
 void TPMockReset(void);
 
 #endif
-

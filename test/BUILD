@@ -131,12 +131,7 @@ cc_library(
         "-Wextra",
         "-Wpedantic",
         "-Wno-unused-parameter",
-        "-Wno-unused-function",
-        "-Wno-unused-variable",
-        "-Wno-unused-label",
-        "-Wno-unused-value",
-        "-Wno-unused-result",
-        "-Wno-unused-macros",
+        "-Wno-gnu-zero-variadic-macro-arguments",
     ],
     target_compatible_with = ["//platforms/compiler:clang"],
 )

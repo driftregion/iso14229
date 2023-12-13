@@ -5,17 +5,17 @@
 
 #if UDS_ENABLE_ASSERT
 #include <assert.h>
-#else 
+#else
 #define assert(x)
 #endif
 
 #if UDS_ENABLE_DBG_PRINT
-    #if defined(UDS_DBG_PRINT_IMPL)
-        #define UDS_DBG_PRINT UDS_DBG_PRINT_IMPL
-    #else
-        #include <stdio.h>
-        #define UDS_DBG_PRINT printf
-    #endif
+#if defined(UDS_DBG_PRINT_IMPL)
+#define UDS_DBG_PRINT UDS_DBG_PRINT_IMPL
+#else
+#include <stdio.h>
+#define UDS_DBG_PRINT printf
+#endif
 #else
 #define UDS_DBG_PRINT(fmt, ...) ((void)fmt)
 #endif
@@ -25,7 +25,6 @@
         UDS_DBG_PRINT("%02x,", ((uint8_t *)addr)[i]);                                              \
     }                                                                                              \
     UDS_DBG_PRINT("\n");
-
 
 /* returns true if `a` is after `b` */
 static inline bool UDSTimeAfter(uint32_t a, uint32_t b) {
@@ -37,6 +36,5 @@ static inline bool UDSTimeAfter(uint32_t a, uint32_t b) {
  * @return current time in milliseconds
  */
 uint32_t UDSMillis(void);
-
 
 bool UDSSecurityAccessLevelIsReserved(uint8_t securityLevel);

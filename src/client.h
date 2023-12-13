@@ -4,7 +4,6 @@
 #include "tp.h"
 #include "uds.h"
 
-
 enum UDSClientRequestState {
     kRequestStateIdle = 0,          // 完成
     kRequestStateSending,           // 传输层现在传输数据
@@ -140,5 +139,3 @@ UDSSeqState_t UDSClientAwaitIdle(UDSClient_t *client);
 UDSErr_t UDSConfigDownload(UDSClient_t *client, uint8_t dataFormatIdentifier,
                            uint8_t addressAndLengthFormatIdentifier, size_t memoryAddress,
                            size_t memorySize, FILE *fd);
-
-

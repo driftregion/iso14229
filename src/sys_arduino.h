@@ -1,6 +1,6 @@
 #pragma once
 
-#if UDS_SYS==UDS_SYS_ARDUINO
+#if UDS_SYS == UDS_SYS_ARDUINO
 
 #include <stddef.h>
 #include <stdint.h>

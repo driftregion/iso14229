@@ -131,7 +131,7 @@ static inline void _ClientHandleResponse(UDSClient_t *client) {
 
             uint16_t p2 = (client->recv_buf[2] << 8) + client->recv_buf[3];
             uint32_t p2_star = ((client->recv_buf[4] << 8) + client->recv_buf[5]) * 10;
-            UDS_DBG_PRINT("received new timings: p2: %"PRIu16", p2*: %"PRIu32"\n", p2, p2_star);
+            UDS_DBG_PRINT("received new timings: p2: %" PRIu16 ", p2*: %" PRIu32 "\n", p2, p2_star);
             client->p2_ms = p2;
             client->p2_star_ms = p2_star;
             break;

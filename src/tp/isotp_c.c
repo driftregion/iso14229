@@ -130,9 +130,8 @@ static void tp_ack_recv(UDSTpHandle_t *hdl) {
     assert(hdl);
     printf("ack recv\n");
     UDSISOTpC_t *tp = (UDSISOTpC_t *)hdl;
-    uint16_t    out_size = 0;
+    uint16_t out_size = 0;
     isotp_receive(&tp->phys_link, tp->recv_buf, sizeof(tp->recv_buf), &out_size);
-
 }
 
 static ssize_t tp_get_send_buf(UDSTpHandle_t *hdl, uint8_t **p_buf) {

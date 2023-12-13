@@ -1,6 +1,6 @@
 #pragma once
 
-#if UDS_SYS==UDS_SYS_ESP32
+#if UDS_SYS == UDS_SYS_ESP32
 
 #include <string.h>
 #include <inttypes.h>
@@ -11,4 +11,3 @@
 #define UDS_ENABLE_ASSERT 1
 
 #endif
-

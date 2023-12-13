@@ -34,7 +34,8 @@ typedef struct UDSServer {
                                        // has been sent to the client
     uint32_t p2_timer;                 // for rate limiting server responses
     uint32_t s3_session_timeout_timer; // indicates that diagnostic session has timed out
-    uint32_t sec_access_auth_fail_timer; // brute-force hardening: rate limit security access requests
+    uint32_t
+        sec_access_auth_fail_timer; // brute-force hardening: rate limit security access requests
 
     /**
      * @brief UDS-1-2013: Table 407 - 0x36 TransferData Supported negative

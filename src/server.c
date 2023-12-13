@@ -282,7 +282,8 @@ static uint8_t _0x27_SecurityAccess(UDSServer_t *srv, UDSReq_t *r) {
         response = EmitEvent(srv, UDS_SRV_EVT_SecAccessValidateKey, &args);
 
         if (kPositiveResponse != response) {
-            srv->sec_access_auth_fail_timer = UDSMillis() + UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_AUTH_FAIL_DELAY_MS;
+            srv->sec_access_auth_fail_timer =
+                UDSMillis() + UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_AUTH_FAIL_DELAY_MS;
             return NegativeResponse(r, response);
         }
 
@@ -870,7 +871,7 @@ void UDSServerPoll(UDSServer_t *srv) {
         EmitEvent(srv, UDS_SRV_EVT_DoScheduledReset, &srv->ecuResetScheduled);
     }
 
-    UDSTpStatus_t tpStatus = UDSTpPoll(srv->tp);
+    UDSTpPoll(srv->tp);
 
     UDSReq_t *r = &srv->r;
 
@@ -924,7 +925,7 @@ void UDSServerPoll(UDSServer_t *srv) {
         if (r->recv_len > 0) {
             if (r->send_buf == NULL) {
                 UDS_DBG_PRINT("Send buf null\n");
-            } 
+            }
             if (r->recv_buf == NULL) {
                 UDS_DBG_PRINT("Recv buf null\n");
             }
