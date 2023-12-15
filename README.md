@@ -13,6 +13,12 @@ iso14229 is an implementation of UDS (ISO14229-1:2013) targeting embedded system
 
 API status: **not yet stable**. 
 
+
+## Quick Start
+
+1. Get `iso14229.c` and `iso14229.h` from the [release](./release) directory, copy into your source tree and build.
+2. See [examples](./examples).
+
 ## Features
 
 - static memory allocation. does not use `malloc`, `calloc`
@@ -24,10 +30,6 @@ API status: **not yet stable**.
 - cares about security
     - server has fuzz test, see [test/README.md](test/README.md)
     -
-
-## Quick Start
-
-See [examples](./examples).
 
 ## Preprocessor Defines
 
