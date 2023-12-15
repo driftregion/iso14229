@@ -133,5 +133,10 @@ cc_library(
         "-Wno-unused-parameter",
         "-Wno-gnu-zero-variadic-macro-arguments",
     ],
+    defines = [
+        "UDS_TP_ISOTP_C_SOCKETCAN",
+        "UDS_TP_ISOTP_SOCK",
+        "UDS_TP_MOCK",
+    ],
     target_compatible_with = ["//platforms/compiler:clang"],
 )

@@ -1043,7 +1043,7 @@ static uint8_t decodeAddressAndLength(UDSReq_t *r, uint8_t *const buf, void **me
     assert(r);
     assert(memoryAddress);
     assert(memorySize);
-    long long unsigned int tmp = 0;
+    uintptr_t tmp = 0;
     *memoryAddress = 0;
     *memorySize = 0;
 
@@ -2090,7 +2090,7 @@ done:
     return sockfd;
 }
 
-uint32_t isotp_user_get_ms() { return UDSMillis(); }
+uint32_t isotp_user_get_ms(void) { return UDSMillis(); }
 
 void isotp_user_debug(const char *message, ...) {
     va_list args;
@@ -2112,13 +2112,6 @@ int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t *data, cons
         return ISOTP_RET_ERROR;
     }
     return ISOTP_RET_OK;
-}
-
-static void printhex(const uint8_t *addr, int len) {
-    for (int i = 0; i < len; i++) {
-        printf("%02x,", addr[i]);
-    }
-    printf("\n");
 }
 
 static void SocketCANRecv(UDSTpISOTpC_t *tp) {
@@ -2238,7 +2231,7 @@ done:
         }
         fprintf(stdout, "%06d, %s recv, 0x%03x (%s), ", UDSMillis(), tp->tag, ta,
                 ta_type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
-        for (unsigned i = 0; i < ret; i++) {
+        for (int i = 0; i < ret; i++) {
             fprintf(stdout, "%02x ", (*p_buf)[i]);
         }
         fprintf(stdout, "\n");
@@ -2627,7 +2620,7 @@ static void LogMsg(const char *prefix, const uint8_t *buf, size_t len, UDSSDU_t 
     fflush(LogFile); // flush every time in case of crash
 }
 
-static void NetworkPoll() {
+static void NetworkPoll(void) {
     for (unsigned i = 0; i < MsgCount; i++) {
         struct Msg *msg = &msgs[i];
         if (UDSTimeAfter(UDSMillis(), msg->scheduled_tx_time)) {

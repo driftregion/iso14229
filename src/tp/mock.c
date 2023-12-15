@@ -34,7 +34,7 @@ static void LogMsg(const char *prefix, const uint8_t *buf, size_t len, UDSSDU_t 
     fflush(LogFile); // flush every time in case of crash
 }
 
-static void NetworkPoll() {
+static void NetworkPoll(void) {
     for (unsigned i = 0; i < MsgCount; i++) {
         struct Msg *msg = &msgs[i];
         if (UDSTimeAfter(UDSMillis(), msg->scheduled_tx_time)) {

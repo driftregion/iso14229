@@ -13,3 +13,4 @@ fuzzer
 **/*.cache
 **/build
 **/sdkconfig*
+release/

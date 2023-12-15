@@ -38,7 +38,7 @@ done:
     return sockfd;
 }
 
-uint32_t isotp_user_get_ms() { return UDSMillis(); }
+uint32_t isotp_user_get_ms(void) { return UDSMillis(); }
 
 void isotp_user_debug(const char *message, ...) {
     va_list args;
@@ -60,13 +60,6 @@ int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t *data, cons
         return ISOTP_RET_ERROR;
     }
     return ISOTP_RET_OK;
-}
-
-static void printhex(const uint8_t *addr, int len) {
-    for (int i = 0; i < len; i++) {
-        printf("%02x,", addr[i]);
-    }
-    printf("\n");
 }
 
 static void SocketCANRecv(UDSTpISOTpC_t *tp) {
@@ -186,7 +179,7 @@ done:
         }
         fprintf(stdout, "%06d, %s recv, 0x%03x (%s), ", UDSMillis(), tp->tag, ta,
                 ta_type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
-        for (unsigned i = 0; i < ret; i++) {
+        for (int i = 0; i < ret; i++) {
             fprintf(stdout, "%02x ", (*p_buf)[i]);
         }
         fprintf(stdout, "\n");

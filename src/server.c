@@ -178,7 +178,7 @@ static uint8_t decodeAddressAndLength(UDSReq_t *r, uint8_t *const buf, void **me
     assert(r);
     assert(memoryAddress);
     assert(memorySize);
-    long long unsigned int tmp = 0;
+    uintptr_t tmp = 0;
     *memoryAddress = 0;
     *memorySize = 0;
 
