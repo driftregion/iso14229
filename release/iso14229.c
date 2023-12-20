@@ -2413,9 +2413,9 @@ static ssize_t isotp_sock_tp_peek(UDSTpHandle_t *hdl, uint8_t **p_buf, UDSSDU_t 
 done:
     if (ret > 0) {
         impl->recv_len = ret;
-    }
-    if (info) {
-        *info = *msg;
+        if (info) {
+            *info = *msg;
+        }
     }
     return ret;
 }
@@ -2522,6 +2522,7 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool
 UDSErr_t UDSTpIsoTpSockInitServer(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
                                   uint32_t target_addr, uint32_t source_addr_func) {
     assert(tp);
+    memset(tp, 0, sizeof(*tp));
     tp->hdl.peek = isotp_sock_tp_peek;
     tp->hdl.send = isotp_sock_tp_send;
     tp->hdl.poll = isotp_sock_tp_poll;
@@ -2547,6 +2548,7 @@ UDSErr_t UDSTpIsoTpSockInitServer(UDSTpIsoTpSock_t *tp, const char *ifname, uint
 UDSErr_t UDSTpIsoTpSockInitClient(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
                                   uint32_t target_addr, uint32_t target_addr_func) {
     assert(tp);
+    memset(tp, 0, sizeof(*tp));
     tp->hdl.peek = isotp_sock_tp_peek;
     tp->hdl.send = isotp_sock_tp_send;
     tp->hdl.poll = isotp_sock_tp_poll;

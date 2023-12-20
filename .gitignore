@@ -1,4 +1,5 @@
 bazel-*
+bazel-out/k8-fastbuild/bin
 .rsync-filter
 test_iso14229
 client
@@ -14,3 +15,5 @@ fuzzer
 **/build
 **/sdkconfig*
 release/
+examples/**/iso14229.c
+examples/**/iso14229.h

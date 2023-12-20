@@ -24,7 +24,7 @@ API status: **not yet stable**.
 - static memory allocation. does not use `malloc`, `calloc`
 - easy to integrate. Download `iso14229.c` and `iso14229.h` from the releases page and copy into your source tree.
 - highly portable and tested
-    - architectures: arm, x86-64, ppc, ppc64
+    - architectures: arm, x86-64, ppc, ppc64, risc
     - systems: linux, Windows, esp32, Arduino, NXP s32k
     - transports: isotp-c, linux isotp sockets
 - cares about security
