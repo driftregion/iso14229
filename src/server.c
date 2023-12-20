@@ -258,7 +258,7 @@ static uint8_t _0x27_SecurityAccess(UDSServer_t *srv, UDSReq_t *r) {
         return NegativeResponse(r, kIncorrectMessageLengthOrInvalidFormat);
     }
 
-    if (!UDSTimeAfter(UDSMillis(), UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_BOOT_DELAY_MS)) {
+    if (!UDSTimeAfter(UDSMillis(), srv->sec_access_boot_delay_timer)) {
         return NegativeResponse(r, kRequiredTimeDelayNotExpired);
     }
 
@@ -857,6 +857,8 @@ UDSErr_t UDSServerInit(UDSServer_t *srv) {
     srv->sessionType = kDefaultSession;
     srv->p2_timer = UDSMillis() + srv->p2_ms;
     srv->s3_session_timeout_timer = UDSMillis() + srv->s3_ms;
+    srv->sec_access_boot_delay_timer = UDSMillis() + UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_BOOT_DELAY_MS;
+    srv->sec_access_auth_fail_timer = UDSMillis();
     return UDS_OK;
 }
 
