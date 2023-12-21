@@ -17,3 +17,5 @@ fuzzer
 release/
 examples/**/iso14229.c
 examples/**/iso14229.h
+*.pem
+*.der
