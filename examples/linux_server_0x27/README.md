@@ -1,11 +1,11 @@
-
-
-To compile the client you may need `libssl-dev`
-
 ```sh
-openssl genpkey -algorithm RSA -out private_key.pem
-openssl rsa -pubout -in private_key.pem -out public_key.pem
-openssl rsa -pubout -in private_key.pem -outform DER -out public_key.der
-```
+apt install libmbedtls-dev
+sudo ip link add name vcan0 type vcan
+sudo ip link set vcan0 up
 
-https://github.com/amosnier/sha-2/
+make
+
+./server
+
+./client
+```
