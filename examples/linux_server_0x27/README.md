@@ -1,3 +1,5 @@
+# Running the example
+
 ```sh
 apt install libmbedtls-dev
 sudo ip link add name vcan0 type vcan
@@ -9,3 +11,7 @@ make
 
 ./client
 ```
+
+# Known issues
+
+- auth only works once

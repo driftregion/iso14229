@@ -15,41 +15,6 @@
 #include <mbedtls/rsa.h>
 #include <mbedtls/sha256.h>
 
-static UDSSeqState_t sendHardReset(UDSClient_t *client) {
-    uint8_t resetType = kHardReset;
-    printf("%s: sending ECU reset type: %d\n", __func__, resetType);
-    UDSSendECUReset(client, resetType);
-    return UDSSeqStateGotoNext;
-}
-
-static UDSSeqState_t awaitPositiveResponse(UDSClient_t *client) {
-    if (client->err) {
-        return client->err;
-    }
-    if (kRequestStateIdle == client->state) {
-        printf("got positive response\n");
-        return UDSSeqStateGotoNext;
-    } else {
-        return UDSSeqStateRunning;
-    }
-}
-
-static UDSSeqState_t awaitResponse(UDSClient_t *client) {
-    if (kRequestStateIdle == client->state) {
-        printf("got response\n");
-        return UDSSeqStateGotoNext;
-    } else {
-        return UDSSeqStateRunning;
-    }
-}
-
-static UDSSeqState_t requestSomeData(UDSClient_t *client) {
-    printf("%s: calling ReadDataByIdentifier\n", __func__);
-    static const uint16_t didList[] = {0x0001, 0x0008};
-    UDSSendRDBI(client, didList, 2);
-    return UDSSeqStateGotoNext;
-}
-
 
 static int SleepMillis(uint32_t tms) {
     struct timespec ts;
@@ -74,7 +39,6 @@ int sign(const uint8_t *seed, size_t seed_len, uint8_t* key, size_t key_len) {
 
     mbedtls_pk_init(&pk);
 
-    // Load your RSA private key
     const char *private_key_pem = "private_key.pem";
 
     if (mbedtls_pk_parse_keyfile(&pk, private_key_pem, NULL) != 0) {

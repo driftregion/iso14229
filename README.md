@@ -13,11 +13,22 @@ iso14229 is an implementation of UDS (ISO14229-1:2013) targeting embedded system
 
 API status: **not yet stable**. 
 
-
-## Quick Start
+## Quickstart
 
 1. Get `iso14229.c` and `iso14229.h` from the [release](./release) directory, copy into your source tree and build.
 2. See [examples](./examples).
+
+## Building
+
+iso14229 uses bazel internally. You do not need bazel to use this library.
+
+## Preprocessor Defines
+
+| Define | Description | Valid values |
+| - | - | - |
+| `UDS_TP` | Enable a transport layer | see `tp.h` |
+| `UDS_SYS` | Select a porting target | see `sys.h` |
+| `UDS_...` | Additional compile-time config options | see `config.h` |
 
 ## Features
 
@@ -27,17 +38,6 @@ API status: **not yet stable**.
     - architectures: arm, x86-64, ppc, ppc64, risc
     - systems: linux, Windows, esp32, Arduino, NXP s32k
     - transports: isotp-c, linux isotp sockets
-- cares about security
-    - server has fuzz test, see [test/README.md](test/README.md)
-    -
-
-## Preprocessor Defines
-
-| Define | Description | Valid values |
-| - | - | - |
-| `UDS_SYS` | Select a porting target | see `sys.h` |
-| `UDS_TP` | Select a transport layer | see `tp.h` |
-| `UDS_...` | Additional compile-time config options | see `config.h` |
 
 ##  supported functions (server and client )
 
