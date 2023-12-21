@@ -15,3 +15,7 @@ make
 # Known issues
 
 - auth only works once
+
+# Todo
+
+- implement multiple security levels
