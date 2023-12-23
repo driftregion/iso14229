@@ -123,6 +123,21 @@ int main(int ac, char **av) {
     for (int i = 0; i < sar.securitySeedLength; i++) {
         printf("%02X ", sar.securitySeed[i]);
     }
+    
+    // Check if all bytes in the seed are 0
+    bool all_zero = true;
+    for (int i = 0; i < sar.securitySeedLength; i++) {
+        if (sar.securitySeed[i] != 0) {
+            all_zero = false;
+            break;
+        }
+    }
+
+    if (all_zero) {
+        fprintf(stderr, "seed is all zero, already unlocked\n");
+        return 0;
+    }
+
 
     uint8_t key[512] = {0};
 
