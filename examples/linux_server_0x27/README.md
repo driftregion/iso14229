@@ -19,3 +19,7 @@ make
 # Todo
 
 - implement multiple security levels
+
+# Acknowledgement
+
+This example is based on Martin Thompson's paper "UDS Security Access for Constraint ECUs" https://doi.org/10.4271/2022-01-0132
