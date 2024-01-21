@@ -22,4 +22,4 @@ jobs:
         gh release create ${{ github.ref_name }}
         "bazel-bin/iso14229.zip#iso14229.zip"
         --generate-notes
-        --title "Version ${{ github.ref_name }} (or some other name)"
+        --title "${{ github.ref_name }}"

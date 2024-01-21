@@ -53,5 +53,5 @@ genrule(
         "LICENSE",
     ],
     outs = ["iso14229.zip"],
-    cmd = "zip -r $(OUTS) $(SRCS)",
+    cmd = "mkdir iso14229 && cp -L $(SRCS) iso14229/ && zip -r $(OUTS) iso14229",
 )
