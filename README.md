@@ -15,7 +15,7 @@ API status: **not yet stable**.
 
 ## Quickstart
 
-1. Get `iso14229.c` and `iso14229.h` from the [release](./release) directory, copy into your source tree and build.
+1. Download `iso14229.zip` from the [releases page](https://github.com/driftregion/iso14229/releases), copy `iso14229.c` and `iso14229.h` into your source tree and build.
 2. See [examples](./examples).
 
 ## Building
