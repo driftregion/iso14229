@@ -1,4 +1,5 @@
 bazel-*
+bazel-out/k8-fastbuild/bin
 .rsync-filter
 test_iso14229
 client
@@ -8,3 +9,13 @@ corpus
 *.profraw
 .gdb_history
 fuzzer
+*.o
+.vscode
+**/*.cache
+**/build
+**/sdkconfig*
+release/
+examples/**/iso14229.c
+examples/**/iso14229.h
+*.pem
+*.der

@@ -1,0 +1,25 @@
+name: unit tests
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v3
+
+    - name: lint
+      run: CHECK_FORMAT=1 ./run_clang_format.sh
+      continue-on-error: true
+
+    - name: run unit tests
+      run: bazel test //test:all --test_tag_filters=-vcan
+    
+

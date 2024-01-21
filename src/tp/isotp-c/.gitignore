@@ -1,0 +1,16 @@
+###
+# .GITIGNORE FILE
+# This file contains instructions for filesystem entries git should ignore when
+# doing things to this repository.
+###
+
+###
+# Ignore Artifacts
+###
+*.o
+bin/
+
+###
+# Ignore Backups
+###
+*~

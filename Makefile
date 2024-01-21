@@ -1,45 +1,20 @@
-ifeq "$(TP)" "ISOTP_C"
-SRCS += isotp-c/isotp.c examples/isotp-c_on_socketcan.c
-CFLAGS += -DUDS_TP=UDS_TP_ISOTP_C
-endif
-
-cxx: CFLAGS+=-DUDS_TP=UDS_TP_CUSTOM 
-cxx: Makefile iso14229.c iso14229.h
-	$(CXX) iso14229.c $(CFLAGS) -c
-
-unit_test: CFLAGS+=-DUDS_TP=UDS_TP_CUSTOM -DUDS_CUSTOM_MILLIS
-unit_test: Makefile iso14229.h iso14229.c test_iso14229.c
-	$(CC) iso14229.c test_iso14229.c $(CFLAGS) $(LDFLAGS) -o test_iso14229
-	$(RUN) ./test_iso14229
-
-client: CFLAGS+=-g -DUDS_DBG_PRINT=printf
-client: examples/client.c examples/uds_params.h iso14229.h iso14229.c Makefile $(SRCS)
-	$(CC) iso14229.c $(SRCS) $< $(CFLAGS) -o $@
-
-server: CFLAGS+=-g -DUDS_DBG_PRINT=printf
-server: examples/server.c examples/uds_params.h iso14229.h iso14229.c Makefile $(SRCS)
-	$(CC) iso14229.c $(SRCS) $< $(CFLAGS) -o $@
-
-test_examples: test_examples.py
-	$(RUN) ./test_examples.py
-
-uds_prefix: CFLAGS+=-DUDS_TP=UDS_TP_CUSTOM -DUDS_CUSTOM_MILLIS
-uds_prefix: iso14229.c iso14229.h
-	$(CC) iso14229.c $(CFLAGS) -c -o /tmp/x.o && nm /tmp/x.o | grep ' T ' | grep -v 'UDS' ; test $$? = 1
-
-test_qemu: Makefile iso14229.h iso14229.c test_iso14229.c test_qemu.py
-	$(RUN) ./test_qemu.py
-
-test: cxx unit_test test_examples uds_prefix test_qemu
-
-fuzz: CC=clang-14
-fuzz: ASAN = -fsanitize=fuzzer,signed-integer-overflow,address,undefined -fprofile-instr-generate -fcoverage-mapping
-fuzz: OPTS = -g -DUDS_TP=UDS_TP_CUSTOM -DUDS_CUSTOM_MILLIS
-fuzz: iso14229.c iso14229.h fuzz_server.c Makefile
-	$(CC) $(OPTS) $(WARN) $(INCS) $(TFLAGS) $(ASAN) fuzz_server.c iso14229.c -o fuzzer 
-	$(RUN) ./fuzzer corpus
+all: iso14229.c iso14229.h
+	mkdir -p release 
+	cp iso14229.c iso14229.h release/
 
 clean:
-	rm -f client server test_iso14229 iso14229.o
+	rm -rf isotp_c_wrapped.c isotp_c_wrapped.h iso14229.c iso14229.h release/
 
-.phony: clean test_examples
+isotp_c_wrapped.c: $(shell find src/tp/isotp-c -name '*.c')
+	echo '#if defined(UDS_ISOTP_C)' >> $@ ; for f in $^; do cat $$f >> $@; done ; echo '#endif' >> $@
+
+isotp_c_wrapped.h: $(shell find src/tp/isotp-c -name '*.h')
+	echo '#if defined(UDS_ISOTP_C)' >> $@ ; for f in $^; do cat $$f >> $@; done ; echo '#endif' >> $@
+
+iso14229.c: $(shell find src -name '*.c') isotp_c_wrapped.c
+	echo '#include "iso14229.h"' > $@ ; for f in $^; do echo; echo '#ifdef UDS_LINES'; echo "#line 1 \"$$f\""; echo '#endif'; cat $$f | sed -e 's,#include ".*,,'; done >> $@
+
+iso14229.h: $(shell find src -name '*.h') isotp_c_wrapped.h
+	( echo '#ifndef ISO14229_H'; echo '#define ISO14229_H'; echo; echo '#ifdef __cplusplus'; echo 'extern "C" {'; echo '#endif'; cat src/version.h src/sys.h src/sys_arduino.h src/sys_unix.h src/sys_win32.h src/sys_esp32.h src/config.h src/util.h src/tp.h src/uds.h src/client.h src/server.h isotp_c_wrapped.h src/tp/*.h |sed -e 's,#include ".*,,' -e 's,^#pragma once,,' ; echo '#endif'; echo '#ifdef __cplusplus'; echo '}'; echo '#endif';) > $@
+
+.phony: clean

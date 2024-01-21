@@ -1,3 +1,4 @@
+load("@hedron_compile_commands//:refresh_compile_commands.bzl", "refresh_compile_commands")
 package(default_visibility = ["//visibility:public"])
 
 filegroup(
@@ -5,51 +6,52 @@ filegroup(
     srcs = [
         "iso14229.c",
         "iso14229.h",
-        "iso14229serverbufferedwriter.h",
-    ],
-)
-
-cc_test(
-    name="test",
-    srcs=[
-        ":srcs",
-        "test_iso14229.c",
-    ],
-    copts=[
-        "-Wall",
-        "-Wextra",
-        "-Wno-missing-field-initializers",
-        "-Werror",
-        "-Wno-unused-parameter",
-    ],
-    defines=[
-        "UDS_TP=UDS_TP_CUSTOM",
-        "UDS_CUSTOM_MILLIS",
-    ],
-)
-
-cc_test(
-    name = "test_server_bufferedwriter",
-    srcs = [
-        "udsserverbufferedwriter.h",
-        "test_udsserverbufferedwriter.c",
-    ],
-)
-
-
-filegroup(
-    name="isotp_c_srcs",
-    srcs=[
-        "isotp-c/isotp.c",
-        "isotp-c/isotp.h",
-        "isotp-c/isotp_config.h",
-        "isotp-c/isotp_defines.h",
-        "isotp-c/isotp_user.h",
     ],
 )
 
 cc_library(
-    name="isotp_c",
-    srcs=[":isotp_c_srcs"],
-    copts=["-Wno-unused-parameter"],
+    name="iso14229",
+    srcs = [
+        "iso14229.c",
+        "iso14229.h",
+    ],
+)
+
+cc_library(
+    name="iso14229_2",
+    srcs=glob(["src/**/*.c", "src/**/*.h"]),
+    copts=['-Isrc'],
+)
+
+refresh_compile_commands(
+    name = "s32k_refresh_compile_commands",
+    targets = {
+        "//examples/s32k144/...": "--config=s32k",
+    }
+)
+
+py_binary(
+    name="amalgamate",
+    srcs=["amalgamate.py"],
+)
+
+genrule(
+    name="amalgamated",
+    srcs=glob(["src/**/*.c", "src/**/*.h"]),
+    outs=["iso14229.c", "iso14229.h"],
+    cmd="$(location //:amalgamate) --out_c $(location //:iso14229.c) --out_h $(location //:iso14229.h) $(SRCS)",
+    tools=["//:amalgamate"],
+)
+
+genrule(
+    name="release",
+    srcs=[
+        "iso14229.c",
+        "iso14229.h",
+        "README.md",
+        "LICENSE",
+        "AUTHORS.txt",
+    ],
+    outs = ["iso14229.zip"],
+    cmd = "mkdir iso14229 && cp -L $(SRCS) iso14229/ && zip -r $(OUTS) iso14229",
 )
