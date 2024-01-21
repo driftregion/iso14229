@@ -5,35 +5,32 @@
 <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
 </p>
 
-<p align="center">
-  <a href="README_zh.md">简体中文</a>
-</p>
-
-iso14229 is an implementation of UDS (ISO14229-1:2013) targeting embedded systems. It is tested with [`isotp-c`](https://github.com/lishen2/isotp-c) as well as [linux kernel](https://github.com/linux-can/can-utils/blob/master/include/linux/can/isotp.h) ISO15765-2 (ISO-TP) transport layer implementations. 
+iso14229 is an implementation of UDS (ISO14229) targeting embedded systems. It is tested with [`isotp-c`](https://github.com/lishen2/isotp-c) as well as [linux kernel](https://github.com/linux-can/can-utils/blob/master/include/linux/can/isotp.h) ISO15765-2 (ISO-TP) transport layer implementations. 
 
 API status: **not yet stable**. 
 
-## Quickstart
+## Using this library 
 
 1. Download `iso14229.zip` from the [releases page](https://github.com/driftregion/iso14229/releases), copy `iso14229.c` and `iso14229.h` into your source tree and build.
-2. See [examples](./examples).
+2. Look at the [examples](./examples)
 
-## Building
+## Build Systems
 
-iso14229 uses bazel internally. You do not need bazel to use this library.
+iso14229 is designed to build on any platform. 
 
 ## Preprocessor Defines
 
 | Define | Description | Valid values |
 | - | - | - |
-| `UDS_TP` | Enable a transport layer | see `tp.h` |
-| `UDS_SYS` | Select a porting target | see `sys.h` |
-| `UDS_...` | Additional compile-time config options | see `config.h` |
+| `-DUDS_TP_ISOTP_C` | build the isotp-c transport layer (recommended for bare-metal systems) | on/off |
+| `-DUDS_TP_ISOTP_SOCK` | build the isotp socket transport layer (recommended for linux)  | on/off|
+| `-DUDS_TP_ISOTP_C_SOCKETCAN` | build the isotp-c transport layer with socketcan support (linux-only)  | on/off|
+| `UDS_...` | Additional configuration options | see [`src/config.h`](src/config.h) |
+| `UDS_SYS` | Selects target system | see [`src/sys.h`](src/sys.h) |
 
 ## Features
 
-- static memory allocation. does not use `malloc`, `calloc`
-- easy to integrate. Download `iso14229.c` and `iso14229.h` from the releases page and copy into your source tree.
+- entirely static memory allocation. (no `malloc`, `calloc`, ...)
 - highly portable and tested
     - architectures: arm, x86-64, ppc, ppc64, risc
     - systems: linux, Windows, esp32, Arduino, NXP s32k
@@ -69,11 +66,15 @@ iso14229 uses bazel internally. You do not need bazel to use this library.
 | 0x85 | control DTC setting | ✅ |
 | 0x86 | response on event | ❌ |
 
+## Running Tests
+
+See [test_all.sh](./test_all.sh) and [test/README.md](test/README.md)
+
 # Documentation
 
 ## Server Events
 
-see `enum UDSServerEvent` in [iso14229.h](./iso14229.h)
+see `enum UDSServerEvent` in [src/uds.h](src/uds.h)
 
 ### `UDS_SRV_EVT_DiagSessCtrl` (0x10)
 
@@ -330,12 +331,10 @@ contributions are welcome
 
 - [`isotp-c`](https://github.com/lishen2/isotp-c) which this project embeds
 
-# License
-
-MIT
-
 # Changelog
 
+## 0.7.1
+- amalgamated sources into `iso14229.c` and `iso14229.h` to ease integration
 
 ## 0.7.0
 - test refactoring. theme: test invariance across different transports and processor architectures
@@ -392,283 +391,3 @@ MIT
 
 ## 0.0.0
 - initial release
-
----
-
-# Design Docs
-
-## ISO-TP interface
-
-`iso14229` supports opaque transports. Use `Iso14229TpHandle_t` to wrap a transport. 
-
-
-### PDU transmission complete
-
-ISO14229-1 2013 6.1 describes a request-confirmation primitive to "indicate that the date passed in the service request primitive is successfully sent on the vehicle communication bus the diagnostic tester is connected to"
-
-
-#### ISOTP-C
-- **polling**
-- `IsoTpLink.send_status` is either `IDLE`, `INPROGRESS`, or `ERROR`
-
-#### PCAN-ISO-TP
-- **polling**
- - https://www.peak-system.com/PCAN-ISO-TP-API.372.0.html
- - `PCAN-ISO-TP_2016.h` contains a function for reading the transport status which includes `PCANTP_ISOTP_MSGTYPE_FLAG_INDICATION_TX`
-
-#### linux kernel isotp driver
-- **blocking**
-- https://github.com/hartkopp/can-isotp/issues/27 (Get status of transmission?)
-- https://github.com/hartkopp/can-isotp/issues/51
-
-
-If you're using the linux kernel driver, then you have threads and can use the excellent `python-udsoncan` to implement a client.
-
-----
-- "The Functional addressing is applied only to single frame transmission" -- Specification of Diagnostic Communication (Diagnostic on CAN - Network Layer)
-- 
-
-```plantuml
-@startuml
-
-@enduml
-```
-
-## Client State Machine
-
-```plantuml
-@startuml
-title 客户端请求状态机
-note as N1
-enum {
-    kNoError=0,
-    kErrBadRequest,
-    kErrP2Timeout,
-} ClientErr;
-
-static inline bool isRequestComplete() {return state==Idle;}
-
-while (Idle != client->state) {
-    receiveCAN(client);
-    UDSClientPoll(client);
-}
-end note
-
-state Idle
-state Sending
-state Sent
-state SentAwaitResponse
-state ProcessResponse
-Idle: if (ISOTP_RET_OK == isotp_receive(...)) // Error
-ProcessResponse: isotp_receive()
-ProcessResponse: _ClientValidateResponse(...)
-ProcessResponse: _ClientHandleResponse(...)
-
-Sending --> Sent: 传输层完成传输 
-
-Sent --> Idle : suppressPositiveResponse
-Sending --> SentAwaitResponse: !suppressPositiveResponse
-SentAwaitResponse -> Idle: 响应收到了 ||\np2 超时
-SentAwaitResponse --> ProcessResponse : ISOTP_RECEIVE_STATUS_FULL == link->receive_status
-ProcessResponse --> Idle
-
-[*] -> Idle
-Idle -> Sending : _SendRequest()
-
-@enduml
-```
-
-```plantuml
-@startuml
-title Request Lifecycle
-alt normal
-    alt positive response
-        client --> client: Sending
-        client -> server : *Any* Service
-        client --> client: SentAwaitResponse: set p2
-        alt 0x78 requestCorrectlyReceived-ResponsePending
-            server -> client : 0x3F 0x78 
-            client -->server : txLink  idle
-            client --> client: SentAwaitResponse: set p2star
-        end
-        server -> client : Positive Service Response
-        client --> client: Idle 
-    else negative response
-        server -> client !! : Negative Service Response
-        client --> client: Idle: RequestErrorNegativeResponse
-    else SID mismatch
-        server -> client !! : Mismatched Service Response
-        client --> client: Idle: RequestErrorResponseSIDMismatch
-    end
-else unexpected response
-    server -> client !! : Unexpected Response
-    client --> client: Idle: RequestErrorUnsolicitedResponse
-end
-@enduml
-```
-
-
-```plantuml
-@startuml
-' !pragma useVerticalIf on
-title 客户端请求流程
-start
-
-:clientSendRequest();
-if (验证参数) then (对)
-:ok;
-else (不对)
-:foo;
-detach
-endif
-
-:clearRequestContext();
-if (等待UDS访问) then (访问接收了,进入UDS会话)
-else (时间超过<b>20ms)
-@enduml
-```
-
-## Server 0x78 requestCorrectlyReceived-ResponsePending
-
-```plantuml
-@startuml
-client -> server : *Any* Service
-server -> userServiceHandler: handler(args)
-note right: Doing this will take a long time\nso I return 0x78
-userServiceHandler -> server: 0x78
-server -> client : 0x3F 0x78 
-client -->server : txLink  idle
-server -> userServiceHandler: handler(args)
-note right: actually call the long-running service
-... p2* > t > p2 ... 
-userServiceHandler -> server : Service Response
-server -> client : Service Response
-@enduml
-```
-
-
-```plantuml
-@startuml
-' !pragma useVerticalIf on
-title UDSServerPoll Flowchart
-|Server|
-start
-
-if (DefaultSession != sessionType \n&& s3_timeout) then (true)
-:Emit SessionTimeout;
-else (false)
-endif
-
-if (ecuResetScheduled\n&& ecuResetTimer) then (false)
-else (true)
-:Emit DoScheduledReset;
-endif
-
-if (tp_status & TP_SEND_IN_PROGRESS) then (false)
-:UDSTpPeek();
-else (true)
-stop
-endif
-
-:evaluateServiceResponse();
-|User|
-:resp = handler();
-|Server|
-if (resp) then (anything else) 
-else (0x78)
-    fork
-    |Server|
-    :wait p2 ms;
-    :send response (0x78);
-    repeat
-        if (time after p2*) then (yes)
-            :send response (0x78);
-        else (no)
-        endif
-        :wait 1ms;
-    repeat while (resp) is (0x78 RCRRP)
-    ->anything else;
-    
-    ' while (resp)  is (0x78 RCRRP)
-    '     :wait p2* ms;
-    '     :send response (0x78);
-    ' endwhile (not 0x78 RCRRP)
-
-    fork again
-    while (resp)  is (0x78 RCRRP)
-        :evaluateServiceResponse();
-        |User|
-        :resp = handler();
-        |Server|
-        :wait 1ms;
-    endwhile (not 0x78 RCRRP)
-    end fork 
-endif
-|Server|
-:wait p2 ms;
-:send response;
-:UDSTpAckRecv();
-
-
-@enduml
-```
-
-```plantuml
-@startuml
-!pragma teoz true
-title Service Processing
-participant client
-participant server
-participant fn
-{t1} client -> server : request
-activate server
-server -> fn: call()
-fn -> server
-{t2} server -> client: response
-deactivate server
-{t1} <-> {t2} : p2_server
-
-@enduml
-```
-
-
-```plantuml
-@startuml
-title UDSServerPoll() Request Lifecycle
-[*] -> UDSTpPeek
-UDSTpPeek -> UDSTpPeek: recv_len == 0
-UDSTpPeek --> evaluateServiceResponse: recv_len > 0 &&\n !notReadyToReceive
-
-@enduml
-```
-
-
-```plantuml
-@startuml
-' !pragma useVerticalIf on
-title 0x78流程(写flash)
-start
-
-:BufferedWriterWrite(BufferedWriter *self, const uint8_t *ibuf, uint32_t size, bool RCRRP);
-
-if (RCRRP) then (true)
-:write to flash;
-else (false)
-endif
-if (iBufIdx == size) then (true)
-    :write to pageBuffer;
-    :iBufIdx = 0;
-    :return kBufferedWriterWritePending;
-    :0x78 RCRRP;
-    detach;
-else (false)
-    :memmove(pageBuffer + pageBufIdx, iBuf + iBufIdx, size - iBufIdx);
-    :write to pageBuffer;
-    :iBufIdx += size;
-    :0x01 PositiveResponse;
-    :0x78 RCRRP;
-    detach
-endif
-
-@enduml
-```
