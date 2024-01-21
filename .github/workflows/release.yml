@@ -1,8 +1,8 @@
+name: release
+
 on:
   push:
     tags: [ "v*" ]
-
-name: release
 
 jobs:
   build:
@@ -19,6 +19,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.TOKEN }}
       run: >-
         gh release create ${{ github.ref_name }}
-        "bazel-bin/iso14229.zip#"
+        "bazel-bin/iso14229.zip#iso14229.zip"
         --generate-notes
         --title "Version ${{ github.ref_name }} (or some other name)"
