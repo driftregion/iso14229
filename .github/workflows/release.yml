@@ -6,11 +6,6 @@ name: release
 
 jobs:
   build:
-    name: Create release
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: write
 
     steps:
     - name: checkout
@@ -19,10 +14,11 @@ jobs:
     - name: build release
       run: bazel build //:release
 
-    - name: upload release
-      uses: softprops/action-gh-release@v1
-      with:
-        name: iso14229 ${{ github.ref_name }}
-        files: bazel-bin/iso14229.zip
+    - name: Release
       env:
         GITHUB_TOKEN: ${{ secrets.TOKEN }}
+      run: >-
+        gh release create ${{ github.ref_name }}
+        "bazel-bin/iso14229.zip#"
+        --generate-notes
+        --title "Version ${{ github.ref_name }} (or some other name)"
