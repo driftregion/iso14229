@@ -67,7 +67,7 @@ void TestSABruteForcePrevention2(void **state) {
     TEST_INT_EQUAL(srv.securityLevel, 0);
 
     // Wait for the anti-brute-force timeout to expire
-    ENV_RunMillis(1000);
+    ENV_RunMillis(1500);
 
     // sending a seed request should get this response
     const uint8_t SEED_REQUEST[] = {0x27, 0x01};
@@ -101,7 +101,7 @@ void TestSABruteForcePrevention2(void **state) {
 
 void TestSAUnlock(void **state) {
     // Wait for the anti-brute-force timeout to expire
-    ENV_RunMillis(1000);
+    ENV_RunMillis(1500);
 
     // sending a seed request should get this response
     const uint8_t SEED_REQUEST[] = {0x27, 0x01};

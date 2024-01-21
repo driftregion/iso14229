@@ -15,7 +15,7 @@ cc_library(
         "UDS_CUSTOM_MILLIS",
         "UDS_ENABLE_DBG_PRINT",
         "UDS_ENABLE_ASSERT",
-        "UDS_LINES",
+        # "UDS_LINES",
     ],
     copts = [ "-g", ],
 )
