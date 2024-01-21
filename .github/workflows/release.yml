@@ -8,6 +8,10 @@ jobs:
   build:
     name: Create release
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
     steps:
     - name: checkout
       uses: actions/checkout@v3
