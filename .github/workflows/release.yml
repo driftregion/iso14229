@@ -1,0 +1,24 @@
+on:
+  push:
+    tags: [ "v*" ]
+
+name: release
+
+jobs:
+  build:
+    name: Create release
+    runs-on: ubuntu-latest
+    steps:
+    - name: checkout
+      uses: actions/checkout@v3
+
+    - name: build release
+      run: bazel build //:release
+
+    - name: upload release
+      uses: softprops/action-gh-release@v1
+      with:
+        name: iso14229 ${{ github.ref_name }}
+        files: bazel-bin/iso14229.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.TOKEN }}
