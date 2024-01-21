@@ -14,8 +14,6 @@ jobs:
     steps:
     - name: checkout
       uses: actions/checkout@v3
-      with:
-        submodules: true
 
     - name: lint
       run: CHECK_FORMAT=1 ./run_clang_format.sh
@@ -24,14 +22,4 @@ jobs:
     - name: run unit tests
       run: bazel test //test:all --test_tag_filters=-vcan
     
-    - name: build release
-      run: bazel build //:release
-
-    - name: upload release
-      uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/')
-      with:
-        files: bazel-bin/iso14229.zip
-      env:
-        GITHUB_TOKEN: ${{ secrets.TOKEN }}
 
