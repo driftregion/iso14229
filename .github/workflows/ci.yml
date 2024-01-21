@@ -24,20 +24,14 @@ jobs:
     - name: run unit tests
       run: bazel test //test:all --test_tag_filters=-vcan
     
-    - name: upload artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: artifacts
-        path: |
-          bazel-bin/iso14229.h
-          bazel-bin/iso14229.c
+    - name: build release
+      run: bazel build //:release
 
-    - name: release
+    - name: upload release
       uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/')
+      # if: startsWith(github.ref, 'refs/tags/')
       with:
-        files: |
-          bazel-bin/iso14229.h
-          bazel-bin/iso14229.c
+        files: bazel-bin/iso14229.zip
       env:
         GITHUB_TOKEN: ${{ secrets.TOKEN }}
+

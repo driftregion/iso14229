@@ -42,3 +42,16 @@ genrule(
     cmd="$(location //:amalgamate) --out_c $(location //:iso14229.c) --out_h $(location //:iso14229.h) $(SRCS)",
     tools=["//:amalgamate"],
 )
+
+genrule(
+    name="release",
+    srcs=[
+        "iso14229.c",
+        "iso14229.h",
+        "README.md",
+        "README_zh.md",
+        "LICENSE",
+    ],
+    outs = ["iso14229.zip"],
+    cmd = "zip -r $(OUTS) $(SRCS)",
+)
