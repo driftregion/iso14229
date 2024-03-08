@@ -67,6 +67,7 @@ TEST_NAMES = [ src.split(".c")[0] for src in TEST_SRCS ]
         env = { "UDS_TP_TYPE": "1"},
         copts = ["-g"],
         tags = [ "exclusive", "vcan", "isotp_sock"],
+        target_compatible_with = ["//platforms/os:linux"],
     ) for name, src in zip(TEST_NAMES, TEST_SRCS)
 ]
 
