@@ -24,6 +24,13 @@ cc_library(
 )
 
 refresh_compile_commands(
+    name = "host_compile_commands",
+    targets = [
+        ":iso14229"
+    ]
+)
+
+refresh_compile_commands(
     name = "s32k_refresh_compile_commands",
     targets = {
         "//examples/s32k144/...": "--config=s32k",

@@ -1,20 +1,29 @@
-all: iso14229.c iso14229.h
+all: release/iso14229.c release/iso14229.h
+
+release/iso14229.c release/iso14229.h:
 	mkdir -p release 
-	cp iso14229.c iso14229.h release/
+	python amalgamate.py --out_c release/iso14229.c --out_h release/iso14229.h
+
+misra.xml: release/iso14229.c release/iso14229.h
+	mkdir -p b
+	cppcheck  build/iso14229.c build/iso14229.h \
+	--cppcheck-build-dir=b \
+	--addon=.cppcheck/misra.json \
+	--xml 2> misra.xml
+
+misra_report: misra.xml
+	cppcheck-htmlreport --file=misra.xml --report-dir=misra --source-dir=.
+
+compile_commands.json:
+	bazel run //:host_compile_commands
+
+codechecker_reports: compile_commands.json
+	CodeChecker analyze ./compile_commands.json --enable sensitive --output ./codechecker_reports
+
+codechecker: codechecker_reports
+	CodeChecker parse ./codechecker_reports
 
 clean:
-	rm -rf isotp_c_wrapped.c isotp_c_wrapped.h iso14229.c iso14229.h release/
+	rm -rf release misra.xml b misra
 
-isotp_c_wrapped.c: $(shell find src/tp/isotp-c -name '*.c')
-	echo '#if defined(UDS_ISOTP_C)' >> $@ ; for f in $^; do cat $$f >> $@; done ; echo '#endif' >> $@
-
-isotp_c_wrapped.h: $(shell find src/tp/isotp-c -name '*.h')
-	echo '#if defined(UDS_ISOTP_C)' >> $@ ; for f in $^; do cat $$f >> $@; done ; echo '#endif' >> $@
-
-iso14229.c: $(shell find src -name '*.c') isotp_c_wrapped.c
-	echo '#include "iso14229.h"' > $@ ; for f in $^; do echo; echo '#ifdef UDS_LINES'; echo "#line 1 \"$$f\""; echo '#endif'; cat $$f | sed -e 's,#include ".*,,'; done >> $@
-
-iso14229.h: $(shell find src -name '*.h') isotp_c_wrapped.h
-	( echo '#ifndef ISO14229_H'; echo '#define ISO14229_H'; echo; echo '#ifdef __cplusplus'; echo 'extern "C" {'; echo '#endif'; cat src/version.h src/sys.h src/sys_arduino.h src/sys_unix.h src/sys_win32.h src/sys_esp32.h src/config.h src/util.h src/tp.h src/uds.h src/client.h src/server.h isotp_c_wrapped.h src/tp/*.h |sed -e 's,#include ".*,,' -e 's,^#pragma once,,' ; echo '#endif'; echo '#ifdef __cplusplus'; echo '}'; echo '#endif';) > $@
-
-.phony: clean
+.phony: clean misra_report compile_commands.json codechecker
