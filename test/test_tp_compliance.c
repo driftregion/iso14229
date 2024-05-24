@@ -95,6 +95,27 @@ void TestISOTPSendRecvMaxLen(void **state) {
     assert_memory_equal(UDSTpGetRecvBuf(srv, NULL), MSG, sizeof(MSG));
 }
 
+void TestISOTPFlowControlFrameTimeout(void **state) {
+    if (!IsISOTP()) {
+        skip();
+    }
+
+    // setup
+    client = ENV_TpNew("client");
+    TPMockLogToStdout();
+
+    // sending multiframe to wait for Flow Control frame
+    // which will not arrive since no server is running
+    const uint8_t MSG[] = {1, 2, 3, 4, 5, 6, 7, 8};
+    ssize_t ret = UDSTpSend(client, MSG, sizeof(MSG), NULL);
+
+    // teardown
+    ENV_TpFree(client);
+
+    // -1 is expected as the elapsed 1s timeout raises an error on the ISOTP socket
+    assert_true(ret < 0);
+}
+
 int main() {
     const struct CMUnitTest tests[] = {
         // cmocka_unit_test_setup_teardown(TestSendRecv, setup, teardown),
@@ -102,6 +123,7 @@ int main() {
         cmocka_unit_test_setup_teardown(TestISOTPSendLargestSingleFrame, setup, teardown),
         cmocka_unit_test_setup_teardown(TestISOTPSendLargerThanSingleFrameFails, setup, teardown),
         cmocka_unit_test_setup_teardown(TestISOTPSendRecvMaxLen, setup, teardown),
+        cmocka_unit_test_setup_teardown(TestISOTPFlowControlFrameTimeout, NULL, NULL),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
