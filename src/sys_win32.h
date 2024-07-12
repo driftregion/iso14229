@@ -12,7 +12,7 @@
 #include <BaseTsd.h>
 typedef SSIZE_T ssize_t;
 
-#ifdef _MSC_VER 
+#ifdef _MSC_VER
 #define strncasecmp _strnicmp
 #define strcasecmp _stricmp
 #endif
