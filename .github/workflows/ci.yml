@@ -29,5 +29,5 @@ jobs:
       uses: actions/checkout@v3
 
     - name: run unit tests
-      run: bazel test //test:all
+      run: bazel test //test:all --verbose_failures
 

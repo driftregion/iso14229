@@ -62,7 +62,11 @@ TEST_NAMES = [ src.split(".c")[0] for src in TEST_SRCS ]
         deps=[":env"],
         size = "small",
         env = { "UDS_TP_TYPE": "0", },
-        copts = ["-g"],
+        copts = select({
+            "//conditions:default": ["-g"],
+            "@bazel_tools//src/conditions:windows": [
+            ],
+        }),
         tags = [ "exclusive", ],
     ) for name, src in zip(TEST_NAMES, TEST_SRCS)
 ]
