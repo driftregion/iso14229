@@ -55,7 +55,7 @@ with open(args.out_c, "w", encoding="utf-8") as f:
     f.write("\n")
 
 
-with open(args.out_h, "w") as f:
+with open(args.out_h, "w", encoding="utf-8") as f:
     f.write("#ifndef ISO14229_H\n")
     f.write("#define ISO14229_H\n")
     f.write("\n")
