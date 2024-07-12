@@ -1,3 +1,4 @@
+common --enable_platform_specific_config
 build --strip=never
 build --incompatible_enable_cc_toolchain_resolution
 
@@ -20,6 +21,10 @@ test:ppc --run_under="qemu-ppc -L /usr/powerpc-linux-gnu/ "
 test:ppc64 --run_under="qemu-ppc64 -L /usr/powerpc64-linux-gnu/ "
 test:ppc64le --run_under="qemu-ppc64le -L /usr/powerpc64le-linux-gnu/ "
 
-
 # parallel tests break on a single vcan interface
 test: --local_test_jobs=1 --test_output=all 
+
+# build:windows --copt='/std:c17'
+# build:windows --copt='/DHAVE__SNPRINTF_S'
+# build:windows --copt='/DHAVE__VSNPRINTF_S'
+#build:windows --copt='/VERBOSE'

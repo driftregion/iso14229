@@ -71,7 +71,13 @@ void ENV_RegisterClient(UDSClient_t *client) { registeredClient = client; }
 uint32_t UDSMillis() { return TimeNowMillis; }
 
 // actually sleep for milliseconds
-void msleep(int ms) { usleep(ms * 1000); }
+void msleep(int ms) { 
+#ifdef _WIN32
+    Sleep(ms);
+#else
+    usleep(ms * 1000); 
+#endif
+}
 
 static bool IsNetworkedTransport(int tp_type) {
     return tp_type == ENV_TP_TYPE_ISOTP_SOCK || tp_type == ENV_TP_TYPE_ISOTPC;
@@ -112,6 +118,7 @@ UDSTpHandle_t *ENV_TpNew(const char *name) {
             tp = TPMockNew("server", TPMOCK_DEFAULT_SERVER_ARGS);
             break;
         case ENV_TP_TYPE_ISOTP_SOCK: {
+#ifdef UDS_TP_ISOTP_SOCK
             UDSTpIsoTpSock_t *isotp = malloc(sizeof(UDSTpIsoTpSock_t));
             strcpy(isotp->tag, "server");
             assert(UDS_OK == UDSTpIsoTpSockInitServer(isotp, opts.ifname, opts.srv_src_addr,
@@ -119,8 +126,12 @@ UDSTpHandle_t *ENV_TpNew(const char *name) {
                                                       opts.srv_src_addr_func));
             tp = (UDSTpHandle_t *)isotp;
             break;
+#endif
+            printf("isotp_sock not supported\n");
+            return NULL;
         }
         case ENV_TP_TYPE_ISOTPC: {
+#ifdef UDS_TP_ISOTP_C_SOCKETCAN
             UDSTpISOTpC_t *isotp = malloc(sizeof(UDSTpISOTpC_t));
             strcpy(isotp->tag, "server");
 
@@ -128,6 +139,9 @@ UDSTpHandle_t *ENV_TpNew(const char *name) {
                                              opts.srv_target_addr, opts.srv_src_addr_func, 0));
             tp = (UDSTpHandle_t *)isotp;
             break;
+#endif
+            printf("isotp_c_socketcan not supported\n");
+            return NULL;
         }
         default:
             printf("unknown TP type: %d\n", opts.tp_type);
@@ -139,6 +153,7 @@ UDSTpHandle_t *ENV_TpNew(const char *name) {
             tp = TPMockNew("client", TPMOCK_DEFAULT_CLIENT_ARGS);
             break;
         case ENV_TP_TYPE_ISOTP_SOCK: {
+#ifdef UDS_TP_ISOTP_SOCK
             UDSTpIsoTpSock_t *isotp = malloc(sizeof(UDSTpIsoTpSock_t));
             strcpy(isotp->tag, "client");
             assert(UDS_OK == UDSTpIsoTpSockInitClient(isotp, opts.ifname, opts.cli_src_addr,
@@ -146,14 +161,21 @@ UDSTpHandle_t *ENV_TpNew(const char *name) {
                                                       opts.cli_tgt_addr_func));
             tp = (UDSTpHandle_t *)isotp;
             break;
+#endif
+            printf("isotp_sock not supported\n");
+            return NULL;
         }
         case ENV_TP_TYPE_ISOTPC: {
+#ifdef UDS_TP_ISOTP_C_SOCKETCAN
             UDSTpISOTpC_t *isotp = malloc(sizeof(UDSTpISOTpC_t));
             strcpy(isotp->tag, "client");
             assert(UDS_OK == UDSTpISOTpCInit(isotp, opts.ifname, opts.cli_src_addr,
                                              opts.cli_target_addr, 0, opts.cli_tgt_addr_func));
             tp = (UDSTpHandle_t *)isotp;
             break;
+#endif
+            printf("isotp_c_socketcan not supported\n");
+            return NULL;
         }
         default:
             printf("unknown TP type: %d\n", opts.tp_type);
@@ -173,11 +195,15 @@ void ENV_TpFree(UDSTpHandle_t *tp) {
         TPMockFree(tp);
         break;
     case ENV_TP_TYPE_ISOTP_SOCK:
+#ifdef UDS_TP_ISOTP_SOCK
         UDSTpIsoTpSockDeinit((UDSTpIsoTpSock_t *)tp);
+#endif
         break;
     case ENV_TP_TYPE_ISOTPC:
+#ifdef UDS_TP_ISOTP_C_SOCKETCAN
         UDSTpISOTpCDeinit((UDSTpISOTpC_t *)tp);
         free(tp);
+#endif
         break;
     }
 }
