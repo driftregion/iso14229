@@ -35,21 +35,21 @@ int main() {
 
     for (size_t i = 0; i < sizeof(p) / sizeof(p[0]); i++) {
         ENV_CLIENT_INIT(client);
-        UDSTpHandle_t *srv = ENV_TpNew("server");
+        UDSTpHandle_t *srv_tp = ENV_TpNew("server");
 
         // when the client sends a ECU reset request with these options
         client.options = p[i].options;
         UDSSendECUReset(&client, kHardReset);
 
         // and the server responds with this message
-        UDSTpSend(srv, p[i].resp, p[i].resp_len, NULL);
+        UDSTpSend(srv_tp, p[i].resp, p[i].resp_len, NULL);
 
         // then the client should receive a response with this error code
         ENV_RunMillis(50);
         TEST_INT_EQUAL(client.state, kRequestStateIdle);
         TEST_INT_EQUAL(client.err, p[i].expected_err);
-        // assert(client.err == p[i].expected_err);
-        ENV_TpFree(srv);
+
+        ENV_TpFree(srv_tp);
         ENV_TpFree(client.tp);
     }
 }
