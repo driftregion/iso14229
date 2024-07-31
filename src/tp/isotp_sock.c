@@ -147,18 +147,18 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool
         perror("setsockopt");
         return -1;
     }
-    
+
     struct can_isotp_options opts;
     memset(&opts, 0, sizeof(opts));
     // configure socket to wait for tx completion to catch FC frame timeouts
     opts.flags |= CAN_ISOTP_WAIT_TX_DONE;
- 
+
     if (functional) {
         printf("configuring fd: %d as functional\n", fd);
         // configure the socket as listen-only to avoid sending FC frames
         opts.flags |= CAN_ISOTP_LISTEN_MODE;
     }
- 
+
     if (setsockopt(fd, SOL_CAN_ISOTP, CAN_ISOTP_OPTS, &opts, sizeof(opts)) < 0) {
         perror("setsockopt (isotp_options):");
         return -1;
