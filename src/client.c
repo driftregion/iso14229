@@ -537,6 +537,52 @@ UDSErr_t UDSSendRequestTransferExit(UDSClient_t *client) {
     return _SendRequest(client);
 }
 
+UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, enum FileOperationMode mode, const char *filePath, 
+                                uint8_t dataFormatIdentifier, uint8_t fileSizeParameterLength, 
+                                size_t fileSizeUncompressed, size_t fileSizeCompressed){
+    UDSErr_t err = PreRequestCheck(client);
+    if (err) {
+        return err;
+    }
+    uint16_t filePathLen = strlen(filePath);
+    if (filePathLen < 1)return UDS_ERR;
+
+    uint8_t fileSizeBytes = 0;
+    if ((mode == kAddFile) || (mode == kReplaceFile)){
+        fileSizeBytes = fileSizeParameterLength;
+    }
+    size_t bufSize = 5 + filePathLen + fileSizeBytes + fileSizeBytes;
+    if ((mode == kAddFile) || (mode == kReplaceFile) || (mode == kReadFile)){
+        bufSize += 1;
+    }
+    if (client->send_buf_size < bufSize)return UDS_ERR_BUFSIZ;
+
+    client->send_buf[0] = kSID_REQUEST_FILE_TRANSFER;
+    client->send_buf[1] = mode;
+    client->send_buf[2] = (filePathLen >> 8) & 0xFF;
+    client->send_buf[3] = filePathLen & 0xFF;
+    memcpy(&client->send_buf[4], filePath, filePathLen);
+    if ((mode == kAddFile) || (mode == kReplaceFile) || (mode == kReadFile)){
+        client->send_buf[4 + filePathLen] = dataFormatIdentifier;
+    }
+    if ((mode == kAddFile) || (mode == kReplaceFile)){
+        client->send_buf[5 + filePathLen] = fileSizeParameterLength;
+        uint8_t *ptr = &client->send_buf[6 + filePathLen];
+        for (int i = fileSizeParameterLength - 1; i >= 0; i--) {
+            *ptr = (fileSizeUncompressed & (0xFF << (8 * i))) >> (8 * i);
+            ptr++;
+        }
+
+        for (int i = fileSizeParameterLength - 1; i >= 0; i--) {
+            *ptr = (fileSizeCompressed & (0xFF << (8 * i))) >> (8 * i);
+            ptr++;
+        }
+    }
+
+    client->send_size = bufSize;
+    return _SendRequest(client);
+}
+
 /**
  * @brief
  *

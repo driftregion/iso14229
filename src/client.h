@@ -112,6 +112,10 @@ UDSErr_t UDSSendTransferDataStream(UDSClient_t *client, uint8_t blockSequenceCou
                                    const uint16_t blockLength, FILE *fd);
 UDSErr_t UDSSendRequestTransferExit(UDSClient_t *client);
 
+UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, enum FileOperationMode mode, const char *filePath, 
+                                uint8_t dataFormatIdentifier, uint8_t fileSizeParameterLength, 
+                                size_t fileSizeUncompressed, size_t fileSizeCompressed);
+
 UDSErr_t UDSCtrlDTCSetting(UDSClient_t *client, uint8_t dtcSettingType,
                            uint8_t *dtcSettingControlOptionRecord, uint16_t len);
 UDSErr_t UDSUnpackRDBIResponse(const uint8_t *buf, size_t buf_len, uint16_t did, uint8_t *data,
