@@ -149,7 +149,7 @@ static void TPMockDetach(TPMock_t *tp) {
                 TPs[j - 1] = TPs[j];
             }
             TPCount--;
-            printf("TPMock: detached %s. TPCount: %d\n", tp->name, TPCount);
+            UDS_DBG_PRINT("TPMock: detached %s. TPCount: %d\n", tp->name, TPCount);
             return;
         }
     }
@@ -158,7 +158,7 @@ static void TPMockDetach(TPMock_t *tp) {
 
 UDSTpHandle_t *TPMockNew(const char *name, TPMockArgs_t *args) {
     if (TPCount >= MAX_NUM_TP) {
-        printf("TPCount: %d, too many TPs\n", TPCount);
+        UDS_DBG_PRINT("TPCount: %d, too many TPs\n", TPCount);
         return NULL;
     }
     TPMock_t *tp = malloc(sizeof(TPMock_t));
