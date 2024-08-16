@@ -12,6 +12,7 @@ extern "C" {
 
 #include "isotp_defines.h"
 #include "isotp_config.h"
+#include "isotp_user.h"
 
 /**
  * @brief Struct containing the data for linking an application to a CAN instance.
@@ -29,7 +30,7 @@ typedef struct IsoTpLink {
     /* multi-frame flags */
     uint8_t                     send_sn;
     uint16_t                    send_bs_remain; /* Remaining block size */
-    uint8_t                     send_st_min;    /* Separation Time between consecutive frames, unit millis */
+    uint32_t                    send_st_min_us; /* Separation Time between consecutive frames */
     uint8_t                     send_wtf_count; /* Maximum number of FC.Wait frame transmissions  */
     uint32_t                    send_timer_st;  /* Last time send consecutive frame */    
     uint32_t                    send_timer_bs;  /* Time until reception of the next FlowControl N_PDU
@@ -37,7 +38,6 @@ typedef struct IsoTpLink {
                                                    end at receive FC */
     int                         send_protocol_result;
     uint8_t                     send_status;
-
     /* receiver paramters */
     uint32_t                    receive_arbitration_id;
     /* message buffer */
@@ -54,12 +54,9 @@ typedef struct IsoTpLink {
     int                         receive_protocol_result;
     uint8_t                     receive_status;                                                     
 
-    /* user implemented callback functions */
-    uint32_t                    (*isotp_user_get_ms)(void); /* get millisecond */
-    int                         (*isotp_user_send_can)(const uint32_t arbitration_id,
-                            const uint8_t* data, const uint8_t size, void *user_data); /* send can message. should return ISOTP_RET_OK when success.  */
-    void                        (*isotp_user_debug)(const char* message, ...); /* print debug message */
-    void*                       user_data; /* user data */
+#if defined(ISO_TP_USER_SEND_CAN_ARG)
+    void*                       user_send_can_arg;
+#endif
 } IsoTpLink;
 
 /**
@@ -71,23 +68,10 @@ typedef struct IsoTpLink {
  * @param sendbufsize The size of the buffer area.
  * @param recvbuf A pointer to an area in memory which can be used as a buffer for data to be received.
  * @param recvbufsize The size of the buffer area.
- * @param isotp_user_get_ms A pointer to a function which returns the current time as milliseconds.
- * @param isotp_user_send_can A pointer to a function which sends a can message. should return ISOTP_RET_OK when success.
- * @param isotp_user_debug A pointer to a function which prints a debug message.
- * @param isotp_user_debug A pointer to user data passed to the user implemented callback functions.
  */
-void isotp_init_link(
-    IsoTpLink *link,
-    uint32_t sendid, 
-    uint8_t *sendbuf, 
-    uint16_t sendbufsize,
-    uint8_t *recvbuf,
-    uint16_t recvbufsize,
-    uint32_t (*isotp_user_get_ms)(void),
-    int (*isotp_user_send_can)(const uint32_t arbitration_id, const uint8_t* data, const uint8_t size, void *user_data),
-    void (*isotp_user_debug)(const char* message, ...),
-    void *user_data
- );
+void isotp_init_link(IsoTpLink *link, uint32_t sendid, 
+                     uint8_t *sendbuf, uint16_t sendbufsize,
+                     uint8_t *recvbuf, uint16_t recvbufsize);
 
 /**
  * @brief Polling function; call this function periodically to handle timeouts, send consecutive frames, etc.
@@ -104,7 +88,7 @@ void isotp_poll(IsoTpLink *link);
  * @param data The data received via CAN.
  * @param len The length of the data received.
  */
-void isotp_on_can_message(IsoTpLink *link, uint8_t *data, uint8_t len);
+void isotp_on_can_message(IsoTpLink *link, const uint8_t *data, uint8_t len);
 
 /**
  * @brief Sends ISO-TP frames via CAN, using the ID set in the initialising function.

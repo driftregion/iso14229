@@ -31,8 +31,8 @@ static ssize_t tp_recv_once(int fd, uint8_t *buf, size_t size) {
 }
 
 static ssize_t isotp_sock_tp_peek(UDSTpHandle_t *hdl, uint8_t **p_buf, UDSSDU_t *info) {
-    assert(hdl);
-    assert(p_buf);
+    UDS_ASSERT(hdl);
+    UDS_ASSERT(p_buf);
     ssize_t ret = 0;
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
     *p_buf = impl->recv_buf;
@@ -81,13 +81,13 @@ done:
 }
 
 static void isotp_sock_tp_ack_recv(UDSTpHandle_t *hdl) {
-    assert(hdl);
+    UDS_ASSERT(hdl);
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
     impl->recv_len = 0;
 }
 
 static ssize_t isotp_sock_tp_send(UDSTpHandle_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
-    assert(hdl);
+    UDS_ASSERT(hdl);
     ssize_t ret = -1;
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
     int fd;
@@ -125,7 +125,7 @@ done:
 }
 
 static ssize_t isotp_sock_tp_get_send_buf(UDSTpHandle_t *hdl, uint8_t **p_buf) {
-    assert(hdl);
+    UDS_ASSERT(hdl);
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
     *p_buf = impl->send_buf;
     return sizeof(impl->send_buf);
@@ -185,7 +185,7 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool
 
 UDSErr_t UDSTpIsoTpSockInitServer(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
                                   uint32_t target_addr, uint32_t source_addr_func) {
-    assert(tp);
+    UDS_ASSERT(tp);
     memset(tp, 0, sizeof(*tp));
     tp->hdl.peek = isotp_sock_tp_peek;
     tp->hdl.send = isotp_sock_tp_send;
@@ -211,7 +211,7 @@ UDSErr_t UDSTpIsoTpSockInitServer(UDSTpIsoTpSock_t *tp, const char *ifname, uint
 
 UDSErr_t UDSTpIsoTpSockInitClient(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
                                   uint32_t target_addr, uint32_t target_addr_func) {
-    assert(tp);
+    UDS_ASSERT(tp);
     memset(tp, 0, sizeof(*tp));
     tp->hdl.peek = isotp_sock_tp_peek;
     tp->hdl.send = isotp_sock_tp_send;

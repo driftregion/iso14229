@@ -5,8 +5,9 @@
 
 #if UDS_ENABLE_ASSERT
 #include <assert.h>
+#define UDS_ASSERT(x) assert(x)
 #else
-#define assert(x)
+#define UDS_ASSERT(x)
 #endif
 
 #if UDS_ENABLE_DBG_PRINT

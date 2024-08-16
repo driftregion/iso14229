@@ -5,7 +5,7 @@
 #include "tp/isotp-c/isotp.h"
 
 static UDSTpStatus_t tp_poll(UDSTpHandle_t *hdl) {
-    assert(hdl);
+    UDS_ASSERT(hdl);
     UDSTpStatus_t status = 0;
     UDSISOTpC_t *impl = (UDSISOTpC_t *)hdl;
     isotp_poll(&impl->phys_link);
@@ -16,8 +16,8 @@ static UDSTpStatus_t tp_poll(UDSTpHandle_t *hdl) {
 }
 
 int peek_link(IsoTpLink *link, uint8_t *buf, size_t bufsize, bool functional) {
-    assert(link);
-    assert(buf);
+    UDS_ASSERT(link);
+    UDS_ASSERT(buf);
     int ret = -1;
     switch (link->receive_status) {
     case ISOTP_RECEIVE_STATUS_IDLE:
@@ -41,8 +41,8 @@ done:
 }
 
 static ssize_t tp_peek(UDSTpHandle_t *hdl, uint8_t **p_buf, UDSSDU_t *info) {
-    assert(hdl);
-    assert(p_buf);
+    UDS_ASSERT(hdl);
+    UDS_ASSERT(p_buf);
     UDSISOTpC_t *tp = (UDSISOTpC_t *)hdl;
     if (ISOTP_RECEIVE_STATUS_FULL == tp->phys_link.receive_status) { // recv not yet acked
         *p_buf = tp->recv_buf;
@@ -88,7 +88,7 @@ done:
 }
 
 static ssize_t tp_send(UDSTpHandle_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
-    assert(hdl);
+    UDS_ASSERT(hdl);
     ssize_t ret = -1;
     UDSISOTpC_t *tp = (UDSISOTpC_t *)hdl;
     IsoTpLink *link = NULL;
@@ -127,15 +127,15 @@ done:
 }
 
 static void tp_ack_recv(UDSTpHandle_t *hdl) {
-    assert(hdl);
     UDS_DBG_PRINT("ack recv\n");
+    UDS_ASSERT(hdl);
     UDSISOTpC_t *tp = (UDSISOTpC_t *)hdl;
     uint16_t out_size = 0;
     isotp_receive(&tp->phys_link, tp->recv_buf, sizeof(tp->recv_buf), &out_size);
 }
 
 static ssize_t tp_get_send_buf(UDSTpHandle_t *hdl, uint8_t **p_buf) {
-    assert(hdl);
+    UDS_ASSERT(hdl);
     UDSISOTpC_t *tp = (UDSISOTpC_t *)hdl;
     *p_buf = tp->send_buf;
     return sizeof(tp->send_buf);
@@ -156,11 +156,9 @@ UDSErr_t UDSISOTpCInit(UDSISOTpC_t *tp, const UDSISOTpCConfig_t *cfg) {
     tp->func_ta = cfg->target_addr;
 
     isotp_init_link(&tp->phys_link, tp->phys_ta, tp->send_buf, sizeof(tp->send_buf), tp->recv_buf,
-                    sizeof(tp->recv_buf), UDSMillis, cfg->isotp_user_send_can,
-                    cfg->isotp_user_debug, cfg->user_data);
+                    sizeof(tp->recv_buf));
     isotp_init_link(&tp->func_link, tp->func_ta, tp->recv_buf, sizeof(tp->send_buf), tp->recv_buf,
-                    sizeof(tp->recv_buf), UDSMillis, cfg->isotp_user_send_can,
-                    cfg->isotp_user_debug, cfg->user_data);
+                    sizeof(tp->recv_buf));
     return UDS_OK;
 }
 

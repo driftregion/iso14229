@@ -175,14 +175,14 @@ static uint8_t _0x22_ReadDataByIdentifier(UDSServer_t *srv, UDSReq_t *r) {
  */
 static uint8_t decodeAddressAndLength(UDSReq_t *r, uint8_t *const buf, void **memoryAddress,
                                       size_t *memorySize) {
-    assert(r);
-    assert(memoryAddress);
-    assert(memorySize);
+    UDS_ASSERT(r);
+    UDS_ASSERT(memoryAddress);
+    UDS_ASSERT(memorySize);
     uintptr_t tmp = 0;
     *memoryAddress = 0;
     *memorySize = 0;
 
-    assert(buf >= r->recv_buf && buf <= r->recv_buf + sizeof(r->recv_buf));
+    UDS_ASSERT(buf >= r->recv_buf && buf <= r->recv_buf + sizeof(r->recv_buf));
 
     if (r->recv_len < 3) {
         return NegativeResponse(r, kIncorrectMessageLengthOrInvalidFormat);
@@ -427,7 +427,7 @@ static uint8_t _0x31_RoutineControl(UDSServer_t *srv, UDSReq_t *r) {
 }
 
 static void ResetTransfer(UDSServer_t *srv) {
-    assert(srv);
+    UDS_ASSERT(srv);
     srv->xferBlockSequenceCounter = 1;
     srv->xferByteCounter = 0;
     srv->xferTotalBytes = 0;
@@ -756,8 +756,8 @@ static uint8_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
     if (NULL == service || NULL == srv->fn) {
         return NegativeResponse(r, kServiceNotSupported);
     }
-    assert(service);
-    assert(srv->fn); // service handler functions will call srv->fn. it must be valid
+    UDS_ASSERT(service);
+    UDS_ASSERT(srv->fn); // service handler functions will call srv->fn. it must be valid
 
     switch (sid) {
     /* CASE Service_with_sub-function */
@@ -849,7 +849,9 @@ static uint8_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
  * @return int
  */
 UDSErr_t UDSServerInit(UDSServer_t *srv) {
-    assert(srv);
+    if (NULL == srv) {
+        return UDS_ERR_INVALID_ARG;
+    }
     memset(srv, 0, sizeof(UDSServer_t));
     srv->p2_ms = UDS_SERVER_DEFAULT_P2_MS;
     srv->p2_star_ms = UDS_SERVER_DEFAULT_P2_STAR_MS;

@@ -22,9 +22,10 @@ iso14229 is designed to build on any platform.
 
 | Define | Description | Valid values |
 | - | - | - |
-| `-DUDS_TP_ISOTP_C` | build the isotp-c transport layer (recommended for bare-metal systems) | on/off |
-| `-DUDS_TP_ISOTP_SOCK` | build the isotp socket transport layer (recommended for linux)  | on/off|
-| `-DUDS_TP_ISOTP_C_SOCKETCAN` | build the isotp-c transport layer with socketcan support (linux-only)  | on/off|
+| `-DUDS_TP_ISOTP_C` | build the isotp-c transport layer (recommended for bare-metal systems) | defined or not |
+| `-DUDS_TP_ISOTP_SOCK` | build the isotp socket transport layer (recommended for linux)  | defined or not |
+| `-DUDS_TP_ISOTP_C_SOCKETCAN` | build the isotp-c transport layer with socketcan support (linux-only)  | defined or not |
+| `-DUDS_ENABLE_ASSERT` | uses `assert` to check the validity of arguments | defined or not |
 | `UDS_...` | Additional configuration options | see [`src/config.h`](src/config.h) |
 | `UDS_SYS` | Selects target system | see [`src/sys.h`](src/sys.h) |
 
@@ -329,9 +330,15 @@ contributions are welcome
 
 # Acknowledgements
 
-- [`isotp-c`](https://github.com/lishen2/isotp-c) which this project embeds
+- [`isotp-c`](https://github.com/SimonCahill/isotp-c) which this project embeds
 
 # Changelog
+
+## 0.7.2
+- runtime safety:
+    1. turn off assertions by default, enable by `-DUDS_ENABLE_ASSERT`
+    2. prefer `return UDS_ERR_INVALID_ARG;` over assertion in public functions
+- use SimonCahill fork of isotp-c
 
 ## 0.7.1
 - amalgamated sources into `iso14229.c` and `iso14229.h` to ease integration

@@ -3,7 +3,7 @@
 #include "util.h"
 
 static void clearRequestContext(UDSClient_t *client) {
-    assert(client);
+    UDS_ASSERT(client);
     client->recv_size = 0;
     client->send_size = 0;
     client->state = kRequestStateIdle;
@@ -11,7 +11,9 @@ static void clearRequestContext(UDSClient_t *client) {
 }
 
 UDSErr_t UDSClientInit(UDSClient_t *client) {
-    assert(client);
+    if (NULL == client) {
+        return UDS_ERR_INVALID_ARG;
+    }
     memset(client, 0, sizeof(*client));
 
     client->p2_ms = UDS_CLIENT_DEFAULT_P2_MS;
@@ -149,7 +151,7 @@ static inline void _ClientHandleResponse(UDSClient_t *client) {
  * @param client
  */
 static void PollLowLevel(UDSClient_t *client) {
-    assert(client);
+    UDS_ASSERT(client);
     UDSTpStatus_t tp_status = client->tp->poll(client->tp);
     switch (client->state) {
     case kRequestStateIdle: {
@@ -230,7 +232,7 @@ static void PollLowLevel(UDSClient_t *client) {
     }
 
     default:
-        assert(0);
+        UDS_ASSERT(0);
     }
 }
 
@@ -248,6 +250,9 @@ static UDSErr_t _SendRequest(UDSClient_t *client) {
 }
 
 static UDSErr_t PreRequestCheck(UDSClient_t *client) {
+    if (NULL == client) {
+        return UDS_ERR_INVALID_ARG;
+    }
     if (kRequestStateIdle != client->state) {
         return UDS_ERR_BUSY;
     }
@@ -328,8 +333,9 @@ UDSErr_t UDSSendRDBI(UDSClient_t *client, const uint16_t *didList,
     if (err) {
         return err;
     }
-    assert(didList);
-    assert(numDataIdentifiers);
+    if (NULL == didList || 0 == numDataIdentifiers) {
+        return UDS_ERR_INVALID_ARG;
+    }
     client->send_buf[0] = kSID_READ_DATA_BY_IDENTIFIER;
     for (int i = 0; i < numDataIdentifiers; i++) {
         uint16_t offset = 1 + sizeof(uint16_t) * i;
@@ -349,8 +355,9 @@ UDSErr_t UDSSendWDBI(UDSClient_t *client, uint16_t dataIdentifier, const uint8_t
     if (err) {
         return err;
     }
-    assert(data);
-    assert(size);
+    if (data == NULL || size == 0) {
+        return UDS_ERR_INVALID_ARG;
+    }
     client->send_buf[0] = kSID_WRITE_DATA_BY_IDENTIFIER;
     if (client->send_buf_size <= 3 || size > client->send_buf_size - 3) {
         return UDS_ERR_BUFSIZ;
@@ -384,13 +391,17 @@ UDSErr_t UDSSendRoutineCtrl(UDSClient_t *client, enum RoutineControlType type,
     client->send_buf[2] = routineIdentifier >> 8;
     client->send_buf[3] = routineIdentifier;
     if (size) {
-        assert(data);
+        if (NULL == data) {
+            return UDS_ERR_INVALID_ARG;
+        }
         if (size > client->send_buf_size - UDS_0X31_REQ_MIN_LEN) {
             return UDS_ERR_BUFSIZ;
         }
         memmove(&client->send_buf[UDS_0X31_REQ_MIN_LEN], data, size);
     } else {
-        assert(NULL == data);
+        if (NULL != data) {
+            UDS_DBG_PRINT("warning: size zero and data non-null\n");
+        }
     }
     client->send_size = UDS_0X31_REQ_MIN_LEN + size;
     return _SendRequest(client);
@@ -494,8 +505,16 @@ UDSErr_t UDSSendTransferData(UDSClient_t *client, uint8_t blockSequenceCounter,
     if (err) {
         return err;
     }
-    assert(blockLength > 2);         // blockLength must include SID and sequenceCounter
-    assert(size + 2 <= blockLength); // data must fit inside blockLength - 2
+
+    // blockLength must include SID and sequenceCounter
+    if (blockLength <= 2) {
+        return UDS_ERR_INVALID_ARG;
+    }
+
+    // data must fit inside blockLength - 2
+    if (size > (blockLength - 2)) {
+        return UDS_ERR_INVALID_ARG;
+    }
     client->send_buf[0] = kSID_TRANSFER_DATA;
     client->send_buf[1] = blockSequenceCounter;
     memmove(&client->send_buf[UDS_0X36_REQ_BASE_LEN], data, size);
@@ -510,7 +529,10 @@ UDSErr_t UDSSendTransferDataStream(UDSClient_t *client, uint8_t blockSequenceCou
     if (err) {
         return err;
     }
-    assert(blockLength > 2); // blockLength must include SID and sequenceCounter
+    // blockLength must include SID and sequenceCounter
+    if (blockLength <= 2) {
+        return UDS_ERR_INVALID_ARG;
+    }
     client->send_buf[0] = kSID_TRANSFER_DATA;
     client->send_buf[1] = blockSequenceCounter;
 
@@ -553,17 +575,24 @@ UDSErr_t UDSCtrlDTCSetting(UDSClient_t *client, uint8_t dtcSettingType, uint8_t 
     if (err) {
         return err;
     }
+
+    // these are reserved values
     if (0x00 == dtcSettingType || 0x7F == dtcSettingType ||
         (0x03 <= dtcSettingType && dtcSettingType <= 0x3F)) {
-        assert(0); // reserved vals
+        return UDS_ERR_INVALID_ARG;
     }
+
     client->send_buf[0] = kSID_CONTROL_DTC_SETTING;
     client->send_buf[1] = dtcSettingType;
 
     if (NULL == data) {
-        assert(size == 0);
+        if (size != 0) {
+            return UDS_ERR_INVALID_ARG;
+        }
     } else {
-        assert(size > 0);
+        if (size == 0) {
+            UDS_DBG_PRINT("warning: size == 0 and data is non-null\n");
+        }
         if (size > client->send_buf_size - 2) {
             return UDS_ERR_BUFSIZ;
         }
@@ -594,12 +623,16 @@ UDSErr_t UDSSendSecurityAccess(UDSClient_t *client, uint8_t level, uint8_t *data
     client->send_buf[0] = kSID_SECURITY_ACCESS;
     client->send_buf[1] = level;
     if (size) {
-        assert(data);
+        if (NULL == data) {
+            return UDS_ERR_INVALID_ARG;
+        }
         if (size > client->send_buf_size - UDS_0X27_REQ_BASE_LEN) {
             return UDS_ERR_BUFSIZ;
         }
     } else {
-        assert(NULL == data);
+        if (NULL != data) {
+            UDS_DBG_PRINT("warning: size == 0 and data is non-null\n");
+        }
     }
 
     memmove(&client->send_buf[UDS_0X27_REQ_BASE_LEN], data, size);
@@ -700,8 +733,9 @@ UDSErr_t UDSConfigDownload(UDSClient_t *client, uint8_t dataFormatIdentifier,
  */
 UDSErr_t UDSUnpackSecurityAccessResponse(const UDSClient_t *client,
                                          struct SecurityAccessResponse *resp) {
-    assert(client);
-    assert(resp);
+    if (NULL == client || NULL == resp) {
+        return UDS_ERR_INVALID_ARG;
+    }
     if (UDS_RESPONSE_SID_OF(kSID_SECURITY_ACCESS) != client->recv_buf[0]) {
         return UDS_ERR_SID_MISMATCH;
     }
@@ -724,8 +758,9 @@ UDSErr_t UDSUnpackSecurityAccessResponse(const UDSClient_t *client,
  */
 UDSErr_t UDSUnpackRoutineControlResponse(const UDSClient_t *client,
                                          struct RoutineControlResponse *resp) {
-    assert(client);
-    assert(resp);
+    if (NULL == client || NULL == resp) {
+        return UDS_ERR_INVALID_ARG;
+    }
     if (UDS_RESPONSE_SID_OF(kSID_ROUTINE_CONTROL) != client->recv_buf[0]) {
         return UDS_ERR_SID_MISMATCH;
     }
@@ -750,8 +785,9 @@ UDSErr_t UDSUnpackRoutineControlResponse(const UDSClient_t *client,
  */
 UDSErr_t UDSUnpackRequestDownloadResponse(const UDSClient_t *client,
                                           struct RequestDownloadResponse *resp) {
-    assert(client);
-    assert(resp);
+    if (NULL == client || NULL == resp) {
+        return UDS_ERR_INVALID_ARG;
+    }
     if (UDS_RESPONSE_SID_OF(kSID_REQUEST_DOWNLOAD) != client->recv_buf[0]) {
         return UDS_ERR_SID_MISMATCH;
     }
@@ -806,7 +842,7 @@ bool UDSClientPoll(UDSClient_t *client) {
         return UDS_CLIENT_RUNNING;
     }
     default:
-        assert(0);
+        UDS_ASSERT(0);
         return UDS_CLIENT_IDLE;
     }
 }
@@ -829,9 +865,9 @@ UDSSeqState_t UDSClientAwaitIdle(UDSClient_t *client) {
 
 UDSErr_t UDSUnpackRDBIResponse(const uint8_t *buf, size_t buf_len, uint16_t did, uint8_t *data,
                                uint16_t data_size, uint16_t *offset) {
-    assert(buf);
-    assert(data);
-    assert(offset);
+    if (NULL == buf || NULL == data || NULL == offset) {
+        return UDS_ERR_INVALID_ARG;
+    }
     if (0 == *offset) {
         *offset = UDS_0X22_RESP_BASE_LEN;
     }

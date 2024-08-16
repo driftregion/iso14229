@@ -1,5 +1,7 @@
-#ifndef __ISOTP_TYPES__
-#define __ISOTP_TYPES__
+#ifndef __ISOTP_DEFINES_H__
+#define __ISOTP_DEFINES_H__
+
+#include <stdint.h>
 
 /**************************************************************
  * compiler specific defines
@@ -21,6 +23,7 @@
 #endif
 
 #ifdef _WIN32
+#include <windows.h>
 #define ISOTP_BYTE_ORDER_LITTLE_ENDIAN
 #define __builtin_bswap8  _byteswap_uint8
 #define __builtin_bswap16 _byteswap_uint16
@@ -39,6 +42,7 @@
 #define ISOTP_RET_NO_DATA      -5
 #define ISOTP_RET_TIMEOUT      -6
 #define ISOTP_RET_LENGTH       -7
+#define ISOTP_RET_NOSPACE      -8
 
 /* return logic true if 'a' is after 'b' */
 #define IsoTpTimeAfter(a,b) ((int32_t)((int32_t)(b) - (int32_t)(a)) < 0)

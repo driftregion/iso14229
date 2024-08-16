@@ -19,10 +19,14 @@ def strip_includes(src):
     return re.sub(r'#include ".*', "", src, flags=re.MULTILINE)
 
 isotp_c_wrapped_c = "#if defined(UDS_ISOTP_C)\n" + \
+    "#ifndef ISO_TP_USER_SEND_CAN_ARG\n" + \
+    '#error\n' + \
+    "#endif\n" + \
     strip_includes(open("src/tp/isotp-c/isotp.c").read()) + \
     "#endif\n"
 
 isotp_c_wrapped_h = "#if defined(UDS_ISOTP_C)\n" + \
+    "#define ISO_TP_USER_SEND_CAN_ARG\n" + \
     "\n".join([strip_includes(open("src/tp/isotp-c/" + h).read()) for h in [
         "isotp_config.h",
         "isotp_defines.h",
