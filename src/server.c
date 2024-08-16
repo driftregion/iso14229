@@ -898,7 +898,7 @@ void UDSServerPoll(UDSServer_t *srv) {
         }
 
         if (UDSTimeAfter(UDSMillis(), srv->p2_timer)) {
-            printf("len: %zu\n", r->send_len);
+            UDS_DBG_PRINT("len: %zu\n", r->send_len);
             ssize_t ret = UDSTpSend(srv->tp, r->send_buf, r->send_len, NULL);
             // TODO test injection of transport errors:
             if (ret < 0) {

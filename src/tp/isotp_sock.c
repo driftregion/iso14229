@@ -147,18 +147,18 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool
         perror("setsockopt");
         return -1;
     }
-    
+
     struct can_isotp_options opts;
     memset(&opts, 0, sizeof(opts));
     // configure socket to wait for tx completion to catch FC frame timeouts
     opts.flags |= CAN_ISOTP_WAIT_TX_DONE;
- 
+
     if (functional) {
-        printf("configuring fd: %d as functional\n", fd);
+        UDS_DBG_PRINT("configuring fd: %d as functional\n", fd);
         // configure the socket as listen-only to avoid sending FC frames
         opts.flags |= CAN_ISOTP_LISTEN_MODE;
     }
- 
+
     if (setsockopt(fd, SOL_CAN_ISOTP, CAN_ISOTP_OPTS, &opts, sizeof(opts)) < 0) {
         perror("setsockopt (isotp_options):");
         return -1;
@@ -177,7 +177,7 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool
     addr.can_ifindex = ifr.ifr_ifindex;
 
     if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-        printf("Bind: %s %s\n", strerror(errno), if_name);
+        UDS_DBG_PRINT("Bind: %s %s\n", strerror(errno), if_name);
         return -1;
     }
     return fd;
@@ -199,7 +199,7 @@ UDSErr_t UDSTpIsoTpSockInitServer(UDSTpIsoTpSock_t *tp, const char *ifname, uint
     tp->phys_fd = LinuxSockBind(ifname, source_addr, target_addr, false);
     tp->func_fd = LinuxSockBind(ifname, source_addr_func, 0, true);
     if (tp->phys_fd < 0 || tp->func_fd < 0) {
-        printf("foo\n");
+        UDS_DBG_PRINT("foo\n");
         fflush(stdout);
         return UDS_ERR;
     }
@@ -227,7 +227,7 @@ UDSErr_t UDSTpIsoTpSockInitClient(UDSTpIsoTpSock_t *tp, const char *ifname, uint
     if (tp->phys_fd < 0 || tp->func_fd < 0) {
         return UDS_ERR;
     }
-    printf("%s initialized phys link (fd %d) rx 0x%03x tx 0x%03x func link (fd %d) rx 0x%03x tx "
+    UDS_DBG_PRINT("%s initialized phys link (fd %d) rx 0x%03x tx 0x%03x func link (fd %d) rx 0x%03x tx "
            "0x%03x\n",
            strlen(tp->tag) ? tp->tag : "client", tp->phys_fd, source_addr, target_addr, tp->func_fd,
            source_addr, target_addr_func);

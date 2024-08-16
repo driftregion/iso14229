@@ -28,7 +28,7 @@ int peek_link(IsoTpLink *link, uint8_t *buf, size_t bufsize, bool functional) {
         goto done;
     case ISOTP_RECEIVE_STATUS_FULL:
         ret = link->receive_size;
-        printf("The link is full. Copying %d bytes\n", ret);
+        UDS_DBG_PRINT("The link is full. Copying %d bytes\n", ret);
         memmove(buf, link->receive_buffer, link->receive_size);
         break;
     default:
@@ -55,7 +55,7 @@ static ssize_t tp_peek(UDSTpHandle_t *hdl, uint8_t **p_buf, UDSSDU_t *info) {
     uint32_t sa = tp->phys_sa;
 
     if (ret > 0) {
-        printf("just got %d bytes\n", ret);
+        UDS_DBG_PRINT("just got %d bytes\n", ret);
         ta = tp->phys_sa;
         sa = tp->phys_ta;
         ta_type = UDS_A_TA_TYPE_PHYSICAL;
@@ -66,7 +66,7 @@ static ssize_t tp_peek(UDSTpHandle_t *hdl, uint8_t **p_buf, UDSSDU_t *info) {
     } else {
         ret = peek_link(&tp->func_link, tp->recv_buf, sizeof(tp->recv_buf), true);
         if (ret > 0) {
-            printf("just got %d bytes on func link \n", ret);
+            UDS_DBG_PRINT("just got %d bytes on func link \n", ret);
             ta = tp->func_sa;
             sa = tp->func_ta;
             ta_type = UDS_A_TA_TYPE_FUNCTIONAL;
@@ -128,7 +128,7 @@ done:
 
 static void tp_ack_recv(UDSTpHandle_t *hdl) {
     assert(hdl);
-    printf("ack recv\n");
+    UDS_DBG_PRINT("ack recv\n");
     UDSISOTpC_t *tp = (UDSISOTpC_t *)hdl;
     uint16_t out_size = 0;
     isotp_receive(&tp->phys_link, tp->recv_buf, sizeof(tp->recv_buf), &out_size);

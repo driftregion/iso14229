@@ -44,7 +44,7 @@ static const char *ClientStateName(enum UDSClientRequestState state) {
 }
 
 static void changeState(UDSClient_t *client, enum UDSClientRequestState state) {
-    printf("client state: %s (%d) -> %s (%d)\n", ClientStateName(client->state), client->state,
+    UDS_DBG_PRINT("client state: %s (%d) -> %s (%d)\n", ClientStateName(client->state), client->state,
            ClientStateName(state), state);
     client->state = state;
 }
@@ -212,7 +212,7 @@ static void PollLowLevel(UDSClient_t *client) {
                 changeState(client, kRequestStateIdle);
             }
         } else {
-            printf("received %zd bytes\n", len);
+            UDS_DBG_PRINT("received %zd bytes\n", len);
             client->recv_size = len;
             changeState(client, kRequestStateProcessResponse);
         }
