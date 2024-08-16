@@ -14,9 +14,9 @@ API status: **not yet stable**.
 1. Download `iso14229.zip` from the [releases page](https://github.com/driftregion/iso14229/releases), copy `iso14229.c` and `iso14229.h` into your source tree and build.
 2. Look at the [examples](./examples)
 
-## Build Systems
+## Compatibility
 
-iso14229 is designed to build on any platform. 
+iso14229 is designed to build on any platform.
 
 ## Preprocessor Defines
 
@@ -66,10 +66,6 @@ iso14229 is designed to build on any platform.
 | 0x84 | secured data transmission | ❌ |
 | 0x85 | control DTC setting | ✅ |
 | 0x86 | response on event | ❌ |
-
-## Running Tests
-
-See [test_all.sh](./test_all.sh) and [test/README.md](test/README.md)
 
 # Documentation
 
@@ -317,16 +313,23 @@ typedef struct {
 
 [examples/README.md](examples/README.md)
 
-### Running Tests
-
-```sh
-make test
-```
-
 # Contributing
 
 contributions are welcome
 
+## Running Tests
+
+```sh
+bazel test //test:all
+```
+
+See also [test_all.sh](./test_all.sh) and [test/README.md](test/README.md)
+
+## Release
+
+```sh
+bazel build //:release
+```
 
 # Acknowledgements
 
