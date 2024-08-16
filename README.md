@@ -14,20 +14,20 @@ API status: **not yet stable**.
 1. Download `iso14229.zip` from the [releases page](https://github.com/driftregion/iso14229/releases), copy `iso14229.c` and `iso14229.h` into your source tree and build.
 2. Look at the [examples](./examples)
 
-## Compatibility
+## Configuration
 
-iso14229 is designed to build on any platform.
+iso14229 is configured via preprocessor defines:
 
-## Preprocessor Defines
-
-| Define | Description | Valid values |
+| Define | Description | Valid values | 
 | - | - | - |
 | `-DUDS_TP_ISOTP_C` | build the isotp-c transport layer (recommended for bare-metal systems) | defined or not |
 | `-DUDS_TP_ISOTP_SOCK` | build the isotp socket transport layer (recommended for linux)  | defined or not |
 | `-DUDS_TP_ISOTP_C_SOCKETCAN` | build the isotp-c transport layer with socketcan support (linux-only)  | defined or not |
+| `-DUDS_ENABLE_DBG_PRINT`| turns on debug print statements | defined or not |
 | `-DUDS_ENABLE_ASSERT` | uses `assert` to check the validity of arguments | defined or not |
-| `UDS_...` | Additional configuration options | see [`src/config.h`](src/config.h) |
-| `UDS_SYS` | Selects target system | see [`src/sys.h`](src/sys.h) |
+| `-DUDS_SERVER_...` | server configuration options | see [`src/config.h`](src/config.h) |
+| `-DUDS_CLIENT_...` | client configuration options | see [`src/config.h`](src/config.h) |
+| `-DUDS_SYS=` | Selects target system. See [`src/sys.h`](src/sys.h) | `UDS_SYS_CUSTOM,UDS_SYS_UNIX,UDS_SYS_WINDOWS,UDS_SYS_ARDUINO,UDS_SYS_ESP32`  |
 
 ## Features
 
