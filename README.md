@@ -58,7 +58,7 @@ iso14229 is designed to build on any platform.
 | 0x35 | request upload | ✅ |
 | 0x36 | transfer data | ✅ |
 | 0x37 | request transfer exit | ✅ |
-| 0x38 | request file transfer | ❌ |
+| 0x38 | request file transfer | ✅ |
 | 0x3D | write memory by address | ❌ |
 | 0x3E | tester present | ✅ |
 | 0x83 | access timing parameter | ❌ |
@@ -311,6 +311,34 @@ typedef struct {
 | `0x00` | `kPositiveResponse` | Request accepted  |
 | `0x31` | `kRequestOutOfRange` | `data` contents invalid, length incorrect |
 | `0x72` | `kGeneralProgrammingFailure` | finalizing the data transfer failed |
+
+### `UDS_SRV_EVT_RequestFileTransfer` (0x38)
+
+#### Arguments
+
+```c
+typedef struct {
+    const uint8_t modeOfOperation;      /*! requested specifier for operation mode */
+    const uint16_t filePathLen;         /*! request data length */
+    const uint8_t *filePath;            /*! requested file path and name */
+    const uint8_t dataFormatIdentifier; /*! optional specifier for format of data */
+    const size_t fileSizeUnCompressed;  /*! optional file size */
+    const size_t fileSizeCompressed;    /*! optional file size */
+    uint16_t maxNumberOfBlockLength;    /*! optional response: inform client how many data bytes to
+                                           send in each    `TransferData` request */
+} UDSRequestFileTransferArgs_t;
+```
+
+#### Supported Responses
+
+| Value  | enum                 | Meaning | 
+| - | - | - | 
+| `0x00` | `kPositiveResponse` | Request accepted  |
+| `0x13` | `kIncorrectMessageLengthOrInvalidFormat` | Length of the message is wrong |
+| `0x22` | `kConditionsNotCorrect` | Downloading or uploading data is ongoing or other conditions to be able to execute this service are not met |
+| `0x31` | `kRequestOutOfRange` | `data` contents invalid, length incorrect |
+| `0x33` | `kSecurityAccessDenied` | The server is secure |
+| `0x70` | `kUploadDownloadNotAccepted` | An attempt to download to a server's memory cannot be accomplished due to some fault conditions |
 
 ## Examples
 

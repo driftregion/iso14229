@@ -643,6 +643,77 @@ static uint8_t _0x37_RequestTransferExit(UDSServer_t *srv, UDSReq_t *r) {
         return NegativeResponse(r, err);
     }
 }
+static uint8_t _0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
+    uint8_t err = kPositiveResponse;
+
+    if (srv->xferIsActive) {
+        return NegativeResponse(r, kConditionsNotCorrect);
+    }
+    if (r->recv_len < UDS_0X38_REQ_BASE_LEN) {
+        return NegativeResponse(r, kIncorrectMessageLengthOrInvalidFormat);
+    }
+
+    uint8_t operation = r->recv_buf[1];
+    uint16_t file_path_len = ((uint16_t)r->recv_buf[2] << 8) + r->recv_buf[3];
+    uint8_t file_mode = 0;
+    if ((operation == kAddFile) || (operation == kReplaceFile) || (operation == kReadFile)){
+        file_mode = r->recv_buf[UDS_0X38_REQ_BASE_LEN + file_path_len];
+    }
+    size_t file_size_uncompressed = 0;
+    size_t file_size_compressed = 0;
+    if ((operation == kAddFile) || (operation == kReplaceFile)){
+        size_t size = r->recv_buf[UDS_0X38_REQ_BASE_LEN + file_path_len + 1];
+        if (size > sizeof(size_t)){
+            return NegativeResponse(r, kRequestOutOfRange);
+        }
+        for (size_t byteIdx = 0; byteIdx < size; byteIdx++) {
+            size_t byte = r->recv_buf[UDS_0X38_REQ_BASE_LEN + file_path_len + 2 + byteIdx];
+            uint8_t shiftBytes = size - 1 - byteIdx;
+            file_size_uncompressed |= byte << (8 * shiftBytes);
+        }
+        for (size_t byteIdx = 0; byteIdx < size; byteIdx++) {
+            size_t byte = r->recv_buf[UDS_0X38_REQ_BASE_LEN + file_path_len + 2 + size + byteIdx];
+            uint8_t shiftBytes = size - 1 - byteIdx;
+            file_size_compressed |= byte << (8 * shiftBytes);
+        }
+    }
+    UDSRequestFileTransferArgs_t args = {
+        .modeOfOperation = operation,
+        .filePathLen = file_path_len,
+        .filePath = &r->recv_buf[UDS_0X38_REQ_BASE_LEN],
+        .dataFormatIdentifier = file_mode,
+        .fileSizeUnCompressed = file_size_uncompressed,
+        .fileSizeCompressed = file_size_compressed,
+    };
+
+    err = EmitEvent(srv, UDS_SRV_EVT_RequestFileTransfer, &args);
+
+    if (kPositiveResponse != err) {
+        return NegativeResponse(r, err);
+    }
+
+    ResetTransfer(srv);
+    srv->xferIsActive = true;
+    srv->xferTotalBytes = args.fileSizeCompressed;
+    srv->xferBlockLength = args.maxNumberOfBlockLength;
+
+    if (args.maxNumberOfBlockLength > UDS_TP_MTU) {
+        args.maxNumberOfBlockLength = UDS_TP_MTU;
+    }
+
+    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_REQUEST_FILE_TRANSFER);
+    r->send_buf[1] = args.modeOfOperation;
+    r->send_buf[2] = sizeof(args.maxNumberOfBlockLength);
+    for (uint8_t idx = 0; idx < sizeof(args.maxNumberOfBlockLength); idx++) {
+        uint8_t shiftBytes = sizeof(args.maxNumberOfBlockLength) - 1 - idx;
+        uint8_t byte = args.maxNumberOfBlockLength >> (shiftBytes * 8);
+        r->send_buf[UDS_0X38_RESP_BASE_LEN + idx] = byte;
+    }
+    r->send_buf[UDS_0X38_RESP_BASE_LEN + sizeof(args.maxNumberOfBlockLength)] = args.dataFormatIdentifier;
+
+    r->send_len = UDS_0X38_RESP_BASE_LEN + sizeof(args.maxNumberOfBlockLength) + 1;
+    return kPositiveResponse;
+}
 
 static uint8_t _0x3E_TesterPresent(UDSServer_t *srv, UDSReq_t *r) {
     if ((r->recv_len < UDS_0X3E_REQ_MIN_LEN) || (r->recv_len > UDS_0X3E_REQ_MAX_LEN)) {
@@ -721,7 +792,7 @@ static UDSService getServiceForSID(uint8_t sid) {
     case kSID_REQUEST_TRANSFER_EXIT:
         return _0x37_RequestTransferExit;
     case kSID_REQUEST_FILE_TRANSFER:
-        return NULL;
+        return _0x38_RequestFileTransfer;
     case kSID_WRITE_MEMORY_BY_ADDRESS:
         return NULL;
     case kSID_TESTER_PRESENT:
@@ -793,6 +864,7 @@ static uint8_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
     case kSID_REQUEST_DOWNLOAD:
     case kSID_REQUEST_UPLOAD:
     case kSID_TRANSFER_DATA:
+    case kSID_REQUEST_FILE_TRANSFER:
     case kSID_REQUEST_TRANSFER_EXIT: {
         response = service(srv, r);
         break;
@@ -806,7 +878,6 @@ static uint8_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
     case kSID_READ_PERIODIC_DATA_BY_IDENTIFIER:
     case kSID_DYNAMICALLY_DEFINE_DATA_IDENTIFIER:
     case kSID_INPUT_CONTROL_BY_IDENTIFIER:
-    case kSID_REQUEST_FILE_TRANSFER:
     case kSID_WRITE_MEMORY_BY_ADDRESS:
     case kSID_ACCESS_TIMING_PARAMETER:
     case kSID_SECURED_DATA_TRANSMISSION:
