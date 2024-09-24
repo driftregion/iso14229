@@ -9,15 +9,24 @@ cc_library(
     ],
     deps = [ "@cmocka" ],
     defines = [
-        "UDS_TP_ISOTP_C_SOCKETCAN",
-        "UDS_TP_ISOTP_SOCK",
         "UDS_TP_MOCK",
         "UDS_CUSTOM_MILLIS",
         "UDS_ENABLE_DBG_PRINT",
         "UDS_ENABLE_ASSERT",
         # "UDS_LINES",
-    ],
-    copts = [ "-g", ],
+    ] + select({
+        "//conditions:default": [
+            "UDS_TP_ISOTP_C_SOCKETCAN",
+            "UDS_TP_ISOTP_SOCK",
+        ],
+        "@bazel_tools//src/conditions:windows": [
+        ],
+    }),
+    copts = select({
+        "//conditions:default": ["-g"],
+        "@bazel_tools//src/conditions:windows": [
+        ],
+    }),
 )
 
 TEST_SRCS = [
@@ -55,7 +64,11 @@ TEST_NAMES = [ src.split(".c")[0] for src in TEST_SRCS ]
         deps=[":env"],
         size = "small",
         env = { "UDS_TP_TYPE": "0", },
-        copts = ["-g"],
+        copts = select({
+            "//conditions:default": ["-g"],
+            "@bazel_tools//src/conditions:windows": [
+            ],
+        }),
         tags = [ "exclusive", ],
     ) for name, src in zip(TEST_NAMES, TEST_SRCS)
 ]
@@ -69,6 +82,7 @@ TEST_NAMES = [ src.split(".c")[0] for src in TEST_SRCS ]
         env = { "UDS_TP_TYPE": "1"},
         copts = ["-g"],
         tags = [ "exclusive", "vcan", "isotp_sock"],
+        target_compatible_with = ["@platforms//os:linux"],
     ) for name, src in zip(TEST_NAMES, TEST_SRCS)
 ]
 
@@ -81,6 +95,7 @@ TEST_NAMES = [ src.split(".c")[0] for src in TEST_SRCS ]
         env = { "UDS_TP_TYPE": "2"},
         copts = ["-g"],
         tags = [ "exclusive", "vcan"],
+        target_compatible_with = ["@platforms//os:linux"],
     ) for name, src in zip(TEST_NAMES, TEST_SRCS)
 ]
 
@@ -117,8 +132,10 @@ sh_test(
     args = ["$(locations //:iso14229)"],
     size = "small",
 
-    # Not exactly right. It's to prevent this test from being run under qemu
-    target_compatible_with = ["@platforms//cpu:x86_64"],
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
 )
 
 cc_library(
