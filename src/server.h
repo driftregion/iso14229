@@ -163,6 +163,17 @@ typedef struct {
 } UDSRequestTransferExitArgs_t;
 
 typedef struct {
+    const uint8_t modeOfOperation;      /*! requested specifier for operation mode */
+    const uint16_t filePathLen;         /*! request data length */
+    const uint8_t *filePath;            /*! requested file path and name */
+    const uint8_t dataFormatIdentifier; /*! optional specifier for format of data */
+    const size_t fileSizeUnCompressed;  /*! optional file size */
+    const size_t fileSizeCompressed;    /*! optional file size */
+    uint16_t maxNumberOfBlockLength;    /*! optional response: inform client how many data bytes to
+                                           send in each    `TransferData` request */
+} UDSRequestFileTransferArgs_t;
+
+typedef struct {
     const uint16_t sid;          /*! serviceIdentifier */
     const uint8_t *optionRecord; /*! optional data */
     const uint16_t len;          /*! length of optional data */
