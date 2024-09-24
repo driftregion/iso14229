@@ -753,10 +753,7 @@ static uint8_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
     uint8_t sid = r->recv_buf[0];
     UDSService service = getServiceForSID(sid);
 
-    if (NULL == service || NULL == srv->fn) {
-        return NegativeResponse(r, kServiceNotSupported);
-    }
-    assert(service);
+    if (NULL == srv->fn) return NegativeResponse(r, kServiceNotSupported);
     assert(srv->fn); // service handler functions will call srv->fn. it must be valid
 
     switch (sid) {
@@ -769,6 +766,7 @@ static uint8_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
     case kSID_ROUTINE_CONTROL:
     case kSID_TESTER_PRESENT:
     case kSID_CONTROL_DTC_SETTING: {
+        assert(service);
         response = service(srv, r);
 
         bool suppressPosRspMsgIndicationBit = r->recv_buf[1] & 0x80;
@@ -794,12 +792,12 @@ static uint8_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
     case kSID_REQUEST_UPLOAD:
     case kSID_TRANSFER_DATA:
     case kSID_REQUEST_TRANSFER_EXIT: {
+        assert(service);
         response = service(srv, r);
         break;
     }
 
-    /* CASE Service_not_implemented */
-    /* shouldn't get this far as getServiceForSID(sid) will return NULL*/
+    /* CASE Service_optional */
     case kSID_CLEAR_DIAGNOSTIC_INFORMATION:
     case kSID_READ_DTC_INFORMATION:
     case kSID_READ_SCALING_DATA_BY_IDENTIFIER:
@@ -812,7 +810,22 @@ static uint8_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
     case kSID_SECURED_DATA_TRANSMISSION:
     case kSID_RESPONSE_ON_EVENT:
     default: {
-        response = kServiceNotSupported;
+        if (service) {
+            response = service(srv, r);
+        } else {    /* getServiceForSID(sid) returned NULL*/
+            UDSCustomArgs_t args = {
+                .sid = sid,
+                .optionRecord = &r->recv_buf[1],
+                .len = r->recv_len - 1,
+                .copyResponse = safe_copy,
+            };
+
+            r->send_buf[0] = UDS_RESPONSE_SID_OF(sid);
+            r->send_len = 1;
+
+            response = EmitEvent(srv, UDS_SRV_EVT_CUSTOM, &args);
+            if (kPositiveResponse != response) return NegativeResponse(r, response);
+        }
         break;
     }
     }
