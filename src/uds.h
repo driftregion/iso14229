@@ -17,6 +17,7 @@ enum UDSServerEvent {
     UDS_SRV_EVT_RequestFileTransfer,  // UDSRequestFileTransferArgs_t *
     UDS_SRV_EVT_SessionTimeout,       // NULL
     UDS_SRV_EVT_DoScheduledReset,     // enum UDSEcuResetType *
+    UDS_SRV_EVT_CUSTOM,               // UDSCustomArgs_t *
     UDS_SRV_EVT_Err,                  // UDSErr_t *
     UDS_EVT_IDLE,
     UDS_EVT_RESP_RECV,
