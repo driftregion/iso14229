@@ -149,6 +149,17 @@ enum RoutineControlType {
 };
 
 /**
+ * @addtogroup requestFileTransfer_0x38
+ */
+enum FileOperationMode  {
+    kAddFile = 1,
+    kDeleteFile = 2,
+    kReplaceFile = 3,
+    kReadFile = 4,
+    kReadDir = 5,
+};
+
+/**
  * @addtogroup controlDTCSetting_0x85
  */
 enum DTCSettingType {
@@ -187,6 +198,8 @@ enum DTCSettingType {
 #define UDS_0X36_RESP_BASE_LEN 2U
 #define UDS_0X37_REQ_BASE_LEN 1U
 #define UDS_0X37_RESP_BASE_LEN 1U
+#define UDS_0X38_REQ_BASE_LEN 4U
+#define UDS_0X38_RESP_BASE_LEN 3U
 #define UDS_0X3E_REQ_MIN_LEN 2U
 #define UDS_0X3E_REQ_MAX_LEN 2U
 #define UDS_0X3E_RESP_LEN 2U
