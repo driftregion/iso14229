@@ -38,6 +38,7 @@ TEST_SRCS = [
     "test_server_0x34.c",
     "test_server_0x3E_suppress_positive_response.c",
     "test_server_0x83_diagnostic_session_control.c",
+    "test_server_fn_misuse.c",
     "test_server_session_timeout.c",
     "test_tp_compliance.c",
 ]

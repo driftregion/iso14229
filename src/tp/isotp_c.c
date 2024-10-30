@@ -15,7 +15,7 @@ static UDSTpStatus_t tp_poll(UDSTpHandle_t *hdl) {
     return status;
 }
 
-int peek_link(IsoTpLink *link, uint8_t *buf, size_t bufsize, bool functional) {
+static int peek_link(IsoTpLink *link, uint8_t *buf, size_t bufsize, bool functional) {
     UDS_ASSERT(link);
     UDS_ASSERT(buf);
     int ret = -1;
@@ -93,7 +93,6 @@ static ssize_t tp_send(UDSTpHandle_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *i
     UDSISOTpC_t *tp = (UDSISOTpC_t *)hdl;
     IsoTpLink *link = NULL;
     const UDSTpAddr_t ta_type = info ? info->A_TA_Type : UDS_A_TA_TYPE_PHYSICAL;
-    const uint32_t ta = ta_type == UDS_A_TA_TYPE_PHYSICAL ? tp->phys_ta : tp->func_ta;
     switch (ta_type) {
     case UDS_A_TA_TYPE_PHYSICAL:
         link = &tp->phys_link;
@@ -143,7 +142,7 @@ static ssize_t tp_get_send_buf(UDSTpHandle_t *hdl, uint8_t **p_buf) {
 
 UDSErr_t UDSISOTpCInit(UDSISOTpC_t *tp, const UDSISOTpCConfig_t *cfg) {
     if (cfg == NULL || tp == NULL) {
-        return UDS_ERR;
+        return UDS_ERR_INVALID_ARG;
     }
     tp->hdl.poll = tp_poll;
     tp->hdl.send = tp_send;
@@ -153,7 +152,7 @@ UDSErr_t UDSISOTpCInit(UDSISOTpC_t *tp, const UDSISOTpCConfig_t *cfg) {
     tp->phys_sa = cfg->source_addr;
     tp->phys_ta = cfg->target_addr;
     tp->func_sa = cfg->source_addr_func;
-    tp->func_ta = cfg->target_addr;
+    tp->func_ta = cfg->target_addr_func;
 
     isotp_init_link(&tp->phys_link, tp->phys_ta, tp->send_buf, sizeof(tp->send_buf), tp->recv_buf,
                     sizeof(tp->recv_buf));

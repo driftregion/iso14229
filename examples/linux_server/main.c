@@ -16,7 +16,7 @@ void sigint_handler(int signum) {
     done = true;
 }
 
-static uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
+static uint8_t fn(UDSServer_t *srv, UDSEvent_t ev, const void *arg) {
     switch (ev) {
     default:
         printf("Unhandled event: %d\n", ev);

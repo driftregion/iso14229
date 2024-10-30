@@ -13,18 +13,18 @@ static inline uint8_t NegativeResponse(UDSReq_t *r, uint8_t response_code) {
 
 static inline void NoResponse(UDSReq_t *r) { r->send_len = 0; }
 
-static uint8_t EmitEvent(UDSServer_t *srv, UDSServerEvent_t evt, void *data) {
+static uint8_t EmitEvent(UDSServer_t *srv, UDSEvent_t evt, void *data) {
     if (srv->fn) {
         return srv->fn(srv, evt, data);
     } else {
-        UDS_DBG_PRINT("Unhandled UDSServerEvent %d, srv.fn not installed!\n", evt);
-        return kGeneralReject;
+        UDS_DBG_PRINT("Unhandled UDSEvent %d, srv.fn not installed!\n", evt);
+        return UDS_NRC_GeneralReject;
     }
 }
 
 static uint8_t _0x10_DiagnosticSessionControl(UDSServer_t *srv, UDSReq_t *r) {
     if (r->recv_len < UDS_0X10_REQ_LEN) {
-        return NegativeResponse(r, kIncorrectMessageLengthOrInvalidFormat);
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
     uint8_t sessType = r->recv_buf[1] & 0x4F;
@@ -35,9 +35,9 @@ static uint8_t _0x10_DiagnosticSessionControl(UDSServer_t *srv, UDSReq_t *r) {
         .p2_star_ms = UDS_CLIENT_DEFAULT_P2_STAR_MS,
     };
 
-    uint8_t err = EmitEvent(srv, UDS_SRV_EVT_DiagSessCtrl, &args);
+    uint8_t err = EmitEvent(srv, UDS_EVT_DiagSessCtrl, &args);
 
-    if (kPositiveResponse != err) {
+    if (UDS_PositiveResponse != err) {
         return NegativeResponse(r, err);
     }
 
@@ -66,14 +66,14 @@ static uint8_t _0x10_DiagnosticSessionControl(UDSServer_t *srv, UDSReq_t *r) {
     r->send_buf[5] = args.p2_star_ms / 10;
 
     r->send_len = UDS_0X10_RESP_LEN;
-    return kPositiveResponse;
+    return UDS_PositiveResponse;
 }
 
 static uint8_t _0x11_ECUReset(UDSServer_t *srv, UDSReq_t *r) {
     uint8_t resetType = r->recv_buf[1] & 0x3F;
 
     if (r->recv_len < UDS_0X11_REQ_MIN_LEN) {
-        return NegativeResponse(r, kIncorrectMessageLengthOrInvalidFormat);
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
     UDSECUResetArgs_t args = {
@@ -81,9 +81,9 @@ static uint8_t _0x11_ECUReset(UDSServer_t *srv, UDSReq_t *r) {
         .powerDownTimeMillis = UDS_SERVER_DEFAULT_POWER_DOWN_TIME_MS,
     };
 
-    uint8_t err = EmitEvent(srv, UDS_SRV_EVT_EcuReset, &args);
+    uint8_t err = EmitEvent(srv, UDS_EVT_EcuReset, &args);
 
-    if (kPositiveResponse == err) {
+    if (UDS_PositiveResponse == err) {
         srv->notReadyToReceive = true;
         srv->ecuResetScheduled = resetType;
         srv->ecuResetTimer = UDSMillis() + args.powerDownTimeMillis;
@@ -104,37 +104,37 @@ static uint8_t _0x11_ECUReset(UDSServer_t *srv, UDSReq_t *r) {
     } else {
         r->send_len = UDS_0X11_RESP_BASE_LEN;
     }
-    return kPositiveResponse;
+    return UDS_PositiveResponse;
 }
 
 static uint8_t safe_copy(UDSServer_t *srv, const void *src, uint16_t count) {
     if (srv == NULL) {
-        return kGeneralReject;
+        return UDS_NRC_GeneralReject;
     }
     UDSReq_t *r = (UDSReq_t *)&srv->r;
     if (count <= r->send_buf_size - r->send_len) {
         memmove(r->send_buf + r->send_len, src, count);
         r->send_len += count;
-        return kPositiveResponse;
+        return UDS_PositiveResponse;
     }
-    return kResponseTooLong;
+    return UDS_NRC_ResponseTooLong;
 }
 
 static uint8_t _0x22_ReadDataByIdentifier(UDSServer_t *srv, UDSReq_t *r) {
     uint8_t numDIDs;
     uint16_t dataId = 0;
-    uint8_t ret = kPositiveResponse;
+    uint8_t ret = UDS_PositiveResponse;
     r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_READ_DATA_BY_IDENTIFIER);
     r->send_len = 1;
 
     if (0 != (r->recv_len - 1) % sizeof(uint16_t)) {
-        return NegativeResponse(r, kIncorrectMessageLengthOrInvalidFormat);
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
     numDIDs = r->recv_len / sizeof(uint16_t);
 
     if (0 == numDIDs) {
-        return NegativeResponse(r, kIncorrectMessageLengthOrInvalidFormat);
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
     for (int did = 0; did < numDIDs; did++) {
@@ -142,7 +142,7 @@ static uint8_t _0x22_ReadDataByIdentifier(UDSServer_t *srv, UDSReq_t *r) {
         dataId = (r->recv_buf[idx] << 8) + r->recv_buf[idx + 1];
 
         if (r->send_len + 3 > r->send_buf_size) {
-            return NegativeResponse(r, kResponseTooLong);
+            return NegativeResponse(r, UDS_NRC_ResponseTooLong);
         }
         uint8_t *copylocation = r->send_buf + r->send_len;
         copylocation[0] = dataId >> 8;
@@ -154,13 +154,18 @@ static uint8_t _0x22_ReadDataByIdentifier(UDSServer_t *srv, UDSReq_t *r) {
             .copy = safe_copy,
         };
 
-        ret = EmitEvent(srv, UDS_SRV_EVT_ReadDataByIdent, &args);
+        unsigned send_len_before = r->send_len;
+        ret = EmitEvent(srv, UDS_EVT_ReadDataByIdent, &args);
+        if (ret == UDS_PositiveResponse && send_len_before == r->send_len) {
+            UDS_DBG_PRINT("ERROR: RDBI response positive but no data sent\n");
+            return NegativeResponse(r, UDS_NRC_GeneralReject);
+        }
 
-        if (kPositiveResponse != ret) {
+        if (UDS_PositiveResponse != ret) {
             return NegativeResponse(r, ret);
         }
     }
-    return kPositiveResponse;
+    return UDS_PositiveResponse;
 }
 
 /**
@@ -185,22 +190,22 @@ static uint8_t decodeAddressAndLength(UDSReq_t *r, uint8_t *const buf, void **me
     UDS_ASSERT(buf >= r->recv_buf && buf <= r->recv_buf + sizeof(r->recv_buf));
 
     if (r->recv_len < 3) {
-        return NegativeResponse(r, kIncorrectMessageLengthOrInvalidFormat);
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
     uint8_t memorySizeLength = (buf[0] & 0xF0) >> 4;
     uint8_t memoryAddressLength = buf[0] & 0x0F;
 
     if (memorySizeLength == 0 || memorySizeLength > sizeof(size_t)) {
-        return NegativeResponse(r, kRequestOutOfRange);
+        return NegativeResponse(r, UDS_NRC_RequestOutOfRange);
     }
 
     if (memoryAddressLength == 0 || memoryAddressLength > sizeof(size_t)) {
-        return NegativeResponse(r, kRequestOutOfRange);
+        return NegativeResponse(r, UDS_NRC_RequestOutOfRange);
     }
 
     if (buf + memorySizeLength + memoryAddressLength > r->recv_buf + r->recv_len) {
-        return NegativeResponse(r, kIncorrectMessageLengthOrInvalidFormat);
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
     for (int byteIdx = 0; byteIdx < memoryAddressLength; byteIdx++) {
@@ -215,20 +220,20 @@ static uint8_t decodeAddressAndLength(UDSReq_t *r, uint8_t *const buf, void **me
         uint8_t shiftBytes = memorySizeLength - 1 - byteIdx;
         *memorySize |= (size_t)byte << (8 * shiftBytes);
     }
-    return kPositiveResponse;
+    return UDS_PositiveResponse;
 }
 
 static uint8_t _0x23_ReadMemoryByAddress(UDSServer_t *srv, UDSReq_t *r) {
-    uint8_t ret = kPositiveResponse;
+    uint8_t ret = UDS_PositiveResponse;
     void *address = 0;
     size_t length = 0;
 
     if (r->recv_len < UDS_0X23_REQ_MIN_LEN) {
-        return NegativeResponse(r, kIncorrectMessageLengthOrInvalidFormat);
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
     ret = decodeAddressAndLength(r, &r->recv_buf[1], &address, &length);
-    if (kPositiveResponse != ret) {
+    if (UDS_PositiveResponse != ret) {
         return NegativeResponse(r, ret);
     }
 
@@ -240,30 +245,30 @@ static uint8_t _0x23_ReadMemoryByAddress(UDSServer_t *srv, UDSReq_t *r) {
 
     r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_READ_MEMORY_BY_ADDRESS);
     r->send_len = UDS_0X23_RESP_BASE_LEN;
-    ret = EmitEvent(srv, UDS_SRV_EVT_ReadMemByAddr, &args);
-    if (kPositiveResponse != ret) {
+    ret = EmitEvent(srv, UDS_EVT_ReadMemByAddr, &args);
+    if (UDS_PositiveResponse != ret) {
         return NegativeResponse(r, ret);
     }
     if (r->send_len != UDS_0X23_RESP_BASE_LEN + length) {
-        return kGeneralProgrammingFailure;
+        return UDS_NRC_GeneralProgrammingFailure;
     }
-    return kPositiveResponse;
+    return UDS_PositiveResponse;
 }
 
 static uint8_t _0x27_SecurityAccess(UDSServer_t *srv, UDSReq_t *r) {
     uint8_t subFunction = r->recv_buf[1];
-    uint8_t response = kPositiveResponse;
+    uint8_t response = UDS_PositiveResponse;
 
     if (UDSSecurityAccessLevelIsReserved(subFunction)) {
-        return NegativeResponse(r, kIncorrectMessageLengthOrInvalidFormat);
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
     if (!UDSTimeAfter(UDSMillis(), srv->sec_access_boot_delay_timer)) {
-        return NegativeResponse(r, kRequiredTimeDelayNotExpired);
+        return NegativeResponse(r, UDS_NRC_RequiredTimeDelayNotExpired);
     }
 
     if (!(UDSTimeAfter(UDSMillis(), srv->sec_access_auth_fail_timer))) {
-        return NegativeResponse(r, kExceedNumberOfAttempts);
+        return NegativeResponse(r, UDS_NRC_ExceedNumberOfAttempts);
     }
 
     r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_SECURITY_ACCESS);
@@ -279,9 +284,9 @@ static uint8_t _0x27_SecurityAccess(UDSServer_t *srv, UDSReq_t *r) {
             .len = r->recv_len - UDS_0X27_REQ_BASE_LEN,
         };
 
-        response = EmitEvent(srv, UDS_SRV_EVT_SecAccessValidateKey, &args);
+        response = EmitEvent(srv, UDS_EVT_SecAccessValidateKey, &args);
 
-        if (kPositiveResponse != response) {
+        if (UDS_PositiveResponse != response) {
             srv->sec_access_auth_fail_timer =
                 UDSMillis() + UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_AUTH_FAIL_DELAY_MS;
             return NegativeResponse(r, response);
@@ -293,7 +298,7 @@ static uint8_t _0x27_SecurityAccess(UDSServer_t *srv, UDSReq_t *r) {
         // "requestSeed = 0x03" and "sendKey = 0x04"
         srv->securityLevel = requestedLevel;
         r->send_len = UDS_0X27_RESP_BASE_LEN;
-        return kPositiveResponse;
+        return UDS_PositiveResponse;
     }
 
     // Odd: requestSeed
@@ -318,19 +323,19 @@ static uint8_t _0x27_SecurityAccess(UDSServer_t *srv, UDSReq_t *r) {
                 .copySeed = safe_copy,
             };
 
-            response = EmitEvent(srv, UDS_SRV_EVT_SecAccessRequestSeed, &args);
+            response = EmitEvent(srv, UDS_EVT_SecAccessRequestSeed, &args);
 
-            if (kPositiveResponse != response) {
+            if (UDS_PositiveResponse != response) {
                 return NegativeResponse(r, response);
             }
 
             if (r->send_len <= UDS_0X27_RESP_BASE_LEN) { // no data was copied
-                return NegativeResponse(r, kGeneralProgrammingFailure);
+                return NegativeResponse(r, UDS_NRC_GeneralProgrammingFailure);
             }
-            return kPositiveResponse;
+            return UDS_PositiveResponse;
         }
     }
-    return NegativeResponse(r, kGeneralProgrammingFailure);
+    return NegativeResponse(r, UDS_NRC_GeneralProgrammingFailure);
 }
 
 static uint8_t _0x28_CommunicationControl(UDSServer_t *srv, UDSReq_t *r) {
@@ -338,7 +343,7 @@ static uint8_t _0x28_CommunicationControl(UDSServer_t *srv, UDSReq_t *r) {
     uint8_t communicationType = r->recv_buf[2];
 
     if (r->recv_len < UDS_0X28_REQ_BASE_LEN) {
-        return NegativeResponse(r, kIncorrectMessageLengthOrInvalidFormat);
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
     UDSCommCtrlArgs_t args = {
@@ -346,25 +351,25 @@ static uint8_t _0x28_CommunicationControl(UDSServer_t *srv, UDSReq_t *r) {
         .commType = communicationType,
     };
 
-    uint8_t err = EmitEvent(srv, UDS_SRV_EVT_CommCtrl, &args);
-    if (kPositiveResponse != err) {
+    uint8_t err = EmitEvent(srv, UDS_EVT_CommCtrl, &args);
+    if (UDS_PositiveResponse != err) {
         return NegativeResponse(r, err);
     }
 
     r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_COMMUNICATION_CONTROL);
     r->send_buf[1] = controlType;
     r->send_len = UDS_0X28_RESP_LEN;
-    return kPositiveResponse;
+    return UDS_PositiveResponse;
 }
 
 static uint8_t _0x2E_WriteDataByIdentifier(UDSServer_t *srv, UDSReq_t *r) {
     uint16_t dataLen = 0;
     uint16_t dataId = 0;
-    uint8_t err = kPositiveResponse;
+    uint8_t err = UDS_PositiveResponse;
 
     /* UDS-1 2013 Figure 21 Key 1 */
     if (r->recv_len < UDS_0X2E_REQ_MIN_LEN) {
-        return NegativeResponse(r, kIncorrectMessageLengthOrInvalidFormat);
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
     dataId = (r->recv_buf[1] << 8) + r->recv_buf[2];
@@ -376,8 +381,8 @@ static uint8_t _0x2E_WriteDataByIdentifier(UDSServer_t *srv, UDSReq_t *r) {
         .len = dataLen,
     };
 
-    err = EmitEvent(srv, UDS_SRV_EVT_WriteDataByIdent, &args);
-    if (kPositiveResponse != err) {
+    err = EmitEvent(srv, UDS_EVT_WriteDataByIdent, &args);
+    if (UDS_PositiveResponse != err) {
         return NegativeResponse(r, err);
     }
 
@@ -385,13 +390,13 @@ static uint8_t _0x2E_WriteDataByIdentifier(UDSServer_t *srv, UDSReq_t *r) {
     r->send_buf[1] = dataId >> 8;
     r->send_buf[2] = dataId;
     r->send_len = UDS_0X2E_RESP_LEN;
-    return kPositiveResponse;
+    return UDS_PositiveResponse;
 }
 
 static uint8_t _0x31_RoutineControl(UDSServer_t *srv, UDSReq_t *r) {
-    uint8_t err = kPositiveResponse;
+    uint8_t err = UDS_PositiveResponse;
     if (r->recv_len < UDS_0X31_REQ_MIN_LEN) {
-        return NegativeResponse(r, kIncorrectMessageLengthOrInvalidFormat);
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
     uint8_t routineControlType = r->recv_buf[1] & 0x7F;
@@ -415,15 +420,15 @@ static uint8_t _0x31_RoutineControl(UDSServer_t *srv, UDSReq_t *r) {
     case kStartRoutine:
     case kStopRoutine:
     case kRequestRoutineResults:
-        err = EmitEvent(srv, UDS_SRV_EVT_RoutineCtrl, &args);
-        if (kPositiveResponse != err) {
+        err = EmitEvent(srv, UDS_EVT_RoutineCtrl, &args);
+        if (UDS_PositiveResponse != err) {
             return NegativeResponse(r, err);
         }
         break;
     default:
-        return NegativeResponse(r, kRequestOutOfRange);
+        return NegativeResponse(r, UDS_NRC_RequestOutOfRange);
     }
-    return kPositiveResponse;
+    return UDS_PositiveResponse;
 }
 
 static void ResetTransfer(UDSServer_t *srv) {
@@ -440,15 +445,15 @@ static uint8_t _0x34_RequestDownload(UDSServer_t *srv, UDSReq_t *r) {
     size_t memorySize = 0;
 
     if (srv->xferIsActive) {
-        return NegativeResponse(r, kConditionsNotCorrect);
+        return NegativeResponse(r, UDS_NRC_ConditionsNotCorrect);
     }
 
     if (r->recv_len < UDS_0X34_REQ_BASE_LEN) {
-        return NegativeResponse(r, kIncorrectMessageLengthOrInvalidFormat);
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
     err = decodeAddressAndLength(r, &r->recv_buf[2], &memoryAddress, &memorySize);
-    if (kPositiveResponse != err) {
+    if (UDS_PositiveResponse != err) {
         return NegativeResponse(r, err);
     }
 
@@ -459,14 +464,14 @@ static uint8_t _0x34_RequestDownload(UDSServer_t *srv, UDSReq_t *r) {
         .maxNumberOfBlockLength = UDS_SERVER_DEFAULT_XFER_DATA_MAX_BLOCKLENGTH,
     };
 
-    err = EmitEvent(srv, UDS_SRV_EVT_RequestDownload, &args);
+    err = EmitEvent(srv, UDS_EVT_RequestDownload, &args);
 
     if (args.maxNumberOfBlockLength < 3) {
         UDS_DBG_PRINT("ERROR: maxNumberOfBlockLength too short");
-        return NegativeResponse(r, kGeneralProgrammingFailure);
+        return NegativeResponse(r, UDS_NRC_GeneralProgrammingFailure);
     }
 
-    if (kPositiveResponse != err) {
+    if (UDS_PositiveResponse != err) {
         return NegativeResponse(r, err);
     }
 
@@ -497,7 +502,7 @@ static uint8_t _0x34_RequestDownload(UDSServer_t *srv, UDSReq_t *r) {
         r->send_buf[UDS_0X34_RESP_BASE_LEN + idx] = byte;
     }
     r->send_len = UDS_0X34_RESP_BASE_LEN + sizeof(args.maxNumberOfBlockLength);
-    return kPositiveResponse;
+    return UDS_PositiveResponse;
 }
 
 static uint8_t _0x35_RequestUpload(UDSServer_t *srv, UDSReq_t *r) {
@@ -506,15 +511,15 @@ static uint8_t _0x35_RequestUpload(UDSServer_t *srv, UDSReq_t *r) {
     size_t memorySize = 0;
 
     if (srv->xferIsActive) {
-        return NegativeResponse(r, kConditionsNotCorrect);
+        return NegativeResponse(r, UDS_NRC_ConditionsNotCorrect);
     }
 
     if (r->recv_len < UDS_0X35_REQ_BASE_LEN) {
-        return NegativeResponse(r, kIncorrectMessageLengthOrInvalidFormat);
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
     err = decodeAddressAndLength(r, &r->recv_buf[2], &memoryAddress, &memorySize);
-    if (kPositiveResponse != err) {
+    if (UDS_PositiveResponse != err) {
         return NegativeResponse(r, err);
     }
 
@@ -525,14 +530,14 @@ static uint8_t _0x35_RequestUpload(UDSServer_t *srv, UDSReq_t *r) {
         .maxNumberOfBlockLength = UDS_SERVER_DEFAULT_XFER_DATA_MAX_BLOCKLENGTH,
     };
 
-    err = EmitEvent(srv, UDS_SRV_EVT_RequestUpload, &args);
+    err = EmitEvent(srv, UDS_EVT_RequestUpload, &args);
 
     if (args.maxNumberOfBlockLength < 3) {
         UDS_DBG_PRINT("ERROR: maxNumberOfBlockLength too short");
-        return NegativeResponse(r, kGeneralProgrammingFailure);
+        return NegativeResponse(r, UDS_NRC_GeneralProgrammingFailure);
     }
 
-    if (kPositiveResponse != err) {
+    if (UDS_PositiveResponse != err) {
         return NegativeResponse(r, err);
     }
 
@@ -551,20 +556,20 @@ static uint8_t _0x35_RequestUpload(UDSServer_t *srv, UDSReq_t *r) {
         r->send_buf[UDS_0X35_RESP_BASE_LEN + idx] = byte;
     }
     r->send_len = UDS_0X35_RESP_BASE_LEN + sizeof(args.maxNumberOfBlockLength);
-    return kPositiveResponse;
+    return UDS_PositiveResponse;
 }
 
 static uint8_t _0x36_TransferData(UDSServer_t *srv, UDSReq_t *r) {
-    uint8_t err = kPositiveResponse;
+    uint8_t err = UDS_PositiveResponse;
     uint16_t request_data_len = r->recv_len - UDS_0X36_REQ_BASE_LEN;
     uint8_t blockSequenceCounter = 0;
 
     if (!srv->xferIsActive) {
-        return NegativeResponse(r, kUploadDownloadNotAccepted);
+        return NegativeResponse(r, UDS_NRC_UploadDownloadNotAccepted);
     }
 
     if (r->recv_len < UDS_0X36_REQ_BASE_LEN) {
-        err = kIncorrectMessageLengthOrInvalidFormat;
+        err = UDS_NRC_IncorrectMessageLengthOrInvalidFormat;
         goto fail;
     }
 
@@ -572,7 +577,7 @@ static uint8_t _0x36_TransferData(UDSServer_t *srv, UDSReq_t *r) {
 
     if (!srv->RCRRP) {
         if (blockSequenceCounter != srv->xferBlockSequenceCounter) {
-            err = kRequestSequenceError;
+            err = UDS_NRC_RequestSequenceError;
             goto fail;
         } else {
             srv->xferBlockSequenceCounter++;
@@ -580,7 +585,7 @@ static uint8_t _0x36_TransferData(UDSServer_t *srv, UDSReq_t *r) {
     }
 
     if (srv->xferByteCounter + request_data_len > srv->xferTotalBytes) {
-        err = kTransferDataSuspended;
+        err = UDS_NRC_TransferDataSuspended;
         goto fail;
     }
 
@@ -596,14 +601,14 @@ static uint8_t _0x36_TransferData(UDSServer_t *srv, UDSReq_t *r) {
         r->send_buf[1] = blockSequenceCounter;
         r->send_len = UDS_0X36_RESP_BASE_LEN;
 
-        err = EmitEvent(srv, UDS_SRV_EVT_TransferData, &args);
+        err = EmitEvent(srv, UDS_EVT_TransferData, &args);
 
         switch (err) {
-        case kPositiveResponse:
+        case UDS_PositiveResponse:
             srv->xferByteCounter += request_data_len;
-            return kPositiveResponse;
-        case kRequestCorrectlyReceived_ResponsePending:
-            return NegativeResponse(r, kRequestCorrectlyReceived_ResponsePending);
+            return UDS_PositiveResponse;
+        case UDS_NRC_RequestCorrectlyReceived_ResponsePending:
+            return NegativeResponse(r, UDS_NRC_RequestCorrectlyReceived_ResponsePending);
         default:
             goto fail;
         }
@@ -615,10 +620,10 @@ fail:
 }
 
 static uint8_t _0x37_RequestTransferExit(UDSServer_t *srv, UDSReq_t *r) {
-    uint8_t err = kPositiveResponse;
+    uint8_t err = UDS_PositiveResponse;
 
     if (!srv->xferIsActive) {
-        return NegativeResponse(r, kUploadDownloadNotAccepted);
+        return NegativeResponse(r, UDS_NRC_UploadDownloadNotAccepted);
     }
 
     r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_REQUEST_TRANSFER_EXIT);
@@ -630,14 +635,14 @@ static uint8_t _0x37_RequestTransferExit(UDSServer_t *srv, UDSReq_t *r) {
         .copyResponse = safe_copy,
     };
 
-    err = EmitEvent(srv, UDS_SRV_EVT_RequestTransferExit, &args);
+    err = EmitEvent(srv, UDS_EVT_RequestTransferExit, &args);
 
     switch (err) {
-    case kPositiveResponse:
+    case UDS_PositiveResponse:
         ResetTransfer(srv);
-        return kPositiveResponse;
-    case kRequestCorrectlyReceived_ResponsePending:
-        return NegativeResponse(r, kRequestCorrectlyReceived_ResponsePending);
+        return UDS_PositiveResponse;
+    case UDS_NRC_RequestCorrectlyReceived_ResponsePending:
+        return NegativeResponse(r, UDS_NRC_RequestCorrectlyReceived_ResponsePending);
     default:
         ResetTransfer(srv);
         return NegativeResponse(r, err);
@@ -646,7 +651,7 @@ static uint8_t _0x37_RequestTransferExit(UDSServer_t *srv, UDSReq_t *r) {
 
 static uint8_t _0x3E_TesterPresent(UDSServer_t *srv, UDSReq_t *r) {
     if ((r->recv_len < UDS_0X3E_REQ_MIN_LEN) || (r->recv_len > UDS_0X3E_REQ_MAX_LEN)) {
-        return NegativeResponse(r, kIncorrectMessageLengthOrInvalidFormat);
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
     uint8_t zeroSubFunction = r->recv_buf[1];
 
@@ -657,22 +662,22 @@ static uint8_t _0x3E_TesterPresent(UDSServer_t *srv, UDSReq_t *r) {
         r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_TESTER_PRESENT);
         r->send_buf[1] = 0x00;
         r->send_len = UDS_0X3E_RESP_LEN;
-        return kPositiveResponse;
+        return UDS_PositiveResponse;
     default:
-        return NegativeResponse(r, kSubFunctionNotSupported);
+        return NegativeResponse(r, UDS_NRC_SubFunctionNotSupported);
     }
 }
 
 static uint8_t _0x85_ControlDTCSetting(UDSServer_t *srv, UDSReq_t *r) {
     if (r->recv_len < UDS_0X85_REQ_BASE_LEN) {
-        return NegativeResponse(r, kIncorrectMessageLengthOrInvalidFormat);
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
     uint8_t dtcSettingType = r->recv_buf[1] & 0x3F;
 
     r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_CONTROL_DTC_SETTING);
     r->send_buf[1] = dtcSettingType;
     r->send_len = UDS_0X85_RESP_LEN;
-    return kPositiveResponse;
+    return UDS_PositiveResponse;
 }
 
 typedef uint8_t (*UDSService)(UDSServer_t *srv, UDSReq_t *r);
@@ -748,13 +753,13 @@ static UDSService getServiceForSID(uint8_t sid) {
  * @param addressingScheme
  */
 static uint8_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
-    uint8_t response = kPositiveResponse;
+    uint8_t response = UDS_PositiveResponse;
     bool suppressResponse = false;
     uint8_t sid = r->recv_buf[0];
     UDSService service = getServiceForSID(sid);
 
     if (NULL == service || NULL == srv->fn) {
-        return NegativeResponse(r, kServiceNotSupported);
+        return NegativeResponse(r, UDS_NRC_ServiceNotSupported);
     }
     UDS_ASSERT(service);
     UDS_ASSERT(srv->fn); // service handler functions will call srv->fn. it must be valid
@@ -774,7 +779,7 @@ static uint8_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
         bool suppressPosRspMsgIndicationBit = r->recv_buf[1] & 0x80;
 
         /* test if positive response is required and if responseCode is positive 0x00 */
-        if ((suppressPosRspMsgIndicationBit) && (response == kPositiveResponse) &&
+        if ((suppressPosRspMsgIndicationBit) && (response == UDS_PositiveResponse) &&
             (
                 // TODO: *not yet a NRC 0x78 response sent*
                 true)) {
@@ -812,16 +817,16 @@ static uint8_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
     case kSID_SECURED_DATA_TRANSMISSION:
     case kSID_RESPONSE_ON_EVENT:
     default: {
-        response = kServiceNotSupported;
+        response = UDS_NRC_ServiceNotSupported;
         break;
     }
     }
 
     if ((UDS_A_TA_TYPE_FUNCTIONAL == r->info.A_TA_Type) &&
-        ((kServiceNotSupported == response) || (kSubFunctionNotSupported == response) ||
-         (kServiceNotSupportedInActiveSession == response) ||
-         (kSubFunctionNotSupportedInActiveSession == response) ||
-         (kRequestOutOfRange == response)) &&
+        ((UDS_NRC_ServiceNotSupported == response) || (UDS_NRC_SubFunctionNotSupported == response) ||
+         (UDS_NRC_ServiceNotSupportedInActiveSession == response) ||
+         (UDS_NRC_SubFunctionNotSupportedInActiveSession == response) ||
+         (UDS_NRC_RequestOutOfRange == response)) &&
         (
             // TODO: *not yet a NRC 0x78 response sent*
             true)) {
@@ -869,11 +874,11 @@ void UDSServerPoll(UDSServer_t *srv) {
     // UDS-1-2013 Figure 38: Session Timeout (S3)
     if (kDefaultSession != srv->sessionType &&
         UDSTimeAfter(UDSMillis(), srv->s3_session_timeout_timer)) {
-        EmitEvent(srv, UDS_SRV_EVT_SessionTimeout, NULL);
+        EmitEvent(srv, UDS_EVT_SessionTimeout, NULL);
     }
 
     if (srv->ecuResetScheduled && UDSTimeAfter(UDSMillis(), srv->ecuResetTimer)) {
-        EmitEvent(srv, UDS_SRV_EVT_DoScheduledReset, &srv->ecuResetScheduled);
+        EmitEvent(srv, UDS_EVT_DoScheduledReset, &srv->ecuResetScheduled);
     }
 
     UDSTpPoll(srv->tp);
@@ -886,7 +891,7 @@ void UDSServerPoll(UDSServer_t *srv) {
             // 1. changed (no longer RCRRP), or
             // 2. p2_timer has elapsed
             uint8_t response = evaluateServiceResponse(srv, r);
-            if (kRequestCorrectlyReceived_ResponsePending == response) {
+            if (UDS_NRC_RequestCorrectlyReceived_ResponsePending == response) {
                 // it's the second time the service has responded with RCRRP
                 srv->notReadyToReceive = true;
             } else {
@@ -900,12 +905,15 @@ void UDSServerPoll(UDSServer_t *srv) {
         }
 
         if (UDSTimeAfter(UDSMillis(), srv->p2_timer)) {
-            UDS_DBG_PRINT("len: %zu\n", r->send_len);
-            ssize_t ret = UDSTpSend(srv->tp, r->send_buf, r->send_len, NULL);
+            ssize_t ret = 0;
+            if (r->send_len) {
+                ret = UDSTpSend(srv->tp, r->send_buf, r->send_len, NULL);
+            }
+
             // TODO test injection of transport errors:
             if (ret < 0) {
                 UDSErr_t err = UDS_ERR_TPORT;
-                EmitEvent(srv, UDS_SRV_EVT_Err, &err);
+                EmitEvent(srv, UDS_EVT_Err, &err);
                 UDS_DBG_PRINT("UDSTpSend failed with %zd\n", ret);
             }
 
@@ -936,13 +944,13 @@ void UDSServerPoll(UDSServer_t *srv) {
             }
             if (r->send_buf == NULL || r->recv_buf == NULL) {
                 UDSErr_t err = UDS_ERR_TPORT;
-                EmitEvent(srv, UDS_SRV_EVT_Err, &err);
+                EmitEvent(srv, UDS_EVT_Err, &err);
                 UDS_DBG_PRINT("bad tport\n");
                 return;
             }
             uint8_t response = evaluateServiceResponse(srv, r);
             srv->requestInProgress = true;
-            if (kRequestCorrectlyReceived_ResponsePending == response) {
+            if (UDS_NRC_RequestCorrectlyReceived_ResponsePending == response) {
                 srv->RCRRP = true;
             }
         }

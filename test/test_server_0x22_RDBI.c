@@ -1,8 +1,8 @@
 #include "iso14229.h"
 #include "test/test.h"
 
-uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
-    TEST_INT_EQUAL(UDS_SRV_EVT_ReadDataByIdent, ev);
+uint8_t fn(UDSServer_t *srv, UDSEvent_t ev, const void *arg) {
+    TEST_INT_EQUAL(UDS_EVT_ReadDataByIdent, ev);
     const uint8_t vin[] = {0x57, 0x30, 0x4C, 0x30, 0x30, 0x30, 0x30, 0x34, 0x33,
                            0x4D, 0x42, 0x35, 0x34, 0x31, 0x33, 0x32, 0x36};
     const uint8_t data_0x010A[] = {0xA6, 0x66, 0x07, 0x50, 0x20, 0x1A,
@@ -20,7 +20,7 @@ uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
     default:
         return kRequestOutOfRange;
     }
-    return kPositiveResponse;
+    return UDS_PositiveResponse;
 }
 
 int main() {

@@ -2,8 +2,10 @@
 
 #include "sys.h"
 
-#if defined(UDS_TP_ISOTP_C) || defined(UDS_TP_ISOTP_C_SOCKETCAN)
-#define UDS_ISOTP_C
+#if defined UDS_TP_ISOTP_C_SOCKETCAN
+#ifndef UDS_TP_ISOTP_C
+#define UDS_TP_ISOTP_C
+#endif
 #endif
 
 enum UDSTpStatusFlags {

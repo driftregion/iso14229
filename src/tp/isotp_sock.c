@@ -201,7 +201,7 @@ UDSErr_t UDSTpIsoTpSockInitServer(UDSTpIsoTpSock_t *tp, const char *ifname, uint
     if (tp->phys_fd < 0 || tp->func_fd < 0) {
         UDS_DBG_PRINT("foo\n");
         fflush(stdout);
-        return UDS_ERR;
+        return UDS_FAIL;
     }
     UDS_DBG_PRINT("%s initialized phys link rx 0x%03x tx 0x%03x func link rx 0x%03x tx 0x%03x\n",
                   strlen(tp->tag) ? tp->tag : "server", source_addr, target_addr, source_addr_func,
@@ -225,7 +225,7 @@ UDSErr_t UDSTpIsoTpSockInitClient(UDSTpIsoTpSock_t *tp, const char *ifname, uint
     tp->phys_fd = LinuxSockBind(ifname, source_addr, target_addr, false);
     tp->func_fd = LinuxSockBind(ifname, 0, target_addr_func, true);
     if (tp->phys_fd < 0 || tp->func_fd < 0) {
-        return UDS_ERR;
+        return UDS_FAIL;
     }
     UDS_DBG_PRINT("%s initialized phys link (fd %d) rx 0x%03x tx 0x%03x func link (fd %d) rx 0x%03x tx "
            "0x%03x\n",

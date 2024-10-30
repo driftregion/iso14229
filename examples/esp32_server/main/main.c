@@ -55,7 +55,7 @@ static const UDSISOTpCConfig_t tp_cfg = {
 static uint8_t fn(UDSServer_t *srv, int evt, const void *data) {
     ESP_LOGI(TAG, "received event %d", evt);
     switch (evt) {
-        case UDS_SRV_EVT_WriteDataByIdent: {
+        case UDS_EVT_WriteDataByIdent: {
             UDSWDBIArgs_t *r = (UDSWDBIArgs_t *)data;
             switch (r->dataId) {
                 case 0x0001:

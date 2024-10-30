@@ -23,22 +23,30 @@
 #define UDS_CLIENT_DEFAULT_P2_STAR_MS (1500U)
 #endif
 
+// Default value from ISO14229-2 2013 Table 5: 2000 ms
+#ifndef UDS_CLIENT_DEFAULT_S3_MS
+#define UDS_CLIENT_DEFAULT_S3_MS (2000)
+#endif
+
 _Static_assert(UDS_CLIENT_DEFAULT_P2_STAR_MS > UDS_CLIENT_DEFAULT_P2_MS, "");
 
 #ifndef UDS_SERVER_DEFAULT_POWER_DOWN_TIME_MS
 #define UDS_SERVER_DEFAULT_POWER_DOWN_TIME_MS (10)
 #endif
 
+// Default value from ISO14229-2 2013 Table 4: 50 ms
 #ifndef UDS_SERVER_DEFAULT_P2_MS
 #define UDS_SERVER_DEFAULT_P2_MS (50)
 #endif
 
+// Default value from ISO14229-2 2013 Table 4: 5000 ms
 #ifndef UDS_SERVER_DEFAULT_P2_STAR_MS
-#define UDS_SERVER_DEFAULT_P2_STAR_MS (2000)
+#define UDS_SERVER_DEFAULT_P2_STAR_MS (5000)
 #endif
 
+// Default value from ISO14229-2 2013 Table 5: 5000 -0/+200 ms
 #ifndef UDS_SERVER_DEFAULT_S3_MS
-#define UDS_SERVER_DEFAULT_S3_MS (3000)
+#define UDS_SERVER_DEFAULT_S3_MS (5100)
 #endif
 
 _Static_assert(0 < UDS_SERVER_DEFAULT_P2_MS &&

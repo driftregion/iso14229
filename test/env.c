@@ -13,6 +13,21 @@ static UDSTpHandle_t *registeredTps[MAX_NUM_TP];
 static unsigned TPCount = 0;
 static uint32_t TimeNowMillis = 0;
 
+#define MAX_NUM_HOOKS 16
+static struct {
+    void (*fn)(void *);
+    void *arg;
+} Hooks[MAX_NUM_HOOKS] = {0};
+static unsigned HookCount;
+
+#define MAX_NUM_TIMEOUT_FN 16
+static struct {
+    void (*fn)(void *);
+    void *arg;
+    unsigned timeout;
+} TimeoutFns[MAX_NUM_TIMEOUT_FN] = {0};
+static unsigned TimeoutFnCnt;
+
 static ENV_Opts_t opts = {
     .tp_type = ENV_TP_TYPE_MOCK,
     .ifname = "vcan0",
@@ -78,6 +93,21 @@ static bool IsNetworkedTransport(int tp_type) {
     return tp_type == ENV_TP_TYPE_ISOTP_SOCK || tp_type == ENV_TP_TYPE_ISOTPC;
 }
 
+void ENV_AttachHook(void (*fn)(void *), void *arg) {
+    assert(HookCount < MAX_NUM_HOOKS);
+    Hooks[HookCount].arg = arg;
+    Hooks[HookCount].fn = fn;
+    HookCount++;
+}
+
+void ENV_SetTimeout(void (*fn)(void *), void *arg, unsigned delay) {
+    assert(TimeoutFnCnt < MAX_NUM_TIMEOUT_FN);
+    TimeoutFns[TimeoutFnCnt].fn = fn;
+    TimeoutFns[TimeoutFnCnt].arg = arg;
+    TimeoutFns[TimeoutFnCnt].timeout = UDSMillis() + delay;
+    TimeoutFnCnt++;
+}
+
 void ENV_RunMillis(uint32_t millis) {
     uint32_t end = UDSMillis() + millis;
     while (UDSMillis() < end) {
@@ -89,6 +119,14 @@ void ENV_RunMillis(uint32_t millis) {
         }
         for (unsigned i = 0; i < TPCount; i++) {
             UDSTpPoll(registeredTps[i]);
+        }
+        for (unsigned i = 0; i < HookCount; i++) {
+            Hooks[i].fn(Hooks[i].arg);
+        }
+        for (unsigned i = 0; i < TimeoutFnCnt; i++) {
+            if (UDSMillis() == TimeoutFns[i].timeout) {
+                TimeoutFns[i].fn(TimeoutFns[i].arg);
+            }
         }
         TimeNowMillis++;
 

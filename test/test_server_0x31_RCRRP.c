@@ -2,7 +2,7 @@
 #include "test/test.h"
 
 static uint8_t resp;
-static uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) { return resp; }
+static uint8_t fn(UDSServer_t *srv, UDSEvent_t ev, const void *arg) { return resp; }
 
 // ISO-14229-1 2013 Table A.1 Byte Value 0x78: requestCorrectlyReceived-ResponsePending
 // "This NRC is in general supported by each diagnostic service".
@@ -13,7 +13,7 @@ int main() {
     srv.fn = fn;
 
     // When a server handler func initially returns RRCRP
-    resp = kRequestCorrectlyReceived_ResponsePending;
+    resp = UDS_NRC_RequestCorrectlyReceived_ResponsePending;
 
     // sending a request to the server should return RCRRP within p2 ms
     const uint8_t REQUEST[] = {0x31, 0x01, 0x12, 0x34};
@@ -41,7 +41,7 @@ int main() {
     UDSTpAckRecv(mock_client);
 
     // When the user func now returns a positive response
-    resp = kPositiveResponse;
+    resp = UDS_PositiveResponse;
 
     // the server's next response should be a positive one
     // and it should arrive within p2 ms

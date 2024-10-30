@@ -5,29 +5,29 @@ static UDSServer_t srv;
 
 // UDS-1 2013 9.4.5.2
 // UDS-1 2013 9.4.5.3
-uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
+uint8_t fn(UDSServer_t *srv, UDSEvent_t ev, const void *arg) {
     switch (ev) {
-    case UDS_SRV_EVT_SecAccessRequestSeed: {
+    case UDS_EVT_SecAccessRequestSeed: {
         UDSSecAccessRequestSeedArgs_t *r = (UDSSecAccessRequestSeedArgs_t *)arg;
         const uint8_t seed[] = {0x36, 0x57};
         TEST_INT_NE(r->level, srv->securityLevel);
         return r->copySeed(srv, seed, sizeof(seed));
         break;
     }
-    case UDS_SRV_EVT_SecAccessValidateKey: {
+    case UDS_EVT_SecAccessValidateKey: {
         UDSSecAccessValidateKeyArgs_t *r = (UDSSecAccessValidateKeyArgs_t *)arg;
         const uint8_t expected_key[] = {0xC9, 0xA9};
         if (memcmp(r->key, expected_key, sizeof(expected_key))) {
             return kSecurityAccessDenied;
         } else {
-            return kPositiveResponse;
+            return UDS_PositiveResponse;
         }
         break;
     }
     default:
         assert(0);
     }
-    return kPositiveResponse;
+    return UDS_PositiveResponse;
 }
 
 int setup(void **state) {

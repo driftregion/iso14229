@@ -3,8 +3,8 @@
 
 uint8_t FakeData[259];
 
-uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
-    TEST_INT_EQUAL(ev, UDS_SRV_EVT_ReadMemByAddr);
+uint8_t fn(UDSServer_t *srv, UDSEvent_t ev, const void *arg) {
+    TEST_INT_EQUAL(ev, UDS_EVT_ReadMemByAddr);
     UDSReadMemByAddrArgs_t *r = (UDSReadMemByAddrArgs_t *)arg;
     TEST_PTR_EQUAL(r->memAddr, (void *)0x20481392);
     TEST_INT_EQUAL(r->memSize, 259);

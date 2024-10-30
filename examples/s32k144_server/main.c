@@ -19,8 +19,8 @@ static void isotp_debug(const char *msg, ...) {
     // BSPLog("%s", msg);
 }
 
-static uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
-    return kPositiveResponse;
+static uint8_t fn(UDSServer_t *srv, UDSEvent_t ev, const void *arg) {
+    return UDS_PositiveResponse;
 }
 
 int main() {

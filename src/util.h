@@ -2,6 +2,7 @@
 
 #include "sys.h"
 #include "config.h"
+#include "uds.h"
 
 #if UDS_ENABLE_ASSERT
 #include <assert.h>
@@ -39,3 +40,6 @@ static inline bool UDSTimeAfter(uint32_t a, uint32_t b) {
 uint32_t UDSMillis(void);
 
 bool UDSSecurityAccessLevelIsReserved(uint8_t securityLevel);
+
+const char *UDSErrToStr(UDSErr_t err);
+const char *UDSEventToStr(UDSEvent_t evt);

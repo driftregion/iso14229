@@ -2,14 +2,14 @@
 #include "test/test.h"
 
 uint8_t fn_callCount = 0;
-uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
+uint8_t fn(UDSServer_t *srv, UDSEvent_t ev, const void *arg) {
     switch (ev) {
-    case UDS_SRV_EVT_EcuReset:
+    case UDS_EVT_EcuReset:
         fn_callCount += 1;
-        return kPositiveResponse;
+        return UDS_PositiveResponse;
     default:
-        TEST_INT_EQUAL(UDS_SRV_EVT_DoScheduledReset, ev);
-        return kPositiveResponse;
+        TEST_INT_EQUAL(UDS_EVT_DoScheduledReset, ev);
+        return UDS_PositiveResponse;
     }
 }
 

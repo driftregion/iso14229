@@ -65,7 +65,7 @@ uint8_t fn(UDSServer_t *srv, int ev, const void *arg) {
      Serial.print("Got event ");
    Serial.println(ev);
    switch(ev) {
-    case UDS_SRV_EVT_Err:
+    case UDS_EVT_Err:
     {
           UDSErr_t *p_err = (UDSErr_t *)arg;
       Serial.print("Err: ");

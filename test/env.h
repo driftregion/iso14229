@@ -43,5 +43,6 @@ void ENV_RegisterServer(UDSServer_t *server);
 void ENV_RegisterClient(UDSClient_t *client);
 void ENV_RunMillis(uint32_t millis);
 const ENV_Opts_t *ENV_GetOpts();
+void ENV_AttachHook(void (*fn)(void *), void *arg);
 
 #endif

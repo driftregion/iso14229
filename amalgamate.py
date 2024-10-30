@@ -18,18 +18,19 @@ srcs = {os.path.basename(src): src for src in args.srcs}
 def strip_includes(src):
     return re.sub(r'#include ".*', "", src, flags=re.MULTILINE)
 
-isotp_c_wrapped_c = "#if defined(UDS_ISOTP_C)\n" + \
+isotp_c_wrapped_c = "#if defined(UDS_TP_ISOTP_C)\n" + \
     "#ifndef ISO_TP_USER_SEND_CAN_ARG\n" + \
     '#error\n' + \
     "#endif\n" + \
     strip_includes(open("src/tp/isotp-c/isotp.c").read()) + \
     "#endif\n"
 
-isotp_c_wrapped_h = "#if defined(UDS_ISOTP_C)\n" + \
-    "#define ISO_TP_USER_SEND_CAN_ARG\n" + \
+isotp_c_wrapped_h = "#if defined(UDS_TP_ISOTP_C)\n" + \
+    "#define ISO_TP_USER_SEND_CAN_ARG 1\n" + \
     "\n".join([strip_includes(open("src/tp/isotp-c/" + h).read()) for h in [
         "isotp_config.h",
         "isotp_defines.h",
+        "isotp_user.h",
         "isotp.h",
     ]]) + \
     "#endif\n"
@@ -74,9 +75,9 @@ with open(args.out_h, "w") as f:
         "src/sys_win32.h",
         "src/sys_esp32.h",
         "src/config.h",
-        "src/util.h",
         "src/tp.h",
         "src/uds.h",
+        "src/util.h",
         "src/client.h",
         "src/server.h",
     ]:

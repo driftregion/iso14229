@@ -23,7 +23,7 @@ typedef struct {
 static StuffToFuzz_t fuzz;
 static uint8_t client_recv_buf[UDS_TP_MTU];
 
-static uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
+static uint8_t fn(UDSServer_t *srv, UDSEvent_t ev, const void *arg) {
     printf("Whoah, got event %d\n", ev);
     return fuzz.srv_retval;
 }

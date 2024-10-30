@@ -18,7 +18,7 @@ typedef struct {
 
 typedef struct UDSServer {
     UDSTpHandle_t *tp;
-    uint8_t (*fn)(struct UDSServer *srv, UDSServerEvent_t event, const void *arg);
+    uint8_t (*fn)(struct UDSServer *srv, UDSEvent_t event, const void *arg);
 
     /**
      * @brief \~chinese 服务器时间参数（毫秒） \~ Server time constants (milliseconds) \~
@@ -79,8 +79,8 @@ typedef struct {
 typedef struct {
     const uint8_t type; /**< \~chinese 客户端请求的复位类型 \~english reset type requested by client
                            (enum UDSECUResetType) */
-    uint32_t powerDownTimeMillis; /**< when this much time has elapsed after a kPositiveResponse, a
-                                     UDS_SRV_EVT_DoScheduledReset will be issued */
+    uint32_t powerDownTimeMillis; /**< when this much time has elapsed after a UDS_PositiveResponse, a
+                                     UDS_EVT_DoScheduledReset will be issued */
 } UDSECUResetArgs_t;
 
 typedef struct {

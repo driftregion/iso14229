@@ -1,14 +1,14 @@
 #include "test/test.h"
 
-uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
-    TEST_INT_EQUAL(ev, UDS_SRV_EVT_RequestDownload);
+uint8_t fn(UDSServer_t *srv, UDSEvent_t ev, const void *arg) {
+    TEST_INT_EQUAL(ev, UDS_EVT_RequestDownload);
     UDSRequestDownloadArgs_t *r = (UDSRequestDownloadArgs_t *)arg;
     TEST_INT_EQUAL(0x11, r->dataFormatIdentifier);
     TEST_PTR_EQUAL((void *)0x602000, r->addr);
     TEST_INT_EQUAL(0x00FFFF, r->size);
     TEST_INT_EQUAL(r->maxNumberOfBlockLength, UDS_SERVER_DEFAULT_XFER_DATA_MAX_BLOCKLENGTH);
     r->maxNumberOfBlockLength = 0x0081;
-    return kPositiveResponse;
+    return UDS_PositiveResponse;
 }
 
 int main() {

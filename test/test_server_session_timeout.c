@@ -2,10 +2,10 @@
 
 static int call_count = 0;
 
-uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
-    TEST_INT_EQUAL(UDS_SRV_EVT_SessionTimeout, ev);
+uint8_t fn(UDSServer_t *srv, UDSEvent_t ev, const void *arg) {
+    TEST_INT_EQUAL(UDS_EVT_SessionTimeout, ev);
     call_count++;
-    return kPositiveResponse;
+    return UDS_PositiveResponse;
 }
 
 int main() {
@@ -13,7 +13,7 @@ int main() {
 
     struct {
         const char *tag;
-        uint8_t (*fn)(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg);
+        uint8_t (*fn)(UDSServer_t *srv, UDSEvent_t ev, const void *arg);
         uint8_t sessType;
         int expectedCallCount;
     } p[] = {
