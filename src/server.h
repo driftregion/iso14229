@@ -173,5 +173,12 @@ typedef struct {
                                            send in each    `TransferData` request */
 } UDSRequestFileTransferArgs_t;
 
+typedef struct {
+    const uint16_t sid;          /*! serviceIdentifier */
+    const uint8_t *optionRecord; /*! optional data */
+    const uint16_t len;          /*! length of optional data */
+    uint8_t (*copyResponse)(UDSServer_t *srv, const void *src, uint16_t len); /*! function for copying response data (optional) */
+} UDSCustomArgs_t;
+
 UDSErr_t UDSServerInit(UDSServer_t *srv);
 void UDSServerPoll(UDSServer_t *srv);
