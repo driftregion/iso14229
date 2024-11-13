@@ -100,16 +100,36 @@ void TestISOTPFlowControlFrameTimeout(void **state) {
         skip();
     }
 
-    // killing server so that no response is sent to client
-    ENV_TpFree(srv);
+    int tp_type = ENV_GetOpts()->tp_type;
+    if (tp_type == ENV_TP_TYPE_ISOTP_SOCK){
+        // killing server if using ISOTP sockets so that no response is sent to client
+        ENV_TpFree(srv);
+    }
 
     // sending multiframe to wait for Flow Control frame
     // which will not arrive since no server is running
     const uint8_t MSG[] = {1, 2, 3, 4, 5, 6, 7, 8};
     ssize_t ret = UDSTpSend(client, MSG, sizeof(MSG), NULL);
 
-    // failure is expected as the elapsed 1s timeout raises an error on the ISOTP socket
-    assert_true(ret < 0);
+    tp_type = ENV_GetOpts()->tp_type;
+    if (tp_type == ENV_TP_TYPE_ISOTPC) {
+        // running poll just for the client to simulate the server not responding
+        ENV_RunMillisForTpRegisteredAt(1500, 1);
+        assert(((UDSTpISOTpC_t *)client)->phys_link.send_protocol_result == ISOTP_PROTOCOL_RESULT_TIMEOUT_BS);
+        assert(((UDSTpISOTpC_t *)client)->phys_link.send_status == ISOTP_SEND_STATUS_ERROR);
+    } else if (tp_type == ENV_TP_TYPE_ISOTP_SOCK) {
+        // failure is expected as the elapsed 1s timeout raises an error on the ISOTP socket
+        assert_true(ret < 0);
+    } else {
+        // do no test anything
+    }
+
+    tp_type = ENV_GetOpts()->tp_type;
+    if (tp_type == ENV_TP_TYPE_ISOTP_SOCK){
+        // reinitialize the server so the teardown function does not fail because
+        // of calling free() twice on the server sockets
+        srv = ENV_TpNew("server");
+    }
 }
 
 int main() {
