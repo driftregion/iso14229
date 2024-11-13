@@ -42,6 +42,7 @@ void ENV_TpFree(UDSTpHandle_t *tp);
 void ENV_RegisterServer(UDSServer_t *server);
 void ENV_RegisterClient(UDSClient_t *client);
 void ENV_RunMillis(uint32_t millis);
+void ENV_RunMillisForTpRegisteredAt(uint32_t millis, unsigned at);
 const ENV_Opts_t *ENV_GetOpts();
 
 #endif
