@@ -100,6 +100,22 @@ void ENV_RunMillis(uint32_t millis) {
     }
 }
 
+void ENV_RunMillisForTpRegisteredAt(uint32_t millis, unsigned at) {
+    uint32_t end = UDSMillis() + millis;
+    while (UDSMillis() < end) {
+        assert(at >= 0 && at < MAX_NUM_TP);
+
+        UDSTpPoll(registeredTps[at]);
+        TimeNowMillis++;
+
+        // uses vcan, needs delay
+        if (IsNetworkedTransport(opts.tp_type)) {
+            // usleep(10);
+            msleep(1);
+        }
+    }
+}
+
 UDSTpHandle_t *ENV_TpNew(const char *name) {
     ENV_ParseOpts();
     UDSTpHandle_t *tp = NULL;
