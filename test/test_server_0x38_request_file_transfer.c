@@ -10,7 +10,7 @@ uint8_t fn_addfile(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
     TEST_INT_EQUAL(0x112233, r->fileSizeUnCompressed);
     TEST_INT_EQUAL(0x001122, r->fileSizeCompressed);
     r->maxNumberOfBlockLength = 0x0081;
-    return kPositiveResponse;
+    return UDS_PositiveResponse;
 }
 
 uint8_t fn_delfile(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
@@ -19,7 +19,7 @@ uint8_t fn_delfile(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
     TEST_INT_EQUAL(0x02, r->modeOfOperation);
     TEST_INT_EQUAL(18, r->filePathLen);
     TEST_MEMORY_EQUAL((void *)"/data/testfile.zip", r->filePath, r->filePathLen);
-    return kPositiveResponse;
+    return UDS_PositiveResponse;
 }
 
 int main() {

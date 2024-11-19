@@ -20,6 +20,7 @@ typedef enum UDSEvent {
     UDS_EVT_RequestTransferExit,  // UDSRequestTransferExitArgs_t *
     UDS_EVT_SessionTimeout,       // NULL
     UDS_EVT_DoScheduledReset,     // enum UDSEcuResetType *
+    UDS_EVT_RequestFileTransfer,  // UDSRequestFileTransferArgs_t *
 
     // Client Event
     UDS_EVT_Poll,                     // NULL
@@ -86,7 +87,7 @@ typedef enum {
     UDS_ERR_FILE_IO,              // 文件IO错误
     UDS_ERR_RESP_TOO_SHORT,       // 响应太短
     UDS_ERR_BUFSIZ,               // 缓冲器不够大
-    UDS_ERR_INVALID_ARG,          // 参数不对、没发
+    UDS_ERR_INVALID_ARG,          // The function has been called with invalid arguments
     UDS_ERR_BUSY,                 // 正在忙、没发
     UDS_ERR_MISUSE,               // The library is used incorrectly
 } UDSErr_t;

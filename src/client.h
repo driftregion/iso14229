@@ -5,14 +5,13 @@
 #include "uds.h"
 
 enum UDSClientRequestState {
+    kRequestStateUnconfigured = -1,
     kRequestStateIdle = 0,          // 完成
     kRequestStateSending,           // 传输层现在传输数据
     kRequestStateAwaitSendComplete, // 等待传输发送完成
     kRequestStateAwaitResponse,     // 等待响应
     kRequestStateProcessResponse,   // 处理响应
 };
-
-typedef uint8_t UDSClientRequestState_t;
 
 enum UDSClientOptions {
     UDS_SUPPRESS_POS_RESP = 0x1,  // 服务器不应该发送肯定响应
@@ -34,7 +33,7 @@ typedef struct UDSClient {
     uint16_t send_buf_size;
     uint16_t recv_size;
     uint16_t send_size;
-    UDSClientRequestState_t state;
+    int8_t state;
 
     uint8_t options;        // enum udsclientoptions
     uint8_t defaultOptions; // enum udsclientoptions

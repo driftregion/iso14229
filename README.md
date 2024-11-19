@@ -23,9 +23,9 @@ API status: Major version zero (0.y.z) **(not yet stable)**. Anything MAY change
 3. Refer to the [examples](./examples) and [tests](./test) for usage.
 
 
-## Configuration
+## Compile-Time Features
 
-iso14229 is configured via preprocessor defines:
+The following features are configured with preprocessor defines:
 
 | Define | Description | Valid values | 
 | - | - | - |
@@ -76,7 +76,7 @@ iso14229 is configured via preprocessor defines:
 | 0x85 | control DTC setting | ✅ |
 | 0x86 | response on event | ❌ |
 
-# Documentation
+# Documentation: Server
 
 ## Server Events
 
@@ -339,12 +339,16 @@ typedef struct {
 
 | Value  | enum                 | Meaning | 
 | - | - | - | 
-| `0x00` | `kPositiveResponse` | Request accepted  |
+| `0x00` | `UDS_PositiveResponse` | Request accepted  |
 | `0x13` | `kIncorrectMessageLengthOrInvalidFormat` | Length of the message is wrong |
 | `0x22` | `kConditionsNotCorrect` | Downloading or uploading data is ongoing or other conditions to be able to execute this service are not met |
 | `0x31` | `kRequestOutOfRange` | `data` contents invalid, length incorrect |
 | `0x33` | `kSecurityAccessDenied` | The server is secure |
 | `0x70` | `kUploadDownloadNotAccepted` | An attempt to download to a server's memory cannot be accomplished due to some fault conditions |
+
+# Documentation: Client
+
+
 
 ## Examples
 

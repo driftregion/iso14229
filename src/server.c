@@ -649,13 +649,13 @@ static uint8_t _0x37_RequestTransferExit(UDSServer_t *srv, UDSReq_t *r) {
     }
 }
 static uint8_t _0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
-    uint8_t err = kPositiveResponse;
+    uint8_t err = UDS_PositiveResponse;
 
     if (srv->xferIsActive) {
-        return NegativeResponse(r, kConditionsNotCorrect);
+        return NegativeResponse(r, UDS_NRC_ConditionsNotCorrect);
     }
     if (r->recv_len < UDS_0X38_REQ_BASE_LEN) {
-        return NegativeResponse(r, kIncorrectMessageLengthOrInvalidFormat);
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
     uint8_t operation = r->recv_buf[1];
@@ -669,7 +669,7 @@ static uint8_t _0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
     if ((operation == kAddFile) || (operation == kReplaceFile)){
         size_t size = r->recv_buf[UDS_0X38_REQ_BASE_LEN + file_path_len + 1];
         if (size > sizeof(size_t)){
-            return NegativeResponse(r, kRequestOutOfRange);
+            return NegativeResponse(r, UDS_NRC_RequestOutOfRange);
         }
         for (size_t byteIdx = 0; byteIdx < size; byteIdx++) {
             size_t byte = r->recv_buf[UDS_0X38_REQ_BASE_LEN + file_path_len + 2 + byteIdx];
@@ -691,9 +691,9 @@ static uint8_t _0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
         .fileSizeCompressed = file_size_compressed,
     };
 
-    err = EmitEvent(srv, UDS_SRV_EVT_RequestFileTransfer, &args);
+    err = EmitEvent(srv, UDS_EVT_RequestFileTransfer, &args);
 
-    if (kPositiveResponse != err) {
+    if (UDS_PositiveResponse != err) {
         return NegativeResponse(r, err);
     }
 
@@ -717,7 +717,7 @@ static uint8_t _0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
     r->send_buf[UDS_0X38_RESP_BASE_LEN + sizeof(args.maxNumberOfBlockLength)] = args.dataFormatIdentifier;
 
     r->send_len = UDS_0X38_RESP_BASE_LEN + sizeof(args.maxNumberOfBlockLength) + 1;
-    return kPositiveResponse;
+    return UDS_PositiveResponse;
 }
 
 static uint8_t _0x3E_TesterPresent(UDSServer_t *srv, UDSReq_t *r) {

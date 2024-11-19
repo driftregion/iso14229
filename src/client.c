@@ -3,18 +3,13 @@
 #include "uds.h"
 #include "util.h"
 
-static void clearRequestContext(UDSClient_t *client) {
-    UDS_ASSERT(client);
-    client->recv_size = 0;
-    client->send_size = 0;
-    client->state = kRequestStateIdle;
-}
 
 UDSErr_t UDSClientInit(UDSClient_t *client) {
     if (NULL == client) {
         return UDS_ERR_INVALID_ARG;
     }
     memset(client, 0, sizeof(*client));
+    client->state = kRequestStateUnconfigured;
 
     client->p2_ms = UDS_CLIENT_DEFAULT_P2_MS;
     client->p2_star_ms = UDS_CLIENT_DEFAULT_P2_STAR_MS;
@@ -24,7 +19,6 @@ UDSErr_t UDSClientInit(UDSClient_t *client) {
         client->p2_star_ms = client->p2_ms;
     }
 
-    clearRequestContext(client);
     return UDS_OK;
 }
 
@@ -46,9 +40,22 @@ static const char *ClientStateName(enum UDSClientRequestState state) {
 }
 
 static void changeState(UDSClient_t *client, enum UDSClientRequestState state) {
-    UDS_DBG_PRINT("client state: %s (%d) -> %s (%d)\n", ClientStateName(client->state), client->state,
-           ClientStateName(state), state);
-    client->state = state;
+    if (state != client->state) {
+        UDS_DBG_PRINT("client state: %s (%d) -> %s (%d)\n", ClientStateName(client->state), client->state,
+            ClientStateName(state), state);
+
+        client->state = state;
+
+        switch (state) {
+            case kRequestStateUnconfigured:
+                break;
+            case kRequestStateIdle:
+                client->fn(client, UDS_EVT_Idle, NULL);
+                break;
+            default:
+                break;
+        }
+    }
 }
 
 /**
@@ -140,7 +147,6 @@ static UDSErr_t HandleServerResponse(UDSClient_t *client) {
         }
     }
     UDSTpAckRecv(client->tp);
-    changeState(client, kRequestStateIdle);
     return UDS_OK;
 }
 
@@ -263,7 +269,10 @@ static UDSErr_t PreRequestCheck(UDSClient_t *client) {
     if (kRequestStateIdle != client->state) {
         return UDS_ERR_BUSY;
     }
-    clearRequestContext(client);
+
+    client->recv_size = 0;
+    client->send_size = 0;
+
     if (client->tp == NULL) {
         return UDS_ERR_TPORT;
     }
@@ -574,7 +583,7 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, enum FileOperationMode 
         return err;
     }
     uint16_t filePathLen = strlen(filePath);
-    if (filePathLen < 1)return UDS_ERR;
+    if (filePathLen < 1)return UDS_FAIL;
 
     uint8_t fileSizeBytes = 0;
     if ((mode == kAddFile) || (mode == kReplaceFile)){
@@ -609,7 +618,7 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, enum FileOperationMode 
     }
 
     client->send_size = bufSize;
-    return _SendRequest(client);
+    return SendRequest(client);
 }
 
 /**
@@ -782,6 +791,9 @@ UDSErr_t UDSUnpackRequestDownloadResponse(const UDSClient_t *client,
 UDSErr_t UDSClientPoll(UDSClient_t *client) {
     if (NULL == client->fn) {
         return UDS_ERR_MISUSE;
+    }
+    if (kRequestStateUnconfigured == client->state) {
+        changeState(client, kRequestStateIdle);
     }
 
     UDSErr_t err = PollLowLevel(client);

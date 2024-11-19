@@ -24,23 +24,13 @@ static uint8_t fn(UDSServer_t *srv, UDSEvent_t ev, const void *arg) {
     }
 }
 
-static int sleep_ms(uint32_t tms) {
-    struct timespec ts;
-    int ret;
-    ts.tv_sec = tms / 1000;
-    ts.tv_nsec = (tms % 1000) * 1000000;
-    do {
-        ret = nanosleep(&ts, &ts);
-    } while (ret && errno == EINTR);
-    return ret;
-}
-
 int main(int ac, char **av) {
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
     sa.sa_handler = sigint_handler;
     sigaction(SIGINT, &sa, NULL);
 
+    // 1. Initialize a transport
     if (UDSTpIsoTpSockInitServer(&tp, "vcan0", 0x7E0, 0x7E8, 0x7DF)) {
         fprintf(stderr, "UDSTpIsoTpSockInitServer failed\n");
         exit(-1);
@@ -60,4 +50,15 @@ int main(int ac, char **av) {
     }
     printf("server exiting\n");
     return 0;
+}
+
+static int sleep_ms(uint32_t tms) {
+    struct timespec ts;
+    int ret;
+    ts.tv_sec = tms / 1000;
+    ts.tv_nsec = (tms % 1000) * 1000000;
+    do {
+        ret = nanosleep(&ts, &ts);
+    } while (ret && errno == EINTR);
+    return ret;
 }

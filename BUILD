@@ -15,6 +15,10 @@ cc_library(
         "iso14229.c",
         "iso14229.h",
     ],
+    defines = select({
+        "@platforms//os:linux": ["UDS_TP_ISOTP_SOCK"],
+        "//conditions:default": [],
+    })
 )
 
 cc_library(

@@ -120,7 +120,7 @@ void PrintEventLog() {
         if (Events[i].evt == UDS_EVT_Err) {
             snprintf(extra, sizeof(extra), ": [%s]", UDSErrToStr(*(int*)Events[i].ev_data));
         } 
-        printf("% 3d, % 6d, % 3d, %s%s\n", i, Events[i].time, Events[i].evt, UDSEventToStr(Events[i].evt), extra);
+        printf("% 3d, % 6d, % 3d, %s%s\n", i, Events[i].time, Events[i].evt, UDSEvtToStr(Events[i].evt), extra);
     }
     fflush(stdout);
 }

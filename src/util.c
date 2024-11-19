@@ -95,16 +95,13 @@ const char *UDSErrToStr(UDSErr_t err) {
     #undef MAKE_CASE
 }
 
-const char *UDSEventToStr(UDSEvent_t evt) {
+const char *UDSEvtToStr(UDSEvent_t evt) {
     #define MAKE_CASE(x) \
     case x: \
         return #x;
 
     switch (evt) {
         MAKE_CASE(UDS_EVT_Err)
-        MAKE_CASE(UDS_EVT_Poll)
-        MAKE_CASE(UDS_EVT_ResponseReceived)
-        MAKE_CASE(UDS_EVT_Idle)
         MAKE_CASE(UDS_EVT_DiagSessCtrl)
         MAKE_CASE(UDS_EVT_EcuReset)
         MAKE_CASE(UDS_EVT_ReadDataByIdent)
@@ -120,6 +117,12 @@ const char *UDSEventToStr(UDSEvent_t evt) {
         MAKE_CASE(UDS_EVT_RequestTransferExit)
         MAKE_CASE(UDS_EVT_SessionTimeout)
         MAKE_CASE(UDS_EVT_DoScheduledReset)
+        MAKE_CASE(UDS_EVT_RequestFileTransfer)
+
+        MAKE_CASE(UDS_EVT_Poll)
+        MAKE_CASE(UDS_EVT_SendComplete)
+        MAKE_CASE(UDS_EVT_ResponseReceived)
+        MAKE_CASE(UDS_EVT_Idle)
 
         default:
             return "unknown";
