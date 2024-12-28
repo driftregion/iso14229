@@ -1,14 +1,6 @@
 load("@hedron_compile_commands//:refresh_compile_commands.bzl", "refresh_compile_commands")
 package(default_visibility = ["//visibility:public"])
 
-filegroup(
-    name = "srcs",
-    srcs = [
-        "iso14229.c",
-        "iso14229.h",
-    ],
-)
-
 cc_library(
     name="iso14229",
     srcs = [
@@ -21,16 +13,17 @@ cc_library(
     })
 )
 
-cc_library(
-    name="iso14229_2",
-    srcs=glob(["src/**/*.c", "src/**/*.h"]),
-    copts=['-Isrc'],
-)
-
 refresh_compile_commands(
     name = "s32k_refresh_compile_commands",
     targets = {
         "//examples/s32k144/...": "--config=s32k",
+    }
+)
+
+refresh_compile_commands(
+    name = "test_compile_commands",
+    targets = {
+        "//test:all": "",
     }
 )
 

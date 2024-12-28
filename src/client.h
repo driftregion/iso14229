@@ -5,7 +5,6 @@
 #include "uds.h"
 
 enum UDSClientRequestState {
-    kRequestStateUnconfigured = -1,
     kRequestStateIdle = 0,          // 完成
     kRequestStateSending,           // 传输层现在传输数据
     kRequestStateAwaitSendComplete, // 等待传输发送完成
@@ -103,8 +102,6 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, enum FileOperationMode 
 
 UDSErr_t UDSCtrlDTCSetting(UDSClient_t *client, uint8_t dtcSettingType,
                            uint8_t *dtcSettingControlOptionRecord, uint16_t len);
-UDSErr_t UDSUnpackRDBIResponse(const UDSClient_t *client, uint16_t did, uint8_t *data,
-                                       uint16_t size, uint16_t *offset);
 UDSErr_t UDSUnpackSecurityAccessResponse(const UDSClient_t *client,
                                          struct SecurityAccessResponse *resp);
 UDSErr_t UDSUnpackRequestDownloadResponse(const UDSClient_t *client,

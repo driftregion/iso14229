@@ -78,8 +78,13 @@ typedef enum {
     UDS_NRC_TorqueConverterClutchLocked = 0x91,
     UDS_NRC_VoltageTooHigh = 0x92,
     UDS_NRC_VoltageTooLow = 0x93,
+    UDS_NRC_ResourceTemporarilyNotAvailable = 0x94,
 
-    UDS_ERR_TIMEOUT,              // 请求超时
+    /* 0x95 to 0xEF are reservedForSpecificConditionsNotCorrect */
+    /* 0xF0 to 0xFE are vehicleManufacturerSpecificConditionsNotCorrect */
+    /* 0xFF is ISOSAEReserved */
+
+    UDS_ERR_TIMEOUT = 0x100,      // 请求超时
     UDS_ERR_DID_MISMATCH,         // 响应DID对不上期待的DID
     UDS_ERR_SID_MISMATCH,         // 请求和响应SID对不上
     UDS_ERR_SUBFUNCTION_MISMATCH, // 请求和响应SubFunction对不上

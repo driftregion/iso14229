@@ -3,7 +3,6 @@ cc_library(
     srcs = [
         "env.c",
         "env.h",
-        "test.h",
         "//:iso14229.h",
         "//:iso14229.c",
     ],
@@ -15,14 +14,13 @@ cc_library(
         "UDS_CUSTOM_MILLIS",
         "UDS_ENABLE_DBG_PRINT",
         "UDS_ENABLE_ASSERT",
-        # "UDS_LINES",
+        "UDS_LINES",
     ],
     copts = [ "-g", ],
 )
 
 TEST_SRCS = [
     "test_client_0x11_ECU_reset.c",
-    "test_client_0x22_RDBI_unpack_response.c",
     "test_client_0x31_RCRRP.c",
     "test_client_0x34_request_download.c",
     "test_client_0x38_request_file_transfer.c",

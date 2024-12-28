@@ -25,7 +25,7 @@ static void LogMsg(const char *prefix, const uint8_t *buf, size_t len, UDSSDU_t 
     if (!LogFile) {
         return;
     }
-    fprintf(LogFile, "%06d, %s sends, 0x%03x (%s), ", UDSMillis(), prefix, info->A_TA,
+    fprintf(LogFile, "%06d, %s, 0x%03x (%s), ", UDSMillis(), prefix, info->A_TA,
             info->A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
     for (unsigned i = 0; i < len; i++) {
         fprintf(LogFile, "%02x ", buf[i]);
@@ -51,7 +51,7 @@ static void NetworkPoll(void) {
                     tp->recv_info = msg->info;
                 }
             }
-            LogMsg("network", msg->buf, msg->len, &msg->info);
+            LogMsg("network sees", msg->buf, msg->len, &msg->info);
             for (unsigned j = i + 1; j < MsgCount; j++) {
                 msgs[j - 1] = msgs[j];
             }

@@ -9,7 +9,7 @@ UDSErr_t UDSClientInit(UDSClient_t *client) {
         return UDS_ERR_INVALID_ARG;
     }
     memset(client, 0, sizeof(*client));
-    client->state = kRequestStateUnconfigured;
+    client->state = kRequestStateIdle;
 
     client->p2_ms = UDS_CLIENT_DEFAULT_P2_MS;
     client->p2_star_ms = UDS_CLIENT_DEFAULT_P2_STAR_MS;
@@ -47,8 +47,6 @@ static void changeState(UDSClient_t *client, enum UDSClientRequestState state) {
         client->state = state;
 
         switch (state) {
-            case kRequestStateUnconfigured:
-                break;
             case kRequestStateIdle:
                 client->fn(client, UDS_EVT_Idle, NULL);
                 break;
@@ -792,9 +790,6 @@ UDSErr_t UDSClientPoll(UDSClient_t *client) {
     if (NULL == client->fn) {
         return UDS_ERR_MISUSE;
     }
-    if (kRequestStateUnconfigured == client->state) {
-        changeState(client, kRequestStateIdle);
-    }
 
     UDSErr_t err = PollLowLevel(client);
     if (err) {
@@ -802,32 +797,4 @@ UDSErr_t UDSClientPoll(UDSClient_t *client) {
     } 
     client->fn(client, UDS_EVT_Poll, NULL);
     return err;
-}
-
-UDSErr_t UDSUnpackRDBIResponse(const UDSClient_t *client, uint16_t did, uint8_t *data,
-                                       uint16_t size, uint16_t *offset) {
-    if (NULL == client || NULL == data || NULL == offset) {
-        return UDS_ERR_INVALID_ARG;
-    }
-    if (0 == *offset) {
-        *offset = UDS_0X22_RESP_BASE_LEN;
-    }
-
-    if (*offset + sizeof(did) > client->recv_size) {
-        return UDS_ERR_RESP_TOO_SHORT;
-    }
-
-    uint16_t theirDID = (client->recv_buf[*offset] << 8) + client->recv_buf[*offset + 1];
-    if (theirDID != did) {
-        return UDS_ERR_DID_MISMATCH;
-    }
-
-    if (*offset + sizeof(uint16_t) + size > client->recv_size) {
-        return UDS_ERR_RESP_TOO_SHORT;
-    }
-
-    memmove(data, client->recv_buf + *offset + sizeof(uint16_t), size);
-
-    *offset += sizeof(uint16_t) + size;
-    return UDS_OK;
 }

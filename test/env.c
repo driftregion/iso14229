@@ -70,19 +70,15 @@ void ENV_ServerInit(UDSServer_t *srv) {
     ENV_ParseOpts();
     UDSServerInit(srv);
     srv->tp = ENV_TpNew("server");
-    ENV_RegisterServer(srv);
+    registeredServer = srv;
 }
 
-void ENV_ClientInit(UDSClient_t *cli) {
+void ENV_ClientInit(UDSClient_t *client) {
     ENV_ParseOpts();
-    UDSClientInit(cli);
-    cli->tp = ENV_TpNew("client");
-    ENV_RegisterClient(cli);
+    UDSClientInit(client);
+    client->tp = ENV_TpNew("client");
+    registeredClient = client;
 }
-
-void ENV_RegisterServer(UDSServer_t *server) { registeredServer = server; }
-
-void ENV_RegisterClient(UDSClient_t *client) { registeredClient = client; }
 
 uint32_t UDSMillis() { return TimeNowMillis; }
 
@@ -115,7 +111,10 @@ void ENV_RunMillis(uint32_t millis) {
             UDSServerPoll(registeredServer);
         }
         if (registeredClient) {
-            UDSClientPoll(registeredClient);
+            UDSErr_t err = UDSClientPoll(registeredClient);
+            if (opts.assert_no_client_err) {
+                assert_int_equal(err, UDS_OK);
+            }
         }
         for (unsigned i = 0; i < TPCount; i++) {
             UDSTpPoll(registeredTps[i]);
