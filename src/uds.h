@@ -2,7 +2,7 @@
 
 typedef enum UDSEvent {
     // Common Event ----------------- Argument Type
-    UDS_EVT_Err,                  // UDSErr_t *
+    UDS_EVT_Err, // UDSErr_t *
 
     // Server Event ----------------- Argument Type
     UDS_EVT_DiagSessCtrl,         // UDSDiagSessCtrlArgs_t *
@@ -23,16 +23,16 @@ typedef enum UDSEvent {
     UDS_EVT_RequestFileTransfer,  // UDSRequestFileTransferArgs_t *
 
     // Client Event
-    UDS_EVT_Poll,                     // NULL
-    UDS_EVT_SendComplete,             // 
-    UDS_EVT_ResponseReceived,         // 
-    UDS_EVT_Idle,                     // NULL
+    UDS_EVT_Poll,             // NULL
+    UDS_EVT_SendComplete,     //
+    UDS_EVT_ResponseReceived, //
+    UDS_EVT_Idle,             // NULL
 
 } UDSEvent_t;
 
 typedef enum {
-    UDS_FAIL = -1,                // 通用错误
-    UDS_OK = 0,                   // 成功
+    UDS_FAIL = -1, // 通用错误
+    UDS_OK = 0,    // 成功
 
     UDS_PositiveResponse = 0,
 
@@ -157,7 +157,7 @@ enum RoutineControlType {
 /**
  * @addtogroup requestFileTransfer_0x38
  */
-enum FileOperationMode  {
+enum FileOperationMode {
     kAddFile = 1,
     kDeleteFile = 2,
     kReplaceFile = 3,

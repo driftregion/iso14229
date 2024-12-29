@@ -3,6 +3,13 @@
 #include "uds.h"
 #include "util.h"
 
+enum UDSClientRequestState {
+    kRequestStateIdle = 0,          // 完成
+    kRequestStateSending,           // 传输层现在传输数据
+    kRequestStateAwaitSendComplete, // 等待传输发送完成
+    kRequestStateAwaitResponse,     // 等待响应
+    kRequestStateProcessResponse,   // 处理响应
+};
 
 UDSErr_t UDSClientInit(UDSClient_t *client) {
     if (NULL == client) {
@@ -41,17 +48,17 @@ static const char *ClientStateName(enum UDSClientRequestState state) {
 
 static void changeState(UDSClient_t *client, enum UDSClientRequestState state) {
     if (state != client->state) {
-        UDS_DBG_PRINT("client state: %s (%d) -> %s (%d)\n", ClientStateName(client->state), client->state,
-            ClientStateName(state), state);
+        UDS_DBG_PRINT("client state: %s (%d) -> %s (%d)\n", ClientStateName(client->state),
+                      client->state, ClientStateName(state), state);
 
         client->state = state;
 
         switch (state) {
-            case kRequestStateIdle:
-                client->fn(client, UDS_EVT_Idle, NULL);
-                break;
-            default:
-                break;
+        case kRequestStateIdle:
+            client->fn(client, UDS_EVT_Idle, NULL);
+            break;
+        default:
+            break;
         }
     }
 }
@@ -573,35 +580,38 @@ UDSErr_t UDSSendRequestTransferExit(UDSClient_t *client) {
     return SendRequest(client);
 }
 
-UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, enum FileOperationMode mode, const char *filePath, 
-                                uint8_t dataFormatIdentifier, uint8_t fileSizeParameterLength, 
-                                size_t fileSizeUncompressed, size_t fileSizeCompressed){
+UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, enum FileOperationMode mode,
+                                    const char *filePath, uint8_t dataFormatIdentifier,
+                                    uint8_t fileSizeParameterLength, size_t fileSizeUncompressed,
+                                    size_t fileSizeCompressed) {
     UDSErr_t err = PreRequestCheck(client);
     if (err) {
         return err;
     }
     uint16_t filePathLen = strlen(filePath);
-    if (filePathLen < 1)return UDS_FAIL;
+    if (filePathLen < 1)
+        return UDS_FAIL;
 
     uint8_t fileSizeBytes = 0;
-    if ((mode == kAddFile) || (mode == kReplaceFile)){
+    if ((mode == kAddFile) || (mode == kReplaceFile)) {
         fileSizeBytes = fileSizeParameterLength;
     }
     size_t bufSize = 5 + filePathLen + fileSizeBytes + fileSizeBytes;
-    if ((mode == kAddFile) || (mode == kReplaceFile) || (mode == kReadFile)){
+    if ((mode == kAddFile) || (mode == kReplaceFile) || (mode == kReadFile)) {
         bufSize += 1;
     }
-    if (client->send_buf_size < bufSize)return UDS_ERR_BUFSIZ;
+    if (client->send_buf_size < bufSize)
+        return UDS_ERR_BUFSIZ;
 
     client->send_buf[0] = kSID_REQUEST_FILE_TRANSFER;
     client->send_buf[1] = mode;
     client->send_buf[2] = (filePathLen >> 8) & 0xFF;
     client->send_buf[3] = filePathLen & 0xFF;
     memcpy(&client->send_buf[4], filePath, filePathLen);
-    if ((mode == kAddFile) || (mode == kReplaceFile) || (mode == kReadFile)){
+    if ((mode == kAddFile) || (mode == kReplaceFile) || (mode == kReadFile)) {
         client->send_buf[4 + filePathLen] = dataFormatIdentifier;
     }
-    if ((mode == kAddFile) || (mode == kReplaceFile)){
+    if ((mode == kAddFile) || (mode == kReplaceFile)) {
         client->send_buf[5 + filePathLen] = fileSizeParameterLength;
         uint8_t *ptr = &client->send_buf[6 + filePathLen];
         for (int i = fileSizeParameterLength - 1; i >= 0; i--) {
@@ -794,7 +804,7 @@ UDSErr_t UDSClientPoll(UDSClient_t *client) {
     UDSErr_t err = PollLowLevel(client);
     if (err) {
         client->fn(client, UDS_EVT_Err, &err);
-    } 
+    }
     client->fn(client, UDS_EVT_Poll, NULL);
     return err;
 }

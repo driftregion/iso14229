@@ -227,10 +227,11 @@ UDSErr_t UDSTpIsoTpSockInitClient(UDSTpIsoTpSock_t *tp, const char *ifname, uint
     if (tp->phys_fd < 0 || tp->func_fd < 0) {
         return UDS_FAIL;
     }
-    UDS_DBG_PRINT("%s initialized phys link (fd %d) rx 0x%03x tx 0x%03x func link (fd %d) rx 0x%03x tx "
-           "0x%03x\n",
-           strlen(tp->tag) ? tp->tag : "client", tp->phys_fd, source_addr, target_addr, tp->func_fd,
-           source_addr, target_addr_func);
+    UDS_DBG_PRINT(
+        "%s initialized phys link (fd %d) rx 0x%03x tx 0x%03x func link (fd %d) rx 0x%03x tx "
+        "0x%03x\n",
+        strlen(tp->tag) ? tp->tag : "client", tp->phys_fd, source_addr, target_addr, tp->func_fd,
+        source_addr, target_addr_func);
     return UDS_OK;
 }
 

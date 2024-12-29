@@ -1,6 +1,73 @@
-###############################################################################
-# Bazel now uses Bzlmod by default to manage external dependencies.
-# Please consider migrating your external dependencies from WORKSPACE to MODULE.bazel.
-#
-# For more details, please check https://github.com/bazelbuild/bazel/issues/18958
-###############################################################################
+module(name = "iso14229")
+
+bazel_dep(name = "hedron_compile_commands", dev_dependency = True)
+git_override(
+    module_name = "hedron_compile_commands",
+    remote = "https://github.com/hedronvision/bazel-compile-commands-extractor.git",
+    commit = "0e990032f3c5a866e72615cf67e5ce22186dcb97",
+)
+
+# bazel_dep(name = "cmocka", dev_dependency = True)
+# archive_override(
+#     module_name = "cmocka",
+#     urls = ["https://cmocka.org/files/1.1/cmocka-1.1.7.tar.xz"],
+#     integrity = "sha256-gQVw6wuNZIBDMfgrKf9Hx5DOnNaxY+mNR6SAcEfsrYI=",
+#     build_file = "test/cmocka.BUILD",
+#     strip_prefix = "cmocka-1.1.7",
+# )
+
+# bazel_dep(name = "s32k_sdk", dev_dependency = True)
+# archive_override(
+#     module_name = "s32k_sdk",
+#     urls = ["https://www.keil.com/pack/Keil.S32_SDK_DFP.1.5.0.pack"],
+#     # integrity = "sha256-",
+#     type = "zip",
+#     build_file = "platforms/s32k_sdk.BUILD",
+# )
+# bazel_dep(name = "cmsis", dev_dependency = True)
+# archive_override(
+#     module_name = "cmsis",
+#     build_file = "platforms/cmsis.BUILD",
+#     integrity = "sha256-FLNm8oIe5dMvDTv0jvllfKRTRyYdBTEmNYCEjp02+PQ=",
+#     urls = ["http://www.keil.com/pack/ARM.CMSIS.5.9.0.pack"],
+#     type = ".zip",
+# )
+
+
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+
+http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+http_archive(
+    name = "cmocka",
+    url = "https://cmocka.org/files/1.1/cmocka-1.1.7.tar.xz",
+    sha256 = "810570eb0b8d64804331f82b29ff47c790ce9cd6b163e98d47a4807047ecad82",
+    build_file = "//test:cmocka.BUILD",
+    strip_prefix = "cmocka-1.1.7",
+)
+
+http_archive(
+    name = "s32k_sdk",
+    url = "https://www.keil.com/pack/Keil.S32_SDK_DFP.1.5.0.pack",
+    sha256 = "95f7649aee66deb656cc999f300663544113245aecd407cfc90548377355353b",
+    type = "zip",
+    build_file = "//platforms:s32k_sdk.BUILD",
+)
+
+http_archive(
+    name = "CMSIS",
+    build_file = "//platforms:cmsis.BUILD",
+    sha256 = "14b366f2821ee5d32f0d3bf48ef9657ca45347261d0531263580848e9d36f8f4",
+    urls = ["http://www.keil.com/pack/ARM.CMSIS.5.9.0.pack"],
+    type = ".zip",
+)
+
+# https://github.com/bazelbuild/bazel/issues/18616
+http_archive(
+    name = "rules_cc",
+    urls = ["https://github.com/bazelbuild/rules_cc/releases/download/0.0.17/rules_cc-0.0.17.tar.gz"],
+    sha256 = "abc605dd850f813bb37004b77db20106a19311a96b2da1c92b789da529d28fe1",
+    strip_prefix = "rules_cc-0.0.17",
+)
+
+bazel_dep(name = "platforms", version="0.0.10", dev_dependency = True)

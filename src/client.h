@@ -4,14 +4,6 @@
 #include "tp.h"
 #include "uds.h"
 
-enum UDSClientRequestState {
-    kRequestStateIdle = 0,          // 完成
-    kRequestStateSending,           // 传输层现在传输数据
-    kRequestStateAwaitSendComplete, // 等待传输发送完成
-    kRequestStateAwaitResponse,     // 等待响应
-    kRequestStateProcessResponse,   // 处理响应
-};
-
 enum UDSClientOptions {
     UDS_SUPPRESS_POS_RESP = 0x1,  // 服务器不应该发送肯定响应
     UDS_FUNCTIONAL = 0x2,         // 发功能请求
@@ -96,9 +88,10 @@ UDSErr_t UDSSendTransferDataStream(UDSClient_t *client, uint8_t blockSequenceCou
                                    const uint16_t blockLength, FILE *fd);
 UDSErr_t UDSSendRequestTransferExit(UDSClient_t *client);
 
-UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, enum FileOperationMode mode, const char *filePath, 
-                                uint8_t dataFormatIdentifier, uint8_t fileSizeParameterLength, 
-                                size_t fileSizeUncompressed, size_t fileSizeCompressed);
+UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, enum FileOperationMode mode,
+                                    const char *filePath, uint8_t dataFormatIdentifier,
+                                    uint8_t fileSizeParameterLength, size_t fileSizeUncompressed,
+                                    size_t fileSizeCompressed);
 
 UDSErr_t UDSCtrlDTCSetting(UDSClient_t *client, uint8_t dtcSettingType,
                            uint8_t *dtcSettingControlOptionRecord, uint16_t len);

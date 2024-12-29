@@ -31,8 +31,8 @@ bool UDSSecurityAccessLevelIsReserved(uint8_t securityLevel) {
 }
 
 const char *UDSErrToStr(UDSErr_t err) {
-    #define MAKE_CASE(x) \
-    case x: \
+#define MAKE_CASE(x)                                                                               \
+    case x:                                                                                        \
         return #x;
 
     switch (err) {
@@ -89,15 +89,15 @@ const char *UDSErrToStr(UDSErr_t err) {
         MAKE_CASE(UDS_ERR_BUFSIZ)
         MAKE_CASE(UDS_ERR_INVALID_ARG)
         MAKE_CASE(UDS_ERR_BUSY)
-        default:
-            return "unknown";
+    default:
+        return "unknown";
     }
-    #undef MAKE_CASE
+#undef MAKE_CASE
 }
 
 const char *UDSEvtToStr(UDSEvent_t evt) {
-    #define MAKE_CASE(x) \
-    case x: \
+#define MAKE_CASE(x)                                                                               \
+    case x:                                                                                        \
         return #x;
 
     switch (evt) {
@@ -124,8 +124,8 @@ const char *UDSEvtToStr(UDSEvent_t evt) {
         MAKE_CASE(UDS_EVT_ResponseReceived)
         MAKE_CASE(UDS_EVT_Idle)
 
-        default:
-            return "unknown";
+    default:
+        return "unknown";
     }
-    #undef MAKE_CASE
+#undef MAKE_CASE
 }

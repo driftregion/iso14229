@@ -33,16 +33,13 @@ uint32_t UDSMillis() { return g_ms; }
 static UDSServer_t srv;
 static UDSTpHandle_t *mock_client = NULL;
 
-void DoInitialization() {
-    UDSServerInit(&srv);
-    srv.tp = TPMockNew("server", TPMOCK_DEFAULT_SERVER_ARGS);
-    mock_client = TPMockNew("client", TPMOCK_DEFAULT_CLIENT_ARGS);
-}
 
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     static bool initialized = false;
     if (!initialized) {
-        DoInitialization();
+        UDSServerInit(&srv);
+        srv.tp = TPMockNew("server", TPMOCK_DEFAULT_SERVER_ARGS);
+        mock_client = TPMockNew("client", TPMOCK_DEFAULT_CLIENT_ARGS);
         initialized = true;
     }
     memset(&fuzz, 0, sizeof(fuzz));

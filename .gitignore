@@ -1,5 +1,9 @@
-bazel-*
+bazel-bin
 bazel-out/k8-fastbuild/bin
+codechecker_reports
+codechecker_report
+html
+reports
 .rsync-filter
 test_iso14229
 client

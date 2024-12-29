@@ -141,3 +141,67 @@ cc_library(
     ],
     target_compatible_with = ["//platforms/compiler:clang"],
 )
+
+
+cc_binary(
+    name = "test_client_sequence",
+    srcs = [
+        "test_client_sequence.c",
+        "env.c",
+        "env.h",
+        "//:iso14229.h",
+        "//:iso14229.c",
+    ],
+    deps = [ "@cmocka" ],
+    defines = [
+        "UDS_TP_ISOTP_C_SOCKETCAN",
+        "UDS_TP_ISOTP_SOCK",
+        "UDS_TP_MOCK",
+        "UDS_CUSTOM_MILLIS",
+        "UDS_ENABLE_DBG_PRINT",
+        "UDS_ENABLE_ASSERT",
+    ],
+    copts = [ "-g", ],
+)
+
+cc_binary(
+    name = "test_client_sequence_2",
+    srcs = [
+        "test_client_sequence_2.c",
+        "env.c",
+        "env.h",
+        "//:iso14229.h",
+        "//:iso14229.c",
+    ],
+    deps = [ "@cmocka" ],
+    defines = [
+        "UDS_TP_ISOTP_C_SOCKETCAN",
+        "UDS_TP_ISOTP_SOCK",
+        "UDS_TP_MOCK",
+        "UDS_CUSTOM_MILLIS",
+        "UDS_ENABLE_DBG_PRINT",
+        "UDS_ENABLE_ASSERT",
+    ],
+    copts = [ "-g", ],
+)
+
+cc_binary(
+    name = "test_client_sequence_3",
+    srcs = [
+        "test_client_sequence_3.c",
+        "env.c",
+        "env.h",
+        "//:iso14229.h",
+        "//:iso14229.c",
+    ],
+    deps = [ "@cmocka" ],
+    defines = [
+        "UDS_TP_ISOTP_C_SOCKETCAN",
+        "UDS_TP_ISOTP_SOCK",
+        "UDS_TP_MOCK",
+        "UDS_CUSTOM_MILLIS",
+        "UDS_ENABLE_DBG_PRINT",
+        "UDS_ENABLE_ASSERT",
+    ],
+    copts = [ "-g", ],
+)

@@ -37,10 +37,10 @@ typedef uint8_t UDSTpAddr_t;
 typedef struct {
     UDS_A_Mtype_t A_Mtype; // message type (diagnostic, remote diagnostic, secure diagnostic, secure
                            // remote diagnostic)
-    uint16_t A_SA;         // application source address
-    uint16_t A_TA;         // application target address
+    uint32_t A_SA;         // application source address
+    uint32_t A_TA;         // application target address
     UDS_A_TA_Type_t A_TA_Type; // application target address type (physical or functional)
-    uint16_t A_AE;             // application layer remote address
+    uint32_t A_AE;             // application layer remote address
 } UDSSDU_t;
 
 #define UDS_TP_NOOP_ADDR (0xFFFFFFFF)

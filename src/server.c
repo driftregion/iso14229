@@ -661,14 +661,14 @@ static uint8_t _0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
     uint8_t operation = r->recv_buf[1];
     uint16_t file_path_len = ((uint16_t)r->recv_buf[2] << 8) + r->recv_buf[3];
     uint8_t file_mode = 0;
-    if ((operation == kAddFile) || (operation == kReplaceFile) || (operation == kReadFile)){
+    if ((operation == kAddFile) || (operation == kReplaceFile) || (operation == kReadFile)) {
         file_mode = r->recv_buf[UDS_0X38_REQ_BASE_LEN + file_path_len];
     }
     size_t file_size_uncompressed = 0;
     size_t file_size_compressed = 0;
-    if ((operation == kAddFile) || (operation == kReplaceFile)){
+    if ((operation == kAddFile) || (operation == kReplaceFile)) {
         size_t size = r->recv_buf[UDS_0X38_REQ_BASE_LEN + file_path_len + 1];
-        if (size > sizeof(size_t)){
+        if (size > sizeof(size_t)) {
             return NegativeResponse(r, UDS_NRC_RequestOutOfRange);
         }
         for (size_t byteIdx = 0; byteIdx < size; byteIdx++) {
@@ -714,7 +714,8 @@ static uint8_t _0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
         uint8_t byte = args.maxNumberOfBlockLength >> (shiftBytes * 8);
         r->send_buf[UDS_0X38_RESP_BASE_LEN + idx] = byte;
     }
-    r->send_buf[UDS_0X38_RESP_BASE_LEN + sizeof(args.maxNumberOfBlockLength)] = args.dataFormatIdentifier;
+    r->send_buf[UDS_0X38_RESP_BASE_LEN + sizeof(args.maxNumberOfBlockLength)] =
+        args.dataFormatIdentifier;
 
     r->send_len = UDS_0X38_RESP_BASE_LEN + sizeof(args.maxNumberOfBlockLength) + 1;
     return UDS_PositiveResponse;
@@ -894,7 +895,8 @@ static uint8_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
     }
 
     if ((UDS_A_TA_TYPE_FUNCTIONAL == r->info.A_TA_Type) &&
-        ((UDS_NRC_ServiceNotSupported == response) || (UDS_NRC_SubFunctionNotSupported == response) ||
+        ((UDS_NRC_ServiceNotSupported == response) ||
+         (UDS_NRC_SubFunctionNotSupported == response) ||
          (UDS_NRC_ServiceNotSupportedInActiveSession == response) ||
          (UDS_NRC_SubFunctionNotSupportedInActiveSession == response) ||
          (UDS_NRC_RequestOutOfRange == response)) &&
