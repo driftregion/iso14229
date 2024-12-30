@@ -13,12 +13,12 @@ cc_library(
     })
 )
 
-refresh_compile_commands(
-    name = "s32k_refresh_compile_commands",
-    targets = {
-        "//examples/s32k144/...": "--config=s32k",
-    }
-)
+# refresh_compile_commands(
+#     name = "s32k_refresh_compile_commands",
+#     targets = {
+#         "//examples/s32k144_server/...": "--config=s32k",
+#     }
+# )
 
 refresh_compile_commands(
     name = "test_compile_commands",

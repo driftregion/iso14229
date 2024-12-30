@@ -40,7 +40,6 @@ TEST_SRCS = [
     "test_server_0x83_diagnostic_session_control.c",
     "test_server_fn_misuse.c",
     "test_server_session_timeout.c",
-    "test_tp_compliance.c",
 ]
 
 TEST_NAMES = [ src.split(".c")[0] for src in TEST_SRCS ]
@@ -93,11 +92,11 @@ cc_test(
     defines = [
         "UDS_TP_MOCK",
         "UDS_CUSTOM_MILLIS",
-    # "UDS_DBG_PRINT=printf",
+        "UDS_LINES",
     ],
     copts = [
         "-g",
-        "-O1",
+        "-O0",
         "-fsanitize=fuzzer,signed-integer-overflow,address,undefined",
         "-fprofile-instr-generate",
         "-fcoverage-mapping",
@@ -202,6 +201,36 @@ cc_binary(
         "UDS_CUSTOM_MILLIS",
         "UDS_ENABLE_DBG_PRINT",
         "UDS_ENABLE_ASSERT",
+    ],
+    copts = [ "-g", ],
+)
+
+cc_binary(
+    name = "make_corpus",
+    srcs = [
+        "make_corpus.c",
+        "//:iso14229.h",
+    ],
+)
+
+cc_test(
+    name = "test_tp_compliance",
+    srcs = [
+        "test_tp_compliance.c",
+        "env.c",
+        "env.h",
+        "//:iso14229.h",
+        "//:iso14229.c",
+    ],
+    deps = [ "@cmocka" ],
+    defines = [
+        "UDS_TP_ISOTP_C_SOCKETCAN",
+        "UDS_TP_ISOTP_SOCK",
+        "UDS_TP_MOCK",
+        "UDS_CUSTOM_MILLIS",
+        "UDS_ENABLE_DBG_PRINT",
+        "UDS_ENABLE_ASSERT",
+        "UDS_LINES",
     ],
     copts = [ "-g", ],
 )

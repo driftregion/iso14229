@@ -340,11 +340,11 @@ typedef struct {
 | Value  | enum                 | Meaning | 
 | - | - | - | 
 | `0x00` | `UDS_PositiveResponse` | Request accepted  |
-| `0x13` | `kIncorrectMessageLengthOrInvalidFormat` | Length of the message is wrong |
-| `0x22` | `kConditionsNotCorrect` | Downloading or uploading data is ongoing or other conditions to be able to execute this service are not met |
-| `0x31` | `kRequestOutOfRange` | `data` contents invalid, length incorrect |
-| `0x33` | `kSecurityAccessDenied` | The server is secure |
-| `0x70` | `kUploadDownloadNotAccepted` | An attempt to download to a server's memory cannot be accomplished due to some fault conditions |
+| `0x13` | `UDS_NRC_IncorrectMessageLengthOrInvalidFormat` | Length of the message is wrong |
+| `0x22` | `UDS_NRC_ConditionsNotCorrect` | Downloading or uploading data is ongoing or other conditions to be able to execute this service are not met |
+| `0x31` | `UDS_NRC_RequestOutOfRange` | `data` contents invalid, length incorrect |
+| `0x33` | `UDS_NRC_SecurityAccessDenied` | The server is secure |
+| `0x70` | `UDS_NRC_UploadDownloadNotAccepted` | An attempt to download to a server's memory cannot be accomplished due to some fault conditions |
 
 # Documentation: Client
 

@@ -16,7 +16,6 @@ typedef struct UDSClient {
     uint32_t p2_star_ms; // 0x78 p2* 超时时间
     UDSTpHandle_t *tp;
 
-    // 内状态
     uint32_t p2_timer;
     uint8_t *recv_buf;
     uint8_t *send_buf;
@@ -24,7 +23,7 @@ typedef struct UDSClient {
     uint16_t send_buf_size;
     uint16_t recv_size;
     uint16_t send_size;
-    int8_t state;
+    int8_t state; // request state
 
     uint8_t options;        // enum udsclientoptions
     uint8_t defaultOptions; // enum udsclientoptions
@@ -33,7 +32,7 @@ typedef struct UDSClient {
 
     // callback function
     int (*fn)(struct UDSClient *client, UDSEvent_t evt, void *ev_data);
-    void *fn_data;
+    void *fn_data; // user-specified function data
 } UDSClient_t;
 
 struct SecurityAccessResponse {
@@ -54,13 +53,7 @@ struct RoutineControlResponse {
 };
 
 UDSErr_t UDSClientInit(UDSClient_t *client);
-
-/**
- * @brief poll the client (call this in a loop)
- * @param client
- */
 UDSErr_t UDSClientPoll(UDSClient_t *client);
-
 UDSErr_t UDSSendBytes(UDSClient_t *client, const uint8_t *data, uint16_t size);
 UDSErr_t UDSSendECUReset(UDSClient_t *client, UDSECUReset_t type);
 UDSErr_t UDSSendDiagSessCtrl(UDSClient_t *client, enum UDSDiagnosticSessionType mode);

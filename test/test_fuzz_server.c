@@ -13,19 +13,18 @@ int LLVMFuzzerTestOneInput(const uint8_t *, size_t);
 #endif
 
 typedef struct {
-    uint8_t srv_retval;
-    uint16_t client_sa;
-    uint16_t client_ta;
-    uint8_t client_func_req;
+    UDSSDU_t sdu_info;
+    ssize_t msg_len;
+    int srv_retval;
     uint8_t msg[UDS_TP_MTU];
 } StuffToFuzz_t;
 
-static StuffToFuzz_t fuzz;
+static StuffToFuzz_t fuzz_buf;
 static uint8_t client_recv_buf[UDS_TP_MTU];
 
-static uint8_t fn(UDSServer_t *srv, UDSEvent_t ev, const void *arg) {
+static int fn(UDSServer_t *srv, UDSEvent_t ev, const void *arg) {
     printf("Whoah, got event %d\n", ev);
-    return fuzz.srv_retval;
+    return fuzz_buf.srv_retval;
 }
 
 static uint32_t g_ms = 0;
@@ -42,31 +41,26 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         mock_client = TPMockNew("client", TPMOCK_DEFAULT_CLIENT_ARGS);
         initialized = true;
     }
-    memset(&fuzz, 0, sizeof(fuzz));
-    memmove(&fuzz, data, size);
+    if (size < sizeof(fuzz_buf)) {
+        return -1;
+    }
+    memset(&fuzz_buf, 0, sizeof(fuzz_buf));
+    memmove(&fuzz_buf, data, size);
 
-    UDSSDU_t msg = {
-        .A_Mtype = UDS_A_MTYPE_DIAG,
-        .A_SA = fuzz.client_sa,
-        .A_TA = fuzz.client_ta,
-        .A_TA_Type = fuzz.client_func_req ? UDS_A_TA_TYPE_FUNCTIONAL : UDS_A_TA_TYPE_PHYSICAL,
-        .A_Length = size > offsetof(StuffToFuzz_t, msg) ? size - offsetof(StuffToFuzz_t, msg) : 0,
-        .A_Data = (uint8_t *)data + offsetof(StuffToFuzz_t, msg),
-        .A_DataBufSize = sizeof(fuzz.msg),
-    };
-    mock_client->send(mock_client, &msg);
+    if (fuzz_buf.msg_len > UDS_TP_MTU || fuzz_buf.msg_len < 0) {
+        return -1;
+    }
 
-    for (g_ms = 0; g_ms < 100; g_ms++) {
+
+    // TPMockLogToStdout();
+    UDSTpSend(mock_client, fuzz_buf.msg, fuzz_buf.msg_len, &fuzz_buf.sdu_info);
+
+    for (int i = 0; i < 1000; i++) {
         UDSServerPoll(&srv);
+        if(UDSTpGetRecvLen(mock_client)) {
+            UDSTpAckRecv(mock_client);
+        }
+        g_ms++;
     }
-
-    {
-        UDSSDU_t msg2 = {
-            .A_Data = client_recv_buf,
-            .A_DataBufSize = sizeof(client_recv_buf),
-        };
-        mock_client->recv(mock_client, &msg2);
-    }
-    TPMockReset();
     return 0;
 }

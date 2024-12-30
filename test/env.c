@@ -66,21 +66,6 @@ static void ENV_ParseOpts() {
     opts.cli_tgt_addr_func = parse_int_env_var("UDS_CLI_TGT_ADDR_FUNC", opts.cli_tgt_addr_func);
 }
 
-void ENV_ServerInit(UDSServer_t *srv) {
-    ENV_ParseOpts();
-    UDSServerInit(srv);
-    srv->tp = ENV_TpNew("server");
-    registeredServer = srv;
-}
-
-void ENV_ClientInit(UDSClient_t *client) {
-    ENV_ParseOpts();
-    UDSClientInit(client);
-    client->tp = ENV_TpNew("client");
-    registeredClient = client;
-}
-
-uint32_t UDSMillis() { return TimeNowMillis; }
 
 // actually sleep for milliseconds
 void msleep(int ms) { usleep(ms * 1000); }
@@ -137,87 +122,3 @@ void ENV_RunMillis(uint32_t millis) {
     }
 }
 
-UDSTpHandle_t *ENV_TpNew(const char *name) {
-    ENV_ParseOpts();
-    UDSTpHandle_t *tp = NULL;
-    if (MAX_NUM_TP == TPCount) {
-        printf("too many TPs\n");
-        return NULL;
-    }
-    if (0 == strcasecmp(name, "server"))
-        switch (opts.tp_type) {
-        case ENV_TP_TYPE_MOCK:
-            tp = TPMockNew("server", TPMOCK_DEFAULT_SERVER_ARGS);
-            break;
-        case ENV_TP_TYPE_ISOTP_SOCK: {
-            UDSTpIsoTpSock_t *isotp = malloc(sizeof(UDSTpIsoTpSock_t));
-            strcpy(isotp->tag, "server");
-            assert(UDS_OK == UDSTpIsoTpSockInitServer(isotp, opts.ifname, opts.srv_src_addr,
-                                                      opts.srv_target_addr,
-                                                      opts.srv_src_addr_func));
-            tp = (UDSTpHandle_t *)isotp;
-            break;
-        }
-        case ENV_TP_TYPE_ISOTPC: {
-            UDSTpISOTpC_t *isotp = malloc(sizeof(UDSTpISOTpC_t));
-            strcpy(isotp->tag, "server");
-
-            assert(UDS_OK == UDSTpISOTpCInit(isotp, opts.ifname, opts.srv_src_addr,
-                                             opts.srv_target_addr, opts.srv_src_addr_func, 0));
-            tp = (UDSTpHandle_t *)isotp;
-            break;
-        }
-        default:
-            printf("unknown TP type: %d\n", opts.tp_type);
-            return NULL;
-        }
-    else if (0 == strcasecmp(name, "client")) {
-        switch (opts.tp_type) {
-        case ENV_TP_TYPE_MOCK:
-            tp = TPMockNew("client", TPMOCK_DEFAULT_CLIENT_ARGS);
-            break;
-        case ENV_TP_TYPE_ISOTP_SOCK: {
-            UDSTpIsoTpSock_t *isotp = malloc(sizeof(UDSTpIsoTpSock_t));
-            strcpy(isotp->tag, "client");
-            assert(UDS_OK == UDSTpIsoTpSockInitClient(isotp, opts.ifname, opts.cli_src_addr,
-                                                      opts.cli_target_addr,
-                                                      opts.cli_tgt_addr_func));
-            tp = (UDSTpHandle_t *)isotp;
-            break;
-        }
-        case ENV_TP_TYPE_ISOTPC: {
-            UDSTpISOTpC_t *isotp = malloc(sizeof(UDSTpISOTpC_t));
-            strcpy(isotp->tag, "client");
-            assert(UDS_OK == UDSTpISOTpCInit(isotp, opts.ifname, opts.cli_src_addr,
-                                             opts.cli_target_addr, 0, opts.cli_tgt_addr_func));
-            tp = (UDSTpHandle_t *)isotp;
-            break;
-        }
-        default:
-            printf("unknown TP type: %d\n", opts.tp_type);
-            return NULL;
-        }
-    } else {
-        printf("unknown mock tp: %s\n", name);
-        return NULL;
-    }
-    registeredTps[TPCount++] = tp;
-    return tp;
-}
-
-void ENV_TpFree(UDSTpHandle_t *tp) {
-    switch (opts.tp_type) {
-    case ENV_TP_TYPE_MOCK:
-        TPMockFree(tp);
-        break;
-    case ENV_TP_TYPE_ISOTP_SOCK:
-        UDSTpIsoTpSockDeinit((UDSTpIsoTpSock_t *)tp);
-        break;
-    case ENV_TP_TYPE_ISOTPC:
-        UDSTpISOTpCDeinit((UDSTpISOTpC_t *)tp);
-        free(tp);
-        break;
-    }
-}
-
-const ENV_Opts_t *ENV_GetOpts() { return &opts; }

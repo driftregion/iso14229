@@ -1,5 +1,4 @@
-#include "test.h"
-#include "test/test.h"
+#include "test/env.h"
 #include <stdio.h>
 
 static UDSClient_t client;

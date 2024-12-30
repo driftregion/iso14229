@@ -26,17 +26,6 @@ typedef struct {
     bool assert_no_client_err;
 } ENV_Opts_t;
 
-void ENV_ServerInit(UDSServer_t *srv);
-void ENV_ClientInit(UDSClient_t *client);
-
-#define ENV_SERVER_INIT(srv)                                                                       \
-    ENV_ServerInit(&srv);                                                                          \
-    TPMockLogToStdout();
-
-#define ENV_CLIENT_INIT(client)                                                                    \
-    ENV_ClientInit(&client);                                                                       \
-    TPMockLogToStdout();
-
 /**
  * @brief return a transport configured as client
  * @return UDSTpHandle_t*
@@ -46,7 +35,6 @@ void ENV_TpFree(UDSTpHandle_t *tp);
 void ENV_RegisterServer(UDSServer_t *server);
 void ENV_RegisterClient(UDSClient_t *client);
 void ENV_RunMillis(uint32_t millis);
-const ENV_Opts_t *ENV_GetOpts();
 void ENV_AttachHook(void (*fn)(void *), void *arg);
 
 

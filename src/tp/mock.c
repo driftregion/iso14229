@@ -18,6 +18,7 @@ static struct Msg {
     size_t len;
     UDSSDU_t info;
     uint32_t scheduled_tx_time;
+    TPMock_t *sender;
 } msgs[NUM_MSGS];
 static unsigned MsgCount = 0;
 
@@ -36,22 +37,21 @@ static void LogMsg(const char *prefix, const uint8_t *buf, size_t len, UDSSDU_t 
 
 static void NetworkPoll(void) {
     for (unsigned i = 0; i < MsgCount; i++) {
-        struct Msg *msg = &msgs[i];
-        if (UDSTimeAfter(UDSMillis(), msg->scheduled_tx_time)) {
+        if (UDSTimeAfter(UDSMillis(), msgs[i].scheduled_tx_time)) {
             for (unsigned j = 0; j < TPCount; j++) {
                 TPMock_t *tp = TPs[j];
-                if (tp->sa_phys == msg->info.A_TA || tp->sa_func == msg->info.A_TA) {
+                if (tp->sa_phys == msgs[i].info.A_TA || tp->sa_func == msgs[i].info.A_TA) {
                     if (tp->recv_len > 0) {
                         fprintf(stderr, "TPMock: %s recv buffer is already full. Message dropped\n",
                                 tp->name);
                         continue;
                     }
-                    memmove(tp->recv_buf, msg->buf, msg->len);
-                    tp->recv_len = msg->len;
-                    tp->recv_info = msg->info;
+                    memmove(tp->recv_buf, msgs[i].buf, msgs[i].len);
+                    tp->recv_len = msgs[i].len;
+                    tp->recv_info = msgs[i].info;
                 }
             }
-            LogMsg("network sees", msg->buf, msg->len, &msg->info);
+            LogMsg("network sees", msgs[i].buf, msgs[i].len, &(msgs[i].info));
             for (unsigned j = i + 1; j < MsgCount; j++) {
                 msgs[j - 1] = msgs[j];
             }
@@ -77,7 +77,7 @@ static ssize_t mock_tp_peek(struct UDSTpHandle *hdl, uint8_t **p_buf, UDSSDU_t *
 static ssize_t mock_tp_send(struct UDSTpHandle *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
     assert(hdl);
     TPMock_t *tp = (TPMock_t *)hdl;
-    if (MsgCount > NUM_MSGS) {
+    if (MsgCount >= NUM_MSGS) {
         fprintf(stderr, "TPMock: too many messages in the queue\n");
         return -1;
     }
