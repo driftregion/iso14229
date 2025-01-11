@@ -62,3 +62,15 @@ gcc_toolchain(
 )
 
 clang_toolchain(name="x86_64_clang")
+
+gcc_toolchain(
+    name="x86_64_gcc",
+    prefix="",
+    include_dirs = [
+        "/usr/lib/gcc/x86_64-linux-gnu/11/include/",
+    ],
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+)

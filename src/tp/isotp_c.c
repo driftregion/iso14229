@@ -28,11 +28,11 @@ static int peek_link(IsoTpLink *link, uint8_t *buf, size_t bufsize, bool functio
         goto done;
     case ISOTP_RECEIVE_STATUS_FULL:
         ret = link->receive_size;
-        UDS_DBG_PRINT("The link is full. Copying %d bytes\n", ret);
+        UDS_LOGI(__FILE__, "The link is full. Copying %d bytes\n", ret);
         memmove(buf, link->receive_buffer, link->receive_size);
         break;
     default:
-        UDS_DBG_PRINT("receive_status %d not implemented\n", link->receive_status);
+        UDS_LOGI(__FILE__, "receive_status %d not implemented\n", link->receive_status);
         ret = -1;
         goto done;
     }
@@ -55,7 +55,7 @@ static ssize_t tp_peek(UDSTpHandle_t *hdl, uint8_t **p_buf, UDSSDU_t *info) {
     uint32_t sa = tp->phys_sa;
 
     if (ret > 0) {
-        UDS_DBG_PRINT("just got %d bytes\n", ret);
+        UDS_LOGI(__FILE__, "just got %d bytes\n", ret);
         ta = tp->phys_sa;
         sa = tp->phys_ta;
         ta_type = UDS_A_TA_TYPE_PHYSICAL;
@@ -66,7 +66,7 @@ static ssize_t tp_peek(UDSTpHandle_t *hdl, uint8_t **p_buf, UDSSDU_t *info) {
     } else {
         ret = peek_link(&tp->func_link, tp->recv_buf, sizeof(tp->recv_buf), true);
         if (ret > 0) {
-            UDS_DBG_PRINT("just got %d bytes on func link \n", ret);
+            UDS_LOGI(__FILE__, "just got %d bytes on func link \n", ret);
             ta = tp->func_sa;
             sa = tp->func_ta;
             ta_type = UDS_A_TA_TYPE_FUNCTIONAL;
@@ -100,7 +100,7 @@ static ssize_t tp_send(UDSTpHandle_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *i
     case UDS_A_TA_TYPE_FUNCTIONAL:
         link = &tp->func_link;
         if (len > 7) {
-            UDS_DBG_PRINT("Cannot send more than 7 bytes via functional addressing\n");
+            UDS_LOGI(__FILE__, "Cannot send more than 7 bytes via functional addressing\n");
             ret = -3;
             goto done;
         }
@@ -126,7 +126,7 @@ done:
 }
 
 static void tp_ack_recv(UDSTpHandle_t *hdl) {
-    UDS_DBG_PRINT("ack recv\n");
+    UDS_LOGI(__FILE__, "ack recv\n");
     UDS_ASSERT(hdl);
     UDSISOTpC_t *tp = (UDSISOTpC_t *)hdl;
     uint16_t out_size = 0;

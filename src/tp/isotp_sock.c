@@ -21,9 +21,9 @@ static ssize_t tp_recv_once(int fd, uint8_t *buf, size_t size) {
         if (EAGAIN == errno || EWOULDBLOCK == errno) {
             ret = 0;
         } else {
-            UDS_DBG_PRINT("read failed: %ld with errno: %d\n", ret, errno);
+            UDS_LOGI(__FILE__, "read failed: %ld with errno: %d\n", ret, errno);
             if (EILSEQ == errno) {
-                UDS_DBG_PRINT("Perhaps I received multiple responses?\n");
+                UDS_LOGI(__FILE__, "Perhaps I received multiple responses?\n");
             }
         }
     }
@@ -66,7 +66,7 @@ static ssize_t isotp_sock_tp_peek(UDSTpHandle_t *hdl, uint8_t **p_buf, UDSSDU_t 
         }
         fprintf(stdout, "\n");
         fflush(stdout); // flush every time in case of crash
-        // UDS_DBG_PRINT("<<< ");
+        // UDS_LOGI(__FILE__, "<<< ");
         // UDS_DBG_PRINTHEX(, ret);
     }
 
@@ -97,7 +97,7 @@ static ssize_t isotp_sock_tp_send(UDSTpHandle_t *hdl, uint8_t *buf, size_t len, 
         fd = impl->phys_fd;
     } else if (UDS_A_TA_TYPE_FUNCTIONAL == ta_type) {
         if (len > 7) {
-            UDS_DBG_PRINT("UDSTpIsoTpSock: functional request too large\n");
+            UDS_LOGI(__FILE__, "UDSTpIsoTpSock: functional request too large\n");
             return -1;
         }
         fd = impl->func_fd;
@@ -110,7 +110,7 @@ static ssize_t isotp_sock_tp_send(UDSTpHandle_t *hdl, uint8_t *buf, size_t len, 
         perror("write");
     }
 done:
-    // UDS_DBG_PRINT(">>> ");
+    // UDS_LOGI(__FILE__, ">>> ");
     // UDS_DBG_PRINTHEX(buf, ret);
 
     fprintf(stdout, "%06d, %s sends, (%s), ", UDSMillis(), impl->tag,
@@ -154,7 +154,7 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool
     opts.flags |= CAN_ISOTP_WAIT_TX_DONE;
 
     if (functional) {
-        UDS_DBG_PRINT("configuring fd: %d as functional\n", fd);
+        UDS_LOGI(__FILE__, "configuring fd: %d as functional\n", fd);
         // configure the socket as listen-only to avoid sending FC frames
         opts.flags |= CAN_ISOTP_LISTEN_MODE;
     }
@@ -177,7 +177,7 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool
     addr.can_ifindex = ifr.ifr_ifindex;
 
     if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-        UDS_DBG_PRINT("Bind: %s %s\n", strerror(errno), if_name);
+        UDS_LOGI(__FILE__, "Bind: %s %s\n", strerror(errno), if_name);
         return -1;
     }
     return fd;
@@ -199,13 +199,14 @@ UDSErr_t UDSTpIsoTpSockInitServer(UDSTpIsoTpSock_t *tp, const char *ifname, uint
     tp->phys_fd = LinuxSockBind(ifname, source_addr, target_addr, false);
     tp->func_fd = LinuxSockBind(ifname, source_addr_func, 0, true);
     if (tp->phys_fd < 0 || tp->func_fd < 0) {
-        UDS_DBG_PRINT("foo\n");
+        UDS_LOGI(__FILE__, "foo\n");
         fflush(stdout);
         return UDS_FAIL;
     }
-    UDS_DBG_PRINT("%s initialized phys link rx 0x%03x tx 0x%03x func link rx 0x%03x tx 0x%03x\n",
-                  strlen(tp->tag) ? tp->tag : "server", source_addr, target_addr, source_addr_func,
-                  target_addr);
+    UDS_LOGI(__FILE__,
+             "%s initialized phys link rx 0x%03x tx 0x%03x func link rx 0x%03x tx 0x%03x\n",
+             strlen(tp->tag) ? tp->tag : "server", source_addr, target_addr, source_addr_func,
+             target_addr);
     return UDS_OK;
 }
 
@@ -227,11 +228,11 @@ UDSErr_t UDSTpIsoTpSockInitClient(UDSTpIsoTpSock_t *tp, const char *ifname, uint
     if (tp->phys_fd < 0 || tp->func_fd < 0) {
         return UDS_FAIL;
     }
-    UDS_DBG_PRINT(
-        "%s initialized phys link (fd %d) rx 0x%03x tx 0x%03x func link (fd %d) rx 0x%03x tx "
-        "0x%03x\n",
-        strlen(tp->tag) ? tp->tag : "client", tp->phys_fd, source_addr, target_addr, tp->func_fd,
-        source_addr, target_addr_func);
+    UDS_LOGI(__FILE__,
+             "%s initialized phys link (fd %d) rx 0x%03x tx 0x%03x func link (fd %d) rx 0x%03x tx "
+             "0x%03x\n",
+             strlen(tp->tag) ? tp->tag : "client", tp->phys_fd, source_addr, target_addr,
+             tp->func_fd, source_addr, target_addr_func);
     return UDS_OK;
 }
 

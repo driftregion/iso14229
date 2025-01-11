@@ -32,11 +32,16 @@ The following features are configured with preprocessor defines:
 | `-DUDS_TP_ISOTP_C` | build the isotp-c transport layer (recommended for bare-metal systems) | defined or not |
 | `-DUDS_TP_ISOTP_SOCK` | build the isotp socket transport layer (recommended for linux)  | defined or not |
 | `-DUDS_TP_ISOTP_C_SOCKETCAN` | build the isotp-c transport layer with socketcan support (linux-only)  | defined or not |
-| `-DUDS_ENABLE_DBG_PRINT`| turns on debug print statements | defined or not |
-| `-DUDS_ENABLE_ASSERT` | uses `assert` to check the validity of arguments | defined or not |
+| `-DUDS_LOG_LEVEL=...`| Sets the logging level. Internal log messages are useful for bringup and unit tests. This defaults to `UDS_LOG_LEVEL=UDS_LOG_NONE` which completely disables logging, ensuring that no logging-related code goes in to the binary. | `UDS_LOG_NONE, UDS_LOG_ERROR, UDS_LOG_WARN, UDS_LOG_INFO, UDS_LOG_DEBUG, UDS_LOG_VERBOSE` |
 | `-DUDS_SERVER_...` | server configuration options | see [`src/config.h`](src/config.h) |
 | `-DUDS_CLIENT_...` | client configuration options | see [`src/config.h`](src/config.h) |
 | `-DUDS_SYS=` | Selects target system. See [`src/sys.h`](src/sys.h) | `UDS_SYS_CUSTOM,UDS_SYS_UNIX,UDS_SYS_WINDOWS,UDS_SYS_ARDUINO,UDS_SYS_ESP32`  |
+
+### Deprecated Compile-Time Features
+
+| Define | Reason for deprecation | mitigation | 
+| `-DUDS_ENABLE_ASSERT` | redundant | Use the standard `-DNDEBUG` to disable assertions. |
+| `-DUDS_ENABLE_DEBUG_PRINT` | replaced by `UDS_LOG` | Use `-DUDS_LOG_LEVEL=` to set or disable logging. |
 
 ## Features
 

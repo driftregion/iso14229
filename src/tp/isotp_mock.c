@@ -29,7 +29,7 @@ static void LogMsg(const char *prefix, const uint8_t *buf, size_t len, UDSSDU_t 
     fprintf(LogFile, "%06d, %s, 0x%03x (%s), ", UDSMillis(), prefix, info->A_TA,
             info->A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
     for (unsigned i = 0; i < len; i++) {
-        fprintf(LogFile, "%02x ", buf[i]);
+        fprintf(LogFile, "%02x  ", buf[i]);
     }
     fprintf(LogFile, "\n");
     fflush(LogFile); // flush every time in case of crash
@@ -78,7 +78,7 @@ static ssize_t mock_tp_send(struct UDSTpHandle *hdl, uint8_t *buf, size_t len, U
     assert(hdl);
     ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
     if (MsgCount >= NUM_MSGS) {
-        fprintf(stderr, "TPMock: too many messages in the queue\n");
+        UDS_LOGW(__FILE__, "mock_tp_send: too many messages in the queue");
         return -1;
     }
     struct Msg *m = &msgs[MsgCount++];
@@ -92,13 +92,18 @@ static ssize_t mock_tp_send(struct UDSTpHandle *hdl, uint8_t *buf, size_t len, U
         m->info.A_TA = tp->ta_func;
         m->info.A_SA = tp->sa_func;
     } else {
-        fprintf(stderr, "TPMock: unknown TA type: %d\n", ta_type);
+        UDS_LOGW(__FILE__, "mock_tp_send: unknown TA type: %d", ta_type);
         return -1;
     }
     m->info.A_TA_Type = ta_type;
     m->scheduled_tx_time = UDSMillis() + tp->send_tx_delay_ms;
     memmove(m->buf, buf, len);
     LogMsg(tp->name, buf, len, &m->info);
+
+    UDS_LOGD(__FILE__, "%s sends %d bytes to TA=0x%03X (A_TA_Type=%s):", tp->name, len,
+             m->info.A_TA, m->info.A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "PHYSICAL" : "FUNCTIONAL");
+    UDS_LOG_SDU(__FILE__, buf, len, &m->info);
+
     return len;
 }
 
@@ -139,6 +144,7 @@ static void ISOTPMockAttach(ISOTPMock_t *tp, ISOTPMockArgs_t *args) {
     tp->ta_func = args->ta_func;
     tp->ta_phys = args->ta_phys;
     tp->recv_len = 0;
+    UDS_LOGD(__FILE__, "attached %s. TPCount: %d", tp->name, TPCount);
 }
 
 static void ISOTPMockDetach(ISOTPMock_t *tp) {
@@ -149,7 +155,7 @@ static void ISOTPMockDetach(ISOTPMock_t *tp) {
                 TPs[j - 1] = TPs[j];
             }
             TPCount--;
-            UDS_DBG_PRINT("TPMock: detached %s. TPCount: %d\n", tp->name, TPCount);
+            UDS_LOGI(__FILE__, "TPMock: detached %s. TPCount: %d\n", tp->name, TPCount);
             return;
         }
     }
@@ -158,7 +164,7 @@ static void ISOTPMockDetach(ISOTPMock_t *tp) {
 
 UDSTpHandle_t *ISOTPMockNew(const char *name, ISOTPMockArgs_t *args) {
     if (TPCount >= MAX_NUM_TP) {
-        UDS_DBG_PRINT("TPCount: %d, too many TPs\n", TPCount);
+        UDS_LOGI(__FILE__, "TPCount: %d, too many TPs\n", TPCount);
         return NULL;
     }
     ISOTPMock_t *tp = malloc(sizeof(ISOTPMock_t));

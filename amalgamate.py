@@ -42,6 +42,7 @@ with open(args.out_c, "w") as f:
         "src/server.c",
         "src/tp.c",
         "src/util.c",
+        "src/log.c",
         "src/tp/isotp_c.c",
         "src/tp/isotp_c_socketcan.c",
         "src/tp/isotp_sock.c",
@@ -78,6 +79,7 @@ with open(args.out_h, "w") as f:
         "src/tp.h",
         "src/uds.h",
         "src/util.h",
+        "src/log.h",
         "src/client.h",
         "src/server.h",
     ]:

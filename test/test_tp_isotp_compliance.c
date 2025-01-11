@@ -7,6 +7,7 @@ static uint32_t g_ms = 0;
 
 uint32_t UDSMillis() { return g_ms; }
 
+#if defined(UDS_TP_ISOTP_MOCK)
 static int setup_tp_mock_server(void **state) {
     server_tp = ISOTPMockNew("server", ISOTPMock_DEFAULT_SERVER_ARGS);
     return 0;
@@ -38,7 +39,9 @@ static int teardown_tp_mock_both(void **state) {
     teardown_tp_mock_client(state);
     return 0;
 }
+#endif // defined(UDS_TP_ISOTP_MOCK)
 
+#if defined(UDS_TP_ISOTP_SOCK)
 static int setup_tp_isotp_sock_server(void **state) {
     UDSTpIsoTpSock_t *server_isotp = malloc(sizeof(UDSTpIsoTpSock_t));
     strcpy(server_isotp->tag, "server");
@@ -78,7 +81,9 @@ static int teardown_tp_isotp_sock_both(void **state) {
     teardown_tp_isotp_sock_client(state);
     return 0;
 }
+#endif // defined(UDS_TP_ISOTP_SOCK)
 
+#if defined(UDS_TP_ISOTP_C)
 static int setup_tp_isotp_c_server(void **state) {
     UDSTpISOTpC_t *server_isotp = malloc(sizeof(UDSTpISOTpC_t));
     strcpy(server_isotp->tag, "server");
@@ -118,6 +123,7 @@ static int teardown_tp_isotp_c_both(void **state) {
     teardown_tp_isotp_c_client(state);
     return 0;
 }
+#endif // defined(UDS_TP_ISOTP_C)
 
 static void TestSendRecv(void **state) {
 
@@ -238,6 +244,8 @@ void TestFlowControlFrameTimeout(void **state) {
 
 int main() {
     int ret = 0;
+
+#if defined(UDS_TP_ISOTP_MOCK)
     printf("TP: mock\n");
     const struct CMUnitTest tp_mock_tests[] = {
         cmocka_unit_test_setup_teardown(TestSendRecv, setup_tp_mock_both, teardown_tp_mock_both),
@@ -254,8 +262,10 @@ int main() {
                                         teardown_tp_mock_both),
     };
     ret += cmocka_run_group_tests(tp_mock_tests, NULL, NULL);
-
     printf("\n");
+#endif // defined(UDS_TP_ISOTP_MOCK)
+
+#if defined(UDS_TP_ISOTP_C)
     printf("TP: isotp-c\n");
     const struct CMUnitTest tp_isotp_c_tests[] = {
         cmocka_unit_test_setup_teardown(TestSendRecv, setup_tp_isotp_c_both,
@@ -272,8 +282,10 @@ int main() {
         // teardown_tp_isotp_c_client),
     };
     ret += cmocka_run_group_tests(tp_isotp_c_tests, NULL, NULL);
-
     printf("\n");
+#endif // defined(UDS_TP_ISOTP_C)
+
+#if defined(UDS_TP_ISOTP_SOCK)
     printf("TP: isotp-sock\n");
     const struct CMUnitTest tp_isotp_sock_tests[] = {
         cmocka_unit_test_setup_teardown(TestSendRecv, setup_tp_isotp_sock_both,
@@ -291,6 +303,8 @@ int main() {
                                         teardown_tp_isotp_sock_client),
     };
     ret += cmocka_run_group_tests(tp_isotp_sock_tests, NULL, NULL);
+    printf("\n");
+#endif // defined(UDS_TP_ISOTP_SOCK)
 
     return ret;
 }

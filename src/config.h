@@ -1,13 +1,5 @@
 #pragma once
 
-#ifndef UDS_ENABLE_DBG_PRINT
-#define UDS_ENABLE_DBG_PRINT 0
-#endif
-
-#ifndef UDS_ENABLE_ASSERT
-#define UDS_ENABLE_ASSERT 0
-#endif
-
 /** ISO-TP Maximum Transmissiable Unit (ISO-15764-2-2004 section 5.3.3) */
 #define UDS_ISOTP_MTU (4095)
 

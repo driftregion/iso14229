@@ -26,6 +26,13 @@ typedef struct {
     bool assert_no_client_err;
 } ENV_Opts_t;
 
+typedef struct {
+    UDSServer_t *server;
+    UDSClient_t *client;
+    UDSTpHandle_t *server_tp;
+    UDSTpHandle_t *client_tp;
+} ENV_Context_t;
+
 /**
  * @brief return a transport configured as client
  * @return UDSTpHandle_t*
@@ -36,6 +43,8 @@ void ENV_RegisterServer(UDSServer_t *server);
 void ENV_RegisterClient(UDSClient_t *client);
 void ENV_RunMillis(uint32_t millis);
 void ENV_AttachHook(void (*fn)(void *), void *arg);
+
+void ENV_CtxRunMillis(ENV_Context_t *ctx, uint32_t millis);
 
 
 #define _TEST_INT_COND(a, b, cond)                                                                 \
@@ -131,6 +140,44 @@ void ENV_AttachHook(void (*fn)(void *), void *arg);
 // - is false until 90% of a duration has passed,
 // - and true before 110% of the duration has passed
 #define EXPECT_IN_APPROX_MS(cond, duration)                                                        \
+    {                                                                                              \
+        const float tolerance = 0.1f;                                                              \
+        uint32_t pre_deadline = UDSMillis() + (int)((duration) * (1.0f - tolerance));              \
+        uint32_t post_deadline = UDSMillis() + (int)((duration) * (1.0f + tolerance));             \
+        while (UDSTimeAfter(pre_deadline, UDSMillis())) {                                          \
+            assert_true(!(cond));                                                                  \
+            ENV_RunMillis(1);                                                                      \
+        }                                                                                          \
+        while (!(cond)) {                                                                          \
+            TEST_INT_LE(UDSMillis(), post_deadline);                                               \
+            ENV_RunMillis(1);                                                                      \
+        }                                                                                          \
+    }
+
+// Expect that a condition is true within a timeout
+#define EXPECT_WITHIN_MS_C(ctx, cond, timeout_ms)                                                         \
+    {                                                                                              \
+        uint32_t deadline = UDSMillis() + timeout_ms + 1;                                          \
+        while (!(cond)) {                                                                          \
+            TEST_INT_LE(UDSMillis(), deadline);                                                    \
+            ENV_RunMillis(1);                                                                      \
+        }                                                                                          \
+    }
+
+// Expect that a condition is true for a duration
+#define EXPECT_WHILE_MS_C(ctx, cond, duration)                                                            \
+    {                                                                                              \
+        uint32_t deadline = UDSMillis() + duration;                                                \
+        while (UDSTimeAfter(deadline, UDSMillis())) {                                              \
+            assert_true(cond);                                                                     \
+            ENV_RunMillis(1);                                                                      \
+        }                                                                                          \
+    }
+
+// Expect that a condition
+// - is false until 90% of a duration has passed,
+// - and true before 110% of the duration has passed
+#define EXPECT_IN_APPROX_MS_C(ctx, cond, duration)                                                        \
     {                                                                                              \
         const float tolerance = 0.1f;                                                              \
         uint32_t pre_deadline = UDSMillis() + (int)((duration) * (1.0f - tolerance));              \

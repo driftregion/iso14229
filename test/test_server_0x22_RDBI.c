@@ -1,7 +1,7 @@
 #include "iso14229.h"
 #include "test/env.h"
 
-int fn(UDSServer_t *srv, UDSEvent_t ev, const void *arg) {
+int fn(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     TEST_INT_EQUAL(UDS_EVT_ReadDataByIdent, ev);
     const uint8_t vin[] = {0x57, 0x30, 0x4C, 0x30, 0x30, 0x30, 0x30, 0x34, 0x33,
                            0x4D, 0x42, 0x35, 0x34, 0x31, 0x33, 0x32, 0x36};

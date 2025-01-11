@@ -23,14 +23,14 @@ static void CANRecv(UDSISOTpC_t *tp) {
             len = 8;
         }
         CAN.readBytes(buf, len);
-        UDS_DBG_PRINT("can recv\n");
+        UDS_LOGI(__FILE__, "can recv\n");
         UDS_DBG_PRINTHEX(buf, len);
         if (CAN.packetId() == tp->phys_sa) {
-          UDS_DBG_PRINT("phys frame received\n");
+          UDS_LOGI(__FILE__, "phys frame received\n");
           isotp_on_can_message(&tp->phys_link, buf, len);
         } else if (CAN.packetId() == tp->func_sa) {
           if (ISOTP_RECEIVE_STATUS_IDLE != tp->phys_link.receive_status) {
-            UDS_DBG_PRINT("func frame received but cannot process because link is not idle");
+            UDS_LOGI(__FILE__, "func frame received but cannot process because link is not idle");
             return;
           }
           isotp_on_can_message(&tp->func_link, buf, len);

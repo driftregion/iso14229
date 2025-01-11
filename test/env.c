@@ -74,6 +74,8 @@ static bool IsNetworkedTransport(int tp_type) {
     return tp_type == ENV_TP_TYPE_ISOTP_SOCK || tp_type == ENV_TP_TYPE_ISOTPC;
 }
 
+uint32_t UDSMillis(void) { return TimeNowMillis; }
+
 void ENV_AttachHook(void (*fn)(void *), void *arg) {
     assert(HookCount < MAX_NUM_HOOKS);
     Hooks[HookCount].arg = arg;
@@ -122,3 +124,19 @@ void ENV_RunMillis(uint32_t millis) {
     }
 }
 
+void ENV_CtxRunMillis(ENV_Context_t *ctx, uint32_t millis) {
+    uint32_t end = UDSMillis() + millis;
+    while (UDSMillis() < end) {
+        if (ctx->server) {
+            UDSServerPoll(ctx->server);
+        } else if (ctx->server_tp) {
+            UDSTpPoll(ctx->server_tp);
+        }
+        if (ctx->client) {
+            UDSClientPoll(ctx->client);
+        } else if (ctx->client_tp) {
+            UDSTpPoll(ctx->client_tp);
+        }
+        TimeNowMillis++;
+    }
+}

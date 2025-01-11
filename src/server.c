@@ -17,7 +17,7 @@ static uint8_t EmitEvent(UDSServer_t *srv, UDSEvent_t evt, void *data) {
     if (srv->fn) {
         return srv->fn(srv, evt, data);
     } else {
-        UDS_DBG_PRINT("Unhandled UDSEvent %d, srv.fn not installed!\n", evt);
+        UDS_LOGI(__FILE__, "Unhandled UDSEvent %d, srv.fn not installed!\n", evt);
         return UDS_NRC_GeneralReject;
     }
 }
@@ -157,7 +157,7 @@ static uint8_t _0x22_ReadDataByIdentifier(UDSServer_t *srv, UDSReq_t *r) {
         unsigned send_len_before = r->send_len;
         ret = EmitEvent(srv, UDS_EVT_ReadDataByIdent, &args);
         if (ret == UDS_PositiveResponse && send_len_before == r->send_len) {
-            UDS_DBG_PRINT("ERROR: RDBI response positive but no data sent\n");
+            UDS_LOGI(__FILE__, "ERROR: RDBI response positive but no data sent\n");
             return NegativeResponse(r, UDS_NRC_GeneralReject);
         }
 
@@ -467,7 +467,7 @@ static uint8_t _0x34_RequestDownload(UDSServer_t *srv, UDSReq_t *r) {
     err = EmitEvent(srv, UDS_EVT_RequestDownload, &args);
 
     if (args.maxNumberOfBlockLength < 3) {
-        UDS_DBG_PRINT("ERROR: maxNumberOfBlockLength too short");
+        UDS_LOGI(__FILE__, "ERROR: maxNumberOfBlockLength too short");
         return NegativeResponse(r, UDS_NRC_GeneralProgrammingFailure);
     }
 
@@ -533,7 +533,7 @@ static uint8_t _0x35_RequestUpload(UDSServer_t *srv, UDSReq_t *r) {
     err = EmitEvent(srv, UDS_EVT_RequestUpload, &args);
 
     if (args.maxNumberOfBlockLength < 3) {
-        UDS_DBG_PRINT("ERROR: maxNumberOfBlockLength too short");
+        UDS_LOGI(__FILE__, "ERROR: maxNumberOfBlockLength too short");
         return NegativeResponse(r, UDS_NRC_GeneralProgrammingFailure);
     }
 
@@ -812,7 +812,7 @@ static UDSService getServiceForSID(uint8_t sid) {
     case kSID_RESPONSE_ON_EVENT:
         return NULL;
     default:
-        UDS_DBG_PRINT("no handler for request SID %x.\n", sid);
+        UDS_LOGI(__FILE__, "no handler for request SID %x.\n", sid);
         return NULL;
     }
 }
@@ -987,7 +987,7 @@ void UDSServerPoll(UDSServer_t *srv) {
             if (ret < 0) {
                 UDSErr_t err = UDS_ERR_TPORT;
                 EmitEvent(srv, UDS_EVT_Err, &err);
-                UDS_DBG_PRINT("UDSTpSend failed with %zd\n", ret);
+                UDS_LOGI(__FILE__, "UDSTpSend failed with %zd\n", ret);
             }
 
             if (srv->RCRRP) {
@@ -1010,15 +1010,15 @@ void UDSServerPoll(UDSServer_t *srv) {
         r->send_buf_size = UDSTpGetSendBuf(srv->tp, &r->send_buf);
         if (r->recv_len > 0) {
             if (r->send_buf == NULL) {
-                UDS_DBG_PRINT("Send buf null\n");
+                UDS_LOGI(__FILE__, "Send buf null\n");
             }
             if (r->recv_buf == NULL) {
-                UDS_DBG_PRINT("Recv buf null\n");
+                UDS_LOGI(__FILE__, "Recv buf null\n");
             }
             if (r->send_buf == NULL || r->recv_buf == NULL) {
                 UDSErr_t err = UDS_ERR_TPORT;
                 EmitEvent(srv, UDS_EVT_Err, &err);
-                UDS_DBG_PRINT("bad tport\n");
+                UDS_LOGI(__FILE__, "bad tport\n");
                 return;
             }
             uint8_t response = evaluateServiceResponse(srv, r);

@@ -12,8 +12,7 @@ cc_library(
         "UDS_TP_ISOTP_SOCK",
         "UDS_TP_ISOTP_MOCK",
         "UDS_CUSTOM_MILLIS",
-        "UDS_ENABLE_DBG_PRINT",
-        "UDS_ENABLE_ASSERT",
+        "UDS_LOG_LEVEL=UDS_LOG_VERBOSE",
         "UDS_LINES",
     ],
     copts = [ "-g", ],
@@ -44,43 +43,28 @@ TEST_SRCS = [
 
 TEST_NAMES = [ src.split(".c")[0] for src in TEST_SRCS ]
 
-# Generic unit tests
-# These should pass on all architectures and transports
 [
     cc_test(
         name=name + "_tp_mock", 
-        srcs=[src], 
-        deps=[":env"],
+        srcs = [
+            src,
+            "env.c",
+            "env.h",
+            "//:iso14229.h",
+            "//:iso14229.c",
+        ],
+        deps = [ "@cmocka" ],
         size = "small",
-        env = { "UDS_TP_TYPE": "0", },
         copts = ["-g"],
-        tags = [ "exclusive", ],
+        defines = [
+            "UDS_TP_ISOTP_MOCK",
+            "UDS_CUSTOM_MILLIS",
+            "UDS_LOG_LEVEL=UDS_LOG_VERBOSE",
+            "UDS_LINES",
+        ],
     ) for name, src in zip(TEST_NAMES, TEST_SRCS)
 ]
 
-[
-    cc_test(
-        name=name + "_tp_sock", 
-        srcs=[src], 
-        deps=[":env"],
-        size = "small",
-        env = { "UDS_TP_TYPE": "1"},
-        copts = ["-g"],
-        tags = [ "exclusive", "vcan", "isotp_sock"],
-    ) for name, src in zip(TEST_NAMES, TEST_SRCS)
-]
-
-[
-    cc_test(
-        name=name + "_tp_c", 
-        srcs=[src], 
-        deps=[":env"],
-        size = "small",
-        env = { "UDS_TP_TYPE": "2"},
-        copts = ["-g"],
-        tags = [ "exclusive", "vcan"],
-    ) for name, src in zip(TEST_NAMES, TEST_SRCS)
-]
 
 cc_test(
     name = "test_fuzz_server",
@@ -113,6 +97,28 @@ sh_test(
     srcs = ["test_prefix.sh"],
     data = ["//:iso14229"],
     args = ["$(locations //:iso14229)"],
+    size = "small",
+
+    # Not exactly right. It's to prevent this test from being run under qemu
+    target_compatible_with = ["@platforms//cpu:x86_64"],
+)
+
+cc_binary(
+    name = "test_log_disable_c",
+    srcs = [
+        "test_log_disable.c",
+        "//:iso14229.h",
+        "//:iso14229.c",
+    ],
+    linkopts = ["-Wl,--gc-sections"],
+)
+
+# Test that logging is disabled by default
+sh_test(
+    name = "test_log_disable",
+    srcs = ["test_log_disable.sh"],
+    data = [":test_log_disable_c"],
+    args = ["$(locations :test_log_disable_c)"],
     size = "small",
 
     # Not exactly right. It's to prevent this test from being run under qemu
@@ -157,8 +163,7 @@ cc_binary(
         "UDS_TP_ISOTP_SOCK",
         "UDS_TP_ISOTP_MOCK",
         "UDS_CUSTOM_MILLIS",
-        "UDS_ENABLE_DBG_PRINT",
-        "UDS_ENABLE_ASSERT",
+        "UDS_LOG_LEVEL=UDS_LOG_VERBOSE",
     ],
     copts = [ "-g", ],
 )
@@ -178,8 +183,7 @@ cc_binary(
         "UDS_TP_ISOTP_SOCK",
         "UDS_TP_ISOTP_MOCK",
         "UDS_CUSTOM_MILLIS",
-        "UDS_ENABLE_DBG_PRINT",
-        "UDS_ENABLE_ASSERT",
+        "UDS_LOG_LEVEL=UDS_LOG_VERBOSE",
     ],
     copts = [ "-g", ],
 )
@@ -199,8 +203,7 @@ cc_binary(
         "UDS_TP_ISOTP_SOCK",
         "UDS_TP_ISOTP_MOCK",
         "UDS_CUSTOM_MILLIS",
-        "UDS_ENABLE_DBG_PRINT",
-        "UDS_ENABLE_ASSERT",
+        "UDS_LOG_LEVEL=UDS_LOG_VERBOSE",
     ],
     copts = [ "-g", ],
 )
@@ -214,7 +217,7 @@ cc_binary(
 )
 
 cc_test(
-    name = "test_tp_isotp_compliance",
+    name = "test_tp_isotp_mock_compliance",
     srcs = [
         "test_tp_isotp_compliance.c",
         "env.c",
@@ -224,13 +227,60 @@ cc_test(
     ],
     deps = [ "@cmocka" ],
     defines = [
-        "UDS_TP_ISOTP_C_SOCKETCAN",
-        "UDS_TP_ISOTP_SOCK",
-        "UDS_TP_ISOTP_MOCK",
         "UDS_CUSTOM_MILLIS",
-        "UDS_ENABLE_DBG_PRINT",
-        "UDS_ENABLE_ASSERT",
         "UDS_LINES",
+        "UDS_LOG_LEVEL=UDS_LOG_VERBOSE",
+        "UDS_TP_ISOTP_MOCK",
     ],
     copts = [ "-g", ],
+    size = "small",
+)
+
+cc_test(
+    name = "test_tp_isotp_sock_compliance",
+    srcs = [
+        "test_tp_isotp_compliance.c",
+        "env.c",
+        "env.h",
+        "//:iso14229.h",
+        "//:iso14229.c",
+    ],
+    deps = [ "@cmocka" ],
+    defines = [
+        "UDS_CUSTOM_MILLIS",
+        "UDS_LINES",
+        "UDS_LOG_LEVEL=UDS_LOG_VERBOSE",
+        "UDS_TP_ISOTP_SOCK",
+    ],
+    copts = [ "-g", ],
+    tags = [ 
+        "vcan",
+        "exclusive",
+    ],
+    size = "small",
+)
+
+
+cc_test(
+    name = "test_tp_isotp_c_socketcan_compliance",
+    srcs = [
+        "test_tp_isotp_compliance.c",
+        "env.c",
+        "env.h",
+        "//:iso14229.h",
+        "//:iso14229.c",
+    ],
+    deps = [ "@cmocka" ],
+    defines = [
+        "UDS_CUSTOM_MILLIS",
+        "UDS_LINES",
+        "UDS_LOG_LEVEL=UDS_LOG_VERBOSE",
+        "UDS_TP_ISOTP_C_SOCKETCAN",
+    ],
+    copts = [ "-g", ],
+    tags = [ 
+        "vcan",
+        "exclusive",
+    ],
+    size = "small",
 )

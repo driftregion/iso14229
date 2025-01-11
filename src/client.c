@@ -48,8 +48,8 @@ static const char *ClientStateName(enum UDSClientRequestState state) {
 
 static void changeState(UDSClient_t *client, enum UDSClientRequestState state) {
     if (state != client->state) {
-        UDS_DBG_PRINT("client state: %s (%d) -> %s (%d)\n", ClientStateName(client->state),
-                      client->state, ClientStateName(state), state);
+        UDS_LOGI(__FILE__, "client state: %s (%d) -> %s (%d)\n", ClientStateName(client->state),
+                 client->state, ClientStateName(state), state);
 
         client->state = state;
 
@@ -112,7 +112,7 @@ static UDSErr_t ValidateServerResponse(const UDSClient_t *client) {
 static UDSErr_t HandleServerResponse(UDSClient_t *client) {
     if (0x7F == client->recv_buf[0]) {
         if (UDS_NRC_RequestCorrectlyReceived_ResponsePending == client->recv_buf[2]) {
-            UDS_DBG_PRINT("got RCRRP, setting p2 timer\n");
+            UDS_LOGI(__FILE__, "got RCRRP, setting p2 timer\n");
             client->p2_timer = UDSMillis() + client->p2_star_ms;
             memset(client->recv_buf, 0, client->recv_buf_size);
             client->recv_size = 0;
@@ -127,8 +127,8 @@ static UDSErr_t HandleServerResponse(UDSClient_t *client) {
         switch (UDS_REQUEST_SID_OF(respSid)) {
         case kSID_DIAGNOSTIC_SESSION_CONTROL: {
             if (client->recv_size < UDS_0X10_RESP_LEN) {
-                UDS_DBG_PRINT("Error: SID %x response too short\n",
-                              kSID_DIAGNOSTIC_SESSION_CONTROL);
+                UDS_LOGI(__FILE__, "Error: SID %x response too short\n",
+                         kSID_DIAGNOSTIC_SESSION_CONTROL);
                 UDSTpAckRecv(client->tp);
                 changeState(client, kRequestStateIdle);
                 return UDS_ERR_RESP_TOO_SHORT;
@@ -142,7 +142,8 @@ static UDSErr_t HandleServerResponse(UDSClient_t *client) {
 
             uint16_t p2 = (client->recv_buf[2] << 8) + client->recv_buf[3];
             uint32_t p2_star = ((client->recv_buf[4] << 8) + client->recv_buf[5]) * 10;
-            UDS_DBG_PRINT("received new timings: p2: %" PRIu16 ", p2*: %" PRIu32 "\n", p2, p2_star);
+            UDS_LOGI(__FILE__, "received new timings: p2: %" PRIu16 ", p2*: %" PRIu32 "\n", p2,
+                     p2_star);
             client->p2_ms = p2;
             client->p2_star_ms = p2_star;
             break;
@@ -183,9 +184,9 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
         ssize_t ret = UDSTpSend(client->tp, client->send_buf, client->send_size, &info);
         if (ret < 0) {
             err = UDS_ERR_TPORT;
-            UDS_DBG_PRINT("tport err: %zd\n", ret);
+            UDS_LOGI(__FILE__, "tport err: %zd\n", ret);
         } else if (0 == ret) {
-            UDS_DBG_PRINT("send in progress...\n");
+            UDS_LOGI(__FILE__, "send in progress...\n");
             ; // 等待发送成功
         } else if (client->send_size == ret) {
             changeState(client, kRequestStateAwaitSendComplete);
@@ -230,7 +231,7 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
                 changeState(client, kRequestStateIdle);
             }
         } else {
-            UDS_DBG_PRINT("received %zd bytes. Processing...\n", len);
+            UDS_LOGI(__FILE__, "received %zd bytes. Processing...\n", len);
             client->recv_size = len;
 
             err = ValidateServerResponse(client);
@@ -421,7 +422,7 @@ UDSErr_t UDSSendRoutineCtrl(UDSClient_t *client, enum RoutineControlType type,
         memmove(&client->send_buf[UDS_0X31_REQ_MIN_LEN], data, size);
     } else {
         if (NULL != data) {
-            UDS_DBG_PRINT("warning: size zero and data non-null\n");
+            UDS_LOGI(__FILE__, "warning: size zero and data non-null\n");
         }
     }
     client->send_size = UDS_0X31_REQ_MIN_LEN + size;
@@ -539,7 +540,7 @@ UDSErr_t UDSSendTransferData(UDSClient_t *client, uint8_t blockSequenceCounter,
     client->send_buf[0] = kSID_TRANSFER_DATA;
     client->send_buf[1] = blockSequenceCounter;
     memmove(&client->send_buf[UDS_0X36_REQ_BASE_LEN], data, size);
-    UDS_DBG_PRINT("size: %d, blocklength: %d\n", size, blockLength);
+    UDS_LOGI(__FILE__, "size: %d, blocklength: %d\n", size, blockLength);
     client->send_size = UDS_0X36_REQ_BASE_LEN + size;
     return SendRequest(client);
 }
@@ -558,7 +559,7 @@ UDSErr_t UDSSendTransferDataStream(UDSClient_t *client, uint8_t blockSequenceCou
     client->send_buf[1] = blockSequenceCounter;
 
     uint16_t size = fread(&client->send_buf[2], 1, blockLength - 2, fd);
-    UDS_DBG_PRINT("size: %d, blocklength: %d\n", size, blockLength);
+    UDS_LOGI(__FILE__, "size: %d, blocklength: %d\n", size, blockLength);
     client->send_size = UDS_0X36_REQ_BASE_LEN + size;
     return SendRequest(client);
 }
@@ -661,7 +662,7 @@ UDSErr_t UDSCtrlDTCSetting(UDSClient_t *client, uint8_t dtcSettingType, uint8_t 
         }
     } else {
         if (size == 0) {
-            UDS_DBG_PRINT("warning: size == 0 and data is non-null\n");
+            UDS_LOGI(__FILE__, "warning: size == 0 and data is non-null\n");
         }
         if (size > client->send_buf_size - 2) {
             return UDS_ERR_BUFSIZ;
@@ -701,7 +702,7 @@ UDSErr_t UDSSendSecurityAccess(UDSClient_t *client, uint8_t level, uint8_t *data
         }
     } else {
         if (NULL != data) {
-            UDS_DBG_PRINT("warning: size == 0 and data is non-null\n");
+            UDS_LOGI(__FILE__, "warning: size == 0 and data is non-null\n");
         }
     }
 
@@ -784,7 +785,7 @@ UDSErr_t UDSUnpackRequestDownloadResponse(const UDSClient_t *client,
     uint8_t maxNumberOfBlockLengthSize = (client->recv_buf[1] & 0xF0) >> 4;
 
     if (sizeof(resp->maxNumberOfBlockLength) < maxNumberOfBlockLengthSize) {
-        UDS_DBG_PRINT("WARNING: sizeof(maxNumberOfBlockLength) > sizeof(size_t)");
+        UDS_LOGI(__FILE__, "WARNING: sizeof(maxNumberOfBlockLength) > sizeof(size_t)");
         return UDS_FAIL;
     }
     resp->maxNumberOfBlockLength = 0;

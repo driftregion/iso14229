@@ -18,7 +18,7 @@ uint8_t fn(UDSServer_t *srv, UDSEvent_t ev, const void *arg) {
         UDSSecAccessValidateKeyArgs_t *r = (UDSSecAccessValidateKeyArgs_t *)arg;
         const uint8_t expected_key[] = {0xC9, 0xA9};
         if (memcmp(r->key, expected_key, sizeof(expected_key))) {
-            return kSecurityAccessDenied;
+            return UDS_NRC_SecurityAccessDenied;
         } else {
             return UDS_PositiveResponse;
         }
