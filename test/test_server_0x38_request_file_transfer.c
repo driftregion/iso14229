@@ -38,7 +38,7 @@ int main() {
         uint8_t RESP[] = {0x7F, 0x38, 0x11};
         EXPECT_IN_APPROX_MS(UDSTpGetRecvLen(mock_client) > 0, srv.p2_ms);
         TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(mock_client, NULL), RESP, sizeof(RESP));
-        TPMockReset();
+        ISOTPMockReset();
     }
 
     { // case 1: add file
@@ -58,7 +58,7 @@ int main() {
         uint8_t RESP[] = {0x78, 0x01, 0x02, 0x00, 0x81};
         EXPECT_IN_APPROX_MS(UDSTpGetRecvLen(mock_client) > 0, srv.p2_ms);
         TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(mock_client, NULL), RESP, sizeof(RESP));
-        TPMockReset();
+        ISOTPMockReset();
     }
     { // case 2: delete file
         UDSTpHandle_t *mock_client = ENV_TpNew("client");
@@ -76,6 +76,6 @@ int main() {
         uint8_t RESP[] = {0x78, 0x02};
         EXPECT_IN_APPROX_MS(UDSTpGetRecvLen(mock_client) > 0, srv.p2_ms);
         TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(mock_client, NULL), RESP, sizeof(RESP));
-        TPMockReset();
+        ISOTPMockReset();
     }
 }

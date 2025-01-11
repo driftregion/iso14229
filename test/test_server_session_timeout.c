@@ -28,6 +28,6 @@ int main() {
         srv.sessionType = p[i].sessType;
         ENV_RunMillis(5000);
         TEST_INT_GE(call_count, p[i].expectedCallCount);
-        TPMockReset();
+        ISOTPMockReset();
     }
 }

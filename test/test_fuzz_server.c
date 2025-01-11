@@ -37,8 +37,8 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     static bool initialized = false;
     if (!initialized) {
         UDSServerInit(&srv);
-        srv.tp = TPMockNew("server", TPMOCK_DEFAULT_SERVER_ARGS);
-        mock_client = TPMockNew("client", TPMOCK_DEFAULT_CLIENT_ARGS);
+        srv.tp = ISOTPMockNew("server", ISOTPMock_DEFAULT_SERVER_ARGS);
+        mock_client = ISOTPMockNew("client", ISOTPMock_DEFAULT_CLIENT_ARGS);
         initialized = true;
     }
     if (size < sizeof(fuzz_buf)) {
@@ -52,7 +52,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     }
 
 
-    // TPMockLogToStdout();
+    // ISOTPMockLogToStdout();
     UDSTpSend(mock_client, fuzz_buf.msg, fuzz_buf.msg_len, &fuzz_buf.sdu_info);
 
     for (int i = 0; i < 1000; i++) {

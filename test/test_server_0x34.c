@@ -25,7 +25,7 @@ int main() {
         uint8_t RESP[] = {0x7F, 0x34, 0x11};
         EXPECT_IN_APPROX_MS(UDSTpGetRecvLen(mock_client) > 0, srv.p2_ms);
         TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(mock_client, NULL), RESP, sizeof(RESP));
-        TPMockReset();
+        ISOTPMockReset();
     }
 
     { // case 1: handler installed
@@ -43,6 +43,6 @@ int main() {
         uint8_t RESP[] = {0x74, 0x20, 0x00, 0x81};
         EXPECT_IN_APPROX_MS(UDSTpGetRecvLen(mock_client) > 0, srv.p2_ms);
         TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(mock_client, NULL), RESP, sizeof(RESP));
-        TPMockReset();
+        ISOTPMockReset();
     }
 }

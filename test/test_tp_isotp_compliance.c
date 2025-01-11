@@ -8,22 +8,22 @@ static uint32_t g_ms = 0;
 uint32_t UDSMillis() { return g_ms; }
 
 static int setup_tp_mock_server(void **state) {
-    server_tp = TPMockNew("server", TPMOCK_DEFAULT_SERVER_ARGS);
+    server_tp = ISOTPMockNew("server", ISOTPMock_DEFAULT_SERVER_ARGS);
     return 0;
 }
 
 static int teardown_tp_mock_server(void **state) {
-    TPMockFree(server_tp);
+    ISOTPMockFree(server_tp);
     return 0;
 }
 
 static int setup_tp_mock_client(void **state) {
-    client_tp = TPMockNew("client", TPMOCK_DEFAULT_CLIENT_ARGS);
+    client_tp = ISOTPMockNew("client", ISOTPMock_DEFAULT_CLIENT_ARGS);
     return 0;
 }
 
 static int teardown_tp_mock_client(void **state) {
-    TPMockFree(client_tp);
+    ISOTPMockFree(client_tp);
     return 0;
 }
 
@@ -191,6 +191,7 @@ void TestLargestSingleFrame(void **state) {
     assert_int_equal(info.A_TA_Type, UDS_A_TA_TYPE_FUNCTIONAL);
 }
 
+// ISO 15765-2 2016 Table 4 note b. Functional addressing shall only be supported for SingleFrame communication.
 void TestSendFunctionalLargerThanSingleFrameFails(void **state) {
     // When a functional request is sent with more than 7 bytes
     const uint8_t MSG[] = {1, 2, 3, 4, 5, 6, 7, 8};

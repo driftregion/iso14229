@@ -10,7 +10,7 @@ cc_library(
     defines = [
         "UDS_TP_ISOTP_C_SOCKETCAN",
         "UDS_TP_ISOTP_SOCK",
-        "UDS_TP_MOCK",
+        "UDS_TP_ISOTP_MOCK",
         "UDS_CUSTOM_MILLIS",
         "UDS_ENABLE_DBG_PRINT",
         "UDS_ENABLE_ASSERT",
@@ -90,7 +90,7 @@ cc_test(
         "//:iso14229.c",
     ],
     defines = [
-        "UDS_TP_MOCK",
+        "UDS_TP_ISOTP_MOCK",
         "UDS_CUSTOM_MILLIS",
         "UDS_LINES",
     ],
@@ -136,7 +136,7 @@ cc_library(
     defines = [
         "UDS_TP_ISOTP_C_SOCKETCAN",
         "UDS_TP_ISOTP_SOCK",
-        "UDS_TP_MOCK",
+        "UDS_TP_ISOTP_MOCK",
     ],
     target_compatible_with = ["//platforms/compiler:clang"],
 )
@@ -155,7 +155,7 @@ cc_binary(
     defines = [
         "UDS_TP_ISOTP_C_SOCKETCAN",
         "UDS_TP_ISOTP_SOCK",
-        "UDS_TP_MOCK",
+        "UDS_TP_ISOTP_MOCK",
         "UDS_CUSTOM_MILLIS",
         "UDS_ENABLE_DBG_PRINT",
         "UDS_ENABLE_ASSERT",
@@ -176,7 +176,7 @@ cc_binary(
     defines = [
         "UDS_TP_ISOTP_C_SOCKETCAN",
         "UDS_TP_ISOTP_SOCK",
-        "UDS_TP_MOCK",
+        "UDS_TP_ISOTP_MOCK",
         "UDS_CUSTOM_MILLIS",
         "UDS_ENABLE_DBG_PRINT",
         "UDS_ENABLE_ASSERT",
@@ -197,7 +197,7 @@ cc_binary(
     defines = [
         "UDS_TP_ISOTP_C_SOCKETCAN",
         "UDS_TP_ISOTP_SOCK",
-        "UDS_TP_MOCK",
+        "UDS_TP_ISOTP_MOCK",
         "UDS_CUSTOM_MILLIS",
         "UDS_ENABLE_DBG_PRINT",
         "UDS_ENABLE_ASSERT",
@@ -226,7 +226,7 @@ cc_test(
     defines = [
         "UDS_TP_ISOTP_C_SOCKETCAN",
         "UDS_TP_ISOTP_SOCK",
-        "UDS_TP_MOCK",
+        "UDS_TP_ISOTP_MOCK",
         "UDS_CUSTOM_MILLIS",
         "UDS_ENABLE_DBG_PRINT",
         "UDS_ENABLE_ASSERT",

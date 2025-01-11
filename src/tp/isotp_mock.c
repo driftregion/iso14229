@@ -1,4 +1,4 @@
-#if defined(UDS_TP_MOCK)
+#if defined(UDS_TP_ISOTP_MOCK)
 
 #include "tp/mock.h"
 #include "iso14229.h"
@@ -10,7 +10,7 @@
 
 #define MAX_NUM_TP 16
 #define NUM_MSGS 8
-static TPMock_t *TPs[MAX_NUM_TP];
+static ISOTPMock_t *TPs[MAX_NUM_TP];
 static unsigned TPCount = 0;
 static FILE *LogFile = NULL;
 static struct Msg {
@@ -18,7 +18,7 @@ static struct Msg {
     size_t len;
     UDSSDU_t info;
     uint32_t scheduled_tx_time;
-    TPMock_t *sender;
+    ISOTPMock_t *sender;
 } msgs[NUM_MSGS];
 static unsigned MsgCount = 0;
 
@@ -39,7 +39,7 @@ static void NetworkPoll(void) {
     for (unsigned i = 0; i < MsgCount; i++) {
         if (UDSTimeAfter(UDSMillis(), msgs[i].scheduled_tx_time)) {
             for (unsigned j = 0; j < TPCount; j++) {
-                TPMock_t *tp = TPs[j];
+                ISOTPMock_t *tp = TPs[j];
                 if (tp->sa_phys == msgs[i].info.A_TA || tp->sa_func == msgs[i].info.A_TA) {
                     if (tp->recv_len > 0) {
                         fprintf(stderr, "TPMock: %s recv buffer is already full. Message dropped\n",
@@ -64,7 +64,7 @@ static void NetworkPoll(void) {
 static ssize_t mock_tp_peek(struct UDSTpHandle *hdl, uint8_t **p_buf, UDSSDU_t *info) {
     assert(hdl);
     assert(p_buf);
-    TPMock_t *tp = (TPMock_t *)hdl;
+    ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
     if (p_buf) {
         *p_buf = tp->recv_buf;
     }
@@ -76,7 +76,7 @@ static ssize_t mock_tp_peek(struct UDSTpHandle *hdl, uint8_t **p_buf, UDSSDU_t *
 
 static ssize_t mock_tp_send(struct UDSTpHandle *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
     assert(hdl);
-    TPMock_t *tp = (TPMock_t *)hdl;
+    ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
     if (MsgCount >= NUM_MSGS) {
         fprintf(stderr, "TPMock: too many messages in the queue\n");
         return -1;
@@ -111,20 +111,20 @@ static UDSTpStatus_t mock_tp_poll(struct UDSTpHandle *hdl) {
 static ssize_t mock_tp_get_send_buf(struct UDSTpHandle *hdl, uint8_t **p_buf) {
     assert(hdl);
     assert(p_buf);
-    TPMock_t *tp = (TPMock_t *)hdl;
+    ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
     *p_buf = tp->send_buf;
     return sizeof(tp->send_buf);
 }
 
 static void mock_tp_ack_recv(struct UDSTpHandle *hdl) {
     assert(hdl);
-    TPMock_t *tp = (TPMock_t *)hdl;
+    ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
     tp->recv_len = 0;
 }
 
-static_assert(offsetof(TPMock_t, hdl) == 0, "TPMock_t must not have any members before hdl");
+static_assert(offsetof(ISOTPMock_t, hdl) == 0, "ISOTPMock_t must not have any members before hdl");
 
-static void TPMockAttach(TPMock_t *tp, TPMockArgs_t *args) {
+static void ISOTPMockAttach(ISOTPMock_t *tp, ISOTPMockArgs_t *args) {
     assert(tp);
     assert(args);
     assert(TPCount < MAX_NUM_TP);
@@ -141,7 +141,7 @@ static void TPMockAttach(TPMock_t *tp, TPMockArgs_t *args) {
     tp->recv_len = 0;
 }
 
-static void TPMockDetach(TPMock_t *tp) {
+static void ISOTPMockDetach(ISOTPMock_t *tp) {
     assert(tp);
     for (unsigned i = 0; i < TPCount; i++) {
         if (TPs[i] == tp) {
@@ -156,24 +156,24 @@ static void TPMockDetach(TPMock_t *tp) {
     assert(false);
 }
 
-UDSTpHandle_t *TPMockNew(const char *name, TPMockArgs_t *args) {
+UDSTpHandle_t *ISOTPMockNew(const char *name, ISOTPMockArgs_t *args) {
     if (TPCount >= MAX_NUM_TP) {
         UDS_DBG_PRINT("TPCount: %d, too many TPs\n", TPCount);
         return NULL;
     }
-    TPMock_t *tp = malloc(sizeof(TPMock_t));
+    ISOTPMock_t *tp = malloc(sizeof(ISOTPMock_t));
     if (name) {
         strncpy(tp->name, name, sizeof(tp->name));
     } else {
         snprintf(tp->name, sizeof(tp->name), "TPMock%d", TPCount);
     }
-    TPMockAttach(tp, args);
+    ISOTPMockAttach(tp, args);
     return &tp->hdl;
 }
 
-void TPMockConnect(UDSTpHandle_t *tp1, UDSTpHandle_t *tp2);
+void ISOTPMockConnect(UDSTpHandle_t *tp1, UDSTpHandle_t *tp2);
 
-void TPMockLogToFile(const char *filename) {
+void ISOTPMockLogToFile(const char *filename) {
     if (LogFile) {
         fprintf(stderr, "Log file is already open\n");
         return;
@@ -190,21 +190,21 @@ void TPMockLogToFile(const char *filename) {
     }
 }
 
-void TPMockLogToStdout(void) {
+void ISOTPMockLogToStdout(void) {
     if (LogFile) {
         return;
     }
     LogFile = stdout;
 }
 
-void TPMockReset(void) {
+void ISOTPMockReset(void) {
     memset(TPs, 0, sizeof(TPs));
     TPCount = 0;
 }
 
-void TPMockFree(UDSTpHandle_t *tp) {
-    TPMock_t *tpm = (TPMock_t *)tp;
-    TPMockDetach(tpm);
+void ISOTPMockFree(UDSTpHandle_t *tp) {
+    ISOTPMock_t *tpm = (ISOTPMock_t *)tp;
+    ISOTPMockDetach(tpm);
     free(tp);
 }
 

@@ -45,7 +45,7 @@ with open(args.out_c, "w") as f:
         "src/tp/isotp_c.c",
         "src/tp/isotp_c_socketcan.c",
         "src/tp/isotp_sock.c",
-        "src/tp/mock.c",
+        "src/tp/isotp_mock.c",
     ]:
         f.write("\n")
         f.write("#ifdef UDS_LINES\n")
@@ -93,7 +93,7 @@ with open(args.out_h, "w") as f:
         "src/tp/isotp_c.h",
         "src/tp/isotp_c_socketcan.h",
         "src/tp/isotp_sock.h",
-        "src/tp/mock.h",
+        "src/tp/isotp_mock.h",
     ]:
         f.write("\n")
         with open(src) as src_file:

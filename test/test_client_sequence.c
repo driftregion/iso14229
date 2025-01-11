@@ -58,16 +58,16 @@ int main() {
     UDSServer_t server;
 
     UDSClientInit(&client);
-    client.tp = TPMockNew("client", TPMOCK_DEFAULT_CLIENT_ARGS);
+    client.tp = ISOTPMockNew("client", ISOTPMock_DEFAULT_CLIENT_ARGS);
     client.fn = client_fn;
     SeqState_t seq_state = {0};
     client.fn_data = &seq_state;
 
     UDSServerInit(&server);
-    server.tp = TPMockNew("server", TPMOCK_DEFAULT_SERVER_ARGS);
+    server.tp = ISOTPMockNew("server", ISOTPMock_DEFAULT_SERVER_ARGS);
     server.fn = server_fn;
 
-    TPMockLogToStdout();
+    ISOTPMockLogToStdout();
 
     for (int i = 0; i < 1000; i++) {
         ENV_RunMillis(1);
