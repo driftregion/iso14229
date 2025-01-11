@@ -91,7 +91,7 @@ void ENV_SetTimeout(void (*fn)(void *), void *arg, unsigned delay) {
     TimeoutFnCnt++;
 }
 
-void ENV_RunMillis(uint32_t millis) {
+void ENV_OldRunMillis(uint32_t millis) {
     uint32_t end = UDSMillis() + millis;
     while (UDSMillis() < end) {
         if (registeredServer) {
@@ -124,18 +124,18 @@ void ENV_RunMillis(uint32_t millis) {
     }
 }
 
-void ENV_CtxRunMillis(ENV_Context_t *ctx, uint32_t millis) {
+void EnvRunMillis(Env_t *env, uint32_t millis) {
     uint32_t end = UDSMillis() + millis;
     while (UDSMillis() < end) {
-        if (ctx->server) {
-            UDSServerPoll(ctx->server);
-        } else if (ctx->server_tp) {
-            UDSTpPoll(ctx->server_tp);
+        if (env->server) {
+            UDSServerPoll(env->server);
+        } else if (env->server_tp) {
+            UDSTpPoll(env->server_tp);
         }
-        if (ctx->client) {
-            UDSClientPoll(ctx->client);
-        } else if (ctx->client_tp) {
-            UDSTpPoll(ctx->client_tp);
+        if (env->client) {
+            UDSClientPoll(env->client);
+        } else if (env->client_tp) {
+            UDSTpPoll(env->client_tp);
         }
         TimeNowMillis++;
     }

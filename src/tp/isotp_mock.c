@@ -22,36 +22,37 @@ static struct Msg {
 } msgs[NUM_MSGS];
 static unsigned MsgCount = 0;
 
-static void LogMsg(const char *prefix, const uint8_t *buf, size_t len, UDSSDU_t *info) {
-    if (!LogFile) {
-        return;
-    }
-    fprintf(LogFile, "%06d, %s, 0x%03x (%s), ", UDSMillis(), prefix, info->A_TA,
-            info->A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
-    for (unsigned i = 0; i < len; i++) {
-        fprintf(LogFile, "%02x  ", buf[i]);
-    }
-    fprintf(LogFile, "\n");
-    fflush(LogFile); // flush every time in case of crash
-}
-
 static void NetworkPoll(void) {
     for (unsigned i = 0; i < MsgCount; i++) {
         if (UDSTimeAfter(UDSMillis(), msgs[i].scheduled_tx_time)) {
+            bool found = false;
             for (unsigned j = 0; j < TPCount; j++) {
                 ISOTPMock_t *tp = TPs[j];
                 if (tp->sa_phys == msgs[i].info.A_TA || tp->sa_func == msgs[i].info.A_TA) {
+                    found = true;
                     if (tp->recv_len > 0) {
                         fprintf(stderr, "TPMock: %s recv buffer is already full. Message dropped\n",
                                 tp->name);
                         continue;
                     }
+
+                    UDS_LOGD(__FILE__,
+                             "%s receives %d bytes from TA=0x%03X (A_TA_Type=%s):", tp->name,
+                             msgs[i].len, msgs[i].info.A_TA,
+                             msgs[i].info.A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "PHYSICAL"
+                                                                              : "FUNCTIONAL");
+                    UDS_LOG_SDU(__FILE__, msgs[i].buf, msgs[i].len, &(msgs[i].info));
+
                     memmove(tp->recv_buf, msgs[i].buf, msgs[i].len);
                     tp->recv_len = msgs[i].len;
                     tp->recv_info = msgs[i].info;
                 }
             }
-            LogMsg("network sees", msgs[i].buf, msgs[i].len, &(msgs[i].info));
+
+            if (!found) {
+                UDS_LOGW(__FILE__, "TPMock: no matching receiver for message");
+            }
+
             for (unsigned j = i + 1; j < MsgCount; j++) {
                 msgs[j - 1] = msgs[j];
             }
@@ -98,7 +99,6 @@ static ssize_t mock_tp_send(struct UDSTpHandle *hdl, uint8_t *buf, size_t len, U
     m->info.A_TA_Type = ta_type;
     m->scheduled_tx_time = UDSMillis() + tp->send_tx_delay_ms;
     memmove(m->buf, buf, len);
-    LogMsg(tp->name, buf, len, &m->info);
 
     UDS_LOGD(__FILE__, "%s sends %d bytes to TA=0x%03X (A_TA_Type=%s):", tp->name, len,
              m->info.A_TA, m->info.A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "PHYSICAL" : "FUNCTIONAL");
@@ -144,7 +144,7 @@ static void ISOTPMockAttach(ISOTPMock_t *tp, ISOTPMockArgs_t *args) {
     tp->ta_func = args->ta_func;
     tp->ta_phys = args->ta_phys;
     tp->recv_len = 0;
-    UDS_LOGD(__FILE__, "attached %s. TPCount: %d", tp->name, TPCount);
+    UDS_LOGV(__FILE__, "attached %s. TPCount: %d", tp->name, TPCount);
 }
 
 static void ISOTPMockDetach(ISOTPMock_t *tp) {
@@ -155,7 +155,7 @@ static void ISOTPMockDetach(ISOTPMock_t *tp) {
                 TPs[j - 1] = TPs[j];
             }
             TPCount--;
-            UDS_LOGI(__FILE__, "TPMock: detached %s. TPCount: %d\n", tp->name, TPCount);
+            UDS_LOGV(__FILE__, "TPMock: detached %s. TPCount: %d", tp->name, TPCount);
             return;
         }
     }
