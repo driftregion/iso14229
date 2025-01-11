@@ -18,6 +18,7 @@ ssize_t UDSTpGetSendBuf(struct UDSTpHandle *hdl, uint8_t **buf) {
     UDS_ASSERT(hdl->get_send_buf);
     return hdl->get_send_buf(hdl, buf);
 }
+
 ssize_t UDSTpSend(struct UDSTpHandle *hdl, const uint8_t *buf, ssize_t len, UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     UDS_ASSERT(hdl->send);

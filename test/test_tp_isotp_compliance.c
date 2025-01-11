@@ -191,7 +191,7 @@ void TestLargestSingleFrame(void **state) {
     assert_int_equal(info.A_TA_Type, UDS_A_TA_TYPE_FUNCTIONAL);
 }
 
-void TestSendLargerThanSingleFrameFails(void **state) {
+void TestSendFunctionalLargerThanSingleFrameFails(void **state) {
     // When a functional request is sent with more than 7 bytes
     const uint8_t MSG[] = {1, 2, 3, 4, 5, 6, 7, 8};
     ssize_t ret =
@@ -246,7 +246,7 @@ int main() {
                                         teardown_tp_mock_both),
 
         // this should pass, but it isn't.
-        // cmocka_unit_test_setup_teardown(TestSendLargerThanSingleFrameFails,
+        // cmocka_unit_test_setup_teardown(TestSendFunctionalLargerThanSingleFrameFails,
         // setup_tp_mock_both, teardown_tp_mock_both),
 
         cmocka_unit_test_setup_teardown(TestSendRecvMaxLen, setup_tp_mock_both,
@@ -261,14 +261,14 @@ int main() {
                                         teardown_tp_isotp_c_both),
         cmocka_unit_test_setup_teardown(TestSendRecvFunctional, setup_tp_isotp_c_both,
                                         teardown_tp_isotp_c_both),
-        cmocka_unit_test_setup_teardown(TestSendLargerThanSingleFrameFails, setup_tp_isotp_c_both,
+        cmocka_unit_test_setup_teardown(TestSendFunctionalLargerThanSingleFrameFails, setup_tp_isotp_c_both,
                                         teardown_tp_isotp_c_both),
         cmocka_unit_test_setup_teardown(TestSendRecvMaxLen, setup_tp_isotp_c_both,
                                         teardown_tp_isotp_c_both),
 
         // this should pass, but it isn't.
-        // cmocka_unit_test_setup_teardown(TestFlowControlFrameTimeout, setup_tp_isotp_c_both,
-        // teardown_tp_isotp_c_both),
+        // cmocka_unit_test_setup_teardown(TestFlowControlFrameTimeout, setup_tp_isotp_c_client,
+        // teardown_tp_isotp_c_client),
     };
     ret += cmocka_run_group_tests(tp_isotp_c_tests, NULL, NULL);
 
@@ -282,7 +282,7 @@ int main() {
         // cmocka_unit_test_setup_teardown(TestSendRecvFunctional, setup_tp_isotp_sock_both,
         // teardown_tp_isotp_sock_both),
 
-        cmocka_unit_test_setup_teardown(TestSendLargerThanSingleFrameFails,
+        cmocka_unit_test_setup_teardown(TestSendFunctionalLargerThanSingleFrameFails,
                                         setup_tp_isotp_sock_both, teardown_tp_isotp_sock_both),
         cmocka_unit_test_setup_teardown(TestSendRecvMaxLen, setup_tp_isotp_sock_both,
                                         teardown_tp_isotp_sock_both),

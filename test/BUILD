@@ -214,9 +214,9 @@ cc_binary(
 )
 
 cc_test(
-    name = "test_tp_compliance",
+    name = "test_tp_isotp_compliance",
     srcs = [
-        "test_tp_compliance.c",
+        "test_tp_isotp_compliance.c",
         "env.c",
         "env.h",
         "//:iso14229.h",

@@ -49,7 +49,6 @@ void isotp_user_debug(const char *message, ...) {
 
 int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t *data, const uint8_t size,
                         void *user_data) {
-    printf("user_data: %p\n", user_data);
     fflush(stdout);
     UDS_ASSERT(user_data);
     int sockfd = *(int *)user_data;
