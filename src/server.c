@@ -812,7 +812,7 @@ static UDSService getServiceForSID(uint8_t sid) {
     case kSID_RESPONSE_ON_EVENT:
         return NULL;
     default:
-        UDS_LOGI(__FILE__, "no handler for request SID %x.\n", sid);
+        UDS_LOGI(__FILE__, "no handler for request SID %x", sid);
         return NULL;
     }
 }
@@ -919,13 +919,6 @@ static uint8_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
 //                             Public Functions
 // ========================================================================
 
-/**
- * @brief \~chinese 初始化服务器 \~english Initialize the server
- *
- * @param srv
- * @param cfg
- * @return int
- */
 UDSErr_t UDSServerInit(UDSServer_t *srv) {
     if (NULL == srv) {
         return UDS_ERR_INVALID_ARG;

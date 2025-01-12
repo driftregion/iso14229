@@ -92,8 +92,8 @@ void EnvRunMillis(Env_t *env, uint32_t millis);
     {                                                                                              \
         uint32_t deadline = UDSMillis() + timeout_ms + 1;                                          \
         while (!(cond)) {                                                                          \
-            TEST_INT_LE(UDSMillis(), deadline);                                                    \
             EnvRunMillis(env, 1);                                                                      \
+            TEST_INT_LE(UDSMillis(), deadline);                                                    \
         }                                                                                          \
     }
 

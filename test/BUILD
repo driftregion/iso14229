@@ -26,18 +26,7 @@ TEST_SRCS = [
     "test_client_busy.c",
     "test_client_p2.c",
     "test_client_suppress_positive_response.c",
-    "test_server_0x10_diag_sess_ctrl.c",
-    "test_server_0x11_no_send_recv_after_ECU_reset.c",
-    "test_server_0x22_RDBI.c",
-    "test_server_0x23_read_memory_by_address.c",
-    "test_server_0x27_security_access.c",
-    "test_server_0x31_RCRRP.c",
-    "test_server_0x34.c",
-    "test_server_0x38_request_file_transfer.c",
-    "test_server_0x3E_suppress_positive_response.c",
-    "test_server_0x83_diagnostic_session_control.c",
-    "test_server_fn_misuse.c",
-    "test_server_session_timeout.c",
+    "test_server.c",
 ]
 
 TEST_NAMES = [ src.split(".c")[0] for src in TEST_SRCS ]

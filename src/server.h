@@ -19,6 +19,7 @@ typedef struct {
 typedef struct UDSServer {
     UDSTpHandle_t *tp;
     int (*fn)(struct UDSServer *srv, UDSEvent_t event, void *arg);
+    void *fn_data; // user-specified function data
 
     /**
      * @brief Server time constants (milliseconds)

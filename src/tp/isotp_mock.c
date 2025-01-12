@@ -206,6 +206,8 @@ void ISOTPMockLogToStdout(void) {
 void ISOTPMockReset(void) {
     memset(TPs, 0, sizeof(TPs));
     TPCount = 0;
+    memset(msgs, 0, sizeof(msgs));
+    MsgCount = 0;
 }
 
 void ISOTPMockFree(UDSTpHandle_t *tp) {
