@@ -260,59 +260,41 @@ void test_flow_control_frame_timeout(void **state) {
     assert_true(ret < 0);
 }
 
+// clang-format off
 const struct CMUnitTest tests_tp_mock[] = {
-    cmocka_unit_test_setup_teardown(test_send_recv, SetupMockTpPair, TeardownMockTpPair),
-    cmocka_unit_test_setup_teardown(test_send_recv_functional, SetupMockTpPair,
-                                    TeardownMockTpPair),
-    cmocka_unit_test_setup_teardown(test_send_recv_largest_single_frame, SetupMockTpPair,
-                                    TeardownMockTpPair),
-    cmocka_unit_test_setup_teardown(test_send_functional_larger_than_single_frame_fails,
-                                    SetupMockTpPair, TeardownMockTpPair),
-    cmocka_unit_test_setup_teardown(test_send_recv_max_len, SetupMockTpPair,
-                                    TeardownMockTpPair),
-    cmocka_unit_test_setup_teardown(test_flow_control_frame_timeout, SetupMockTpClientOnly,
-                                    TeardownMockTpClientOnly),
+    cmocka_unit_test_setup_teardown(test_send_recv,                                         SetupMockTpPair,        TeardownMockTpPair),
+    cmocka_unit_test_setup_teardown(test_send_recv_functional,                              SetupMockTpPair,        TeardownMockTpPair),
+    cmocka_unit_test_setup_teardown(test_send_recv_largest_single_frame,                    SetupMockTpPair,        TeardownMockTpPair),
+    cmocka_unit_test_setup_teardown(test_send_functional_larger_than_single_frame_fails,    SetupMockTpPair,        TeardownMockTpPair),
+    cmocka_unit_test_setup_teardown(test_send_recv_max_len,                                 SetupMockTpPair,        TeardownMockTpPair),
+    cmocka_unit_test_setup_teardown(test_flow_control_frame_timeout,                        SetupMockTpClientOnly,  TeardownMockTpClientOnly),
 
     // Extended ID tests
-    cmocka_unit_test_setup_teardown(test_send_recv, SetupMockTpPairExtendedID, TeardownMockTpPair),
-    cmocka_unit_test_setup_teardown(test_send_recv_functional, SetupMockTpPairExtendedID,
-                                    TeardownMockTpPair),
-    cmocka_unit_test_setup_teardown(test_send_recv_largest_single_frame, SetupMockTpPairExtendedID,
-                                    TeardownMockTpPair),
-    cmocka_unit_test_setup_teardown(test_send_functional_larger_than_single_frame_fails,
-                                    SetupMockTpPairExtendedID, TeardownMockTpPair),
-    cmocka_unit_test_setup_teardown(test_send_recv_max_len, SetupMockTpPairExtendedID,
-                                    TeardownMockTpPair),
-    cmocka_unit_test_setup_teardown(test_flow_control_frame_timeout, SetupMockTpClientOnly,
-                                    TeardownMockTpClientOnly),
+    cmocka_unit_test_setup_teardown(test_send_recv,                                         SetupMockTpPairExtendedID,  TeardownMockTpPair),
+    cmocka_unit_test_setup_teardown(test_send_recv_functional,                              SetupMockTpPairExtendedID,  TeardownMockTpPair),
+    cmocka_unit_test_setup_teardown(test_send_recv_largest_single_frame,                    SetupMockTpPairExtendedID,  TeardownMockTpPair),
+    cmocka_unit_test_setup_teardown(test_send_functional_larger_than_single_frame_fails,    SetupMockTpPairExtendedID,  TeardownMockTpPair),
+    cmocka_unit_test_setup_teardown(test_send_recv_max_len,                                 SetupMockTpPairExtendedID,  TeardownMockTpPair),
 };
 
 const struct CMUnitTest tests_tp_isotp_c[] = {
-    cmocka_unit_test_setup_teardown(test_send_recv, SetupIsoTpCPair, TeardownIsoTpCPair),
-    cmocka_unit_test_setup_teardown(test_send_recv_functional, SetupIsoTpCPair,
-                                    TeardownIsoTpCPair),
-    cmocka_unit_test_setup_teardown(test_send_recv_largest_single_frame, SetupIsoTpCPair,
-                                    TeardownIsoTpCPair),
-    cmocka_unit_test_setup_teardown(test_send_functional_larger_than_single_frame_fails, SetupIsoTpCPair,
-                                    TeardownIsoTpCPair),
-    cmocka_unit_test_setup_teardown(test_send_recv_max_len, SetupIsoTpCPair,
-                                    TeardownIsoTpCPair),
-    cmocka_unit_test_setup_teardown(test_flow_control_frame_timeout, SetupIsoTpCClientOnly,
-                                    TeardownIsoTpCClientOnly),
+    cmocka_unit_test_setup_teardown(test_send_recv,                                         SetupIsoTpCPair,        TeardownIsoTpCPair), 
+    cmocka_unit_test_setup_teardown(test_send_recv_functional,                              SetupIsoTpCPair,        TeardownIsoTpCPair),
+    cmocka_unit_test_setup_teardown(test_send_recv_largest_single_frame,                    SetupIsoTpCPair,        TeardownIsoTpCPair),
+    cmocka_unit_test_setup_teardown(test_send_functional_larger_than_single_frame_fails,    SetupIsoTpCPair,        TeardownIsoTpCPair),
+    cmocka_unit_test_setup_teardown(test_send_recv_max_len,                                 SetupIsoTpCPair,        TeardownIsoTpCPair),
+    cmocka_unit_test_setup_teardown(test_flow_control_frame_timeout,                        SetupIsoTpCClientOnly,  TeardownIsoTpCClientOnly),
 };
-
 
 const struct CMUnitTest tests_tp_isotp_sock[] = {
-    cmocka_unit_test_setup_teardown(test_send_recv, SetupIsoTpSockPair, TeardownIsoTpSockPair),
-    cmocka_unit_test_setup_teardown(test_send_recv_functional, SetupIsoTpSockPair,
-                                    TeardownIsoTpSockPair),
-    cmocka_unit_test_setup_teardown(test_send_recv_largest_single_frame, SetupIsoTpSockPair,
-                                    TeardownIsoTpSockPair),
-    cmocka_unit_test_setup_teardown(test_send_functional_larger_than_single_frame_fails, SetupIsoTpSockPair, TeardownIsoTpSockPair),
-    cmocka_unit_test_setup_teardown(test_send_recv_max_len, SetupIsoTpSockPair,
-                                    TeardownIsoTpSockPair),
-    cmocka_unit_test_setup_teardown(test_flow_control_frame_timeout, SetupIsoTpSockClientOnly, TeardownIsoTpSockClientOnly),
+    cmocka_unit_test_setup_teardown(test_send_recv,                                         SetupIsoTpSockPair,         TeardownIsoTpSockPair),
+    cmocka_unit_test_setup_teardown(test_send_recv_functional,                              SetupIsoTpSockPair,         TeardownIsoTpSockPair),
+    cmocka_unit_test_setup_teardown(test_send_recv_largest_single_frame,                    SetupIsoTpSockPair,         TeardownIsoTpSockPair),
+    cmocka_unit_test_setup_teardown(test_send_functional_larger_than_single_frame_fails,    SetupIsoTpSockPair,         TeardownIsoTpSockPair),
+    cmocka_unit_test_setup_teardown(test_send_recv_max_len,                                 SetupIsoTpSockPair,         TeardownIsoTpSockPair),
+    cmocka_unit_test_setup_teardown(test_flow_control_frame_timeout,                        SetupIsoTpSockClientOnly,   TeardownIsoTpSockClientOnly),
 };
+// clang-format on
 
 int main(int ac, char **av) {
     if (ac > 1) {
