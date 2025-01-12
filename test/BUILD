@@ -204,71 +204,34 @@ cc_binary(
     ],
 )
 
-cc_test(
-    name = "test_tp_isotp_mock_compliance",
-    srcs = [
-        "test_tp_isotp_compliance.c",
-        "env.c",
-        "env.h",
-        "//:iso14229.h",
-        "//:iso14229.c",
-    ],
-    deps = [ "@cmocka" ],
-    defines = [
-        "UDS_CUSTOM_MILLIS",
-        "UDS_LINES",
-        "UDS_LOG_LEVEL=UDS_LOG_VERBOSE",
-        "UDS_TP_ISOTP_MOCK",
-    ],
-    copts = [ "-g", ],
-    size = "small",
-)
+[
+    cc_test(
+        name = "test_tp_isotp_compliance_" + tp_name,
+        srcs = [
+            "test_tp_isotp_compliance.c",
+            "env.c",
+            "env.h",
+            "//:iso14229.h",
+            "//:iso14229.c",
+        ],
+        deps = [ "@cmocka" ],
+        defines = [
+            "UDS_CUSTOM_MILLIS",
+            "UDS_LINES",
+            "UDS_LOG_LEVEL=UDS_LOG_VERBOSE",
+            "UDS_TP_ISOTP_MOCK",
+            "UDS_TP_ISOTP_SOCK",
+            "UDS_TP_ISOTP_C_SOCKETCAN",
+        ],
+        copts = [ "-g", ],
+        size = "small",
+        args = [tp_name],
+        tags = tags,
+    )
+    for tp_name, tags in [
+        ("mock", []),
+        ("sock", ["vcan", "exclusive"]),
+        ("c", ["vcan", "exclusive"]),
+    ]
+]
 
-cc_test(
-    name = "test_tp_isotp_sock_compliance",
-    srcs = [
-        "test_tp_isotp_compliance.c",
-        "env.c",
-        "env.h",
-        "//:iso14229.h",
-        "//:iso14229.c",
-    ],
-    deps = [ "@cmocka" ],
-    defines = [
-        "UDS_CUSTOM_MILLIS",
-        "UDS_LINES",
-        "UDS_LOG_LEVEL=UDS_LOG_VERBOSE",
-        "UDS_TP_ISOTP_SOCK",
-    ],
-    copts = [ "-g", ],
-    tags = [ 
-        "vcan",
-        "exclusive",
-    ],
-    size = "small",
-)
-
-
-cc_test(
-    name = "test_tp_isotp_c_socketcan_compliance",
-    srcs = [
-        "test_tp_isotp_compliance.c",
-        "env.c",
-        "env.h",
-        "//:iso14229.h",
-        "//:iso14229.c",
-    ],
-    deps = [ "@cmocka" ],
-    defines = [
-        "UDS_CUSTOM_MILLIS",
-        "UDS_LINES",
-        "UDS_LOG_LEVEL=UDS_LOG_VERBOSE",
-        "UDS_TP_ISOTP_C_SOCKETCAN",
-    ],
-    copts = [ "-g", ],
-    tags = [ 
-        "vcan",
-        "exclusive",
-    ],
-    size = "small",
-)

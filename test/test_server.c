@@ -1,6 +1,6 @@
 #include "test/env.h"
 
-int ServerTestSetup(void **state) {
+int Setup(void **state) {
     Env_t *env = malloc(sizeof(Env_t));
     memset(env, 0, sizeof(Env_t));
     env->server = malloc(sizeof(UDSServer_t));
@@ -11,7 +11,7 @@ int ServerTestSetup(void **state) {
     return 0;
 }
 
-int ServerTestTeardown(void **state) {
+int Teardown(void **state) {
     Env_t *env = *state;
     ISOTPMockFree(env->server->tp);
     ISOTPMockFree(env->client_tp);
@@ -599,27 +599,27 @@ int main(int ac, char **av) {
         cmocka_set_test_filter(av[1]);
     }
     const struct CMUnitTest tests[] = {
-        cmocka_unit_test_setup_teardown(test_default_session_does_not_timeout, ServerTestSetup, ServerTestTeardown),
-        cmocka_unit_test_setup_teardown(test_programming_session_times_out, ServerTestSetup, ServerTestTeardown),
-        cmocka_unit_test_setup_teardown(test_0x10_no_fn_results_in_negative_resp, ServerTestSetup, ServerTestTeardown),
-        cmocka_unit_test_setup_teardown(test_0x10_no_fn_results_in_negative_resp_functional, ServerTestSetup, ServerTestTeardown),
-        cmocka_unit_test_setup_teardown(test_0x10_suppress_pos_resp, ServerTestSetup, ServerTestTeardown),
-        cmocka_unit_test_setup_teardown(test_0x11_no_send_after_ECU_reset, ServerTestSetup, ServerTestTeardown),
-        cmocka_unit_test_setup_teardown(test_0x22, ServerTestSetup, ServerTestTeardown),
-        cmocka_unit_test_setup_teardown(test_0x22_nonexistent, ServerTestSetup, ServerTestTeardown),
-        cmocka_unit_test_setup_teardown(test_0x22_misuse, ServerTestSetup, ServerTestTeardown),
-        cmocka_unit_test_setup_teardown(test_0x23, ServerTestSetup, ServerTestTeardown),
-        cmocka_unit_test_setup_teardown(test_0x27_level_is_zero_at_init, ServerTestSetup, ServerTestTeardown),
-        cmocka_unit_test_setup_teardown(test_0x27_unlock, ServerTestSetup, ServerTestTeardown),
-        cmocka_unit_test_setup_teardown(test_0x27_brute_force_prevention_1, ServerTestSetup, ServerTestTeardown),
-        cmocka_unit_test_setup_teardown(test_0x27_brute_force_prevention_2, ServerTestSetup, ServerTestTeardown),
-        cmocka_unit_test_setup_teardown(test_0x31_RCRRP, ServerTestSetup, ServerTestTeardown),
-        cmocka_unit_test_setup_teardown(test_0x34_no_handler, ServerTestSetup, ServerTestTeardown),
-        cmocka_unit_test_setup_teardown(test_0x34, ServerTestSetup, ServerTestTeardown),
-        cmocka_unit_test_setup_teardown(test_0x38_no_handler, ServerTestSetup, ServerTestTeardown),
-        cmocka_unit_test_setup_teardown(test_0x38_addfile, ServerTestSetup, ServerTestTeardown),
-        cmocka_unit_test_setup_teardown(test_0x38_delfile, ServerTestSetup, ServerTestTeardown),
-        cmocka_unit_test_setup_teardown(test_0x3e_suppress_positive_response, ServerTestSetup, ServerTestTeardown),
+        cmocka_unit_test_setup_teardown(test_default_session_does_not_timeout, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_programming_session_times_out, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x10_no_fn_results_in_negative_resp, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x10_no_fn_results_in_negative_resp_functional, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x10_suppress_pos_resp, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x11_no_send_after_ECU_reset, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x22, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x22_nonexistent, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x22_misuse, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x23, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x27_level_is_zero_at_init, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x27_unlock, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x27_brute_force_prevention_1, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x27_brute_force_prevention_2, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x31_RCRRP, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x34_no_handler, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x34, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x38_no_handler, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x38_addfile, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x38_delfile, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x3e_suppress_positive_response, Setup, Teardown),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }

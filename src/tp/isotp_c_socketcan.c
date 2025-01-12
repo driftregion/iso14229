@@ -15,7 +15,6 @@
 #include <stdarg.h>
 
 static int SetupSocketCAN(const char *ifname) {
-    UDS_LOGI(__FILE__, "setting up CAN\n");
     struct sockaddr_can addr;
     struct ifreq ifr;
     int sockfd = -1;
@@ -80,8 +79,6 @@ static void SocketCANRecv(UDSTpISOTpC_t *tp) {
             break;
         } else {
             if (frame.can_id == tp->phys_sa) {
-                UDS_LOGI(__FILE__, "phys recvd can\n");
-                UDS_DBG_PRINTHEX(frame.data, frame.can_dlc);
                 isotp_on_can_message(&tp->phys_link, frame.data, frame.can_dlc);
             } else if (frame.can_id == tp->func_sa) {
                 if (ISOTP_RECEIVE_STATUS_IDLE != tp->phys_link.receive_status) {
@@ -122,7 +119,7 @@ static int isotp_c_socketcan_tp_peek_link(IsoTpLink *link, uint8_t *buf, size_t 
         goto done;
     case ISOTP_RECEIVE_STATUS_FULL:
         ret = link->receive_size;
-        UDS_LOGI(__FILE__, "The link is full. Copying %d bytes\n", ret);
+        UDS_LOGI(__FILE__, "The link is full. Copying %d bytes", ret);
         memmove(buf, link->receive_buffer, link->receive_size);
         break;
     default:
@@ -149,7 +146,7 @@ static ssize_t isotp_c_socketcan_tp_peek(UDSTpHandle_t *hdl, uint8_t **p_buf, UD
     uint32_t sa = tp->phys_sa;
 
     if (ret > 0) {
-        UDS_LOGI(__FILE__, "just got %d bytes\n", ret);
+        UDS_LOGI(__FILE__, "just got %d bytes", ret);
         ta = tp->phys_sa;
         sa = tp->phys_ta;
         ta_type = UDS_A_TA_TYPE_PHYSICAL;
@@ -161,7 +158,7 @@ static ssize_t isotp_c_socketcan_tp_peek(UDSTpHandle_t *hdl, uint8_t **p_buf, UD
         ret = isotp_c_socketcan_tp_peek_link(&tp->func_link, tp->recv_buf, sizeof(tp->recv_buf),
                                              true);
         if (ret > 0) {
-            UDS_LOGI(__FILE__, "just got %d bytes on func link \n", ret);
+            UDS_LOGI(__FILE__, "just got %d bytes on func link", ret);
             ta = tp->func_sa;
             sa = tp->func_ta;
             ta_type = UDS_A_TA_TYPE_FUNCTIONAL;
@@ -204,7 +201,7 @@ static ssize_t isotp_c_socketcan_tp_send(UDSTpHandle_t *hdl, uint8_t *buf, size_
     case UDS_A_TA_TYPE_FUNCTIONAL:
         link = &tp->func_link;
         if (len > 7) {
-            UDS_LOGI(__FILE__, "Cannot send more than 7 bytes via functional addressing\n");
+            UDS_LOGI(__FILE__, "Cannot send more than 7 bytes via functional addressing");
             ret = -3;
             goto done;
         }

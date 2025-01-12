@@ -23,6 +23,9 @@ void EnvRunMillis(Env_t *env, uint32_t millis) {
         } else if (env->client_tp) {
             UDSTpPoll(env->client_tp);
         }
+        if (env->is_real_time) {
+            usleep(1000);
+        }
         TimeNowMillis++;
     }
 }

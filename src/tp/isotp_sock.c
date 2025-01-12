@@ -97,7 +97,7 @@ static ssize_t isotp_sock_tp_send(UDSTpHandle_t *hdl, uint8_t *buf, size_t len, 
         fd = impl->phys_fd;
     } else if (UDS_A_TA_TYPE_FUNCTIONAL == ta_type) {
         if (len > 7) {
-            UDS_LOGI(__FILE__, "UDSTpIsoTpSock: functional request too large\n");
+            UDS_LOGI(__FILE__, "UDSTpIsoTpSock: functional request too large");
             return -1;
         }
         fd = impl->func_fd;
@@ -154,7 +154,7 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool
     opts.flags |= CAN_ISOTP_WAIT_TX_DONE;
 
     if (functional) {
-        UDS_LOGI(__FILE__, "configuring fd: %d as functional\n", fd);
+        UDS_LOGI(__FILE__, "configuring fd: %d as functional", fd);
         // configure the socket as listen-only to avoid sending FC frames
         opts.flags |= CAN_ISOTP_LISTEN_MODE;
     }
@@ -203,8 +203,7 @@ UDSErr_t UDSTpIsoTpSockInitServer(UDSTpIsoTpSock_t *tp, const char *ifname, uint
         fflush(stdout);
         return UDS_FAIL;
     }
-    UDS_LOGI(__FILE__,
-             "%s initialized phys link rx 0x%03x tx 0x%03x func link rx 0x%03x tx 0x%03x\n",
+    UDS_LOGI(__FILE__, "%s initialized phys link rx 0x%03x tx 0x%03x func link rx 0x%03x tx 0x%03x",
              strlen(tp->tag) ? tp->tag : "server", source_addr, target_addr, source_addr_func,
              target_addr);
     return UDS_OK;

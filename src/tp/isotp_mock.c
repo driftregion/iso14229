@@ -90,6 +90,14 @@ static ssize_t mock_tp_send(struct UDSTpHandle *hdl, uint8_t *buf, size_t len, U
         m->info.A_TA = tp->ta_phys;
         m->info.A_SA = tp->sa_phys;
     } else if (UDS_A_TA_TYPE_FUNCTIONAL == ta_type) {
+
+        // This condition is only true for standard CAN.
+        // Technically CAN-FD may also be used in ISO-TP.
+        // TODO: add profiles to isotp_mock
+        if (len > 7) {
+            UDS_LOGW(__FILE__, "mock_tp_send: functional message too long: %d", len);
+            return -1;
+        }
         m->info.A_TA = tp->ta_func;
         m->info.A_SA = tp->sa_func;
     } else {

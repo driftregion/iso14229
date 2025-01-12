@@ -14,6 +14,9 @@ typedef struct {
     UDSClient_t *client;
     UDSTpHandle_t *server_tp;
     UDSTpHandle_t *client_tp;
+    bool is_real_time; // if true, EnvRunMillis will run for a wall-time duration rather than
+                       // simulated time. This makes tests much slower, so use it only when
+                       // necessary.
 } Env_t;
 
 void EnvRunMillis(Env_t *env, uint32_t millis);
