@@ -26,6 +26,21 @@ int TeardownMockTpPair(void **state) {
     return 0;
 }
 
+int SetupMockTpPairExtendedID(void **state) {
+    Env_t *env = malloc(sizeof(Env_t));
+    memset(env, 0, sizeof(Env_t));
+    env->server_tp = ISOTPMockNew("server", &(ISOTPMockArgs_t){.sa_phys = 0x1ffffff0,
+                                                               .ta_phys = 0x1ffffff8,
+                                                               .sa_func = 0x1fffffff,
+                                                               .ta_func = UDS_TP_NOOP_ADDR});
+    env->client_tp = ISOTPMockNew("client", &(ISOTPMockArgs_t){.sa_phys = 0x1ffffff8,
+                                                               .ta_phys = 0x1ffffff0,
+                                                               .sa_func = UDS_TP_NOOP_ADDR,
+                                                               .ta_func = 0x1fffffff});
+    *state = env;
+    return 0;
+}
+
 int SetupMockTpClientOnly(void **state) {
     Env_t *env = malloc(sizeof(Env_t));
     memset(env, 0, sizeof(Env_t));
@@ -254,6 +269,19 @@ const struct CMUnitTest tests_tp_mock[] = {
     cmocka_unit_test_setup_teardown(test_send_functional_larger_than_single_frame_fails,
                                     SetupMockTpPair, TeardownMockTpPair),
     cmocka_unit_test_setup_teardown(test_send_recv_max_len, SetupMockTpPair,
+                                    TeardownMockTpPair),
+    cmocka_unit_test_setup_teardown(test_flow_control_frame_timeout, SetupMockTpClientOnly,
+                                    TeardownMockTpClientOnly),
+
+    // Extended ID tests
+    cmocka_unit_test_setup_teardown(test_send_recv, SetupMockTpPairExtendedID, TeardownMockTpPair),
+    cmocka_unit_test_setup_teardown(test_send_recv_functional, SetupMockTpPairExtendedID,
+                                    TeardownMockTpPair),
+    cmocka_unit_test_setup_teardown(test_send_recv_largest_single_frame, SetupMockTpPairExtendedID,
+                                    TeardownMockTpPair),
+    cmocka_unit_test_setup_teardown(test_send_functional_larger_than_single_frame_fails,
+                                    SetupMockTpPairExtendedID, TeardownMockTpPair),
+    cmocka_unit_test_setup_teardown(test_send_recv_max_len, SetupMockTpPairExtendedID,
                                     TeardownMockTpPair),
     cmocka_unit_test_setup_teardown(test_flow_control_frame_timeout, SetupMockTpClientOnly,
                                     TeardownMockTpClientOnly),
