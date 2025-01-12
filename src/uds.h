@@ -34,31 +34,57 @@ typedef enum {
     UDS_FAIL = -1, // 通用错误
     UDS_OK = 0,    // 成功
 
+    // Negative Response Codes (NRCs) as defined in ISO14229-1:2020
     UDS_PositiveResponse = 0,
-
-    // Negative Response Codes (NRCs)
+    // 0x01 to 0x0F are reserved by ISO14229-1:2020
     UDS_NRC_GeneralReject = 0x10,
     UDS_NRC_ServiceNotSupported = 0x11,
     UDS_NRC_SubFunctionNotSupported = 0x12,
     UDS_NRC_IncorrectMessageLengthOrInvalidFormat = 0x13,
     UDS_NRC_ResponseTooLong = 0x14,
+    // 0x15 to 0x20 are reserved by ISO14229-1:2020
     UDS_NRC_BusyRepeatRequest = 0x21,
     UDS_NRC_ConditionsNotCorrect = 0x22,
     UDS_NRC_RequestSequenceError = 0x24,
     UDS_NRC_NoResponseFromSubnetComponent = 0x25,
     UDS_NRC_FailurePreventsExecutionOfRequestedAction = 0x26,
+    // 0x27 to 0x30 are reserved by ISO14229-1:2020
     UDS_NRC_RequestOutOfRange = 0x31,
+    // 0x32 is reserved by ISO14229-1:2020
     UDS_NRC_SecurityAccessDenied = 0x33,
+    UDS_NRC_AuthenticationRequired = 0x34,
     UDS_NRC_InvalidKey = 0x35,
     UDS_NRC_ExceedNumberOfAttempts = 0x36,
     UDS_NRC_RequiredTimeDelayNotExpired = 0x37,
+    UDS_NRC_SecureDataTransmissionRequired = 0x38,
+    UDS_NRC_SecureDataTransmissionNotAllowed = 0x39,
+    UDS_NRC_SecureDataVerificationFailed = 0x3A,
+    // 0x3B to 0x4F are reserved by ISO14229-1:2020
+    UDS_NRC_CertficateVerificationFailedInvalidTimePeriod = 0x50,
+    UDS_NRC_CertficateVerificationFailedInvalidSignature = 0x51,
+    UDS_NRC_CertficateVerificationFailedInvalidChainOfTrust = 0x52,
+    UDS_NRC_CertficateVerificationFailedInvalidType = 0x53,
+    UDS_NRC_CertficateVerificationFailedInvalidFormat = 0x54,
+    UDS_NRC_CertficateVerificationFailedInvalidContent = 0x55,
+    UDS_NRC_CertficateVerificationFailedInvalidScope = 0x56,
+    UDS_NRC_CertficateVerificationFailedInvalidCertificate = 0x57,
+    UDS_NRC_OwnershipVerificationFailed = 0x58,
+    UDS_NRC_ChallengeCalculationFailed = 0x59,
+    UDS_NRC_SettingAccessRightsFailed = 0x5A,
+    UDS_NRC_SessionKeyCreationOrDerivationFailed = 0x5B,
+    UDS_NRC_ConfigurationDataUsageFailed = 0x5C,
+    UDS_NRC_DeAuthenticationFailed = 0x5D,
+    // 0x5E to 0x6F are reserved by ISO14229-1:2020
     UDS_NRC_UploadDownloadNotAccepted = 0x70,
     UDS_NRC_TransferDataSuspended = 0x71,
     UDS_NRC_GeneralProgrammingFailure = 0x72,
     UDS_NRC_WrongBlockSequenceCounter = 0x73,
+    // 0x74 to 0x77 are reserved by ISO14229-1:2020
     UDS_NRC_RequestCorrectlyReceived_ResponsePending = 0x78,
+    // 0x79 to 0x7D are reserved by ISO14229-1:2020
     UDS_NRC_SubFunctionNotSupportedInActiveSession = 0x7E,
     UDS_NRC_ServiceNotSupportedInActiveSession = 0x7F,
+    // 0x80 is reserved by ISO14229-1:2020
     UDS_NRC_RpmTooHigh = 0x81,
     UDS_NRC_RpmTooLow = 0x82,
     UDS_NRC_EngineIsRunning = 0x83,
@@ -72,7 +98,7 @@ typedef enum {
     UDS_NRC_ThrottlePedalTooLow = 0x8B,
     UDS_NRC_TransmissionRangeNotInNeutral = 0x8C,
     UDS_NRC_TransmissionRangeNotInGear = 0x8D,
-    UDS_NRC_ISOSAEReserved = 0x8E,
+    // 0x8E is reserved by ISO14229-1:2020
     UDS_NRC_BrakeSwitchNotClosed = 0x8F,
     UDS_NRC_ShifterLeverNotInPark = 0x90,
     UDS_NRC_TorqueConverterClutchLocked = 0x91,
@@ -84,16 +110,16 @@ typedef enum {
     /* 0xF0 to 0xFE are vehicleManufacturerSpecificConditionsNotCorrect */
     /* 0xFF is ISOSAEReserved */
 
-    UDS_ERR_TIMEOUT = 0x100,      // 请求超时
-    UDS_ERR_DID_MISMATCH,         // 响应DID对不上期待的DID
-    UDS_ERR_SID_MISMATCH,         // 请求和响应SID对不上
-    UDS_ERR_SUBFUNCTION_MISMATCH, // 请求和响应SubFunction对不上
-    UDS_ERR_TPORT,                // 传输层错误
-    UDS_ERR_FILE_IO,              // 文件IO错误
-    UDS_ERR_RESP_TOO_SHORT,       // 响应太短
-    UDS_ERR_BUFSIZ,               // 缓冲器不够大
+    // The following values are not defined in ISO14229-1:2020
+    UDS_ERR_TIMEOUT = 0x100,      // A request has timed out
+    UDS_ERR_DID_MISMATCH,         // The response DID does not match the request DID
+    UDS_ERR_SID_MISMATCH,         // The response SID does not match the request SID
+    UDS_ERR_SUBFUNCTION_MISMATCH, // The response SubFunction does not match the request SubFunction
+    UDS_ERR_TPORT,                // Transport error. Check the transport layer for more information
+    UDS_ERR_RESP_TOO_SHORT,       // The response is too short
+    UDS_ERR_BUFSIZ,               // The buffer is not large enough
     UDS_ERR_INVALID_ARG,          // The function has been called with invalid arguments
-    UDS_ERR_BUSY,                 // 正在忙、没发
+    UDS_ERR_BUSY,                 // The client is busy and cannot process the request
     UDS_ERR_MISUSE,               // The library is used incorrectly
 } UDSErr_t;
 

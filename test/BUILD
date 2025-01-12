@@ -26,6 +26,7 @@ TEST_SRCS = [
     "test_client_busy.c",
     "test_client_p2.c",
     "test_client_suppress_positive_response.c",
+    "test_client.c",
     "test_server.c",
 ]
 
