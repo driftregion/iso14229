@@ -5,8 +5,14 @@
 int SetupMockTpPair(void **state) {
     Env_t *env = malloc(sizeof(Env_t));
     memset(env, 0, sizeof(Env_t));
-    env->server_tp = ISOTPMockNew("server", ISOTPMock_DEFAULT_SERVER_ARGS);
-    env->client_tp = ISOTPMockNew("client", ISOTPMock_DEFAULT_CLIENT_ARGS);
+    env->server_tp = ISOTPMockNew("server", &(ISOTPMockArgs_t){.sa_phys = 0x7E0,
+                                                               .ta_phys = 0x7E8,
+                                                               .sa_func = 0x7DF,
+                                                               .ta_func = UDS_TP_NOOP_ADDR});
+    env->client_tp = ISOTPMockNew("client", &(ISOTPMockArgs_t){.sa_phys = 0x7E8,
+                                                               .ta_phys = 0x7E0,
+                                                               .sa_func = UDS_TP_NOOP_ADDR,
+                                                               .ta_func = 0x7DF});
     *state = env;
     return 0;
 }
@@ -23,7 +29,10 @@ int TeardownMockTpPair(void **state) {
 int SetupMockTpClientOnly(void **state) {
     Env_t *env = malloc(sizeof(Env_t));
     memset(env, 0, sizeof(Env_t));
-    env->client_tp = ISOTPMockNew("client", ISOTPMock_DEFAULT_CLIENT_ARGS);
+    env->client_tp = ISOTPMockNew("client", &(ISOTPMockArgs_t){.sa_phys = 0x7E8,
+                                                               .ta_phys = 0x7E0,
+                                                               .sa_func = UDS_TP_NOOP_ADDR,
+                                                               .ta_func = 0x7DF});
     *state = env;
     return 0;
 }

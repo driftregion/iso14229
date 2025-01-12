@@ -32,15 +32,6 @@ typedef struct {
     uint32_t ta_func; // target address - functional messages are sent to this address
 } ISOTPMockArgs_t;
 
-#define ISOTPMock_DEFAULT_CLIENT_ARGS                                                              \
-    &(ISOTPMockArgs_t) {                                                                           \
-        .sa_phys = 0x7E8, .ta_phys = 0x7E0, .sa_func = UDS_TP_NOOP_ADDR, .ta_func = 0x7DF          \
-    }
-#define ISOTPMock_DEFAULT_SERVER_ARGS                                                              \
-    &(ISOTPMockArgs_t) {                                                                           \
-        .sa_phys = 0x7E0, .ta_phys = 0x7E8, .sa_func = 0x7DF, .ta_func = UDS_TP_NOOP_ADDR          \
-    }
-
 /**
  * @brief Create a mock transport. It is connected by default to a broadcast network of all other
  * mock transports in the same process.

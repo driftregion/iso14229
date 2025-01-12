@@ -5,8 +5,14 @@ int Setup(void **state) {
     memset(env, 0, sizeof(Env_t));
     env->client = malloc(sizeof(UDSClient_t));
     UDSClientInit(env->client);
-    env->server_tp = ISOTPMockNew("server", ISOTPMock_DEFAULT_SERVER_ARGS);
-    env->client->tp = ISOTPMockNew("client", ISOTPMock_DEFAULT_CLIENT_ARGS);
+    env->server_tp = ISOTPMockNew("server", &(ISOTPMockArgs_t){.sa_phys = 0x7E0,
+                                                               .ta_phys = 0x7E8,
+                                                               .sa_func = 0x7DF,
+                                                               .ta_func = UDS_TP_NOOP_ADDR});
+    env->client->tp = ISOTPMockNew("client", &(ISOTPMockArgs_t){.sa_phys = 0x7E8,
+                                                               .ta_phys = 0x7E0,
+                                                               .sa_func = UDS_TP_NOOP_ADDR,
+                                                               .ta_func = 0x7DF});
     *state = env;
     return 0;
 }
