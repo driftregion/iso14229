@@ -49,6 +49,7 @@ int SetupIsoTpCPair(void **state) {
     assert(UDS_OK == UDSTpISOTpCInit(client_isotp, "vcan0", 0x7e0, 0x7e8, 0, 0x7df));
     env->client_tp = (UDSTpHandle_t *)client_isotp;
 
+    env->is_real_time = true;
     *state = env;
     return 0;
 }
@@ -70,6 +71,7 @@ int SetupIsoTpCClientOnly(void **state) {
     strcpy(client_isotp->tag, "client");
     assert(UDS_OK == UDSTpISOTpCInit(client_isotp, "vcan0", 0x7e0, 0x7e8, 0, 0x7df));
     env->client_tp = (UDSTpHandle_t *)client_isotp;
+    env->is_real_time = true;
     *state = env;
     return 0;
 }
@@ -95,6 +97,7 @@ int SetupIsoTpSockPair(void **state) {
     assert(UDS_OK == UDSTpIsoTpSockInitClient(client_isotp, "vcan0", 0x7e0, 0x7e8, 0x7df));
     env->client_tp = (UDSTpHandle_t *)client_isotp;
 
+    env->is_real_time = true;
     *state = env;
     return 0;
 }
@@ -116,6 +119,7 @@ int SetupIsoTpSockClientOnly(void **state) {
     strcpy(client_isotp->tag, "client");
     assert(UDS_OK == UDSTpIsoTpSockInitClient(client_isotp, "vcan0", 0x7e0, 0x7e8, 0x7df));
     env->client_tp = (UDSTpHandle_t *)client_isotp;
+    env->is_real_time = true;
     *state = env;
     return 0;
 }
