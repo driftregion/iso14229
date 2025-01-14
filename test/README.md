@@ -10,11 +10,16 @@ bazel test //test:all --test_tag_filters=-vcan
 # run tests and log all output to stdout
 bazel test --test_output=all //test:all
 
-# run tests under qemu
-bazel test --config=arm_linux //test:all
-bazel test --config=ppc //test:all
-bazel test --config=ppc64 //test:all
-bazel test --config=ppc64le //test:all
+# run qemu tests
+
+# ISO-TP linux sockets fail on qemu-arm with the following error:
+# ENOPROTOOPT 92 Protocol not available
+# however, socketcan linux sockets work fine.
+bazel test --config=arm_linux //test:all --test_tag_filters=-isotp_sock
+# It seems socketcan is not supported at all on qemu-ppc
+bazel test --config=ppc //test:all --test_tag_filters=-vcan
+bazel test --config=ppc64 //test:all --test_tag_filters=-vcan
+bazel test --config=ppc64le //test:all --test_tag_filters=-vcan
 
 # build the fuzzer
 bazel build -s --verbose_failures --config=x85_64_clang //test:test_fuzz_server

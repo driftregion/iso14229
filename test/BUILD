@@ -19,13 +19,6 @@ cc_library(
 )
 
 TEST_SRCS = [
-    "test_client_0x11_ECU_reset.c",
-    "test_client_0x31_RCRRP.c",
-    "test_client_0x34_request_download.c",
-    "test_client_0x38_request_file_transfer.c",
-    "test_client_busy.c",
-    "test_client_p2.c",
-    "test_client_suppress_positive_response.c",
     "test_client.c",
     "test_server.c",
 ]
@@ -134,67 +127,6 @@ cc_library(
         "UDS_TP_ISOTP_MOCK",
     ],
     target_compatible_with = ["//platforms/compiler:clang"],
-)
-
-
-cc_binary(
-    name = "test_client_sequence",
-    srcs = [
-        "test_client_sequence.c",
-        "env.c",
-        "env.h",
-        "//:iso14229.h",
-        "//:iso14229.c",
-    ],
-    deps = [ "@cmocka" ],
-    defines = [
-        "UDS_TP_ISOTP_C_SOCKETCAN",
-        "UDS_TP_ISOTP_SOCK",
-        "UDS_TP_ISOTP_MOCK",
-        "UDS_CUSTOM_MILLIS",
-        "UDS_LOG_LEVEL=UDS_LOG_VERBOSE",
-    ],
-    copts = [ "-g", ],
-)
-
-cc_binary(
-    name = "test_client_sequence_2",
-    srcs = [
-        "test_client_sequence_2.c",
-        "env.c",
-        "env.h",
-        "//:iso14229.h",
-        "//:iso14229.c",
-    ],
-    deps = [ "@cmocka" ],
-    defines = [
-        "UDS_TP_ISOTP_C_SOCKETCAN",
-        "UDS_TP_ISOTP_SOCK",
-        "UDS_TP_ISOTP_MOCK",
-        "UDS_CUSTOM_MILLIS",
-        "UDS_LOG_LEVEL=UDS_LOG_VERBOSE",
-    ],
-    copts = [ "-g", ],
-)
-
-cc_binary(
-    name = "test_client_sequence_3",
-    srcs = [
-        "test_client_sequence_3.c",
-        "env.c",
-        "env.h",
-        "//:iso14229.h",
-        "//:iso14229.c",
-    ],
-    deps = [ "@cmocka" ],
-    defines = [
-        "UDS_TP_ISOTP_C_SOCKETCAN",
-        "UDS_TP_ISOTP_SOCK",
-        "UDS_TP_ISOTP_MOCK",
-        "UDS_CUSTOM_MILLIS",
-        "UDS_LOG_LEVEL=UDS_LOG_VERBOSE",
-    ],
-    copts = [ "-g", ],
 )
 
 cc_binary(

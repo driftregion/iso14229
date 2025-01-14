@@ -314,11 +314,8 @@ int main(int ac, char **av) {
             UDS_LOGE(__FILE__, "unknown test type: %s", av[1]);
         }
     }
-    const struct CMUnitTest all_tests[] = {
-        tests_tp_mock,
-        tests_tp_isotp_c,
-        tests_tp_isotp_sock,
-    };
     UDS_LOGI(__FILE__, "running all tests");
-    return cmocka_run_group_tests(all_tests, NULL, NULL);
+    return cmocka_run_group_tests(tests_tp_mock, NULL, NULL) +
+           cmocka_run_group_tests(tests_tp_isotp_c, NULL, NULL) +
+           cmocka_run_group_tests(tests_tp_isotp_sock, NULL, NULL);
 }
