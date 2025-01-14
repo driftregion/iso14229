@@ -83,7 +83,7 @@ int main(int ac, char **av) {
         fprintf(stderr, "UDSServerInit failed\n");
     }
 
-    srv.tp = (UDSTpHandle_t *)&tp;
+    srv.tp = (UDSTp_t *)&tp;
     srv.fn = fn;
 
     printf("server up, polling . . .\n");

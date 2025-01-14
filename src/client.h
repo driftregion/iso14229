@@ -14,7 +14,7 @@ enum UDSClientOptions {
 typedef struct UDSClient {
     uint16_t p2_ms;      // p2 超时时间
     uint32_t p2_star_ms; // 0x78 p2* 超时时间
-    UDSTpHandle_t *tp;
+    UDSTp_t *tp;
 
     uint32_t p2_timer;
     uint8_t *recv_buf;

@@ -11,7 +11,7 @@
 #include "iso14229.h"
 
 typedef struct ISOTPMock {
-    UDSTpHandle_t hdl;
+    UDSTp_t hdl;
     uint8_t recv_buf[UDS_TP_MTU];
     uint8_t send_buf[UDS_TP_MTU];
     size_t recv_len;
@@ -36,10 +36,10 @@ typedef struct {
  * @brief Create a mock transport. It is connected by default to a broadcast network of all other
  * mock transports in the same process.
  * @param name optional name of the transport (can be NULL)
- * @return UDSTpHandle_t*
+ * @return UDSTp_t*
  */
-UDSTpHandle_t *ISOTPMockNew(const char *name, ISOTPMockArgs_t *args);
-void ISOTPMockFree(UDSTpHandle_t *tp);
+UDSTp_t *ISOTPMockNew(const char *name, ISOTPMockArgs_t *args);
+void ISOTPMockFree(UDSTp_t *tp);
 
 /**
  * @brief write all messages to a file

@@ -422,7 +422,7 @@ bazel build //:release
 - breaking API changes:
     - `UDSClientErr_t` merged into `UDSErr_t`
     - `TP_SEND_INPROGRESS` renamed to `UDS_TP_SEND_IN_PROGRESS`
-    - refactored `UDSTpHandle_t` to encourage struct inheritance
+    - refactored `UDSTp_t` to encourage struct inheritance
     - `UDS_TP_LINUX_SOCKET` renamed to `UDS_TP_ISOTP_SOCKET`
 - added server fuzz test and qemu tests
 - cleaned up example tests, added isotp-c on socketcan to examples

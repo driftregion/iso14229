@@ -53,7 +53,7 @@ void MockServerPoll(MockServer_t *srv) {
     UDSTpPoll(srv->tp);
 
     if (UDSTpGetRecvLen(srv->tp)) { 
-        UDSTpHandle_t *tp = srv->tp;
+        UDSTp_t *tp = srv->tp;
         UDSSDU_t info;
         uint8_t *buf = NULL;
         size_t recv_len = UDSTpPeek(tp, &buf, &info);

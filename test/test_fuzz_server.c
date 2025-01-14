@@ -30,7 +30,7 @@ static int fn(UDSServer_t *srv, UDSEvent_t ev, const void *arg) {
 static uint32_t g_ms = 0;
 uint32_t UDSMillis() { return g_ms; }
 static UDSServer_t srv;
-static UDSTpHandle_t *mock_client = NULL;
+static UDSTp_t *mock_client = NULL;
 
 
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {

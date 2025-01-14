@@ -4,7 +4,7 @@
 #include "tp/isotp_c.h"
 #include "tp/isotp-c/isotp.h"
 
-static UDSTpStatus_t tp_poll(UDSTpHandle_t *hdl) {
+static UDSTpStatus_t tp_poll(UDSTp_t *hdl) {
     UDS_ASSERT(hdl);
     UDSTpStatus_t status = 0;
     UDSISOTpC_t *impl = (UDSISOTpC_t *)hdl;
@@ -40,7 +40,7 @@ done:
     return ret;
 }
 
-static ssize_t tp_peek(UDSTpHandle_t *hdl, uint8_t **p_buf, UDSSDU_t *info) {
+static ssize_t tp_peek(UDSTp_t *hdl, uint8_t **p_buf, UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     UDS_ASSERT(p_buf);
     UDSISOTpC_t *tp = (UDSISOTpC_t *)hdl;
@@ -87,7 +87,7 @@ done:
     return ret;
 }
 
-static ssize_t tp_send(UDSTpHandle_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
+static ssize_t tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     ssize_t ret = -1;
     UDSISOTpC_t *tp = (UDSISOTpC_t *)hdl;
@@ -125,7 +125,7 @@ done:
     return ret;
 }
 
-static void tp_ack_recv(UDSTpHandle_t *hdl) {
+static void tp_ack_recv(UDSTp_t *hdl) {
     UDS_LOGI(__FILE__, "ack recv\n");
     UDS_ASSERT(hdl);
     UDSISOTpC_t *tp = (UDSISOTpC_t *)hdl;
@@ -133,7 +133,7 @@ static void tp_ack_recv(UDSTpHandle_t *hdl) {
     isotp_receive(&tp->phys_link, tp->recv_buf, sizeof(tp->recv_buf), &out_size);
 }
 
-static ssize_t tp_get_send_buf(UDSTpHandle_t *hdl, uint8_t **p_buf) {
+static ssize_t tp_get_send_buf(UDSTp_t *hdl, uint8_t **p_buf) {
     UDS_ASSERT(hdl);
     UDSISOTpC_t *tp = (UDSISOTpC_t *)hdl;
     *p_buf = tp->send_buf;

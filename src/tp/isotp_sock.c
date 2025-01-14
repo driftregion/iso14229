@@ -13,7 +13,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-static UDSTpStatus_t isotp_sock_tp_poll(UDSTpHandle_t *hdl) { return 0; }
+static UDSTpStatus_t isotp_sock_tp_poll(UDSTp_t *hdl) { return 0; }
 
 static ssize_t tp_recv_once(int fd, uint8_t *buf, size_t size) {
     ssize_t ret = read(fd, buf, size);
@@ -30,18 +30,17 @@ static ssize_t tp_recv_once(int fd, uint8_t *buf, size_t size) {
     return ret;
 }
 
-static ssize_t isotp_sock_tp_peek(UDSTpHandle_t *hdl, uint8_t **p_buf, UDSSDU_t *info) {
+static ssize_t isotp_sock_tp_peek(UDSTp_t *hdl, uint8_t **p_buf, UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     UDS_ASSERT(p_buf);
     ssize_t ret = 0;
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
     *p_buf = impl->recv_buf;
+    UDSSDU_t *msg = &impl->recv_info;
     if (impl->recv_len) { // recv not yet acked
         ret = impl->recv_len;
         goto done;
     }
-
-    UDSSDU_t *msg = &impl->recv_info;
 
     // recv acked, OK to receive
     ret = tp_recv_once(impl->phys_fd, impl->recv_buf, sizeof(impl->recv_buf));
@@ -80,13 +79,13 @@ done:
     return ret;
 }
 
-static void isotp_sock_tp_ack_recv(UDSTpHandle_t *hdl) {
+static void isotp_sock_tp_ack_recv(UDSTp_t *hdl) {
     UDS_ASSERT(hdl);
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
     impl->recv_len = 0;
 }
 
-static ssize_t isotp_sock_tp_send(UDSTpHandle_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
+static ssize_t isotp_sock_tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     ssize_t ret = -1;
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
@@ -124,7 +123,7 @@ done:
     return ret;
 }
 
-static ssize_t isotp_sock_tp_get_send_buf(UDSTpHandle_t *hdl, uint8_t **p_buf) {
+static ssize_t isotp_sock_tp_get_send_buf(UDSTp_t *hdl, uint8_t **p_buf) {
     UDS_ASSERT(hdl);
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
     *p_buf = impl->send_buf;

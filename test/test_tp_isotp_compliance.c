@@ -66,12 +66,12 @@ int SetupIsoTpCPair(void **state) {
     UDSTpISOTpC_t *server_isotp = malloc(sizeof(UDSTpISOTpC_t));
     strcpy(server_isotp->tag, "server");
     assert(UDS_OK == UDSTpISOTpCInit(server_isotp, "vcan0", 0x7e8, 0x7e0, 0x7df, 0));
-    env->server_tp = (UDSTpHandle_t *)server_isotp;
+    env->server_tp = (UDSTp_t *)server_isotp;
 
     UDSTpISOTpC_t *client_isotp = malloc(sizeof(UDSTpISOTpC_t));
     strcpy(client_isotp->tag, "client");
     assert(UDS_OK == UDSTpISOTpCInit(client_isotp, "vcan0", 0x7e0, 0x7e8, 0, 0x7df));
-    env->client_tp = (UDSTpHandle_t *)client_isotp;
+    env->client_tp = (UDSTp_t *)client_isotp;
 
     env->is_real_time = true;
     *state = env;
@@ -94,7 +94,7 @@ int SetupIsoTpCClientOnly(void **state) {
     UDSTpISOTpC_t *client_isotp = malloc(sizeof(UDSTpISOTpC_t));
     strcpy(client_isotp->tag, "client");
     assert(UDS_OK == UDSTpISOTpCInit(client_isotp, "vcan0", 0x7e0, 0x7e8, 0, 0x7df));
-    env->client_tp = (UDSTpHandle_t *)client_isotp;
+    env->client_tp = (UDSTp_t *)client_isotp;
     env->is_real_time = true;
     *state = env;
     return 0;
@@ -114,12 +114,12 @@ int SetupIsoTpSockPair(void **state) {
     UDSTpIsoTpSock_t *server_isotp = malloc(sizeof(UDSTpIsoTpSock_t));
     strcpy(server_isotp->tag, "server");
     assert(UDS_OK == UDSTpIsoTpSockInitServer(server_isotp, "vcan0", 0x7e8, 0x7e0, 0x7df));
-    env->server_tp = (UDSTpHandle_t *)server_isotp;
+    env->server_tp = (UDSTp_t *)server_isotp;
 
     UDSTpIsoTpSock_t *client_isotp = malloc(sizeof(UDSTpIsoTpSock_t));
     strcpy(client_isotp->tag, "client");
     assert(UDS_OK == UDSTpIsoTpSockInitClient(client_isotp, "vcan0", 0x7e0, 0x7e8, 0x7df));
-    env->client_tp = (UDSTpHandle_t *)client_isotp;
+    env->client_tp = (UDSTp_t *)client_isotp;
 
     env->is_real_time = true;
     *state = env;
@@ -142,7 +142,7 @@ int SetupIsoTpSockClientOnly(void **state) {
     UDSTpIsoTpSock_t *client_isotp = malloc(sizeof(UDSTpIsoTpSock_t));
     strcpy(client_isotp->tag, "client");
     assert(UDS_OK == UDSTpIsoTpSockInitClient(client_isotp, "vcan0", 0x7e0, 0x7e8, 0x7df));
-    env->client_tp = (UDSTpHandle_t *)client_isotp;
+    env->client_tp = (UDSTp_t *)client_isotp;
     env->is_real_time = true;
     *state = env;
     return 0;
@@ -298,6 +298,9 @@ const struct CMUnitTest tests_tp_isotp_sock[] = {
 
 int main(int ac, char **av) {
     if (ac > 1) {
+        if (ac > 2) {
+            cmocka_set_test_filter(av[2]);
+        }
         // because these are compliance tests and we explicitly want to run the same test functions
         // against different types of transport, filtering by the test name with
         // cmocka_set_test_filter won't work.

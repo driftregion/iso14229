@@ -11,7 +11,7 @@
 
 // A mock server explicitly for client testing
 typedef struct {
-    UDSTpHandle_t *tp;
+    UDSTp_t *tp;
     void *impl;
 } MockServer_t;
 
@@ -35,8 +35,8 @@ typedef struct {
     UDSServer_t *server;
     UDSClient_t *client;
     MockServer_t *mock_server;
-    UDSTpHandle_t *server_tp;
-    UDSTpHandle_t *client_tp;
+    UDSTp_t *server_tp;
+    UDSTp_t *client_tp;
     bool is_real_time; // if true, EnvRunMillis will run for a wall-time duration rather than
                        // simulated time. This makes tests much slower, so use it only when
                        // necessary.

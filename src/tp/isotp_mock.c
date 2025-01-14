@@ -62,7 +62,7 @@ static void NetworkPoll(void) {
     }
 }
 
-static ssize_t mock_tp_peek(struct UDSTpHandle *hdl, uint8_t **p_buf, UDSSDU_t *info) {
+static ssize_t mock_tp_peek(struct UDSTp *hdl, uint8_t **p_buf, UDSSDU_t *info) {
     assert(hdl);
     assert(p_buf);
     ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
@@ -75,7 +75,7 @@ static ssize_t mock_tp_peek(struct UDSTpHandle *hdl, uint8_t **p_buf, UDSSDU_t *
     return tp->recv_len;
 }
 
-static ssize_t mock_tp_send(struct UDSTpHandle *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
+static ssize_t mock_tp_send(struct UDSTp *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
     assert(hdl);
     ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
     if (MsgCount >= NUM_MSGS) {
@@ -115,13 +115,13 @@ static ssize_t mock_tp_send(struct UDSTpHandle *hdl, uint8_t *buf, size_t len, U
     return len;
 }
 
-static UDSTpStatus_t mock_tp_poll(struct UDSTpHandle *hdl) {
+static UDSTpStatus_t mock_tp_poll(struct UDSTp *hdl) {
     NetworkPoll();
     // todo: make this status reflect TX time
     return UDS_TP_IDLE;
 }
 
-static ssize_t mock_tp_get_send_buf(struct UDSTpHandle *hdl, uint8_t **p_buf) {
+static ssize_t mock_tp_get_send_buf(struct UDSTp *hdl, uint8_t **p_buf) {
     assert(hdl);
     assert(p_buf);
     ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
@@ -129,7 +129,7 @@ static ssize_t mock_tp_get_send_buf(struct UDSTpHandle *hdl, uint8_t **p_buf) {
     return sizeof(tp->send_buf);
 }
 
-static void mock_tp_ack_recv(struct UDSTpHandle *hdl) {
+static void mock_tp_ack_recv(struct UDSTp *hdl) {
     assert(hdl);
     ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
     tp->recv_len = 0;
@@ -170,7 +170,7 @@ static void ISOTPMockDetach(ISOTPMock_t *tp) {
     assert(false);
 }
 
-UDSTpHandle_t *ISOTPMockNew(const char *name, ISOTPMockArgs_t *args) {
+UDSTp_t *ISOTPMockNew(const char *name, ISOTPMockArgs_t *args) {
     if (TPCount >= MAX_NUM_TP) {
         UDS_LOGI(__FILE__, "TPCount: %d, too many TPs\n", TPCount);
         return NULL;
@@ -185,7 +185,7 @@ UDSTpHandle_t *ISOTPMockNew(const char *name, ISOTPMockArgs_t *args) {
     return &tp->hdl;
 }
 
-void ISOTPMockConnect(UDSTpHandle_t *tp1, UDSTpHandle_t *tp2);
+void ISOTPMockConnect(UDSTp_t *tp1, UDSTp_t *tp2);
 
 void ISOTPMockLogToFile(const char *filename) {
     if (LogFile) {
@@ -218,7 +218,7 @@ void ISOTPMockReset(void) {
     MsgCount = 0;
 }
 
-void ISOTPMockFree(UDSTpHandle_t *tp) {
+void ISOTPMockFree(UDSTp_t *tp) {
     ISOTPMock_t *tpm = (ISOTPMock_t *)tp;
     ISOTPMockDetach(tpm);
     free(tp);

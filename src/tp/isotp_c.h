@@ -8,7 +8,7 @@
 #include "tp/isotp-c/isotp.h"
 
 typedef struct {
-    UDSTpHandle_t hdl;
+    UDSTp_t hdl;
     IsoTpLink phys_link;
     IsoTpLink func_link;
     uint8_t send_buf[UDS_ISOTP_MTU];
