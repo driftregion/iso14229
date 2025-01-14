@@ -9,9 +9,32 @@
 #include <setjmp.h>  // needed for cmocka
 #include <cmocka.h>
 
+// A mock server explicitly for client testing
 typedef struct {
+    UDSTpHandle_t *tp;
+    void *impl;
+} MockServer_t;
+
+struct Behavior {
+    uint8_t req_data[UDS_TP_MTU];
+    size_t req_len;
+    uint8_t resp_data[UDS_TP_MTU];
+    size_t resp_len;
+    uint32_t delay_ms;
+};
+
+void MockServerPoll(MockServer_t *srv);
+void MockServerAddBehavior(MockServer_t *srv, struct Behavior *b);
+MockServer_t *MockServerNew(void);
+void MockServerFree(MockServer_t *srv);
+
+// Test environment
+typedef struct {
+
+    // the environment polls these objects in EnvRunMillis
     UDSServer_t *server;
     UDSClient_t *client;
+    MockServer_t *mock_server;
     UDSTpHandle_t *server_tp;
     UDSTpHandle_t *client_tp;
     bool is_real_time; // if true, EnvRunMillis will run for a wall-time duration rather than
