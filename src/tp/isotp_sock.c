@@ -7,13 +7,60 @@
 #include <linux/can.h>
 #include <linux/can/isotp.h>
 #include <net/if.h>
+#include <poll.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
 
-static UDSTpStatus_t isotp_sock_tp_poll(UDSTp_t *hdl) { return 0; }
+static UDSTpStatus_t isotp_sock_tp_poll(UDSTp_t *hdl) {
+    UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
+    UDSTpStatus_t status = 0;
+    int ret = 0;
+    int fds[2] = {impl->phys_fd, impl->func_fd};
+    struct pollfd pfds[2] = {0};
+    pfds[0].fd = impl->phys_fd;
+    pfds[0].events = POLLERR;
+    pfds[0].revents = 0;
+
+    pfds[1].fd = impl->func_fd;
+    pfds[1].events = POLLERR;
+    pfds[1].revents = 0;
+
+    ret = poll(pfds, 2, 1);
+    if (ret < 0) {
+        perror("poll");
+    } else if (ret == 0) {
+        ; // no error
+    } else {
+        for (int i = 0; i < 2; i++) {
+            struct pollfd pfd = pfds[i];
+            if (pfd.revents & POLLERR) {
+                int pending_err = 0;
+                socklen_t len = sizeof(pending_err);
+                if (!getsockopt(fds[i], SOL_SOCKET, SO_ERROR, &pending_err, &len) && pending_err) {
+                    switch (pending_err) {
+                    case ECOMM:
+                        UDS_LOGE(__FILE__, "ECOMM: Communication error on send");
+                        status |= UDS_TP_ERR;
+                        break;
+                    default:
+                        UDS_LOGE(__FILE__, "Asynchronous socket error: %s (%d)\n",
+                                 strerror(pending_err), pending_err);
+                        status |= UDS_TP_ERR;
+                        break;
+                    }
+                } else {
+                    UDS_LOGE(__FILE__, "POLLERR was set, but no error returned via SO_ERROR?");
+                }
+            } else {
+                UDS_LOGE(__FILE__, "poll() returned, but no POLLERR. revents=0x%x", pfd.revents);
+            }
+        }
+    }
+    return status;
+}
 
 static ssize_t tp_recv_once(int fd, uint8_t *buf, size_t size) {
     ssize_t ret = read(fd, buf, size);
@@ -23,7 +70,7 @@ static ssize_t tp_recv_once(int fd, uint8_t *buf, size_t size) {
         } else {
             UDS_LOGI(__FILE__, "read failed: %ld with errno: %d\n", ret, errno);
             if (EILSEQ == errno) {
-                UDS_LOGI(__FILE__, "Perhaps I received multiple responses?\n");
+                UDS_LOGI(__FILE__, "Perhaps I received multiple responses?");
             }
         }
     }
@@ -149,8 +196,6 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool
 
     struct can_isotp_options opts;
     memset(&opts, 0, sizeof(opts));
-    // configure socket to wait for tx completion to catch FC frame timeouts
-    opts.flags |= CAN_ISOTP_WAIT_TX_DONE;
 
     if (functional) {
         UDS_LOGI(__FILE__, "configuring fd: %d as functional", fd);

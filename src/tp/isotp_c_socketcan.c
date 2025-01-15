@@ -102,6 +102,9 @@ static UDSTpStatus_t isotp_c_socketcan_tp_poll(UDSTp_t *hdl) {
     if (impl->phys_link.send_status == ISOTP_SEND_STATUS_INPROGRESS) {
         status |= UDS_TP_SEND_IN_PROGRESS;
     }
+    if (impl->phys_link.send_status == ISOTP_SEND_STATUS_ERROR) {
+        status |= UDS_TP_ERR;
+    }
     return status;
 }
 

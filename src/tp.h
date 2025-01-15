@@ -9,9 +9,10 @@
 #endif
 
 enum UDSTpStatusFlags {
-    UDS_TP_IDLE = 0x00000000,
-    UDS_TP_SEND_IN_PROGRESS = 0x00000001,
-    UDS_TP_RECV_COMPLETE = 0x00000002,
+    UDS_TP_IDLE = 0x0000,
+    UDS_TP_SEND_IN_PROGRESS = 0x0001,
+    UDS_TP_RECV_COMPLETE = 0x0002,
+    UDS_TP_ERR = 0x0004,
 };
 
 typedef uint32_t UDSTpStatus_t;
@@ -46,7 +47,7 @@ typedef struct {
 #define UDS_TP_NOOP_ADDR (0xFFFFFFFF)
 
 /**
- * @brief Transport layer interface
+ * @brief UDS Transport layer
  * @note implementers should embed this struct at offset zero in their own transport layer handle
  */
 typedef struct UDSTp {

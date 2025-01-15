@@ -11,7 +11,6 @@ static uint32_t TimeNowMillis = 0;
 
 uint32_t UDSMillis(void) { return TimeNowMillis; }
 
-
 struct ScheduledEvent {
     uint32_t time_ms;
     struct Behavior *b;
@@ -89,20 +88,24 @@ void MockServerPoll(MockServer_t *srv) {
 void EnvRunMillis(Env_t *env, uint32_t millis) {
     uint32_t end = UDSMillis() + millis;
     while (UDSMillis() < end) {
-        if (env->server) {
-            UDSServerPoll(env->server);
-        } 
-        if (env->server_tp) {
-            UDSTpPoll(env->server_tp);
-        }
-        if (env->client) {
-            UDSClientPoll(env->client);
-        } 
-        if (env->client_tp) {
-            UDSTpPoll(env->client_tp);
-        }
-        if (env->mock_server) { 
-            MockServerPoll(env->mock_server);
+        if (env->do_not_poll) {
+            ;
+        } else {
+            if (env->server) {
+                UDSServerPoll(env->server);
+            } 
+            if (env->server_tp) {
+                UDSTpPoll(env->server_tp);
+            }
+            if (env->client) {
+                UDSClientPoll(env->client);
+            } 
+            if (env->client_tp) {
+                UDSTpPoll(env->client_tp);
+            }
+            if (env->mock_server) { 
+                MockServerPoll(env->mock_server);
+            }
         }
         if (env->is_real_time) {
             usleep(1000);

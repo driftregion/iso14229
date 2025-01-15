@@ -167,7 +167,7 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
         return UDS_ERR_MISUSE;
     }
 
-    UDSTpStatus_t tp_status = client->tp->poll(client->tp);
+    UDSTpStatus_t tp_status = UDSTpPoll(client->tp);
     switch (client->state) {
     case kRequestStateIdle: {
         client->options = client->defaultOptions;

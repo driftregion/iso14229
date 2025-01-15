@@ -245,19 +245,24 @@ void test_send_recv_max_len(void **state) {
 
 void test_flow_control_frame_timeout(void **state) {
     Env_t *e = *state;
+    e->do_not_poll = true;
 
     // sending multiframe to wait for Flow Control frame
     // which will not arrive since no server is running
     const uint8_t MSG[] = {1, 2, 3, 4, 5, 6, 7, 8};
     ssize_t ret = UDSTpSend(e->client_tp, MSG, sizeof(MSG), NULL);
+    TEST_INT_EQUAL(ret, 8);
 
-    EnvRunMillis(e, 1000);
-
-    skip();
-    // The transport implemenation is flawed. It needs a way of returning a status asynchronously.
-
-    // failure is expected as the elapsed 1s timeout raises an error on the ISOTP socket
-    assert_true(ret < 0);
+    UDSTpStatus_t status = 0;
+    for (int i = 0; i < 2000; i++) {
+        status = UDSTpPoll(e->client_tp);
+        if (status & UDS_TP_ERR) {
+            // success
+            return;
+        }
+        EnvRunMillis(e, 1);
+    }
+    fail();
 }
 
 // clang-format off
@@ -267,7 +272,9 @@ const struct CMUnitTest tests_tp_mock[] = {
     cmocka_unit_test_setup_teardown(test_send_recv_largest_single_frame,                    SetupMockTpPair,        TeardownMockTpPair),
     cmocka_unit_test_setup_teardown(test_send_functional_larger_than_single_frame_fails,    SetupMockTpPair,        TeardownMockTpPair),
     cmocka_unit_test_setup_teardown(test_send_recv_max_len,                                 SetupMockTpPair,        TeardownMockTpPair),
-    cmocka_unit_test_setup_teardown(test_flow_control_frame_timeout,                        SetupMockTpClientOnly,  TeardownMockTpClientOnly),
+
+    // The mock server doesn't implement fc timeouts 
+    // cmocka_unit_test_setup_teardown(test_flow_control_frame_timeout,                        SetupMockTpClientOnly,  TeardownMockTpClientOnly),
 
     // Extended ID tests
     cmocka_unit_test_setup_teardown(test_send_recv,                                         SetupMockTpPairExtendedID,  TeardownMockTpPair),
