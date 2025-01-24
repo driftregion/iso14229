@@ -353,11 +353,7 @@ typedef struct {
 
 # Documentation: Client
 
-
-
-## Examples
-
-[examples/README.md](examples/README.md)
+See the examples directory
 
 # Contributing
 
@@ -370,10 +366,10 @@ When reporting issues, please state what you expected to happen.
 ## Running Tests
 
 ```sh
-bazel test //test:all
+bazel test //...
 ```
 
-See also [test_all.sh](./test_all.sh) and [test/README.md](test/README.md)
+See [test/README.md](test/README.md)
 
 ## Release
 
@@ -383,8 +379,12 @@ bazel build //:release
 
 ### Release Checklist
 
-- [ ] version is consistent in `version.h` and `README.md`
-- [ ] all tests passing
+- [ ] be sure branch is rebased on main
+- [ ] run all tests locally (including vcan and examples) with `bazel test //...`
+- [ ] push branch, check all tests are passing in CI
+- [ ] update release notes in README.md
+- [ ] increment version in `src/version.h` and commit changes
+- [ ] `git tag` with version, e.g. `git tag v0.8.0` (the current implementation of `.github/workflows/release.yml` grabs the release triple from the git tag)
 
 # Acknowledgements
 
