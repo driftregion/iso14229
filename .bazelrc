@@ -7,6 +7,7 @@ build --extra_toolchains //toolchain:ppc_gcc
 build --extra_toolchains //toolchain:ppc64_gcc
 build --extra_toolchains //toolchain:ppc64le_gcc
 build --extra_toolchains //toolchain:x86_64_clang
+build --extra_toolchains //toolchain:x86_64_gcc
 
 build:arm_linux --platforms=//platforms:arm_linux
 build:s32k --platforms=//platforms:s32k_evb
@@ -14,6 +15,7 @@ build:ppc --platforms=//platforms:ppc
 build:ppc64 --platforms=//platforms:ppc64
 build:ppc64le --platforms=//platforms:ppc64le
 build:x86_64_clang --platforms=//platforms:x86_64_clang
+build:x86_64_gcc --platforms=//platforms:x86_64_gcc
 
 test:arm_linux --run_under="qemu-arm -L /usr/arm-linux-gnueabihf/ "
 test:ppc --run_under="qemu-ppc -L /usr/powerpc-linux-gnu/ "

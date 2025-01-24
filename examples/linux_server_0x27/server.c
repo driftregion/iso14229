@@ -53,9 +53,9 @@ int rsa_verify(const uint8_t *key, size_t key_len, bool *valid) {
     return ret;
 }
 
-static uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
+static uint8_t fn(UDSServer_t *srv, UDSEvent_t ev, const void *arg) {
     switch (ev) {
-        case UDS_SRV_EVT_SecAccessRequestSeed: {
+        case UDS_EVT_SecAccessRequestSeed: {
             UDSSecAccessRequestSeedArgs_t *req = (UDSSecAccessRequestSeedArgs_t *)arg;
             // use urandom to generate a random seed
             FILE *f = fopen("/dev/urandom", "r");
@@ -67,7 +67,7 @@ static uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
             fclose(f);
             return req->copySeed(srv, seed, sizeof(seed));
         }
-        case UDS_SRV_EVT_SecAccessValidateKey: {
+        case UDS_EVT_SecAccessValidateKey: {
             UDSSecAccessValidateKeyArgs_t *req = (UDSSecAccessValidateKeyArgs_t *)arg;
             bool valid = false;
 
@@ -77,7 +77,7 @@ static uint8_t fn(UDSServer_t *srv, UDSServerEvent_t ev, const void *arg) {
             } else {
                 if (valid) {
                     printf("Security level %d unlocked\n", req->level);
-                    return kPositiveResponse;
+                    return UDS_PositiveResponse;
                 } else {
                     return kSecurityAccessDenied;
                 }
@@ -115,7 +115,7 @@ int main(int ac, char **av) {
         fprintf(stderr, "UDSServerInit failed\n");
     }
 
-    srv.tp = (UDSTpHandle_t *)&tp;
+    srv.tp = (UDSTp_t *)&tp;
     srv.fn = fn;
 
     printf("server up, polling . . .\n");

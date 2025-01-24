@@ -2,14 +2,17 @@
 
 #include "sys.h"
 
-#if defined(UDS_TP_ISOTP_C) || defined(UDS_TP_ISOTP_C_SOCKETCAN)
-#define UDS_ISOTP_C
+#if defined UDS_TP_ISOTP_C_SOCKETCAN
+#ifndef UDS_TP_ISOTP_C
+#define UDS_TP_ISOTP_C
+#endif
 #endif
 
 enum UDSTpStatusFlags {
-    UDS_TP_IDLE = 0x00000000,
-    UDS_TP_SEND_IN_PROGRESS = 0x00000001,
-    UDS_TP_RECV_COMPLETE = 0x00000002,
+    UDS_TP_IDLE = 0x0000,
+    UDS_TP_SEND_IN_PROGRESS = 0x0001,
+    UDS_TP_RECV_COMPLETE = 0x0002,
+    UDS_TP_ERR = 0x0004,
 };
 
 typedef uint32_t UDSTpStatus_t;
@@ -35,26 +38,26 @@ typedef uint8_t UDSTpAddr_t;
 typedef struct {
     UDS_A_Mtype_t A_Mtype; // message type (diagnostic, remote diagnostic, secure diagnostic, secure
                            // remote diagnostic)
-    uint16_t A_SA;         // application source address
-    uint16_t A_TA;         // application target address
+    uint32_t A_SA;         // application source address
+    uint32_t A_TA;         // application target address
     UDS_A_TA_Type_t A_TA_Type; // application target address type (physical or functional)
-    uint16_t A_AE;             // application layer remote address
+    uint32_t A_AE;             // application layer remote address
 } UDSSDU_t;
 
 #define UDS_TP_NOOP_ADDR (0xFFFFFFFF)
 
 /**
- * @brief Interface to OSI layer 4 (transport layer)
+ * @brief UDS Transport layer
  * @note implementers should embed this struct at offset zero in their own transport layer handle
  */
-typedef struct UDSTpHandle {
+typedef struct UDSTp {
     /**
      * @brief Get the transport layer's send buffer
      * @param hdl: pointer to transport handle
      * @param buf: double pointer which will be pointed to the send buffer
      * @return size of transport layer's send buffer on success, -1 on error
      */
-    ssize_t (*get_send_buf)(struct UDSTpHandle *hdl, uint8_t **p_buf);
+    ssize_t (*get_send_buf)(struct UDSTp *hdl, uint8_t **p_buf);
 
     /**
      * @brief Send the data in the buffer buf
@@ -64,7 +67,7 @@ typedef struct UDSTpHandle {
      * @param info: pointer to SDU info (may be NULL). If NULL, implementation should send with
      * physical addressing
      */
-    ssize_t (*send)(struct UDSTpHandle *hdl, uint8_t *buf, size_t len, UDSSDU_t *info);
+    ssize_t (*send)(struct UDSTp *hdl, uint8_t *buf, size_t len, UDSSDU_t *info);
 
     /**
      * @brief Poll the transport layer.
@@ -73,7 +76,7 @@ typedef struct UDSTpHandle {
      * @note threaded implementations like linux isotp sockets don't need to do anything here.
      * @return UDS_TP_IDLE if idle, otherwise UDS_TP_SEND_IN_PROGRESS or UDS_TP_RECV_COMPLETE
      */
-    UDSTpStatus_t (*poll)(struct UDSTpHandle *hdl);
+    UDSTpStatus_t (*poll)(struct UDSTp *hdl);
 
     /**
      * @brief Peek at the received data
@@ -82,22 +85,22 @@ typedef struct UDSTpHandle {
      * @param info: filled with SDU info by the callee if not NULL
      * @return size of received data on success, -1 on error
      * @note The transport will be unable to receive further data until @ref ack_recv is called
-     * @note The information returned by peek will not change until @ref ack_recv is called
+     * @note The **buf returned by peek is valid until @ref ack_recv is called
      */
-    ssize_t (*peek)(struct UDSTpHandle *hdl, uint8_t **buf, UDSSDU_t *info);
+    ssize_t (*peek)(struct UDSTp *hdl, uint8_t **buf, UDSSDU_t *info);
 
     /**
      * @brief Acknowledge that the received data has been processed and may be discarded
      * @param hdl: pointer to transport handle
      * @note: after ack_recv() is called and before new messages are received, peek must return 0.
      */
-    void (*ack_recv)(struct UDSTpHandle *hdl);
-} UDSTpHandle_t;
+    void (*ack_recv)(struct UDSTp *hdl);
+} UDSTp_t;
 
-ssize_t UDSTpGetSendBuf(UDSTpHandle_t *hdl, uint8_t **buf);
-ssize_t UDSTpSend(UDSTpHandle_t *hdl, const uint8_t *buf, ssize_t len, UDSSDU_t *info);
-UDSTpStatus_t UDSTpPoll(UDSTpHandle_t *hdl);
-ssize_t UDSTpPeek(struct UDSTpHandle *hdl, uint8_t **buf, UDSSDU_t *info);
-const uint8_t *UDSTpGetRecvBuf(UDSTpHandle_t *hdl, size_t *len);
-size_t UDSTpGetRecvLen(UDSTpHandle_t *hdl);
-void UDSTpAckRecv(UDSTpHandle_t *hdl);
+ssize_t UDSTpGetSendBuf(UDSTp_t *hdl, uint8_t **buf);
+ssize_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, ssize_t len, UDSSDU_t *info);
+UDSTpStatus_t UDSTpPoll(UDSTp_t *hdl);
+ssize_t UDSTpPeek(struct UDSTp *hdl, uint8_t **buf, UDSSDU_t *info);
+const uint8_t *UDSTpGetRecvBuf(UDSTp_t *hdl, size_t *len);
+size_t UDSTpGetRecvLen(UDSTp_t *hdl);
+void UDSTpAckRecv(UDSTp_t *hdl);

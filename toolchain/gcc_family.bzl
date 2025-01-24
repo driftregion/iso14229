@@ -16,18 +16,23 @@ all_link_actions = [
 ]
 
 def _impl(ctx):
+    if ctx.attr.prefix:
+        prefix = "{}-".format(ctx.attr.prefix)
+    else:
+        prefix = ""
+
     tool_paths = [
         tool_path(
             name = "gcc",
-            path = "/usr/bin/{}-gcc".format(ctx.attr.prefix),
+            path = "/usr/bin/{}gcc".format(prefix),
         ),
         tool_path(
             name = "ld",
-            path = "/usr/bin/{}-ld".format(ctx.attr.prefix),
+            path = "/usr/bin/{}ld".format(prefix),
         ),
         tool_path(
             name = "ar",
-            path = "/usr/bin/{}-ar".format(ctx.attr.prefix),
+            path = "/usr/bin/{}ar".format(prefix),
         ),
         tool_path(
             name = "cpp",
@@ -35,7 +40,7 @@ def _impl(ctx):
         ),
         tool_path(
             name = "gcov",
-            path = "/bin/false",
+            path = "/usr/bin/gcov",
         ),
         tool_path(
             name = "nm",
@@ -51,7 +56,7 @@ def _impl(ctx):
         ),
         tool_path(
             name = "objcopy",
-            path = "/usr/bin/{}-objcopy".format(ctx.attr.prefix),
+            path = "/usr/bin/{}objcopy".format(prefix),
         ),
     ]
 
