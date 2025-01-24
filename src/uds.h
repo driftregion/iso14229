@@ -21,6 +21,7 @@ typedef enum UDSEvent {
     UDS_EVT_SessionTimeout,       // NULL
     UDS_EVT_DoScheduledReset,     // enum UDSEcuResetType *
     UDS_EVT_RequestFileTransfer,  // UDSRequestFileTransferArgs_t *
+    UDS_EVT_CUSTOM,               // UDSCustomArgs_t *
 
     // Client Event
     UDS_EVT_Poll,             // NULL
@@ -28,6 +29,7 @@ typedef enum UDSEvent {
     UDS_EVT_ResponseReceived, //
     UDS_EVT_Idle,             // NULL
 
+    UDS_EVT_MAX, // unused
 } UDSEvent_t;
 
 typedef enum {

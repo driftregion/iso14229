@@ -87,7 +87,7 @@ void test_0x11_good_response(void **state) {
         .resp_len = 2,
         .delay_ms = 0, // immediate response
     });
-    int call_count[20] = {0};
+    int call_count[UDS_EVT_MAX] = {0};
     e->client->fn = fn_log_call_count;
     e->client->fn_data = call_count;
     UDSSendECUReset(e->client, kHardReset);
@@ -105,7 +105,7 @@ void test_0x11_timeout(void **state) {
         .resp_len = 2,
         .delay_ms = e->client->p2_ms + 10,  // timeout
     });
-    int call_count[20] = {0};
+    int call_count[UDS_EVT_MAX] = {0};
     e->client->fn = fn_log_call_count;
     e->client->fn_data = call_count;
     UDSSendECUReset(e->client, kHardReset);
@@ -122,7 +122,7 @@ void test_0x11_sid_mismatch(void **state) {
         .resp_len = 2,
         .delay_ms = 0, // immediate response
     });
-    int call_count[20] = {0};
+    int call_count[UDS_EVT_MAX] = {0};
     e->client->fn = fn_log_call_count;
     e->client->fn_data = call_count;
     UDSSendECUReset(e->client, kHardReset);
@@ -139,7 +139,7 @@ void test_0x11_short_response(void **state) {
         .resp_len = 1,
         .delay_ms = 0, // immediate response
     });
-    int call_count[20] = {0};
+    int call_count[UDS_EVT_MAX] = {0};
     e->client->fn = fn_log_call_count;
     e->client->fn_data = call_count;
     UDSSendECUReset(e->client, kHardReset);
@@ -156,7 +156,7 @@ void test_0x11_inconsistent_subfunc(void **state) {
         .resp_len = 2,
         .delay_ms = 0, // immediate response
     });
-    int call_count[20] = {0};
+    int call_count[UDS_EVT_MAX] = {0};
     e->client->fn = fn_log_call_count;
     e->client->fn_data = call_count;
     UDSSendECUReset(e->client, kHardReset);
@@ -173,7 +173,7 @@ void test_0x11_neg_resp(void **state) {
         .resp_len = 3,
         .delay_ms = 0, // immediate response
     });
-    int call_count[20] = {0};
+    int call_count[UDS_EVT_MAX] = {0};
     e->client->fn = fn_log_call_count;
     e->client->fn_data = call_count;
     UDSSendECUReset(e->client, kHardReset);
@@ -190,7 +190,7 @@ void test_0x11_rcrrp_timeout(void **state) {
         .resp_len = 3,
         .delay_ms = 0, // immediate response
     });
-    int call_count[20] = {0};
+    int call_count[UDS_EVT_MAX] = {0};
     e->client->fn = fn_log_call_count;
     e->client->fn_data = call_count;
     UDSSendECUReset(e->client, kHardReset);
@@ -210,7 +210,7 @@ void test_0x11_rcrrp_ok(void **state) {
         .resp_len = 3,
         .delay_ms = 0, // immediate response
     });
-    int call_count[20] = {0};
+    int call_count[UDS_EVT_MAX] = {0};
     e->client->fn = fn_log_call_count;
     e->client->fn_data = call_count;
     UDSSendECUReset(e->client, kHardReset);
@@ -226,7 +226,7 @@ void test_0x11_rcrrp_ok(void **state) {
 
 void test_0x11_suppress_pos_resp(void **state) {
     Env_t *e = *state;
-    int call_count[20] = {0};
+    int call_count[UDS_EVT_MAX] = {0};
     e->client->fn = fn_log_call_count;
     e->client->fn_data = call_count;
 
@@ -243,7 +243,7 @@ void test_0x11_suppress_pos_resp(void **state) {
 
 void test_0x22_unpack_rdbi_response(void **state) {
     Env_t *e = *state;
-    int call_count[20] = {0};
+    int call_count[UDS_EVT_MAX] = {0};
     e->client->fn = fn_log_call_count;
     e->client->fn_data = call_count;
 
