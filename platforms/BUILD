@@ -24,6 +24,14 @@ platform(
 )
 
 platform(
+    name = "x86_64_gcc",
+    parents = [":x86_64"],
+    constraint_values = [
+        "//platforms/compiler:gcc",
+    ],
+)
+
+platform(
     name = "arm_linux",
     constraint_values = [
         "@platforms//cpu:arm",

@@ -6,7 +6,8 @@ cc_binary(
         "main.c",
         "bsp.c",
         "bsp.h",
-        "//:srcs",
+        "//:iso14229.c",
+        "//:iso14229.h",
     ],
     deps = [
         ":runtime",

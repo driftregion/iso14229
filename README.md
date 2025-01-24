@@ -7,26 +7,41 @@
 
 iso14229 is an implementation of UDS (ISO14229) targeting embedded systems. It is tested with [`isotp-c`](https://github.com/lishen2/isotp-c) as well as [linux kernel](https://github.com/linux-can/can-utils/blob/master/include/linux/can/isotp.h) ISO15765-2 (ISO-TP) transport layer implementations. 
 
-API status: **not yet stable**. 
+API status: Major version zero (0.y.z) **(not yet stable)**. Anything MAY change at any time.
 
 ## Using this library 
 
-1. Download `iso14229.zip` from the [releases page](https://github.com/driftregion/iso14229/releases), copy `iso14229.c` and `iso14229.h` into your source tree and build.
-2. Look at the [examples](./examples)
+1. Download `iso14229.zip` from the [releases page](https://github.com/driftregion/iso14229/releases), copy `iso14229.c` and `iso14229.h` into your project.
+2. Select a transport layer using the table below and enable it by defining the `copt` in your project's build configuration.
 
-## Build Systems
-
-iso14229 is designed to build on any platform. 
-
-## Preprocessor Defines
-
-| Define | Description | Valid values |
+| Transport Layer | `copt` | Suitable for | 
 | - | - | - |
-| `-DUDS_TP_ISOTP_C` | build the isotp-c transport layer (recommended for bare-metal systems) | on/off |
-| `-DUDS_TP_ISOTP_SOCK` | build the isotp socket transport layer (recommended for linux)  | on/off|
-| `-DUDS_TP_ISOTP_C_SOCKETCAN` | build the isotp-c transport layer with socketcan support (linux-only)  | on/off|
-| `UDS_...` | Additional configuration options | see [`src/config.h`](src/config.h) |
-| `UDS_SYS` | Selects target system | see [`src/sys.h`](src/sys.h) |
+| ISO-TP sockets | `-DUDS_TP_ISOTP_SOCK` | Linux socketcan |
+| isotp-c on socketcan | `-DUDS_TP_ISOTP_C_SOCKETCAN` | Linux socketcan |
+| isotp-c (bring your own CAN) | `-DUDS_TP_ISOTP_C` | embedded systems, Windows, Linux non-socketcan, ... |
+
+3. Refer to the [examples](./examples) and [tests](./test) for usage.
+
+
+## Compile-Time Features
+
+The following features are configured with preprocessor defines:
+
+| Define | Description | Valid values | 
+| - | - | - |
+| `-DUDS_TP_ISOTP_C` | build the isotp-c transport layer (recommended for bare-metal systems) | defined or not |
+| `-DUDS_TP_ISOTP_SOCK` | build the isotp socket transport layer (recommended for linux)  | defined or not |
+| `-DUDS_TP_ISOTP_C_SOCKETCAN` | build the isotp-c transport layer with socketcan support (linux-only)  | defined or not |
+| `-DUDS_LOG_LEVEL=...`| Sets the logging level. Internal log messages are useful for bringup and unit tests. This defaults to `UDS_LOG_LEVEL=UDS_LOG_NONE` which completely disables logging, ensuring that no logging-related code goes in to the binary. | `UDS_LOG_NONE, UDS_LOG_ERROR, UDS_LOG_WARN, UDS_LOG_INFO, UDS_LOG_DEBUG, UDS_LOG_VERBOSE` |
+| `-DUDS_SERVER_...` | server configuration options | see [`src/config.h`](src/config.h) |
+| `-DUDS_CLIENT_...` | client configuration options | see [`src/config.h`](src/config.h) |
+| `-DUDS_SYS=` | Selects target system. See [`src/sys.h`](src/sys.h) | `UDS_SYS_CUSTOM,UDS_SYS_UNIX,UDS_SYS_WINDOWS,UDS_SYS_ARDUINO,UDS_SYS_ESP32`  |
+
+### Deprecated Compile-Time Features
+
+| Define | Reason for deprecation | mitigation | 
+| `-DUDS_ENABLE_ASSERT` | redundant | Use the standard `-DNDEBUG` to disable assertions. |
+| `-DUDS_ENABLE_DEBUG_PRINT` | replaced by `UDS_LOG` | Use `-DUDS_LOG_LEVEL=` to set or disable logging. |
 
 ## Features
 
@@ -66,17 +81,13 @@ iso14229 is designed to build on any platform.
 | 0x85 | control DTC setting | ✅ |
 | 0x86 | response on event | ❌ |
 
-## Running Tests
-
-See [test_all.sh](./test_all.sh) and [test/README.md](test/README.md)
-
-# Documentation
+# Documentation: Server
 
 ## Server Events
 
-see `enum UDSServerEvent` in [src/uds.h](src/uds.h)
+see `enum UDSEvent` in [src/uds.h](src/uds.h)
 
-### `UDS_SRV_EVT_DiagSessCtrl` (0x10)
+### `UDS_EVT_DiagSessCtrl` (0x10)
 
 #### Arguments
 
@@ -92,11 +103,11 @@ typedef struct {
 
 | Value  | enum                 | Meaning | 
 | - | - | - | 
-| `0x00` | `kPositiveResponse` | Request to change diagnostic level accepted. |
-| `0x12` | `kSubFunctionNotSupported` | The server doesn't support this diagnostic level |
-| `0x22` | `kConditionsNotCorrect` | The server can't/won't transition to the specified diagnostic level at this time |
+| `0x00` | `UDS_PositiveResponse` | Request to change diagnostic level accepted. |
+| `0x12` | `UDS_NRC_SubFunctionNotSupported` | The server doesn't support this diagnostic level |
+| `0x22` | `UDS_NRC_ConditionsNotCorrect` | The server can't/won't transition to the specified diagnostic level at this time |
 
-### `UDS_SRV_EVT_ECUReset` (0x11)
+### `UDS_EVT_ECUReset` (0x11)
 
 #### Arguments
 
@@ -112,19 +123,19 @@ typedef struct {
 
 | Value  | enum                 | Meaning | 
 | - | - | - | 
-| `0x00` | `kPositiveResponse` | Request to reset ECU accepted.  |
-| `0x12` | `kSubFunctionNotSupported` | The server doesn't support the specified type of ECU reset |
-| `0x22` | `kConditionsNotCorrect` | The server can't reset now |
-| `0x33` | `kSecurityAccessDenied` | The current level of security access doesn't permit this type of ECU reset |
+| `0x00` | `UDS_PositiveResponse` | Request to reset ECU accepted.  |
+| `0x12` | `UDS_NRC_SubFunctionNotSupported` | The server doesn't support the specified type of ECU reset |
+| `0x22` | `UDS_NRC_ConditionsNotCorrect` | The server can't reset now |
+| `0x33` | `UDS_NRC_SecurityAccessDenied` | The current level of security access doesn't permit this type of ECU reset |
 
-### `UDS_SRV_EVT_ReadDataByIdent` (0x22)
+### `UDS_EVT_ReadDataByIdent` (0x22)
 
 #### Arguments
 
 ```c
 typedef struct {
     const uint16_t dataId; /*! data identifier */
-    /*! function for copying to the server send buffer. Returns `kPositiveResponse` on success and `kResponseTooLong` if the length of the data to be copied exceeds that of the server send buffer */
+    /*! function for copying to the server send buffer. Returns `UDS_PositiveResponse` on success and `UDS_NRC_ResponseTooLong` if the length of the data to be copied exceeds that of the server send buffer */
     const uint8_t (*copy)(UDSServer_t *srv, const void *src,
                     uint16_t count); 
 } UDSRDBIArgs_t;
@@ -134,12 +145,12 @@ typedef struct {
 
 | Value  | enum                 | Meaning | 
 | - | - | - | 
-| `0x00` | `kPositiveResponse` | Request to read data accepted (be sure to call `copy(...)`) |
-| `0x14` | `kResponseTooLong` | The total length of the response message exceeds the transport buffer size |
-| `0x31` | `kRequestOutOfRange` | The requested data identifer isn't supported |
-| `0x33` | `kSecurityAccessDenied` | The current level of security access doesn't permit reading the requested data identifier |
+| `0x00` | `UDS_PositiveResponse` | Request to read data accepted (be sure to call `copy(...)`) |
+| `0x14` | `UDS_NRC_ResponseTooLong` | The total length of the response message exceeds the transport buffer size |
+| `0x31` | `UDS_NRC_RequestOutOfRange` | The requested data identifer isn't supported |
+| `0x33` | `UDS_NRC_SecurityAccessDenied` | The current level of security access doesn't permit reading the requested data identifier |
 
-### `UDS_SRV_EVT_SecAccessRequestSeed`, `UDS_SRV_EVT_SecAccessValidateKey` (0x27)
+### `UDS_EVT_SecAccessRequestSeed`, `UDS_EVT_SecAccessValidateKey` (0x27)
 
 #### Arguments
 
@@ -148,7 +159,7 @@ typedef struct {
     const uint8_t level;             /*! requested security level */
     const uint8_t *const dataRecord; /*! pointer to request data */
     const uint16_t len;              /*! size of request data */
-    /*! function for copying to the server send buffer. Returns `kPositiveResponse` on success and `kResponseTooLong` if the length of the data to be copied exceeds that of the server send buffer */
+    /*! function for copying to the server send buffer. Returns `UDS_PositiveResponse` on success and `UDS_NRC_ResponseTooLong` if the length of the data to be copied exceeds that of the server send buffer */
     uint8_t (*copySeed)(UDSServer_t *srv, const void *src,
                         uint16_t len);
 } UDSSecAccessRequestSeedArgs_t;
@@ -163,15 +174,15 @@ typedef struct {
 
 | Value  | enum                 | Meaning | 
 | - | - | - | 
-| `0x00` | `kPositiveResponse` | Request accepted  |
-| `0x12` | `kSubFunctionNotSupported` | The requested security level is not supported |
-| `0x22` | `kConditionsNotCorrect` | The server can't handle the request right now |
-| `0x31` | `kRequestOutOfRange` | The `dataRecord` contains invalid data |
-| `0x35` | `kInvalidKey` | The key doesn't match |
-| `0x36` | `kExceededNumberOfAttempts` | False attempt limit reached |
-| `0x37` | `kRequiredTimeDelayNotExpired` | RequestSeed request received and delay timer is still active |
+| `0x00` | `UDS_PositiveResponse` | Request accepted  |
+| `0x12` | `UDS_NRC_SubFunctionNotSupported` | The requested security level is not supported |
+| `0x22` | `UDS_NRC_ConditionsNotCorrect` | The server can't handle the request right now |
+| `0x31` | `UDS_NRC_RequestOutOfRange` | The `dataRecord` contains invalid data |
+| `0x35` | `UDS_NRC_InvalidKey` | The key doesn't match |
+| `0x36` | `UDS_NRC_ExceededNumberOfAttempts` | False attempt limit reached |
+| `0x37` | `UDS_NRC_RequiredTimeDelayNotExpired` | RequestSeed request received and delay timer is still active |
 
-### `UDS_SRV_EVT_CommCtrl` (0x28)
+### `UDS_EVT_CommCtrl` (0x28)
 
 #### Arguments
 
@@ -185,12 +196,12 @@ typedef struct {
 
 | Value  | enum                 | Meaning | 
 | - | - | - | 
-| `0x00` | `kPositiveResponse` | Request accepted  |
-| `0x12` | `kSubFunctionNotSupported` | The requested control type is not supported |
-| `0x22` | `kConditionsNotCorrect` | The server can't enable/disable the selected communication type now |
-| `0x31` | `kRequestOutOfRange` | The requested control type or communication type is erroneous |
+| `0x00` | `UDS_PositiveResponse` | Request accepted  |
+| `0x12` | `UDS_NRC_SubFunctionNotSupported` | The requested control type is not supported |
+| `0x22` | `UDS_NRC_ConditionsNotCorrect` | The server can't enable/disable the selected communication type now |
+| `0x31` | `UDS_NRC_RequestOutOfRange` | The requested control type or communication type is erroneous |
 
-### `UDS_SRV_EVT_WriteDataByIdent` (0x2E)
+### `UDS_EVT_WriteDataByIdent` (0x2E)
 
 #### Arguments
 
@@ -206,13 +217,13 @@ typedef struct {
 
 | Value  | enum                 | Meaning | 
 | - | - | - | 
-| `0x00` | `kPositiveResponse` | Request to write data accepted  |
-| `0x22` | `kConditionsNotCorrect` | The server can't write this data now |
-| `0x31` | `kRequestOutOfRange` | The requested data identifer isn't supported or the data is invalid |
-| `0x33` | `kSecurityAccessDenied` | The current level of security access doesn't permit writing to the requested data identifier |
-| `0x72` | `kGeneralProgrammingFailure` | Memory write failed |
+| `0x00` | `UDS_PositiveResponse` | Request to write data accepted  |
+| `0x22` | `UDS_NRC_ConditionsNotCorrect` | The server can't write this data now |
+| `0x31` | `UDS_NRC_RequestOutOfRange` | The requested data identifer isn't supported or the data is invalid |
+| `0x33` | `UDS_NRC_SecurityAccessDenied` | The current level of security access doesn't permit writing to the requested data identifier |
+| `0x72` | `UDS_NRC_GeneralProgrammingFailure` | Memory write failed |
 
-### `UDS_SRV_EVT_RoutineCtrl` (0x31)
+### `UDS_EVT_RoutineCtrl` (0x31)
 
 #### Arguments
 
@@ -222,7 +233,7 @@ typedef struct {
     const uint16_t id;           /*! routineIdentifier */
     const uint8_t *optionRecord; /*! optional data */
     const uint16_t len;          /*! length of optional data */
-    /*! function for copying to the server send buffer. Returns `kPositiveResponse` on success and `kResponseTooLong` if the length of the data to be copied exceeds that of the server send buffer */
+    /*! function for copying to the server send buffer. Returns `UDS_PositiveResponse` on success and `UDS_NRC_ResponseTooLong` if the length of the data to be copied exceeds that of the server send buffer */
     uint8_t (*copyStatusRecord)(UDSServer_t *srv, const void *src,
                                 uint16_t len);
 } UDSRoutineCtrlArgs_t;
@@ -232,14 +243,14 @@ typedef struct {
 
 | Value  | enum                 | Meaning | 
 | - | - | - | 
-| `0x00` | `kPositiveResponse` | Request accepted  |
-| `0x22` | `kConditionsNotCorrect` | The server can't perform this operation now |
-| `0x24` | `kRequestSequenceError` | Stop requested but routine hasn't started. Start requested but routine has already started (optional). Results are not available becuase routine has never started. |
-| `0x31` | `kRequestOutOfRange` | The requested routine identifer isn't supported or the `optionRecord` is invalid |
-| `0x33` | `kSecurityAccessDenied` | The current level of security access doesn't permit this operation |
-| `0x72` | `kGeneralProgrammingFailure` | internal memory operation failed (e.g. erasing flash) |
+| `0x00` | `UDS_PositiveResponse` | Request accepted  |
+| `0x22` | `UDS_NRC_ConditionsNotCorrect` | The server can't perform this operation now |
+| `0x24` | `UDS_NRC_RequestSequenceError` | Stop requested but routine hasn't started. Start requested but routine has already started (optional). Results are not available becuase routine has never started. |
+| `0x31` | `UDS_NRC_RequestOutOfRange` | The requested routine identifer isn't supported or the `optionRecord` is invalid |
+| `0x33` | `UDS_NRC_SecurityAccessDenied` | The current level of security access doesn't permit this operation |
+| `0x72` | `UDS_NRC_GeneralProgrammingFailure` | internal memory operation failed (e.g. erasing flash) |
 
-### `UDS_SRV_EVT_RequestDownload` (0x34)
+### `UDS_EVT_RequestDownload` (0x34)
 
 #### Arguments
 
@@ -257,15 +268,15 @@ typedef struct {
 
 | Value  | enum                 | Meaning | 
 | - | - | - | 
-| `0x00` | `kPositiveResponse` | Request accepted  |
-| `0x22` | `kConditionsNotCorrect` | The server can't perform this operation now |
-| `0x31` | `kRequestOutOfRange` | `dataFormatIdentifier` invalid, `addr` or `size` invalid |
-| `0x33` | `kSecurityAccessDenied` | The current level of security access doesn't permit this operation |
-| `0x34` | `kAuthenticationRequired` | Client rights insufficient |
-| `0x70` | `kUploadDownloadNotAccepted` | download cannot be accomplished due to fault |
+| `0x00` | `UDS_PositiveResponse` | Request accepted  |
+| `0x22` | `UDS_NRC_ConditionsNotCorrect` | The server can't perform this operation now |
+| `0x31` | `UDS_NRC_RequestOutOfRange` | `dataFormatIdentifier` invalid, `addr` or `size` invalid |
+| `0x33` | `UDS_NRC_SecurityAccessDenied` | The current level of security access doesn't permit this operation |
+| `0x34` | `UDS_NRC_AuthenticationRequired` | Client rights insufficient |
+| `0x70` | `UDS_NRC_UploadDownloadNotAccepted` | download cannot be accomplished due to fault |
 
 
-### `UDS_SRV_EVT_TransferData` (0x36)
+### `UDS_EVT_TransferData` (0x36)
 
 #### Arguments
 
@@ -273,7 +284,7 @@ typedef struct {
 typedef struct {
     const uint8_t *const data; /*! transfer data */
     const uint16_t len;        /*! transfer data length */
-    /*! function for copying to the server send buffer. Returns `kPositiveResponse` on success and `kResponseTooLong` if the length of the data to be copied exceeds that of the server send buffer */
+    /*! function for copying to the server send buffer. Returns `UDS_PositiveResponse` on success and `UDS_NRC_ResponseTooLong` if the length of the data to be copied exceeds that of the server send buffer */
     uint8_t (*copyResponse)(
         UDSServer_t *srv, const void *src,
         uint16_t len);
@@ -284,13 +295,13 @@ typedef struct {
 
 | Value  | enum                 | Meaning | 
 | - | - | - | 
-| `0x00` | `kPositiveResponse` | Request accepted  |
-| `0x31` | `kRequestOutOfRange` | `data` contents invalid, length incorrect |
-| `0x72` | `kGeneralProgrammingFailure` | Memory write failed |
-| `0x92` | `kVoltageTooHigh` | Can't write flash: voltage too high |
-| `0x93` | `kVoltageTooLow` | Can't write flash: voltage too low |
+| `0x00` | `UDS_PositiveResponse` | Request accepted  |
+| `0x31` | `UDS_NRC_RequestOutOfRange` | `data` contents invalid, length incorrect |
+| `0x72` | `UDS_NRC_GeneralProgrammingFailure` | Memory write failed |
+| `0x92` | `UDS_NRC_VoltageTooHigh` | Can't write flash: voltage too high |
+| `0x93` | `UDS_NRC_VoltageTooLow` | Can't write flash: voltage too low |
 
-### `UDS_SRV_EVT_RequestTransferExit` (0x37)
+### `UDS_EVT_RequestTransferExit` (0x37)
 
 #### Arguments
 
@@ -298,7 +309,7 @@ typedef struct {
 typedef struct {
     const uint8_t *const data; /*! request data */
     const uint16_t len;        /*! request data length */
-    /*! function for copying to the server send buffer. Returns `kPositiveResponse` on success and `kResponseTooLong` if the length of the data to be copied exceeds that of the server send buffer */
+    /*! function for copying to the server send buffer. Returns `UDS_PositiveResponse` on success and `UDS_NRC_ResponseTooLong` if the length of the data to be copied exceeds that of the server send buffer */
     uint8_t (*copyResponse)(UDSServer_t *srv, const void *src,
                             uint16_t len);
 } UDSRequestTransferExitArgs_t;
@@ -308,9 +319,9 @@ typedef struct {
 
 | Value  | enum                 | Meaning | 
 | - | - | - | 
-| `0x00` | `kPositiveResponse` | Request accepted  |
-| `0x31` | `kRequestOutOfRange` | `data` contents invalid, length incorrect |
-| `0x72` | `kGeneralProgrammingFailure` | finalizing the data transfer failed |
+| `0x00` | `UDS_PositiveResponse` | Request accepted  |
+| `0x31` | `UDS_NRC_RequestOutOfRange` | `data` contents invalid, length incorrect |
+| `0x72` | `UDS_NRC_GeneralProgrammingFailure` | finalizing the data transfer failed |
 
 ### `UDS_SRV_EVT_RequestFileTransfer` (0x38)
 
@@ -333,33 +344,69 @@ typedef struct {
 
 | Value  | enum                 | Meaning | 
 | - | - | - | 
-| `0x00` | `kPositiveResponse` | Request accepted  |
-| `0x13` | `kIncorrectMessageLengthOrInvalidFormat` | Length of the message is wrong |
-| `0x22` | `kConditionsNotCorrect` | Downloading or uploading data is ongoing or other conditions to be able to execute this service are not met |
-| `0x31` | `kRequestOutOfRange` | `data` contents invalid, length incorrect |
-| `0x33` | `kSecurityAccessDenied` | The server is secure |
-| `0x70` | `kUploadDownloadNotAccepted` | An attempt to download to a server's memory cannot be accomplished due to some fault conditions |
+| `0x00` | `UDS_PositiveResponse` | Request accepted  |
+| `0x13` | `UDS_NRC_IncorrectMessageLengthOrInvalidFormat` | Length of the message is wrong |
+| `0x22` | `UDS_NRC_ConditionsNotCorrect` | Downloading or uploading data is ongoing or other conditions to be able to execute this service are not met |
+| `0x31` | `UDS_NRC_RequestOutOfRange` | `data` contents invalid, length incorrect |
+| `0x33` | `UDS_NRC_SecurityAccessDenied` | The server is secure |
+| `0x70` | `UDS_NRC_UploadDownloadNotAccepted` | An attempt to download to a server's memory cannot be accomplished due to some fault conditions |
+
+# Documentation: Client
+
+
 
 ## Examples
 
 [examples/README.md](examples/README.md)
 
-### Running Tests
-
-```sh
-make test
-```
-
 # Contributing
 
 contributions are welcome
 
+## Reporting Issues
+
+When reporting issues, please state what you expected to happen.
+
+## Running Tests
+
+```sh
+bazel test //test:all
+```
+
+See also [test_all.sh](./test_all.sh) and [test/README.md](test/README.md)
+
+## Release
+
+```sh
+bazel build //:release
+```
+
+### Release Checklist
+
+- [ ] version is consistent in `version.h` and `README.md`
+- [ ] all tests passing
 
 # Acknowledgements
 
-- [`isotp-c`](https://github.com/lishen2/isotp-c) which this project embeds
+- [`isotp-c`](https://github.com/SimonCahill/isotp-c) which this project embeds
 
 # Changelog
+
+## 0.8.0
+- breaking API changes:
+    - event enum consolidated `UDS_SRV_EVT_...` -> `UDS_EVT`
+    - UDSClient refactored into event-based API
+    - negative server response now raises a client error by default.
+    - server NRCs prefixed with `UDS_NRC_`
+    - NRCs merged into `UDS_Err` enum.
+- added more examples of client usage
+
+
+## 0.7.2
+- runtime safety:
+    1. turn off assertions by default, enable by `-DUDS_ENABLE_ASSERT`
+    2. prefer `return UDS_ERR_INVALID_ARG;` over assertion in public functions
+- use SimonCahill fork of isotp-c
 
 ## 0.7.1
 - amalgamated sources into `iso14229.c` and `iso14229.h` to ease integration
@@ -375,11 +422,11 @@ contributions are welcome
 - breaking API changes:
     - `UDSClientErr_t` merged into `UDSErr_t`
     - `TP_SEND_INPROGRESS` renamed to `UDS_TP_SEND_IN_PROGRESS`
-    - refactored `UDSTpHandle_t` to encourage struct inheritance
+    - refactored `UDSTp_t` to encourage struct inheritance
     - `UDS_TP_LINUX_SOCKET` renamed to `UDS_TP_ISOTP_SOCKET`
 - added server fuzz test and qemu tests
 - cleaned up example tests, added isotp-c on socketcan to examples
-- added `UDS_SRV_EVT_DoScheduledReset`
+- added `UDS_EVT_DoScheduledReset`
 - improve client error handling
 
 ## 0.5.0

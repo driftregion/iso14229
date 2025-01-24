@@ -18,14 +18,19 @@ srcs = {os.path.basename(src): src for src in args.srcs}
 def strip_includes(src):
     return re.sub(r'#include ".*', "", src, flags=re.MULTILINE)
 
-isotp_c_wrapped_c = "#if defined(UDS_ISOTP_C)\n" + \
+isotp_c_wrapped_c = "#if defined(UDS_TP_ISOTP_C)\n" + \
+    "#ifndef ISO_TP_USER_SEND_CAN_ARG\n" + \
+    '#error\n' + \
+    "#endif\n" + \
     strip_includes(open("src/tp/isotp-c/isotp.c").read()) + \
     "#endif\n"
 
-isotp_c_wrapped_h = "#if defined(UDS_ISOTP_C)\n" + \
+isotp_c_wrapped_h = "#if defined(UDS_TP_ISOTP_C)\n" + \
+    "#define ISO_TP_USER_SEND_CAN_ARG 1\n" + \
     "\n".join([strip_includes(open("src/tp/isotp-c/" + h).read()) for h in [
         "isotp_config.h",
         "isotp_defines.h",
+        "isotp_user.h",
         "isotp.h",
     ]]) + \
     "#endif\n"
@@ -37,10 +42,11 @@ with open(args.out_c, "w") as f:
         "src/server.c",
         "src/tp.c",
         "src/util.c",
+        "src/log.c",
         "src/tp/isotp_c.c",
         "src/tp/isotp_c_socketcan.c",
         "src/tp/isotp_sock.c",
-        "src/tp/mock.c",
+        "src/tp/isotp_mock.c",
     ]:
         f.write("\n")
         f.write("#ifdef UDS_LINES\n")
@@ -70,9 +76,10 @@ with open(args.out_h, "w") as f:
         "src/sys_win32.h",
         "src/sys_esp32.h",
         "src/config.h",
-        "src/util.h",
         "src/tp.h",
         "src/uds.h",
+        "src/util.h",
+        "src/log.h",
         "src/client.h",
         "src/server.h",
     ]:
@@ -88,7 +95,7 @@ with open(args.out_h, "w") as f:
         "src/tp/isotp_c.h",
         "src/tp/isotp_c_socketcan.h",
         "src/tp/isotp_sock.h",
-        "src/tp/mock.h",
+        "src/tp/isotp_mock.h",
     ]:
         f.write("\n")
         with open(src) as src_file:

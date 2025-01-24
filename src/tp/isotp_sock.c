@@ -7,13 +7,60 @@
 #include <linux/can.h>
 #include <linux/can/isotp.h>
 #include <net/if.h>
+#include <poll.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
 
-static UDSTpStatus_t isotp_sock_tp_poll(UDSTpHandle_t *hdl) { return 0; }
+static UDSTpStatus_t isotp_sock_tp_poll(UDSTp_t *hdl) {
+    UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
+    UDSTpStatus_t status = 0;
+    int ret = 0;
+    int fds[2] = {impl->phys_fd, impl->func_fd};
+    struct pollfd pfds[2] = {0};
+    pfds[0].fd = impl->phys_fd;
+    pfds[0].events = POLLERR;
+    pfds[0].revents = 0;
+
+    pfds[1].fd = impl->func_fd;
+    pfds[1].events = POLLERR;
+    pfds[1].revents = 0;
+
+    ret = poll(pfds, 2, 1);
+    if (ret < 0) {
+        perror("poll");
+    } else if (ret == 0) {
+        ; // no error
+    } else {
+        for (int i = 0; i < 2; i++) {
+            struct pollfd pfd = pfds[i];
+            if (pfd.revents & POLLERR) {
+                int pending_err = 0;
+                socklen_t len = sizeof(pending_err);
+                if (!getsockopt(fds[i], SOL_SOCKET, SO_ERROR, &pending_err, &len) && pending_err) {
+                    switch (pending_err) {
+                    case ECOMM:
+                        UDS_LOGE(__FILE__, "ECOMM: Communication error on send");
+                        status |= UDS_TP_ERR;
+                        break;
+                    default:
+                        UDS_LOGE(__FILE__, "Asynchronous socket error: %s (%d)\n",
+                                 strerror(pending_err), pending_err);
+                        status |= UDS_TP_ERR;
+                        break;
+                    }
+                } else {
+                    UDS_LOGE(__FILE__, "POLLERR was set, but no error returned via SO_ERROR?");
+                }
+            } else {
+                UDS_LOGE(__FILE__, "poll() returned, but no POLLERR. revents=0x%x", pfd.revents);
+            }
+        }
+    }
+    return status;
+}
 
 static ssize_t tp_recv_once(int fd, uint8_t *buf, size_t size) {
     ssize_t ret = read(fd, buf, size);
@@ -21,27 +68,26 @@ static ssize_t tp_recv_once(int fd, uint8_t *buf, size_t size) {
         if (EAGAIN == errno || EWOULDBLOCK == errno) {
             ret = 0;
         } else {
-            UDS_DBG_PRINT("read failed: %ld with errno: %d\n", ret, errno);
+            UDS_LOGI(__FILE__, "read failed: %ld with errno: %d\n", ret, errno);
             if (EILSEQ == errno) {
-                UDS_DBG_PRINT("Perhaps I received multiple responses?\n");
+                UDS_LOGI(__FILE__, "Perhaps I received multiple responses?");
             }
         }
     }
     return ret;
 }
 
-static ssize_t isotp_sock_tp_peek(UDSTpHandle_t *hdl, uint8_t **p_buf, UDSSDU_t *info) {
-    assert(hdl);
-    assert(p_buf);
+static ssize_t isotp_sock_tp_peek(UDSTp_t *hdl, uint8_t **p_buf, UDSSDU_t *info) {
+    UDS_ASSERT(hdl);
+    UDS_ASSERT(p_buf);
     ssize_t ret = 0;
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
     *p_buf = impl->recv_buf;
+    UDSSDU_t *msg = &impl->recv_info;
     if (impl->recv_len) { // recv not yet acked
         ret = impl->recv_len;
         goto done;
     }
-
-    UDSSDU_t *msg = &impl->recv_info;
 
     // recv acked, OK to receive
     ret = tp_recv_once(impl->phys_fd, impl->recv_buf, sizeof(impl->recv_buf));
@@ -59,15 +105,9 @@ static ssize_t isotp_sock_tp_peek(UDSTpHandle_t *hdl, uint8_t **p_buf, UDSSDU_t 
     }
 
     if (ret > 0) {
-        fprintf(stdout, "%06d, %s recv, 0x%03x (%s), ", UDSMillis(), impl->tag, msg->A_TA,
-                msg->A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
-        for (unsigned i = 0; i < ret; i++) {
-            fprintf(stdout, "%02x ", impl->recv_buf[i]);
-        }
-        fprintf(stdout, "\n");
-        fflush(stdout); // flush every time in case of crash
-        // UDS_DBG_PRINT("<<< ");
-        // UDS_DBG_PRINTHEX(, ret);
+        UDS_LOGD(__FILE__, "'%s' received %d bytes from 0x%03x (%s), ", impl->tag, ret, msg->A_TA,
+                 msg->A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
+        UDS_LOG_SDU(__FILE__, impl->recv_buf, ret, msg);
     }
 
 done:
@@ -80,14 +120,14 @@ done:
     return ret;
 }
 
-static void isotp_sock_tp_ack_recv(UDSTpHandle_t *hdl) {
-    assert(hdl);
+static void isotp_sock_tp_ack_recv(UDSTp_t *hdl) {
+    UDS_ASSERT(hdl);
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
     impl->recv_len = 0;
 }
 
-static ssize_t isotp_sock_tp_send(UDSTpHandle_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
-    assert(hdl);
+static ssize_t isotp_sock_tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
+    UDS_ASSERT(hdl);
     ssize_t ret = -1;
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
     int fd;
@@ -97,7 +137,7 @@ static ssize_t isotp_sock_tp_send(UDSTpHandle_t *hdl, uint8_t *buf, size_t len, 
         fd = impl->phys_fd;
     } else if (UDS_A_TA_TYPE_FUNCTIONAL == ta_type) {
         if (len > 7) {
-            UDS_DBG_PRINT("UDSTpIsoTpSock: functional request too large\n");
+            UDS_LOGI(__FILE__, "UDSTpIsoTpSock: functional request too large");
             return -1;
         }
         fd = impl->func_fd;
@@ -110,22 +150,16 @@ static ssize_t isotp_sock_tp_send(UDSTpHandle_t *hdl, uint8_t *buf, size_t len, 
         perror("write");
     }
 done:
-    // UDS_DBG_PRINT(">>> ");
-    // UDS_DBG_PRINTHEX(buf, ret);
-
-    fprintf(stdout, "%06d, %s sends, (%s), ", UDSMillis(), impl->tag,
-            ta_type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
-    for (unsigned i = 0; i < len; i++) {
-        fprintf(stdout, "%02x ", buf[i]);
-    }
-    fprintf(stdout, "\n");
-    fflush(stdout); // flush every time in case of crash
+    int ta = ta_type == UDS_A_TA_TYPE_PHYSICAL ? impl->phys_ta : impl->func_ta;
+    UDS_LOGD(__FILE__, "'%s' sends %d bytes to 0x%03x (%s)", impl->tag, len, ta,
+             ta_type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
+    UDS_LOG_SDU(__FILE__, buf, len, info);
 
     return ret;
 }
 
-static ssize_t isotp_sock_tp_get_send_buf(UDSTpHandle_t *hdl, uint8_t **p_buf) {
-    assert(hdl);
+static ssize_t isotp_sock_tp_get_send_buf(UDSTp_t *hdl, uint8_t **p_buf) {
+    UDS_ASSERT(hdl);
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
     *p_buf = impl->send_buf;
     return sizeof(impl->send_buf);
@@ -150,11 +184,9 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool
 
     struct can_isotp_options opts;
     memset(&opts, 0, sizeof(opts));
-    // configure socket to wait for tx completion to catch FC frame timeouts
-    opts.flags |= CAN_ISOTP_WAIT_TX_DONE;
 
     if (functional) {
-        UDS_DBG_PRINT("configuring fd: %d as functional\n", fd);
+        UDS_LOGI(__FILE__, "configuring fd: %d as functional", fd);
         // configure the socket as listen-only to avoid sending FC frames
         opts.flags |= CAN_ISOTP_LISTEN_MODE;
     }
@@ -177,7 +209,7 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool
     addr.can_ifindex = ifr.ifr_ifindex;
 
     if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-        UDS_DBG_PRINT("Bind: %s %s\n", strerror(errno), if_name);
+        UDS_LOGI(__FILE__, "Bind: %s %s\n", strerror(errno), if_name);
         return -1;
     }
     return fd;
@@ -185,7 +217,7 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool
 
 UDSErr_t UDSTpIsoTpSockInitServer(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
                                   uint32_t target_addr, uint32_t source_addr_func) {
-    assert(tp);
+    UDS_ASSERT(tp);
     memset(tp, 0, sizeof(*tp));
     tp->hdl.peek = isotp_sock_tp_peek;
     tp->hdl.send = isotp_sock_tp_send;
@@ -199,19 +231,21 @@ UDSErr_t UDSTpIsoTpSockInitServer(UDSTpIsoTpSock_t *tp, const char *ifname, uint
     tp->phys_fd = LinuxSockBind(ifname, source_addr, target_addr, false);
     tp->func_fd = LinuxSockBind(ifname, source_addr_func, 0, true);
     if (tp->phys_fd < 0 || tp->func_fd < 0) {
-        UDS_DBG_PRINT("foo\n");
+        UDS_LOGI(__FILE__, "foo\n");
         fflush(stdout);
-        return UDS_ERR;
+        return UDS_FAIL;
     }
-    UDS_DBG_PRINT("%s initialized phys link rx 0x%03x tx 0x%03x func link rx 0x%03x tx 0x%03x\n",
-                  strlen(tp->tag) ? tp->tag : "server", source_addr, target_addr, source_addr_func,
-                  target_addr);
+    const char *tag = "server";
+    memmove(tp->tag, tag, strlen(tag));
+    UDS_LOGI(__FILE__, "%s initialized phys link rx 0x%03x tx 0x%03x func link rx 0x%03x tx 0x%03x",
+             strlen(tp->tag) ? tp->tag : "server", source_addr, target_addr, source_addr_func,
+             target_addr);
     return UDS_OK;
 }
 
 UDSErr_t UDSTpIsoTpSockInitClient(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
                                   uint32_t target_addr, uint32_t target_addr_func) {
-    assert(tp);
+    UDS_ASSERT(tp);
     memset(tp, 0, sizeof(*tp));
     tp->hdl.peek = isotp_sock_tp_peek;
     tp->hdl.send = isotp_sock_tp_send;
@@ -225,12 +259,15 @@ UDSErr_t UDSTpIsoTpSockInitClient(UDSTpIsoTpSock_t *tp, const char *ifname, uint
     tp->phys_fd = LinuxSockBind(ifname, source_addr, target_addr, false);
     tp->func_fd = LinuxSockBind(ifname, 0, target_addr_func, true);
     if (tp->phys_fd < 0 || tp->func_fd < 0) {
-        return UDS_ERR;
+        return UDS_FAIL;
     }
-    UDS_DBG_PRINT("%s initialized phys link (fd %d) rx 0x%03x tx 0x%03x func link (fd %d) rx 0x%03x tx "
-           "0x%03x\n",
-           strlen(tp->tag) ? tp->tag : "client", tp->phys_fd, source_addr, target_addr, tp->func_fd,
-           source_addr, target_addr_func);
+    const char *tag = "client";
+    memmove(tp->tag, tag, strlen(tag));
+    UDS_LOGI(__FILE__,
+             "%s initialized phys link (fd %d) rx 0x%03x tx 0x%03x func link (fd %d) rx 0x%03x tx "
+             "0x%03x",
+             strlen(tp->tag) ? tp->tag : "client", tp->phys_fd, source_addr, target_addr,
+             tp->func_fd, source_addr, target_addr_func);
     return UDS_OK;
 }
 

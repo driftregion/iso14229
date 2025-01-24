@@ -4,7 +4,7 @@
 #include "iso14229.h"
 
 typedef struct {
-    UDSTpHandle_t hdl;
+    UDSTp_t hdl;
     uint8_t recv_buf[UDS_ISOTP_MTU];
     uint8_t send_buf[UDS_ISOTP_MTU];
     size_t recv_len;

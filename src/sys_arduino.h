@@ -7,12 +7,8 @@
 #include <string.h>
 #include <Arduino.h>
 
-#define UDS_TP UDS_TP_ISOTP_C
-#ifndef UDS_ENABLE_DBG_PRINT
-#define UDS_ENABLE_DBG_PRINT 1
+#ifndef UDS_TP_ISOTP_C
+#define UDS_TP_ISOTP_C
 #endif
-#define UDS_ENABLE_ASSERT 1
-int print_impl(const char *fmt, ...);
-#define UDS_DBG_PRINT_IMPL print_impl
 
 #endif

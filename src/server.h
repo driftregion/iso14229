@@ -17,11 +17,12 @@ typedef struct {
 } UDSReq_t;
 
 typedef struct UDSServer {
-    UDSTpHandle_t *tp;
-    uint8_t (*fn)(struct UDSServer *srv, UDSServerEvent_t event, const void *arg);
+    UDSTp_t *tp;
+    int (*fn)(struct UDSServer *srv, UDSEvent_t event, void *arg);
+    void *fn_data; // user-specified function data
 
     /**
-     * @brief \~chinese 服务器时间参数（毫秒） \~ Server time constants (milliseconds) \~
+     * @brief Server time constants (milliseconds)
      */
     uint16_t p2_ms;      // Default P2_server_max timing supported by the server for
                          // the activated diagnostic session.
@@ -79,8 +80,8 @@ typedef struct {
 typedef struct {
     const uint8_t type; /**< \~chinese 客户端请求的复位类型 \~english reset type requested by client
                            (enum UDSECUResetType) */
-    uint32_t powerDownTimeMillis; /**< when this much time has elapsed after a kPositiveResponse, a
-                                     UDS_SRV_EVT_DoScheduledReset will be issued */
+    uint32_t powerDownTimeMillis; /**< when this much time has elapsed after a UDS_PositiveResponse,
+                                     a UDS_EVT_DoScheduledReset will be issued */
 } UDSECUResetArgs_t;
 
 typedef struct {
@@ -177,7 +178,8 @@ typedef struct {
     const uint16_t sid;          /*! serviceIdentifier */
     const uint8_t *optionRecord; /*! optional data */
     const uint16_t len;          /*! length of optional data */
-    uint8_t (*copyResponse)(UDSServer_t *srv, const void *src, uint16_t len); /*! function for copying response data (optional) */
+    uint8_t (*copyResponse)(UDSServer_t *srv, const void *src,
+                            uint16_t len); /*! function for copying response data (optional) */
 } UDSCustomArgs_t;
 
 UDSErr_t UDSServerInit(UDSServer_t *srv);
