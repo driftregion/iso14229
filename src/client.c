@@ -4,11 +4,11 @@
 #include "util.h"
 
 enum UDSClientRequestState {
-    kRequestStateIdle = 0,          // 完成
-    kRequestStateSending,           // 传输层现在传输数据
-    kRequestStateAwaitSendComplete, // 等待传输发送完成
-    kRequestStateAwaitResponse,     // 等待响应
-    kRequestStateProcessResponse,   // 处理响应
+    kRequestStateIdle = 0,
+    kRequestStateSending,
+    kRequestStateAwaitSendComplete,
+    kRequestStateAwaitResponse,
+    kRequestStateProcessResponse,
 };
 
 UDSErr_t UDSClientInit(UDSClient_t *client) {
@@ -814,4 +814,32 @@ UDSErr_t UDSClientPoll(UDSClient_t *client) {
     }
     client->fn(client, UDS_EVT_Poll, NULL);
     return err;
+}
+
+UDSErr_t UDSUnpackRDBIResponse(UDSClient_t *client, UDSRDBIVar_t *vars, uint16_t numVars) {
+    uint16_t offset = UDS_0X22_RESP_BASE_LEN;
+    if (client == NULL || vars == NULL) {
+        return UDS_ERR_INVALID_ARG;
+    }
+    for (int i = 0; i < numVars; i++) {
+
+        if (offset + sizeof(uint16_t) > client->recv_size) {
+            return UDS_ERR_RESP_TOO_SHORT;
+        }
+        uint16_t did = (client->recv_buf[offset] << 8) + client->recv_buf[offset + 1];
+        if (did != vars[i].did) {
+            return UDS_ERR_DID_MISMATCH;
+        }
+        if (offset + sizeof(uint16_t) + vars[i].len > client->recv_size) {
+            return UDS_ERR_RESP_TOO_SHORT;
+        }
+        if (vars[i].UnpackFn) {
+            vars[i].UnpackFn(vars[i].data, client->recv_buf + offset + sizeof(uint16_t),
+                             vars[i].len);
+        } else {
+            return UDS_ERR_INVALID_ARG;
+        }
+        offset += sizeof(uint16_t) + vars[i].len;
+    }
+    return UDS_OK;
 }

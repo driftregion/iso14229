@@ -19,7 +19,7 @@ void sigint_handler(int signum) {
     done = true;
 }
 
-static uint8_t fn(UDSServer_t *srv, UDSEvent_t ev, const void *arg) {
+static int fn(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     switch (ev) {
         case UDS_EVT_ReadDataByIdent: {
             UDSRDBIArgs_t *r = (UDSRDBIArgs_t *)arg;

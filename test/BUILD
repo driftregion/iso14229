@@ -74,11 +74,19 @@ cc_test(
     target_compatible_with = ["//platforms/compiler:clang"],
 )
 
+cc_library(
+    name = "test_prefix_c",
+    srcs = [
+        "//:iso14229.h",
+        "//:iso14229.c",
+    ],
+)
+
 sh_test(
     name = "test_prefix",
     srcs = ["test_prefix.sh"],
-    data = ["//:iso14229"],
-    args = ["$(locations //:iso14229)"],
+    data = [":test_prefix_c"],
+    args = ["$(locations :test_prefix_c)"],
     size = "small",
 
     # Not exactly right. It's to prevent this test from being run under qemu

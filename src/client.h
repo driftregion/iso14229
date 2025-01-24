@@ -52,6 +52,13 @@ struct RoutineControlResponse {
     uint16_t routineStatusRecordLength;
 };
 
+typedef struct {
+    uint16_t did;
+    uint16_t len;
+    void *data;
+    void *(*UnpackFn)(void *dst, const void *src, size_t n);
+} UDSRDBIVar_t;
+
 UDSErr_t UDSClientInit(UDSClient_t *client);
 UDSErr_t UDSClientPoll(UDSClient_t *client);
 UDSErr_t UDSSendBytes(UDSClient_t *client, const uint8_t *data, uint16_t size);
@@ -88,6 +95,7 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, enum FileOperationMode 
 
 UDSErr_t UDSCtrlDTCSetting(UDSClient_t *client, uint8_t dtcSettingType,
                            uint8_t *dtcSettingControlOptionRecord, uint16_t len);
+UDSErr_t UDSUnpackRDBIResponse(UDSClient_t *client, UDSRDBIVar_t *vars, uint16_t numVars);
 UDSErr_t UDSUnpackSecurityAccessResponse(const UDSClient_t *client,
                                          struct SecurityAccessResponse *resp);
 UDSErr_t UDSUnpackRequestDownloadResponse(const UDSClient_t *client,

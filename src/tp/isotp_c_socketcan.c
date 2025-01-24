@@ -178,13 +178,9 @@ done:
             info->A_SA = sa;
             info->A_TA_Type = ta_type;
         }
-        fprintf(stdout, "%06d, %s recv, 0x%03x (%s), ", UDSMillis(), tp->tag, ta,
-                ta_type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
-        for (int i = 0; i < ret; i++) {
-            fprintf(stdout, "%02x ", (*p_buf)[i]);
-        }
-        fprintf(stdout, "\n");
-        fflush(stdout); // flush every time in case of crash
+        UDS_LOGD(__FILE__, "%s recv, 0x%03x (%s), ", tp->tag, ta,
+                 ta_type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
+        UDS_LOG_SDU(__FILE__, *p_buf, ret, info);
     }
     return ret;
 }
@@ -225,14 +221,9 @@ static ssize_t isotp_c_socketcan_tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len,
         goto done;
     }
 done:
-    fprintf(stdout, "%06d, %s sends, 0x%03x (%s), ", UDSMillis(), tp->tag, ta,
-            ta_type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
-    for (unsigned i = 0; i < len; i++) {
-        fprintf(stdout, "%02x ", buf[i]);
-    }
-    fprintf(stdout, "\n");
-    fflush(stdout); // flush every time in case of crash
-
+    UDS_LOGD(__FILE__, "'%s' sends %d bytes to 0x%03x (%s)", tp->tag, len, ta,
+             ta_type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
+    UDS_LOG_SDU(__FILE__, buf, len, info);
     return ret;
 }
 

@@ -241,6 +241,37 @@ void test_0x11_suppress_pos_resp(void **state) {
     TEST_INT_EQUAL(call_count[UDS_EVT_Err], 0);
 }
 
+void test_0x22_unpack_rdbi_response(void **state) {
+    Env_t *e = *state;
+    int call_count[20] = {0};
+    e->client->fn = fn_log_call_count;
+    e->client->fn_data = call_count;
+
+    MockServerAddBehavior(e->mock_server, &(struct Behavior){
+        .req_data = {0x22, 0xf1, 0x90},
+        .req_len = 3,
+        .resp_data = {0x62, 0xf1, 0x90, 0x0a, 0x00},
+        .resp_len = 5,
+        .delay_ms = 0, // immediate response
+    });
+
+    const uint16_t did_list[] = {0xf190};
+
+    UDSSendRDBI(e->client, did_list, 1);
+
+    EnvRunMillis(e, 1000);
+
+    // and a variable is set up to receive the data
+    uint16_t var = 0;
+    UDSRDBIVar_t vars[] = {
+        {0xf190, 2, &var, memmove}
+    };
+
+    UDSErr_t err = UDSUnpackRDBIResponse(e->client, vars, 1);
+    TEST_ERR_EQUAL(UDS_OK, err);
+    TEST_INT_EQUAL(var, 0x0a);
+}
+
 void test_0x34_format(void **state) {
     Env_t *e = *state;
     UDSErr_t err = UDSSendRequestDownload(e->client, 0x11, 0x33, 0x602000, 0x00FFFF);
@@ -272,8 +303,6 @@ void test_0x38_format_delete_file(void **state) {
     TEST_MEMORY_EQUAL(e->client->send_buf, CORRECT_REQUEST, sizeof(CORRECT_REQUEST));
 }
 
-
-
 int main(int ac, char **av) {
     if (ac > 1) {
         cmocka_set_test_filter(av[1]);
@@ -290,6 +319,7 @@ int main(int ac, char **av) {
         cmocka_unit_test_setup_teardown(test_0x11_rcrrp_timeout, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x11_rcrrp_ok, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x11_suppress_pos_resp, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x22_unpack_rdbi_response, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x34_format, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x38_format_add_file, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x38_format_delete_file, Setup, Teardown),

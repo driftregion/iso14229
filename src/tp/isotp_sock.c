@@ -105,15 +105,9 @@ static ssize_t isotp_sock_tp_peek(UDSTp_t *hdl, uint8_t **p_buf, UDSSDU_t *info)
     }
 
     if (ret > 0) {
-        fprintf(stdout, "%06d, %s recv, 0x%03x (%s), ", UDSMillis(), impl->tag, msg->A_TA,
-                msg->A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
-        for (unsigned i = 0; i < ret; i++) {
-            fprintf(stdout, "%02x ", impl->recv_buf[i]);
-        }
-        fprintf(stdout, "\n");
-        fflush(stdout); // flush every time in case of crash
-        // UDS_LOGI(__FILE__, "<<< ");
-        // UDS_DBG_PRINTHEX(, ret);
+        UDS_LOGD(__FILE__, "'%s' received %d bytes from 0x%03x (%s), ", impl->tag, ret, msg->A_TA,
+                 msg->A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
+        UDS_LOG_SDU(__FILE__, impl->recv_buf, ret, msg);
     }
 
 done:
@@ -156,16 +150,10 @@ static ssize_t isotp_sock_tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len, UDSSDU
         perror("write");
     }
 done:
-    // UDS_LOGI(__FILE__, ">>> ");
-    // UDS_DBG_PRINTHEX(buf, ret);
-
-    fprintf(stdout, "%06d, %s sends, (%s), ", UDSMillis(), impl->tag,
-            ta_type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
-    for (unsigned i = 0; i < len; i++) {
-        fprintf(stdout, "%02x ", buf[i]);
-    }
-    fprintf(stdout, "\n");
-    fflush(stdout); // flush every time in case of crash
+    int ta = ta_type == UDS_A_TA_TYPE_PHYSICAL ? impl->phys_ta : impl->func_ta;
+    UDS_LOGD(__FILE__, "'%s' sends %d bytes to 0x%03x (%s)", impl->tag, len, ta,
+             ta_type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
+    UDS_LOG_SDU(__FILE__, buf, len, info);
 
     return ret;
 }
@@ -247,6 +235,8 @@ UDSErr_t UDSTpIsoTpSockInitServer(UDSTpIsoTpSock_t *tp, const char *ifname, uint
         fflush(stdout);
         return UDS_FAIL;
     }
+    const char *tag = "server";
+    memmove(tp->tag, tag, strlen(tag));
     UDS_LOGI(__FILE__, "%s initialized phys link rx 0x%03x tx 0x%03x func link rx 0x%03x tx 0x%03x",
              strlen(tp->tag) ? tp->tag : "server", source_addr, target_addr, source_addr_func,
              target_addr);
@@ -271,9 +261,11 @@ UDSErr_t UDSTpIsoTpSockInitClient(UDSTpIsoTpSock_t *tp, const char *ifname, uint
     if (tp->phys_fd < 0 || tp->func_fd < 0) {
         return UDS_FAIL;
     }
+    const char *tag = "client";
+    memmove(tp->tag, tag, strlen(tag));
     UDS_LOGI(__FILE__,
              "%s initialized phys link (fd %d) rx 0x%03x tx 0x%03x func link (fd %d) rx 0x%03x tx "
-             "0x%03x\n",
+             "0x%03x",
              strlen(tp->tag) ? tp->tag : "client", tp->phys_fd, source_addr, target_addr,
              tp->func_fd, source_addr, target_addr_func);
     return UDS_OK;

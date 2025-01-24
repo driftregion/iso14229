@@ -73,4 +73,7 @@ gcc_toolchain(
         "@platforms//cpu:x86_64",
         "@platforms//os:linux",
     ],
+    linkopts = [
+        "-lstdc++",
+    ]
 )

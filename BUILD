@@ -1,24 +1,6 @@
 load("@hedron_compile_commands//:refresh_compile_commands.bzl", "refresh_compile_commands")
 package(default_visibility = ["//visibility:public"])
 
-cc_library(
-    name="iso14229",
-    srcs = [
-        "iso14229.c",
-        "iso14229.h",
-    ],
-    defines = select({
-        "@platforms//os:linux": ["UDS_TP_ISOTP_SOCK"],
-        "//conditions:default": [],
-    })
-)
-
-# refresh_compile_commands(
-#     name = "s32k_refresh_compile_commands",
-#     targets = {
-#         "//examples/s32k144_server/...": "--config=s32k",
-#     }
-# )
 
 refresh_compile_commands(
     name = "test_compile_commands",
