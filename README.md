@@ -40,6 +40,7 @@ The following features are configured with preprocessor defines:
 ### Deprecated Compile-Time Features
 
 | Define | Reason for deprecation | mitigation | 
+|-|-|-|
 | `-DUDS_ENABLE_ASSERT` | redundant | Use the standard `-DNDEBUG` to disable assertions. |
 | `-DUDS_ENABLE_DEBUG_PRINT` | replaced by `UDS_LOG` | Use `-DUDS_LOG_LEVEL=` to set or disable logging. |
 
