@@ -35,7 +35,7 @@ isotp_c_wrapped_h = "#if defined(UDS_TP_ISOTP_C)\n" + \
     ]]) + \
     "#endif\n"
 
-with open(args.out_c, "w") as f:
+with open(args.out_c, "w", encoding="utf-8") as f:
     f.write("#include \"iso14229.h\"\n")
     for src in [
         "src/client.c",
@@ -52,15 +52,16 @@ with open(args.out_c, "w") as f:
         f.write("#ifdef UDS_LINES\n")
         f.write(f'#line 1 "{src}"' + "\n")
         f.write("#endif\n")
-        with open(src) as src_file:
-            f.write(strip_includes(src_file.read()))
+        with open(src, "r", encoding="utf-8") as src_file:
+            stripped = strip_includes(src_file.read())
+            f.write(stripped)
             f.write("\n")
 
     f.write(isotp_c_wrapped_c)
     f.write("\n")
 
 
-with open(args.out_h, "w") as f:
+with open(args.out_h, "w", encoding="utf-8") as f:
     f.write("#ifndef ISO14229_H\n")
     f.write("#define ISO14229_H\n")
     f.write("\n")
@@ -84,8 +85,9 @@ with open(args.out_h, "w") as f:
         "src/server.h",
     ]:
         f.write("\n")
-        with open(src) as src_file:
-            f.write(strip_includes(src_file.read()))
+        with open(src, "r", encoding="utf-8") as src_file:
+            stripped = strip_includes(src_file.read())
+            f.write(stripped)
             f.write("\n")
 
     f.write(isotp_c_wrapped_h)

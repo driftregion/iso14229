@@ -20,7 +20,7 @@
 #define UDS_CLIENT_DEFAULT_S3_MS (2000)
 #endif
 
-_Static_assert(UDS_CLIENT_DEFAULT_P2_STAR_MS > UDS_CLIENT_DEFAULT_P2_MS, "");
+static_assert(UDS_CLIENT_DEFAULT_P2_STAR_MS > UDS_CLIENT_DEFAULT_P2_MS, "");
 
 #ifndef UDS_SERVER_DEFAULT_POWER_DOWN_TIME_MS
 #define UDS_SERVER_DEFAULT_POWER_DOWN_TIME_MS (10)
@@ -41,10 +41,10 @@ _Static_assert(UDS_CLIENT_DEFAULT_P2_STAR_MS > UDS_CLIENT_DEFAULT_P2_MS, "");
 #define UDS_SERVER_DEFAULT_S3_MS (5100)
 #endif
 
-_Static_assert(0 < UDS_SERVER_DEFAULT_P2_MS &&
-                   UDS_SERVER_DEFAULT_P2_MS < UDS_SERVER_DEFAULT_P2_STAR_MS &&
-                   UDS_SERVER_DEFAULT_P2_STAR_MS < UDS_SERVER_DEFAULT_S3_MS,
-               "");
+static_assert(0 < UDS_SERVER_DEFAULT_P2_MS &&
+                  UDS_SERVER_DEFAULT_P2_MS < UDS_SERVER_DEFAULT_P2_STAR_MS &&
+                  UDS_SERVER_DEFAULT_P2_STAR_MS < UDS_SERVER_DEFAULT_S3_MS,
+              "");
 
 // Amount of time to wait after boot before accepting 0x27 requests.
 #ifndef UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_BOOT_DELAY_MS

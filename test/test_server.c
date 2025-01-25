@@ -31,6 +31,7 @@ int fn_test_session_timeout(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     int *call_count = (int*)srv->fn_data;
     TEST_INT_EQUAL(UDS_EVT_SessionTimeout, ev);
     (*call_count)++;
+    return UDS_OK;
 }
 
 void test_default_session_does_not_timeout(void **state) {

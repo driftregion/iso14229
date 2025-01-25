@@ -1,4 +1,4 @@
-#! /bin/bash
+#!/bin/bash
 
 files=`find src -type f \( -name '*.c' -o -name '*.h' \) -not -path "src/tp/isotp-c/*"`
 

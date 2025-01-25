@@ -5,7 +5,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <unistd.h>
+#endif
 
 static uint32_t TimeNowMillis = 0;
 
@@ -108,7 +112,11 @@ void EnvRunMillis(Env_t *env, uint32_t millis) {
             }
         }
         if (env->is_real_time) {
+#ifdef _WIN32
+            Sleep(1);
+#else
             usleep(1000);
+#endif
         }
         TimeNowMillis++;
     }
