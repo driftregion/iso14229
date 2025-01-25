@@ -32,6 +32,14 @@ jobs:
     - name: Generate HTML report
       run: |
         CodeChecker parse reports --export html -o html_report
+        ret=$?
+        echo "CodeChecker parse returned exit code: $ret"
+
+        # Fail the step unless the exit code is exactly 2, indicating that a report was generated
+        if [ "$ret" -ne 2 ]; then
+          echo "Expected exit code 2, but got $ret."
+          exit 1
+        fi
 
     - name: Deploy HTML to GH Pages
       uses: peaceiris/actions-gh-pages@v3
