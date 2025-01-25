@@ -10,7 +10,13 @@ cc_library(
     ],
     copts = [
         "-DHAVE_SIGNAL_H",
-    ],
+    ] + select({
+        "@bazel_tools//src/conditions:windows": [
+            "-DHAVE__SNPRINTF_S",
+            "-DHAVE__VSNPRINTF_S",
+        ],
+        "//conditions:default": [],
+    }),
     includes = [
         "include",
     ],
