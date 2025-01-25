@@ -260,7 +260,7 @@ static UDSErr_t SendRequest(UDSClient_t *client) {
 
     if (client->_options_copy & UDS_SUPPRESS_POS_RESP) {
         // UDS-1:2013 8.2.2 Table 11
-        client->send_buf[1] |= 0x80;
+        client->send_buf[1] |= 0x80U;
     }
 
     changeState(client, kRequestStateSending);
