@@ -18,12 +18,12 @@ jobs:
     - name: generate compile commands
       run: bazel run //:lib_compile_commands
 
-    - uses: whisperity/codechecker-analysis-action@v1
+    - uses: whisperity/codechecker-analysis-action@v1.0.4
       id: codechecker
       with:
         logfile: ${{ github.workspace }}/compile_commands.json
 
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v4
       with:
         name: "CodeChecker Bug Reports"
         path: ${{ steps.codechecker.outputs.result-html-dir }}
