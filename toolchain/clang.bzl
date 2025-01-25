@@ -34,7 +34,7 @@ def _impl(ctx):
         ),
         tool_path(
             name = "gcov",
-            path = "/bin/false",
+            path = "/usr/bin/gcov",
         ),
         tool_path(
             name = "nm",
@@ -89,7 +89,6 @@ def _impl(ctx):
         ctx = ctx,
         features = features, 
         cxx_builtin_include_directories = [
-            # "/usr/{}/include".format(ctx.attr.prefix),
             "/usr/lib/llvm-15/lib/clang/15.0.7/include",
             "/usr/lib/llvm-15/lib/clang/15.0.7/share",
             "/usr/include",

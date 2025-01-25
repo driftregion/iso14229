@@ -1,13 +1,5 @@
 #pragma once
 
-#ifndef UDS_ENABLE_DBG_PRINT
-#define UDS_ENABLE_DBG_PRINT 0
-#endif
-
-#ifndef UDS_ENABLE_ASSERT
-#define UDS_ENABLE_ASSERT 0
-#endif
-
 /** ISO-TP Maximum Transmissiable Unit (ISO-15764-2-2004 section 5.3.3) */
 #define UDS_ISOTP_MTU (4095)
 
@@ -23,22 +15,30 @@
 #define UDS_CLIENT_DEFAULT_P2_STAR_MS (1500U)
 #endif
 
-static_assert(UDS_CLIENT_DEFAULT_P2_STAR_MS > UDS_CLIENT_DEFAULT_P2_MS, "");
+// Default value from ISO14229-2 2013 Table 5: 2000 ms
+#ifndef UDS_CLIENT_DEFAULT_S3_MS
+#define UDS_CLIENT_DEFAULT_S3_MS (2000)
+#endif
+
+_Static_assert(UDS_CLIENT_DEFAULT_P2_STAR_MS > UDS_CLIENT_DEFAULT_P2_MS, "");
 
 #ifndef UDS_SERVER_DEFAULT_POWER_DOWN_TIME_MS
 #define UDS_SERVER_DEFAULT_POWER_DOWN_TIME_MS (10)
 #endif
 
+// Default value from ISO14229-2 2013 Table 4: 50 ms
 #ifndef UDS_SERVER_DEFAULT_P2_MS
 #define UDS_SERVER_DEFAULT_P2_MS (50)
 #endif
 
+// Default value from ISO14229-2 2013 Table 4: 5000 ms
 #ifndef UDS_SERVER_DEFAULT_P2_STAR_MS
-#define UDS_SERVER_DEFAULT_P2_STAR_MS (2000)
+#define UDS_SERVER_DEFAULT_P2_STAR_MS (5000)
 #endif
 
+// Default value from ISO14229-2 2013 Table 5: 5000 -0/+200 ms
 #ifndef UDS_SERVER_DEFAULT_S3_MS
-#define UDS_SERVER_DEFAULT_S3_MS (3000)
+#define UDS_SERVER_DEFAULT_S3_MS (5100)
 #endif
 
 static_assert(0 < UDS_SERVER_DEFAULT_P2_MS &&

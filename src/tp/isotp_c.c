@@ -4,8 +4,8 @@
 #include "tp/isotp_c.h"
 #include "tp/isotp-c/isotp.h"
 
-static UDSTpStatus_t tp_poll(UDSTpHandle_t *hdl) {
-    assert(hdl);
+static UDSTpStatus_t tp_poll(UDSTp_t *hdl) {
+    UDS_ASSERT(hdl);
     UDSTpStatus_t status = 0;
     UDSISOTpC_t *impl = (UDSISOTpC_t *)hdl;
     isotp_poll(&impl->phys_link);
@@ -15,9 +15,9 @@ static UDSTpStatus_t tp_poll(UDSTpHandle_t *hdl) {
     return status;
 }
 
-int peek_link(IsoTpLink *link, uint8_t *buf, size_t bufsize, bool functional) {
-    assert(link);
-    assert(buf);
+static int peek_link(IsoTpLink *link, uint8_t *buf, size_t bufsize, bool functional) {
+    UDS_ASSERT(link);
+    UDS_ASSERT(buf);
     int ret = -1;
     switch (link->receive_status) {
     case ISOTP_RECEIVE_STATUS_IDLE:
@@ -28,11 +28,11 @@ int peek_link(IsoTpLink *link, uint8_t *buf, size_t bufsize, bool functional) {
         goto done;
     case ISOTP_RECEIVE_STATUS_FULL:
         ret = link->receive_size;
-        printf("The link is full. Copying %d bytes\n", ret);
+        UDS_LOGI(__FILE__, "The link is full. Copying %d bytes\n", ret);
         memmove(buf, link->receive_buffer, link->receive_size);
         break;
     default:
-        UDS_DBG_PRINT("receive_status %d not implemented\n", link->receive_status);
+        UDS_LOGI(__FILE__, "receive_status %d not implemented\n", link->receive_status);
         ret = -1;
         goto done;
     }
@@ -40,9 +40,9 @@ done:
     return ret;
 }
 
-static ssize_t tp_peek(UDSTpHandle_t *hdl, uint8_t **p_buf, UDSSDU_t *info) {
-    assert(hdl);
-    assert(p_buf);
+static ssize_t tp_peek(UDSTp_t *hdl, uint8_t **p_buf, UDSSDU_t *info) {
+    UDS_ASSERT(hdl);
+    UDS_ASSERT(p_buf);
     UDSISOTpC_t *tp = (UDSISOTpC_t *)hdl;
     if (ISOTP_RECEIVE_STATUS_FULL == tp->phys_link.receive_status) { // recv not yet acked
         *p_buf = tp->recv_buf;
@@ -55,7 +55,7 @@ static ssize_t tp_peek(UDSTpHandle_t *hdl, uint8_t **p_buf, UDSSDU_t *info) {
     uint32_t sa = tp->phys_sa;
 
     if (ret > 0) {
-        printf("just got %d bytes\n", ret);
+        UDS_LOGI(__FILE__, "just got %d bytes\n", ret);
         ta = tp->phys_sa;
         sa = tp->phys_ta;
         ta_type = UDS_A_TA_TYPE_PHYSICAL;
@@ -66,7 +66,7 @@ static ssize_t tp_peek(UDSTpHandle_t *hdl, uint8_t **p_buf, UDSSDU_t *info) {
     } else {
         ret = peek_link(&tp->func_link, tp->recv_buf, sizeof(tp->recv_buf), true);
         if (ret > 0) {
-            printf("just got %d bytes on func link \n", ret);
+            UDS_LOGI(__FILE__, "just got %d bytes on func link \n", ret);
             ta = tp->func_sa;
             sa = tp->func_ta;
             ta_type = UDS_A_TA_TYPE_FUNCTIONAL;
@@ -87,13 +87,12 @@ done:
     return ret;
 }
 
-static ssize_t tp_send(UDSTpHandle_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
-    assert(hdl);
+static ssize_t tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
+    UDS_ASSERT(hdl);
     ssize_t ret = -1;
     UDSISOTpC_t *tp = (UDSISOTpC_t *)hdl;
     IsoTpLink *link = NULL;
     const UDSTpAddr_t ta_type = info ? info->A_TA_Type : UDS_A_TA_TYPE_PHYSICAL;
-    const uint32_t ta = ta_type == UDS_A_TA_TYPE_PHYSICAL ? tp->phys_ta : tp->func_ta;
     switch (ta_type) {
     case UDS_A_TA_TYPE_PHYSICAL:
         link = &tp->phys_link;
@@ -101,7 +100,7 @@ static ssize_t tp_send(UDSTpHandle_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *i
     case UDS_A_TA_TYPE_FUNCTIONAL:
         link = &tp->func_link;
         if (len > 7) {
-            UDS_DBG_PRINT("Cannot send more than 7 bytes via functional addressing\n");
+            UDS_LOGI(__FILE__, "Cannot send more than 7 bytes via functional addressing\n");
             ret = -3;
             goto done;
         }
@@ -126,16 +125,16 @@ done:
     return ret;
 }
 
-static void tp_ack_recv(UDSTpHandle_t *hdl) {
-    assert(hdl);
-    printf("ack recv\n");
+static void tp_ack_recv(UDSTp_t *hdl) {
+    UDS_LOGI(__FILE__, "ack recv\n");
+    UDS_ASSERT(hdl);
     UDSISOTpC_t *tp = (UDSISOTpC_t *)hdl;
     uint16_t out_size = 0;
     isotp_receive(&tp->phys_link, tp->recv_buf, sizeof(tp->recv_buf), &out_size);
 }
 
-static ssize_t tp_get_send_buf(UDSTpHandle_t *hdl, uint8_t **p_buf) {
-    assert(hdl);
+static ssize_t tp_get_send_buf(UDSTp_t *hdl, uint8_t **p_buf) {
+    UDS_ASSERT(hdl);
     UDSISOTpC_t *tp = (UDSISOTpC_t *)hdl;
     *p_buf = tp->send_buf;
     return sizeof(tp->send_buf);
@@ -143,7 +142,7 @@ static ssize_t tp_get_send_buf(UDSTpHandle_t *hdl, uint8_t **p_buf) {
 
 UDSErr_t UDSISOTpCInit(UDSISOTpC_t *tp, const UDSISOTpCConfig_t *cfg) {
     if (cfg == NULL || tp == NULL) {
-        return UDS_ERR;
+        return UDS_ERR_INVALID_ARG;
     }
     tp->hdl.poll = tp_poll;
     tp->hdl.send = tp_send;
@@ -153,14 +152,12 @@ UDSErr_t UDSISOTpCInit(UDSISOTpC_t *tp, const UDSISOTpCConfig_t *cfg) {
     tp->phys_sa = cfg->source_addr;
     tp->phys_ta = cfg->target_addr;
     tp->func_sa = cfg->source_addr_func;
-    tp->func_ta = cfg->target_addr;
+    tp->func_ta = cfg->target_addr_func;
 
     isotp_init_link(&tp->phys_link, tp->phys_ta, tp->send_buf, sizeof(tp->send_buf), tp->recv_buf,
-                    sizeof(tp->recv_buf), UDSMillis, cfg->isotp_user_send_can,
-                    cfg->isotp_user_debug, cfg->user_data);
+                    sizeof(tp->recv_buf));
     isotp_init_link(&tp->func_link, tp->func_ta, tp->recv_buf, sizeof(tp->send_buf), tp->recv_buf,
-                    sizeof(tp->recv_buf), UDSMillis, cfg->isotp_user_send_can,
-                    cfg->isotp_user_debug, cfg->user_data);
+                    sizeof(tp->recv_buf));
     return UDS_OK;
 }
 

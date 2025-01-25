@@ -96,7 +96,7 @@ int main(int ac, char **av) {
         exit(-1);
     }
 
-    client.tp = (UDSTpHandle_t *)&tp;
+    client.tp = (UDSTp_t *)&tp;
 
     // Request seed
     err = UDSSendSecurityAccess(&client, 3, NULL, 0);
