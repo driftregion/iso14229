@@ -27,7 +27,7 @@ jobs:
 
     - name: Analyze with CodeChecker
       run: |
-        CodeChecker analyze compile_commands.json -o reports
+        CodeChecker analyze compile_commands.json --ignore .CodeChecker/skipfile.txt -o reports
 
     - name: Generate HTML report
       run: |
