@@ -8,14 +8,21 @@ cc_library(
     ],
     deps = [ "@cmocka" ],
     defines = [
-        "UDS_TP_ISOTP_C_SOCKETCAN",
-        "UDS_TP_ISOTP_SOCK",
         "UDS_TP_ISOTP_MOCK",
         "UDS_CUSTOM_MILLIS",
         "UDS_LOG_LEVEL=UDS_LOG_VERBOSE",
         "UDS_LINES",
-    ],
-    copts = [ "-g", ],
+    ] + select({
+        "@platforms//os:windows": [],
+        "//conditions:default": [ 
+            "UDS_TP_ISOTP_C_SOCKETCAN",
+            "UDS_TP_ISOTP_SOCK",
+        ],
+    }),
+    copts = select({
+        "@platforms//os:windows": [],
+        "//conditions:default": [ "-g", ],
+    })
 )
 
 TEST_SRCS = [
@@ -37,7 +44,10 @@ TEST_NAMES = [ src.split(".c")[0] for src in TEST_SRCS ]
         ],
         deps = [ "@cmocka" ],
         size = "small",
-        copts = ["-g"],
+        copts = select({
+            "@platforms//os:windows": [],
+            "//conditions:default": [ "-g", ],
+        }),
         defines = [
             "UDS_TP_ISOTP_MOCK",
             "UDS_CUSTOM_MILLIS",
@@ -89,8 +99,11 @@ sh_test(
     args = ["$(locations :test_prefix_c)"],
     size = "small",
 
-    # Not exactly right. It's to prevent this test from being run under qemu
-    target_compatible_with = ["@platforms//cpu:x86_64"],
+    # prevent this test from being run under qemu or Windows
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
 )
 
 cc_binary(
@@ -170,6 +183,7 @@ cc_binary(
         size = "small",
         args = [tp_name],
         tags = tags,
+        target_compatible_with = ["@platforms//os:linux"],
     )
     for tp_name, tags in [
         ("mock", []),
