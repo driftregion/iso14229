@@ -15,15 +15,27 @@ jobs:
     - name: checkout
       uses: actions/checkout@v3
 
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake
+        pip install --upgrade pip
+        pip install codechecker
+
     - name: generate compile commands
       run: bazel build //:iso14229 && bazel run //:lib_compile_commands
 
-    - uses: whisperity/codechecker-analysis-action@v1.0.4
-      id: codechecker
-      with:
-        logfile: ${{ github.workspace }}/compile_commands.json
+    - name: Analyze with CodeChecker
+      run: |
+        CodeChecker analyze compile_commands.json -o reports
 
-    - uses: actions/upload-artifact@v4
+    - name: Generate HTML report
+      run: |
+        CodeChecker parse reports --export html -o html_report
+
+    - name: Deploy HTML to GH Pages
+      uses: peaceiris/actions-gh-pages@v3
       with:
-        name: "CodeChecker Bug Reports"
-        path: ${{ steps.codechecker.outputs.result-html-dir }}
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: html_report
+        publish_branch: gh-pages
