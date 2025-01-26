@@ -58,9 +58,9 @@ def main(report_path):
         # e.g. if your build paths differ from your repo structure,
         # you might strip out something like GITHUB_WORKSPACE.
         # For example:
-        # workspace = os.environ.get("GITHUB_WORKSPACE", "")
-        # if file_path.startswith(workspace):
-        #     file_path = file_path[len(workspace)+1:]
+        workspace = os.environ.get("GITHUB_WORKSPACE", "")
+        if file_path.startswith(workspace):
+            file_path = file_path[len(workspace)+1:]
 
         # Convert severity to annotation_level
         # GitHub recognizes "notice", "warning", or "failure" for annotation_level.
