@@ -30,13 +30,11 @@ jobs:
 
     - name: Print report summary
       run: |
-        CodeChecker parse reports
-      continue-on-error: true
+        CodeChecker parse reports || true
 
     - name: Generate json report
       run: |
-        CodeChecker parse reports --export json -o report.json
-      continue-on-error: true
+        CodeChecker parse reports --export json -o report.json || true
 
 
     - name: Create Check Run with Annotations
