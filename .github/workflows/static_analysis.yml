@@ -21,6 +21,7 @@ jobs:
         sudo apt-get install -y build-essential cmake
         pip install --upgrade pip
         pip install codechecker
+        CodeChecker analyzers --details
 
     - name: generate compile commands
       run: bazel build //:iso14229 && bazel run //:lib_compile_commands
@@ -31,12 +32,35 @@ jobs:
 
     - name: Generate HTML report
       run: |
-        CodeChecker parse reports --export html -o html_report
+        CodeChecker parse reports --export json -o report.json
       continue-on-error: true
 
-    - name: Deploy HTML to GH Pages
-      uses: peaceiris/actions-gh-pages@v3
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: html_report
-        publish_branch: gh-pages
+    - name: Annotate PR with CodeChecker issues
+      run: |
+        # Parse each report from the JSON and emit a GitHub annotation
+        # We'll default everything to "::warning" but you can switch to "::error" for HIGH severity.
+        
+        jq -c '.reports[]' report.json | while read -r report; do
+          file_path=$(echo "$report" | jq -r '.file.path')
+          line=$(echo "$report" | jq -r '.line')
+          col=$(echo "$report" | jq -r '.column')
+          message=$(echo "$report" | jq -r '.message')
+          severity=$(echo "$report" | jq -r '.severity')
+          checker=$(echo "$report" | jq -r '.checker_name')
+
+          # Convert absolute path to something relative to repository root if needed
+          # e.g., remove everything up to your repo. This depends on how your paths look.
+          # 
+          # For instance, if $GITHUB_WORKSPACE is /home/runner/work/myrepo/myrepo,
+          # then:
+          # file_path="${file_path#"$GITHUB_WORKSPACE/"}"
+          
+          # Decide error vs. warning based on severity
+          # (Optional) e.g. if severity == "HIGH", treat it as an error, otherwise a warning
+          if [ "$severity" = "HIGH" ]; then
+            echo "::error file=$file_path,line=$line,col=$col,title=$checker::$message"
+          else
+            echo "::warning file=$file_path,line=$line,col=$col,title=$checker::$message"
+          fi
+        done
+
