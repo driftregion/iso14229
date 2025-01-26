@@ -40,7 +40,8 @@ jobs:
     - name: Create Check Run with Annotations
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        GITHUB_SHA: ${{ github.event.pull_request.head.sha }}
+        GITHUB_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
+        echo "PR HEAD is ${{ github.event.pull_request.head.sha }}"
         python3 .CodeChecker/post_to_github.py report.json

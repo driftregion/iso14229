@@ -21,9 +21,9 @@ def main(report_path):
         print("Error: GITHUB_REPOSITORY not found in environment.")
         sys.exit(1)
 
-    head_sha = os.environ.get("GITHUB_SHA")
+    head_sha = os.environ.get("GITHUB_HEAD_SHA")
     if not head_sha:
-        print("Error: GITHUB_SHA not found in environment.")
+        print("Error: GITHUB_HEAD_SHA not found in environment.")
         sys.exit(1)
 
     owner, repo = repository.split("/")
