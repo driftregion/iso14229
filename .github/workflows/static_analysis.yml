@@ -16,7 +16,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential cmake python3-pip jq
+        sudo apt-get install -y build-essential cmake python3-pip jq cppcheck
         pip3 install codechecker requests
 
         CodeChecker analyzers --details

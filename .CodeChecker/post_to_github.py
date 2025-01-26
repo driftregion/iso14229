@@ -122,14 +122,17 @@ def main(report_path):
             "name": "CodeChecker Analysis",
             "head_sha": head_sha,
             # partial updates can keep "status" as "in_progress" until last chunk
-            "status": "completed" if is_last_chunk else "in_progress",
-            "conclusion": conclusion if is_last_chunk else None,
+            "status": "in_progress",
             "output": {
                 "title": "CodeChecker Results",
                 "summary": f"Found {all_annotations} issue(s).",
                 "annotations": chunk
             }
         }
+
+        if is_last_chunk:
+            update_payload["conclusion"] = conclusion
+            update_payload["status"] = "completed"
 
         resp = requests.patch(update_url, headers=headers, json=update_payload)
         if resp.status_code not in (200, 201):
