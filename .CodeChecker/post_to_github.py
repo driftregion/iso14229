@@ -139,7 +139,8 @@ def main(report_path):
             print("Error updating check run:", resp.text)
             sys.exit(1)
 
-        print(f"Updated check run with {len(chunk)} annotations (total {index}/{all_annotations}).")
+        print(f"Updated check run with {len(chunk)} annotations (total {index}/{all_annotations}). Last chunk: {is_last_chunk}")
+        print(update_payload)
 
     print("All annotations posted successfully.")
 
