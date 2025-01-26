@@ -2,6 +2,7 @@
 #include "config.h"
 #include "uds.h"
 #include "util.h"
+#include "log.h"
 
 static inline uint8_t NegativeResponse(UDSReq_t *r, uint8_t response_code) {
     r->send_buf[0] = 0x7F;

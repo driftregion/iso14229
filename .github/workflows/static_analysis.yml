@@ -30,37 +30,16 @@ jobs:
       run: |
         CodeChecker analyze compile_commands.json --ignore .CodeChecker/skipfile.txt -o reports
 
-    - name: Generate HTML report
+    - name: Print report summary
+      run: |
+        CodeChecker parse reports
+      continue-on-error: true
+
+    - name: Generate json report
       run: |
         CodeChecker parse reports --export json -o report.json
       continue-on-error: true
 
     - name: Annotate PR with CodeChecker issues
       run: |
-        # Parse each report from the JSON and emit a GitHub annotation
-        # We'll default everything to "::warning" but you can switch to "::error" for HIGH severity.
-        
-        jq -c '.reports[]' report.json | while read -r report; do
-          file_path=$(echo "$report" | jq -r '.file.path')
-          line=$(echo "$report" | jq -r '.line')
-          col=$(echo "$report" | jq -r '.column')
-          message=$(echo "$report" | jq -r '.message')
-          severity=$(echo "$report" | jq -r '.severity')
-          checker=$(echo "$report" | jq -r '.checker_name')
-
-          # Convert absolute path to something relative to repository root if needed
-          # e.g., remove everything up to your repo. This depends on how your paths look.
-          # 
-          # For instance, if $GITHUB_WORKSPACE is /home/runner/work/myrepo/myrepo,
-          # then:
-          # file_path="${file_path#"$GITHUB_WORKSPACE/"}"
-          
-          # Decide error vs. warning based on severity
-          # (Optional) e.g. if severity == "HIGH", treat it as an error, otherwise a warning
-          if [ "$severity" = "HIGH" ]; then
-            echo "::error file=$file_path,line=$line,col=$col,title=$checker::$message"
-          else
-            echo "::warning file=$file_path,line=$line,col=$col,title=$checker::$message"
-          fi
-        done
-
+        .CodeChecker/report_json_to_gh_annotations.sh report.json

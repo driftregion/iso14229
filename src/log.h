@@ -8,6 +8,7 @@
 #include "sys.h"
 #include "config.h"
 #include "uds.h"
+#include "tp.h"
 
 typedef enum {
     UDS_LOG_NONE,    // No log output

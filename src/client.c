@@ -2,6 +2,7 @@
 #include "config.h"
 #include "uds.h"
 #include "util.h"
+#include "log.h"
 
 enum UDSClientRequestState {
     kRequestStateIdle = 0,

@@ -1,5 +1,5 @@
 #include "log.h"
-#include "tp/tp.h"
+#include "tp.h"
 #include <stdio.h>
 #include <stdarg.h>
 

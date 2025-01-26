@@ -25,13 +25,8 @@ refresh_compile_commands(
 
 cc_library(
     name = "iso14229",
-    srcs = [
-        "iso14229.c",
-        "iso14229.h",
-    ],
-    defines = [
-        "UDS_LINES",
-    ]
+    srcs=glob(["src/**/*.c", "src/**/*.h"]),
+    includes=["src"],
 )
 
 py_binary(
