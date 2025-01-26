@@ -1,8 +1,6 @@
 name: Static Analysis
 
 on:
-  push:
-    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
 
@@ -18,9 +16,9 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential cmake
-        pip install --upgrade pip
-        pip install codechecker
+        sudo apt-get install -y build-essential cmake python3-pip jq
+        pip3 install codechecker requests
+
         CodeChecker analyzers --details
 
     - name: generate compile commands
@@ -40,6 +38,11 @@ jobs:
         CodeChecker parse reports --export json -o report.json
       continue-on-error: true
 
-    - name: Annotate PR with CodeChecker issues
+
+    - name: Create Check Run with Annotations
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_SHA: ${{ github.event.pull_request.head.sha }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
-        .CodeChecker/report_json_to_gh_annotations.sh report.json
+        python3 .CodeChecker/post_to_github.py report.json
