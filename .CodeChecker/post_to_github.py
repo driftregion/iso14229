@@ -140,12 +140,11 @@ def main(report_path):
             sys.exit(1)
 
         print(f"Updated check run with {len(chunk)} annotations (total {index}/{all_annotations}). Last chunk: {is_last_chunk}")
-        print(update_payload)
 
     print("All annotations posted successfully.")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python check_run.py <report.json>")
+        print("Usage: python post_to_github.py <report.json>")
         sys.exit(1)
     main(sys.argv[1])

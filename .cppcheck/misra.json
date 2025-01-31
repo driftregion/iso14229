@@ -1,6 +1,6 @@
 {
     "script": "misra.py",
     "args": [
-        "--rule-texts=misra_c_2023__headlines_for_cppcheck.txt"
+        "--rule-texts=.cppcheck/misra_c_2023__headlines_for_cppcheck.txt"
     ]
 }

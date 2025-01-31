@@ -21,12 +21,9 @@ jobs:
 
         CodeChecker analyzers --details
 
-    - name: generate compile commands
-      run: bazel build //:iso14229 && bazel run //:lib_compile_commands
-
     - name: Analyze with CodeChecker
       run: |
-        CodeChecker analyze compile_commands.json --ignore .CodeChecker/skipfile.txt -o reports
+        make static_analysis
 
     - name: Print report summary
       run: |
@@ -36,12 +33,10 @@ jobs:
       run: |
         CodeChecker parse reports --export json -o report.json || true
 
-
     - name: Create Check Run with Annotations
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GITHUB_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
-        echo "PR HEAD is ${{ github.event.pull_request.head.sha }}"
         python3 .CodeChecker/post_to_github.py report.json
