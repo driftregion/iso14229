@@ -18,7 +18,7 @@ typedef struct {
 
 typedef struct UDSServer {
     UDSTp_t *tp;
-    int (*fn)(struct UDSServer *srv, UDSEvent_t event, void *arg);
+    UDSErr_t (*fn)(struct UDSServer *srv, UDSEvent_t event, void *arg);
     void *fn_data; // user-specified function data
 
     /**
@@ -72,14 +72,14 @@ typedef struct UDSServer {
 } UDSServer_t;
 
 typedef struct {
-    const uint8_t type;  /*! requested diagnostic session type (enum UDSDiagnosticSessionType) */
+    const uint8_t type;  /*! requested diagnostic session type */
     uint16_t p2_ms;      /*! optional: p2 timing override */
     uint32_t p2_star_ms; /*! optional: p2* timing override */
 } UDSDiagSessCtrlArgs_t;
 
 typedef struct {
     const uint8_t type; /**< \~chinese 客户端请求的复位类型 \~english reset type requested by client
-                           (enum UDSECUResetType) */
+                           (uint8_t) */
     uint32_t powerDownTimeMillis; /**< when this much time has elapsed after a UDS_PositiveResponse,
                                      a UDS_EVT_DoScheduledReset will be issued */
 } UDSECUResetArgs_t;
@@ -98,8 +98,8 @@ typedef struct {
 } UDSReadMemByAddrArgs_t;
 
 typedef struct {
-    uint8_t ctrlType; /* enum UDSCommunicationControlType */
-    uint8_t commType; /* enum UDSCommunicationType */
+    uint8_t ctrlType; /* uint8_t */
+    uint8_t commType; /* uint8_t */
 } UDSCommCtrlArgs_t;
 
 typedef struct {
