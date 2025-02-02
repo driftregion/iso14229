@@ -27,6 +27,10 @@ cc_library(
     name = "iso14229",
     srcs=glob(["src/**/*.c", "src/**/*.h"]),
     includes=["src"],
+    copts = [
+        # gcc adds system headers by default. However, the compile_commands.json used for static analysis needs this include path to be explicit.
+        "-I/usr/include"
+    ],
 )
 
 py_binary(
