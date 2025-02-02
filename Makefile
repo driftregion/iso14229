@@ -12,4 +12,4 @@ compile_commands.json:
 static_analysis: compile_commands.json $(MISRA_RULES_TXT)
 	.CodeChecker/run.sh
 
-.phony: static_analysis
+.phony: static_analysis compile_commands.json

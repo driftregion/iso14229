@@ -52,11 +52,11 @@ void test_duplicate_request(void **state) {
     Env_t *e = *state;
 
     // sending a request should succeed
-    UDSErr_t err = UDSSendECUReset(e->client, kHardReset);
+    UDSErr_t err = UDSSendECUReset(e->client, UDS_LEV_RT_HR);
     TEST_ERR_EQUAL(UDS_OK, err);
 
     // immediately sending another request should fail
-    err = UDSSendECUReset(e->client, kHardReset);
+    err = UDSSendECUReset(e->client, UDS_LEV_RT_HR);
     TEST_INT_EQUAL(UDS_ERR_BUSY, err);
 }
 
@@ -90,7 +90,7 @@ void test_0x11_good_response(void **state) {
     int call_count[UDS_EVT_MAX] = {0};
     e->client->fn = fn_log_call_count;
     e->client->fn_data = call_count;
-    UDSSendECUReset(e->client, kHardReset);
+    UDSSendECUReset(e->client, UDS_LEV_RT_HR);
     EnvRunMillis(e, 1000);
     TEST_INT_EQUAL(call_count[UDS_EVT_ResponseReceived], 1);
     TEST_INT_EQUAL(call_count[UDS_EVT_Err], 0);
@@ -108,7 +108,7 @@ void test_0x11_timeout(void **state) {
     int call_count[UDS_EVT_MAX] = {0};
     e->client->fn = fn_log_call_count;
     e->client->fn_data = call_count;
-    UDSSendECUReset(e->client, kHardReset);
+    UDSSendECUReset(e->client, UDS_LEV_RT_HR);
     EnvRunMillis(e, 1000);
     TEST_INT_EQUAL(call_count[UDS_EVT_Err], 1);
 }
@@ -125,7 +125,7 @@ void test_0x11_sid_mismatch(void **state) {
     int call_count[UDS_EVT_MAX] = {0};
     e->client->fn = fn_log_call_count;
     e->client->fn_data = call_count;
-    UDSSendECUReset(e->client, kHardReset);
+    UDSSendECUReset(e->client, UDS_LEV_RT_HR);
     EnvRunMillis(e, 1000);
     TEST_INT_EQUAL(call_count[UDS_EVT_Err], 1);
 }
@@ -142,7 +142,7 @@ void test_0x11_short_response(void **state) {
     int call_count[UDS_EVT_MAX] = {0};
     e->client->fn = fn_log_call_count;
     e->client->fn_data = call_count;
-    UDSSendECUReset(e->client, kHardReset);
+    UDSSendECUReset(e->client, UDS_LEV_RT_HR);
     EnvRunMillis(e, 1000);
     TEST_INT_EQUAL(call_count[UDS_EVT_Err], 1);
 }
@@ -159,7 +159,7 @@ void test_0x11_inconsistent_subfunc(void **state) {
     int call_count[UDS_EVT_MAX] = {0};
     e->client->fn = fn_log_call_count;
     e->client->fn_data = call_count;
-    UDSSendECUReset(e->client, kHardReset);
+    UDSSendECUReset(e->client, UDS_LEV_RT_HR);
     EnvRunMillis(e, 1000);
     TEST_INT_EQUAL(call_count[UDS_EVT_Err], 1);
 }
@@ -176,7 +176,7 @@ void test_0x11_neg_resp(void **state) {
     int call_count[UDS_EVT_MAX] = {0};
     e->client->fn = fn_log_call_count;
     e->client->fn_data = call_count;
-    UDSSendECUReset(e->client, kHardReset);
+    UDSSendECUReset(e->client, UDS_LEV_RT_HR);
     EnvRunMillis(e, 1000);
     TEST_INT_EQUAL(call_count[UDS_EVT_Err], 1);
 }
@@ -193,7 +193,7 @@ void test_0x11_rcrrp_timeout(void **state) {
     int call_count[UDS_EVT_MAX] = {0};
     e->client->fn = fn_log_call_count;
     e->client->fn_data = call_count;
-    UDSSendECUReset(e->client, kHardReset);
+    UDSSendECUReset(e->client, UDS_LEV_RT_HR);
 
     EnvRunMillis(e, e->client->p2_star_ms - 10);
     TEST_INT_EQUAL(call_count[UDS_EVT_Err], 0);
@@ -213,7 +213,7 @@ void test_0x11_rcrrp_ok(void **state) {
     int call_count[UDS_EVT_MAX] = {0};
     e->client->fn = fn_log_call_count;
     e->client->fn_data = call_count;
-    UDSSendECUReset(e->client, kHardReset);
+    UDSSendECUReset(e->client, UDS_LEV_RT_HR);
 
     EnvRunMillis(e, e->client->p2_star_ms - 10);
     TEST_INT_EQUAL(call_count[UDS_EVT_Err], 0);
@@ -232,7 +232,7 @@ void test_0x11_suppress_pos_resp(void **state) {
 
     // when the suppressPositiveResponse flag is set
     e->client->options |= UDS_SUPPRESS_POS_RESP;
-    UDSSendECUReset(e->client, kHardReset);
+    UDSSendECUReset(e->client, UDS_LEV_RT_HR);
     EnvRunMillis(e, 1000);
 
     // Sending will succeed but there should be no response

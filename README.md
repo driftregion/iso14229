@@ -94,7 +94,7 @@ see `enum UDSEvent` in [src/uds.h](src/uds.h)
 
 ```c
 typedef struct {
-    const enum UDSDiagnosticSessionType type; /**< requested session type */
+    const uint8_t type; /**< requested session type */
     uint16_t p2_ms;                           /**< optional return value: p2 timing override */
     uint32_t p2_star_ms;                      /**< optional return value: p2* timing override */
 } UDSDiagSessCtrlArgs_t;
@@ -114,7 +114,7 @@ typedef struct {
 
 ```c
 typedef struct {
-    const enum UDSECUResetType type; /**< reset type requested by client */
+    const uint8_t type; /**< reset type requested by client */
     uint8_t powerDownTime; /**< Optional response: notify client of time until shutdown (0-254) 255
                               indicates that a time is not available. */
 } UDSECUResetArgs_t;
@@ -189,8 +189,8 @@ typedef struct {
 
 ```c
 typedef struct {
-    enum UDSCommunicationControlType ctrlType; 
-    enum UDSCommunicationType commType;
+    uint8_t ctrlType; 
+    uint8_t commType;
 } UDSCommCtrlArgs_t;
 ```
 #### Supported Responses
@@ -392,6 +392,10 @@ bazel build //:release
 - [`isotp-c`](https://github.com/SimonCahill/isotp-c) which this project embeds
 
 # Changelog
+
+## 0.9.0
+- breaking API changes:
+    - converted subfunction enums to #defines with standard-consistent naming
 
 ## 0.8.0
 - breaking API changes:
