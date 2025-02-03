@@ -1,1 +1,1 @@
-cppcheck-misra-c2012-15.5 // A function should have a single point of exit at the end 
+misra-c2012-15.5 // ignore: Rule 15.5 Advisory A function should have a single point of exit at the end

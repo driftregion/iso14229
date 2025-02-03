@@ -33,3 +33,4 @@ misra_reports
 **/*.dump
 report.txt
 json_report.json
+cppcheck_reports
