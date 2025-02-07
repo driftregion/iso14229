@@ -180,7 +180,7 @@ UDSTp_t *ISOTPMockNew(const char *name, ISOTPMockArgs_t *args) {
     if (name) {
         strncpy(tp->name, name, sizeof(tp->name));
     } else {
-        snprintf(tp->name, sizeof(tp->name), "TPMock%d", TPCount);
+        snprintf(tp->name, sizeof(tp->name), "TPMock%u", TPCount);
     }
     ISOTPMockAttach(tp, args);
     return &tp->hdl;

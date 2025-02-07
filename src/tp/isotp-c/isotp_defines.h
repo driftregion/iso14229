@@ -1,5 +1,5 @@
-#ifndef __ISOTP_DEFINES_H__
-#define __ISOTP_DEFINES_H__
+#ifndef ISOTPC_USER_DEFINITIONS_H
+#define ISOTPC_USER_DEFINITIONS_H
 
 #include <stdint.h>
 
@@ -225,5 +225,4 @@ typedef enum {
 #define ISOTP_PROTOCOL_RESULT_BUFFER_OVFLW -8
 #define ISOTP_PROTOCOL_RESULT_ERROR        -9
 
-#endif
-
+#endif // ISOTPC_USER_DEFINITIONS_H

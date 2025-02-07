@@ -58,7 +58,7 @@ static int isotp_send_flow_control(const IsoTpLink* link, uint8_t flow_status, u
     return ret;
 }
 
-static int isotp_send_single_frame(const IsoTpLink* link, uint32_t id) {
+static int isotp_send_single_frame(const IsoTpLink* link, uint32_t) {
 
     IsoTpCanMessage message;
     int ret;
@@ -186,7 +186,7 @@ static int isotp_receive_first_frame(IsoTpLink *link, IsoTpCanMessage *message, 
 
     /* check data length */
     payload_length = message->as.first_frame.FF_DL_high;
-    payload_length = (payload_length << 8) + message->as.first_frame.FF_DL_low;
+    payload_length = (uint16_t)(payload_length << 8) + message->as.first_frame.FF_DL_low;
 
     /* should not use multiple frame transmition */
     if (payload_length <= 7) {
@@ -269,8 +269,13 @@ int isotp_send_with_id(IsoTpLink *link, uint32_t id, const uint8_t payload[], ui
 
     if (size > link->send_buf_size) {
         isotp_user_debug("Message size too large. Increase ISO_TP_MAX_MESSAGE_SIZE to set a larger buffer\n");
-        char message[128];
-        sprintf(&message[0], "Attempted to send %d bytes; max size is %d!\n", size, link->send_buf_size);
+        const int32_t messageSize = 128;
+        char message[messageSize];
+        int32_t writtenChars = sprintf(&message[0], "Attempted to send %d bytes; max size is %d!\n", size, link->send_buf_size);
+
+        assert(writtenChars <= messageSize);
+        (void) writtenChars;
+        
         isotp_user_debug(message);
         return ISOTP_RET_OVERFLOW;
     }
@@ -284,7 +289,7 @@ int isotp_send_with_id(IsoTpLink *link, uint32_t id, const uint8_t payload[], ui
     link->send_size = size;
     link->send_offset = 0;
     (void) memcpy(link->send_buffer, payload, size);
-
+ 
     if (link->send_size < 8) {
         /* send single frame */
         ret = isotp_send_single_frame(link, id);
@@ -307,7 +312,7 @@ int isotp_send_with_id(IsoTpLink *link, uint32_t id, const uint8_t payload[], ui
     return ret;
 }
 
-void isotp_on_can_message(IsoTpLink *link, const uint8_t *data, uint8_t len) {
+void isotp_on_can_message(IsoTpLink* link, const uint8_t* data, uint8_t len) {
     IsoTpCanMessage message;
     int ret;
     

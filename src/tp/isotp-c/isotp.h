@@ -1,5 +1,5 @@
-#ifndef __ISOTP_H__
-#define __ISOTP_H__
+#ifndef ISOTPC_H
+#define ISOTPC_H
 
 #include <stdio.h>
 #include <string.h>
@@ -130,5 +130,5 @@ int isotp_receive(IsoTpLink *link, uint8_t *payload, const uint16_t payload_size
 }
 #endif
 
-#endif // __ISOTP_H__
+#endif // ISOTPC_H
 

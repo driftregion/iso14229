@@ -1,5 +1,5 @@
-#ifndef __ISOTP_CONFIG__
-#define __ISOTP_CONFIG__
+#ifndef ISOTPC_CONFIG_H
+#define ISOTPC_CONFIG_H
 
 /* Max number of messages the receiver can receive at one time, this value 
  * is affected by can driver queue length
@@ -36,5 +36,4 @@
  */
 //#define ISO_TP_USER_SEND_CAN_ARG
 
-#endif
-
+#endif // ISOTPC_CONFIG_H
