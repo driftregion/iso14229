@@ -41,9 +41,9 @@ static_assert(UDS_CLIENT_DEFAULT_P2_STAR_MS > UDS_CLIENT_DEFAULT_P2_MS, "");
 #define UDS_SERVER_DEFAULT_S3_MS (5100)
 #endif
 
-static_assert(0 < UDS_SERVER_DEFAULT_P2_MS &&
-                  UDS_SERVER_DEFAULT_P2_MS < UDS_SERVER_DEFAULT_P2_STAR_MS &&
-                  UDS_SERVER_DEFAULT_P2_STAR_MS < UDS_SERVER_DEFAULT_S3_MS,
+static_assert((0 < UDS_SERVER_DEFAULT_P2_MS) &&
+                  (UDS_SERVER_DEFAULT_P2_MS < UDS_SERVER_DEFAULT_P2_STAR_MS) &&
+                  (UDS_SERVER_DEFAULT_P2_STAR_MS < UDS_SERVER_DEFAULT_S3_MS),
               "");
 
 // Amount of time to wait after boot before accepting 0x27 requests.
@@ -61,4 +61,8 @@ static_assert(0 < UDS_SERVER_DEFAULT_P2_MS &&
 message to inform the client how many data bytes (maxNumberOfBlockLength) to include in each
 TransferData request message from the client. */
 #define UDS_SERVER_DEFAULT_XFER_DATA_MAX_BLOCKLENGTH (UDS_TP_MTU)
+#endif
+
+#ifndef UDS_CUSTOM_MILLIS
+#define UDS_CUSTOM_MILLIS 0
 #endif

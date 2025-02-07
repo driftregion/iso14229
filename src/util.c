@@ -8,8 +8,8 @@
 uint32_t UDSMillis(void) {
 #if UDS_SYS == UDS_SYS_UNIX
     struct timeval te;
-    gettimeofday(&te, NULL);
-    long long milliseconds = te.tv_sec * 1000LL + te.tv_usec / 1000;
+    gettimeofday(&te, NULL); // cppcheck-suppress misra-c2012-21.6 
+    long long milliseconds = (te.tv_sec * 1000LL) + (te.tv_usec / 1000);
     return milliseconds;
 #elif UDS_SYS == UDS_SYS_WINDOWS
     struct timespec ts;
@@ -33,15 +33,15 @@ uint32_t UDSMillis(void) {
  * @return true
  * @return false
  */
-bool UDSSecurityAccessLevelIsReserved(uint8_t securityLevel) {
-    securityLevel &= 0x3f;
-    if (0 == securityLevel) {
+bool UDSSecurityAccessLevelIsReserved(uint8_t subFunction) {
+    uint8_t securityLevel = subFunction & 0b00111111u;
+    if (0u == securityLevel) {
         return true;
     }
-    if (securityLevel >= 0x43 && securityLevel <= 0x5E) {
+    if ((securityLevel >= 0x43u) && (securityLevel <= 0x5Eu)) {
         return true;
     }
-    if (securityLevel == 0x7F) {
+    if (securityLevel == 0x7Fu) {
         return true;
     }
     return false;

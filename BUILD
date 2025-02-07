@@ -29,7 +29,7 @@ cc_library(
     includes=["src"],
     copts = [
         # gcc adds system headers by default. However, the compile_commands.json used for static analysis needs this include path to be explicit.
-        "-I/usr/include"
+        "-I/usr/include",
     ],
 )
 
