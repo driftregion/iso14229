@@ -27,3 +27,10 @@ compile_commands.json
 MODULE.bazel.lock
 iso14229.c
 iso14229.h
+html_report
+misra_reports
+**/*.ctu-info
+**/*.dump
+report.txt
+json_report.json
+cppcheck_reports

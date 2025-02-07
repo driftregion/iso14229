@@ -1,0 +1,1 @@
+--suppressions-list=.CodeChecker/suppressions.txt

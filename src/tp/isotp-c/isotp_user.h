@@ -1,5 +1,5 @@
-#ifndef __ISOTP_USER_H__
-#define __ISOTP_USER_H__
+#ifndef ISOTPC_USER_H
+#define ISOTPC_USER_H
 
 #include <stdint.h>
 
@@ -32,5 +32,5 @@ uint32_t isotp_user_get_us(void);
 }
 #endif
 
-#endif // __ISOTP_H__
+#endif // ISOTPC_USER_H
 

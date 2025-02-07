@@ -41,7 +41,7 @@ void test_default_session_does_not_timeout(void **state) {
     // When a server is initialized with a default session
     e->server->fn = fn_test_session_timeout;
     e->server->fn_data = &call_count;
-    e->server->sessionType = kDefaultSession;
+    e->server->sessionType = UDS_LEV_DS_DS;
 
     // and the server is run for a long time with no communication
     EnvRunMillis(e, 10000);
@@ -57,7 +57,7 @@ void test_programming_session_times_out(void **state) {
     // When a server is initialized with a programming session
     e->server->fn = fn_test_session_timeout;
     e->server->fn_data = &call_count;
-    e->server->sessionType = kProgrammingSession;
+    e->server->sessionType = UDS_LEV_DS_PRGS;
 
     // and the server is run for a long time with no communication
     EnvRunMillis(e, 10000);
@@ -114,7 +114,7 @@ void test_0x10_suppress_pos_resp(void **state) {
     TEST_INT_EQUAL(UDSTpGetRecvLen(e->client_tp), 0);
 
     // however, the server sessionType should have changed
-    TEST_INT_EQUAL(e->server->sessionType, kExtendedDiagnostic);
+    TEST_INT_EQUAL(e->server->sessionType, UDS_LEV_DS_EXTDS);
 }
 
 

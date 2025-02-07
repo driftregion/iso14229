@@ -19,9 +19,9 @@ typedef enum UDSEvent {
     UDS_EVT_TransferData,         // UDSTransferDataArgs_t *
     UDS_EVT_RequestTransferExit,  // UDSRequestTransferExitArgs_t *
     UDS_EVT_SessionTimeout,       // NULL
-    UDS_EVT_DoScheduledReset,     // enum UDSEcuResetType *
+    UDS_EVT_DoScheduledReset,     // uint8_t *
     UDS_EVT_RequestFileTransfer,  // UDSRequestFileTransferArgs_t *
-    UDS_EVT_CUSTOM,               // UDSCustomArgs_t *
+    UDS_EVT_Custom,               // UDSCustomArgs_t *
 
     // Client Event
     UDS_EVT_Poll,             // NULL
@@ -36,7 +36,8 @@ typedef enum {
     UDS_FAIL = -1, // 通用错误
     UDS_OK = 0,    // 成功
 
-    // Negative Response Codes (NRCs) as defined in ISO14229-1:2020
+    // Negative Response Codes (NRCs) as defined in ISO14229-1:2020 Table A.1 - Negative Response
+    // Code (NRC) definition and values
     UDS_PositiveResponse = 0,
     // 0x01 to 0x0F are reserved by ISO14229-1:2020
     UDS_NRC_GeneralReject = 0x10,
@@ -125,87 +126,73 @@ typedef enum {
     UDS_ERR_MISUSE,               // The library is used incorrectly
 } UDSErr_t;
 
-enum UDSDiagnosticSessionType {
-    kDefaultSession = 0x01,
-    kProgrammingSession = 0x02,
-    kExtendedDiagnostic = 0x03,
-    kSafetySystemDiagnostic = 0x04,
-};
+// ISO14229-1:2020 Table 25
+// UDS Level Diagnostic Session
+#define UDS_LEV_DS_DS 01    // Default Session
+#define UDS_LEV_DS_PRGS 02  // Programming Session
+#define UDS_LEV_DS_EXTDS 03 // Extended Diagnostic Session
+#define UDS_LEV_DS_SSDS 04  // Safety System Diagnostic Session
 
 /**
- * @brief LEV_RT_
- * @addtogroup ecuReset_0x11
+ * @brief 0x11 ECU Reset SubFunction = [resetType]
+ * ISO14229-1:2020 Table 34
+ * UDS Level Reset Type
  */
-enum UDSECUResetType {
-    kHardReset = 1,
-    kKeyOffOnReset = 2,
-    kSoftReset = 3,
-    kEnableRapidPowerShutDown = 4,
-    kDisableRapidPowerShutDown = 5,
-};
-
-typedef uint8_t UDSECUReset_t;
+#define UDS_LEV_RT_HR 01      // Hard Reset
+#define UDS_LEV_RT_KOFFONR 02 // Key Off On Reset
+#define UDS_LEV_RT_SR 03      // Soft Reset
+#define UDS_LEV_RT_ERPSD 04   // Enable Rapid Power Shut Down
+#define UDS_LEV_RT_DRPSD 05   // Disable Rapid Power Shut Down
 
 /**
- * @addtogroup securityAccess_0x27
+ * @brief 0x28 Communication Control SubFunction = [controlType]
+ * ISO14229-1:2020 Table 54
+ * UDS Level Control Type
  */
-enum UDSSecurityAccessType {
-    kRequestSeed = 0x01,
-    kSendKey = 0x02,
-};
+#define UDS_LEV_CTRLTP_ERXTX 0  // EnableRxAndTx
+#define UDS_LEV_CTRLTP_ERXDTX 1 // EnableRxAndDisableTx
+#define UDS_LEV_CTRLTP_DRXETX 2 // DisableRxAndEnableTx
+#define UDS_LEV_CTRLTP_DRXTX 3  // DisableRxAndTx
 
 /**
- * @addtogroup communicationControl_0x28
+ * @brief 0x28 Communication Control communicationType
+ * ISO14229-1:2020 Table B.1
  */
-enum UDSCommunicationControlType {
-    kEnableRxAndTx = 0,
-    kEnableRxAndDisableTx = 1,
-    kDisableRxAndEnableTx = 2,
-    kDisableRxAndTx = 3,
-};
+#define UDS_CTP_NCM 1       // NormalCommunicationMessages
+#define UDS_CTP_NWMCM 2     // NetworkManagementCommunicationMessages
+#define UDS_CTP_NWMCM_NCM 3 // NetworkManagementCommunicationMessagesAndNormalCommunicationMessages
 
 /**
- * @addtogroup communicationControl_0x28
+ * @brief 0x31 RoutineControl SubFunction = [routineControlType]
+ * ISO14229-1:2020 Table 426
  */
-enum UDSCommunicationType {
-    kNormalCommunicationMessages = 0x1,
-    kNetworkManagementCommunicationMessages = 0x2,
-    kNetworkManagementCommunicationMessagesAndNormalCommunicationMessages = 0x3,
-};
+#define UDS_LEV_RCTP_STR 1  // StartRoutine
+#define UDS_LEV_RCTP_STPR 2 // StopRoutine
+#define UDS_LEV_RCTP_RRR 3  // RequestRoutineResults
 
 /**
- * @addtogroup routineControl_0x31
+ * @brief modeOfOperation parameter used in 0x38 RequestFileTransfer
+ * ISO14229-1:2020 Table G.1
  */
-enum RoutineControlType {
-    kStartRoutine = 1,
-    kStopRoutine = 2,
-    kRequestRoutineResults = 3,
-};
+#define UDS_MOOP_ADDFILE 1  // AddFile
+#define UDS_MOOP_DELFILE 2  // DeleteFile
+#define UDS_MOOP_REPLFILE 3 // ReplaceFile
+#define UDS_MOOP_RDFILE 4   // ReadFile
+#define UDS_MOOP_RDDIR 5    // ReadDirectory
+#define UDS_MOOP_RSFILE 6   // ResumeFile
 
 /**
- * @addtogroup requestFileTransfer_0x38
+ * @brief 0x85 ControlDTCSetting SubFunction = [dtcSettingType]
+ * ISO14229-1:2020 Table 128
  */
-enum FileOperationMode {
-    kAddFile = 1,
-    kDeleteFile = 2,
-    kReplaceFile = 3,
-    kReadFile = 4,
-    kReadDir = 5,
-};
-
-/**
- * @addtogroup controlDTCSetting_0x85
- */
-enum DTCSettingType {
-    kDTCSettingON = 0x01,
-    kDTCSettingOFF = 0x02,
-};
+#define LEV_DTCSTP_ON 1
+#define LEV_DTCSTP_OFF 2
 
 // ISO-14229-1:2013 Table 2
 #define UDS_MAX_DIAGNOSTIC_SERVICES 0x7F
 
-#define UDS_RESPONSE_SID_OF(request_sid) (request_sid + 0x40)
-#define UDS_REQUEST_SID_OF(response_sid) (response_sid - 0x40)
+#define UDS_RESPONSE_SID_OF(request_sid) ((request_sid) + 0x40)
+#define UDS_REQUEST_SID_OF(response_sid) ((response_sid) - 0x40)
 
 #define UDS_NEG_RESP_LEN 3U
 #define UDS_0X10_REQ_LEN 2U

@@ -176,10 +176,11 @@ UDSTp_t *ISOTPMockNew(const char *name, ISOTPMockArgs_t *args) {
         return NULL;
     }
     ISOTPMock_t *tp = malloc(sizeof(ISOTPMock_t));
+    memset(tp, 0, sizeof(ISOTPMock_t));
     if (name) {
         strncpy(tp->name, name, sizeof(tp->name));
     } else {
-        snprintf(tp->name, sizeof(tp->name), "TPMock%d", TPCount);
+        snprintf(tp->name, sizeof(tp->name), "TPMock%u", TPCount);
     }
     ISOTPMockAttach(tp, args);
     return &tp->hdl;

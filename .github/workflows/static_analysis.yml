@@ -1,0 +1,42 @@
+name: Static Analysis
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake python3-pip jq cppcheck
+        pip3 install codechecker requests
+
+        CodeChecker analyzers --details
+
+    - name: Analyze with CodeChecker
+      run: |
+        make static_analysis
+
+    - name: Print report summary
+      run: |
+        CodeChecker parse reports || true
+
+    - name: Generate json report
+      run: |
+        CodeChecker parse reports --export json -o report.json || true
+
+    - name: Create Check Run with Annotations
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+      run: |
+        python3 .CodeChecker/post_to_github.py report.json

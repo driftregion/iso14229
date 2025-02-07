@@ -9,6 +9,30 @@ refresh_compile_commands(
     }
 )
 
+refresh_compile_commands(
+    name = "example_compile_commands",
+    targets = {
+        "//examples/linux_rdbi_wdbi:all": "",
+    }
+)
+
+refresh_compile_commands(
+    name = "lib_compile_commands",
+    targets = {
+        "//:iso14229": "",
+    }
+)
+
+cc_library(
+    name = "iso14229",
+    srcs=glob(["src/**/*.c", "src/**/*.h"]),
+    includes=["src"],
+    copts = [
+        # gcc adds system headers by default. However, the compile_commands.json used for static analysis needs this include path to be explicit.
+        "-I/usr/include",
+    ],
+)
+
 py_binary(
     name="amalgamate",
     srcs=["amalgamate.py"],
