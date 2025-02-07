@@ -95,6 +95,14 @@ typedef enum {
         }                                                                                          \
     } while (0)
 
-void UDS_LogWrite(UDS_LogLevel_t level, const char *tag, const char *format, ...);
+
+#if defined(__GNUC__) || defined(__clang__)
+  #define UDS_PRINTF_FORMAT(fmt_index, first_arg) __attribute__((format(printf, fmt_index, first_arg)))
+#else
+  #define UDS_PRINTF_FORMAT(fmt_index, first_arg)
+#endif
+
+void UDS_LogWrite(UDS_LogLevel_t level, const char *tag, const char *format, ...)
+    UDS_PRINTF_FORMAT(3, 4);
 void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *buffer,
                         size_t buff_len, UDSSDU_t *info);
