@@ -54,25 +54,22 @@ void MockServerPoll(MockServer_t *srv) {
     assert(srv->tp);
     struct MockServerImpl *impl = srv->impl;
     UDSTpPoll(srv->tp);
-
-    if (UDSTpGetRecvLen(srv->tp)) { 
-        UDSTp_t *tp = srv->tp;
-        UDSSDU_t info;
-        uint8_t *buf = NULL;
-        size_t recv_len = UDSTpPeek(tp, &buf, &info);
-        if (recv_len > 0) {
-            for (int i = 0; i < impl->num_behaviors; i++) {
-                struct Behavior *b = &impl->behaviors[i];
-                if (recv_len == b->req_len && memcmp(buf, b->req_data, recv_len) == 0) {
-                    struct ScheduledEvent *evt = &impl->events[impl->num_events++];
-                    evt->time_ms = UDSMillis() + b->delay_ms;
-                    evt->b = b;
-                    UDS_LOGI(__FILE__, "scheduled event in %d ms", b->delay_ms);
-                    break;
-                }
+    uint8_t buf[UDS_TP_MTU] = {0};
+    UDSSDU_t info = {0};
+    ssize_t len = UDSTpRecv(srv->tp, buf, sizeof(buf), &info);
+    UDS_ASSERT(len >= 0);
+    size_t recv_len = (size_t)len;
+    if (recv_len > 0) {
+        for (int i = 0; i < impl->num_behaviors; i++) {
+            struct Behavior *b = &impl->behaviors[i];
+            if (recv_len == b->req_len && memcmp(buf, b->req_data, recv_len) == 0) {
+                struct ScheduledEvent *evt = &impl->events[impl->num_events++];
+                evt->time_ms = UDSMillis() + b->delay_ms;
+                evt->b = b;
+                UDS_LOGI(__FILE__, "scheduled event in %d ms", b->delay_ms);
+                break;
             }
         }
-        UDSTpAckRecv(srv->tp);
     }
 
     for (int i = 0; i < impl->num_events; i++) {

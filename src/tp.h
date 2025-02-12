@@ -52,15 +52,7 @@ typedef struct {
  */
 typedef struct UDSTp {
     /**
-     * @brief Get the transport layer's send buffer
-     * @param hdl: pointer to transport handle
-     * @param buf: double pointer which will be pointed to the send buffer
-     * @return size of transport layer's send buffer on success, -1 on error
-     */
-    ssize_t (*get_send_buf)(struct UDSTp *hdl, uint8_t **p_buf);
-
-    /**
-     * @brief Send the data in the buffer buf
+     * @brief Send data to the transport
      * @param hdl: pointer to transport handle
      * @param buf: a pointer to the data to send (this may be the buffer returned by @ref
      * get_send_buf)
@@ -68,6 +60,15 @@ typedef struct UDSTp {
      * physical addressing
      */
     ssize_t (*send)(struct UDSTp *hdl, uint8_t *buf, size_t len, UDSSDU_t *info);
+
+    /**
+     * @brief Receive data from the transport
+     * @param hdl: transport handle
+     * @param buf: receive buffer
+     * @param bufsize: size of the receive buffer
+     * @param info: pointer to SDU info to be updated by transport implementation. May be NULL. If non-NULL, the transport implementation must populate it with valid values.
+     */
+    ssize_t (*recv)(struct UDSTp *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info);
 
     /**
      * @brief Poll the transport layer.
@@ -95,12 +96,20 @@ typedef struct UDSTp {
      * @note: after ack_recv() is called and before new messages are received, peek must return 0.
      */
     void (*ack_recv)(struct UDSTp *hdl);
+
+    /**
+     * @brief Get the transport layer's send buffer
+     * @param hdl: pointer to transport handle
+     * @param buf: double pointer which will be pointed to the send buffer
+     * @return size of transport layer's send buffer on success, -1 on error
+     */
+    ssize_t (*get_send_buf)(struct UDSTp *hdl, uint8_t **p_buf);
 } UDSTp_t;
 
 ssize_t UDSTpGetSendBuf(UDSTp_t *hdl, uint8_t **buf);
 ssize_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, ssize_t len, UDSSDU_t *info);
+ssize_t UDSTpRecv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info);
 UDSTpStatus_t UDSTpPoll(UDSTp_t *hdl);
 ssize_t UDSTpPeek(struct UDSTp *hdl, uint8_t **buf, UDSSDU_t *info);
 const uint8_t *UDSTpGetRecvBuf(UDSTp_t *hdl, size_t *len);
 size_t UDSTpGetRecvLen(UDSTp_t *hdl);
-void UDSTpAckRecv(UDSTp_t *hdl);

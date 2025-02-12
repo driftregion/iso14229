@@ -158,18 +158,20 @@ int TeardownIsoTpSockClientOnly(void **state) {
 
 void test_send_recv(void **state) {
     Env_t *e = *state;
+    uint8_t buf[2] = {0};
 
     // When some data is sent by one transport
     const uint8_t MSG[] = {0x10, 0x02};
     UDSTpSend(e->client_tp, MSG, sizeof(MSG), NULL);
 
     // it should be received soon by the other transport.
-    EXPECT_WITHIN_MS(e, UDSTpGetRecvLen(e->server_tp) > 0, 10);
-    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(e->server_tp, NULL), MSG, sizeof(MSG));
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->server_tp, buf, sizeof(buf), NULL) > 0, 10);
+    TEST_MEMORY_EQUAL(buf, MSG, sizeof(MSG));
 }
 
 void test_send_recv_functional(void **state) {
     Env_t *e = *state;
+    uint8_t buf[2] = {0};
 
     // When a functional request is sent
     const uint8_t MSG[] = {0x10, 0x02};
@@ -178,12 +180,8 @@ void test_send_recv_functional(void **state) {
 
 
     // the server should receive it quickly
-    EXPECT_WITHIN_MS(e, UDSTpGetRecvLen(e->server_tp) > 0, 10);
-
-    // it should be the same message
-    uint8_t *buf = NULL;
     UDSSDU_t info2 = {0};
-    UDSTpPeek(e->server_tp, &buf, &info2);
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->server_tp, buf, sizeof(buf), &info2) > 0, 10);
     TEST_MEMORY_EQUAL(buf, MSG, sizeof(MSG));
 
     // and the server should know it's a functional request
@@ -192,6 +190,7 @@ void test_send_recv_functional(void **state) {
 
 void test_send_recv_largest_single_frame(void **state) {
     Env_t *e = *state;
+    uint8_t buf[8] = {0};
 
     // When a functional request is sent
     const uint8_t MSG[] = {1, 2, 3, 4, 5, 6, 7};
@@ -199,12 +198,10 @@ void test_send_recv_largest_single_frame(void **state) {
     UDSTpSend(e->client_tp, MSG, sizeof(MSG), &(UDSSDU_t){.A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL});
 
     // the server should receive it quickly
-    EXPECT_WITHIN_MS(e, UDSTpGetRecvLen(e->server_tp) > 0, 10);
+    UDSSDU_t info2 = {0};
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->server_tp, buf, sizeof(buf), &info2) > 0, 10);
 
     // it should be the same message
-    uint8_t *buf = NULL;
-    UDSSDU_t info2 = {0};
-    UDSTpPeek(e->server_tp, &buf, &info2);
     TEST_MEMORY_EQUAL(buf, MSG, sizeof(MSG));
 
     // and the server should know it's a functional request
@@ -225,6 +222,7 @@ void test_send_functional_larger_than_single_frame_fails(void **state){
 
 void test_send_recv_max_len(void **state) {
     Env_t *e = *state;
+    uint8_t buf[4095] = {0};
 
     // When a request is sent with the maximum length
     uint8_t MSG[4095] = {0};
@@ -233,12 +231,9 @@ void test_send_recv_max_len(void **state) {
     UDSTpSend(e->client_tp, MSG, sizeof(MSG), NULL);
 
     // the server should receive it quickly, albeit perhaps with a slight delay on vcan
-    EXPECT_WITHIN_MS(e, UDSTpGetRecvLen(e->server_tp) > 0, 1000);
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->server_tp, buf, sizeof(buf), NULL) > 0, 1000);
 
     // it should be the same message
-    uint8_t *buf = NULL;
-    UDSSDU_t info = {0};
-    UDSTpPeek(e->server_tp, &buf, &info);
     TEST_MEMORY_EQUAL(buf, MSG, sizeof(MSG));
 }
 

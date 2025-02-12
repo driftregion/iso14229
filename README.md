@@ -396,6 +396,7 @@ bazel build //:release
 ## 0.9.0
 - breaking API changes:
     - converted subfunction enums to #defines with standard-consistent naming
+    - simplified transport API
 
 ## 0.8.0
 - breaking API changes:

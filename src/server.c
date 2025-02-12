@@ -116,7 +116,7 @@ static uint8_t safe_copy(UDSServer_t *srv, const void *src, uint16_t count) {
         return UDS_NRC_GeneralReject;
     }
     UDSReq_t *r = (UDSReq_t *)&srv->r;
-    if (count <= r->send_buf_size - r->send_len) {
+    if (count <= sizeof(r->send_buf) - r->send_len) {
         memmove(r->send_buf + r->send_len, src, count);
         r->send_len += count;
         return UDS_PositiveResponse;
@@ -145,7 +145,7 @@ static UDSErr_t Handle_0x22_ReadDataByIdentifier(UDSServer_t *srv, UDSReq_t *r) 
         uint16_t idx = (uint16_t)(1 + did * 2);
         dataId = (uint16_t)((uint16_t)(r->recv_buf[idx] << 8) | (uint16_t)r->recv_buf[idx + 1]);
 
-        if (r->send_len + 3 > r->send_buf_size) {
+        if (r->send_len + 3 > sizeof(r->send_buf)) {
             return NegativeResponse(r, UDS_NRC_ResponseTooLong);
         }
         uint8_t *copylocation = r->send_buf + r->send_len;
@@ -161,7 +161,7 @@ static UDSErr_t Handle_0x22_ReadDataByIdentifier(UDSServer_t *srv, UDSReq_t *r) 
         unsigned send_len_before = r->send_len;
         ret = EmitEvent(srv, UDS_EVT_ReadDataByIdent, &args);
         if (ret == UDS_PositiveResponse && send_len_before == r->send_len) {
-            UDS_LOGI(__FILE__, "ERROR: RDBI response positive but no data sent\n");
+            UDS_LOGE(__FILE__, "RDBI response positive but no data sent\n");
             return NegativeResponse(r, UDS_NRC_GeneralReject);
         }
 
@@ -472,7 +472,7 @@ static UDSErr_t Handle_0x34_RequestDownload(UDSServer_t *srv, UDSReq_t *r) {
     err = EmitEvent(srv, UDS_EVT_RequestDownload, &args);
 
     if (args.maxNumberOfBlockLength < 3) {
-        UDS_LOGI(__FILE__, "ERROR: maxNumberOfBlockLength too short");
+        UDS_LOGE(__FILE__, "maxNumberOfBlockLength too short");
         return NegativeResponse(r, UDS_NRC_GeneralProgrammingFailure);
     }
 
@@ -538,7 +538,7 @@ static UDSErr_t Handle_0x35_RequestUpload(UDSServer_t *srv, UDSReq_t *r) {
     err = EmitEvent(srv, UDS_EVT_RequestUpload, &args);
 
     if (args.maxNumberOfBlockLength < 3) {
-        UDS_LOGI(__FILE__, "ERROR: maxNumberOfBlockLength too short");
+        UDS_LOGE(__FILE__, "maxNumberOfBlockLength too short");
         return NegativeResponse(r, UDS_NRC_GeneralProgrammingFailure);
     }
 
@@ -1002,7 +1002,7 @@ void UDSServerPoll(UDSServer_t *srv) {
             if (ret < 0) {
                 UDSErr_t err = UDS_ERR_TPORT;
                 EmitEvent(srv, UDS_EVT_Err, &err);
-                UDS_LOGI(__FILE__, "UDSTpSend failed with %zd\n", ret);
+                UDS_LOGE(__FILE__, "UDSTpSend failed with %zd\n", ret);
             }
 
             if (srv->RCRRP) {
@@ -1012,7 +1012,6 @@ void UDSServerPoll(UDSServer_t *srv) {
                 srv->p2_timer = UDSMillis() + wait_time;
             } else {
                 srv->p2_timer = UDSMillis() + srv->p2_ms;
-                UDSTpAckRecv(srv->tp);
                 srv->requestInProgress = false;
             }
         }
@@ -1021,26 +1020,20 @@ void UDSServerPoll(UDSServer_t *srv) {
         if (srv->notReadyToReceive) {
             return; // cannot respond to request right now
         }
-        r->recv_len = UDSTpPeek(srv->tp, &r->recv_buf, &r->info);
-        r->send_buf_size = UDSTpGetSendBuf(srv->tp, &r->send_buf);
+        ssize_t len = UDSTpRecv(srv->tp, r->recv_buf, sizeof(r->recv_buf), &r->info);
+        if (len < 0) {
+            UDS_LOGE(__FILE__, "UDSTpRecv failed with %zd\n", r->recv_len);
+            return;
+        }
+
+        r->recv_len = (size_t)len;
+
         if (r->recv_len > 0) {
-            if (r->send_buf == NULL) {
-                UDS_LOGI(__FILE__, "Send buf null\n");
-            }
-            if (r->recv_buf == NULL) {
-                UDS_LOGI(__FILE__, "Recv buf null\n");
-            }
-            if (r->send_buf == NULL || r->recv_buf == NULL) {
-                UDSErr_t err = UDS_ERR_TPORT;
-                EmitEvent(srv, UDS_EVT_Err, &err);
-                UDS_LOGI(__FILE__, "bad tport\n");
-                return;
-            }
             UDSErr_t response = evaluateServiceResponse(srv, r);
             srv->requestInProgress = true;
             if (UDS_NRC_RequestCorrectlyReceived_ResponsePending == response) {
                 srv->RCRRP = true;
             }
-        }
+        } 
     }
 }

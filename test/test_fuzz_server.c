@@ -57,9 +57,8 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
     for (int i = 0; i < 1000; i++) {
         UDSServerPoll(&srv);
-        if(UDSTpGetRecvLen(mock_client)) {
-            UDSTpAckRecv(mock_client);
-        }
+        ssize_t ret = UDSTpRecv(mock_client, client_recv_buf, sizeof(client_recv_buf), NULL);
+        (void)ret;
         g_ms++;
     }
     return 0;

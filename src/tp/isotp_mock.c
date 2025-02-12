@@ -1,6 +1,6 @@
 #if defined(UDS_TP_ISOTP_MOCK)
 
-#include "tp/mock.h"
+#include "tp/isotp_mock.h"
 #include "iso14229.h"
 #include <assert.h>
 #include <stddef.h>
@@ -37,7 +37,7 @@ static void NetworkPoll(void) {
                     }
 
                     UDS_LOGD(__FILE__,
-                             "%s receives %d bytes from TA=0x%03X (A_TA_Type=%s):", tp->name,
+                             "%s receives %ld bytes from TA=0x%03X (A_TA_Type=%s):", tp->name,
                              msgs[i].len, msgs[i].info.A_TA,
                              msgs[i].info.A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "PHYSICAL"
                                                                               : "FUNCTIONAL");
@@ -95,7 +95,7 @@ static ssize_t mock_tp_send(struct UDSTp *hdl, uint8_t *buf, size_t len, UDSSDU_
         // Technically CAN-FD may also be used in ISO-TP.
         // TODO: add profiles to isotp_mock
         if (len > 7) {
-            UDS_LOGW(__FILE__, "mock_tp_send: functional message too long: %d", len);
+            UDS_LOGW(__FILE__, "mock_tp_send: functional message too long: %ld", len);
             return -1;
         }
         m->info.A_TA = tp->ta_func;
@@ -108,10 +108,29 @@ static ssize_t mock_tp_send(struct UDSTp *hdl, uint8_t *buf, size_t len, UDSSDU_
     m->scheduled_tx_time = UDSMillis() + tp->send_tx_delay_ms;
     memmove(m->buf, buf, len);
 
-    UDS_LOGD(__FILE__, "%s sends %d bytes to TA=0x%03X (A_TA_Type=%s):", tp->name, len,
+    UDS_LOGD(__FILE__, "%s sends %ld bytes to TA=0x%03X (A_TA_Type=%s):", tp->name, len,
              m->info.A_TA, m->info.A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "PHYSICAL" : "FUNCTIONAL");
     UDS_LOG_SDU(__FILE__, buf, len, &m->info);
 
+    return len;
+}
+
+static ssize_t mock_tp_recv(struct UDSTp *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
+    assert(hdl);
+    ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
+    if (tp->recv_len == 0) {
+        return 0;
+    }
+    if (bufsize < tp->recv_len) {
+        UDS_LOGW(__FILE__, "mock_tp_recv: buffer too small: %ld < %ld", bufsize, tp->recv_len);
+        return -1;
+    }
+    int len = tp->recv_len;
+    memmove(buf, tp->recv_buf, tp->recv_len);
+    if (info) {
+        *info = tp->recv_info;
+    }
+    tp->recv_len = 0;
     return len;
 }
 
@@ -144,6 +163,7 @@ static void ISOTPMockAttach(ISOTPMock_t *tp, ISOTPMockArgs_t *args) {
     TPs[TPCount++] = tp;
     tp->hdl.peek = mock_tp_peek;
     tp->hdl.send = mock_tp_send;
+    tp->hdl.recv = mock_tp_recv;
     tp->hdl.poll = mock_tp_poll;
     tp->hdl.get_send_buf = mock_tp_get_send_buf;
     tp->hdl.ack_recv = mock_tp_ack_recv;

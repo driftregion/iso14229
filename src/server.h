@@ -3,13 +3,14 @@
 #include "sys.h"
 #include "tp.h"
 #include "uds.h"
+#include "config.h"
 
 /**
  * @brief Server request context
  */
 typedef struct {
-    uint8_t *recv_buf;
-    uint8_t *send_buf;
+    uint8_t recv_buf[UDS_SERVER_RECV_BUF_SIZE];
+    uint8_t send_buf[UDS_SERVER_SEND_BUF_SIZE];
     size_t recv_len;
     size_t send_len;
     size_t send_buf_size;

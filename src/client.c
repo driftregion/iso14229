@@ -121,9 +121,8 @@ static UDSErr_t HandleServerResponse(UDSClient_t *client) {
         if (UDS_NRC_RequestCorrectlyReceived_ResponsePending == client->recv_buf[2]) {
             client->p2_timer = UDSMillis() + client->p2_star_ms;
             UDS_LOGI(__FILE__, "got RCRRP, set p2 timer to %u", client->p2_timer);
-            memset(client->recv_buf, 0, client->recv_buf_size);
+            memset(client->recv_buf, 0, sizeof(client->recv_buf));
             client->recv_size = 0;
-            UDSTpAckRecv(client->tp);
             changeState(client, STATE_AWAIT_RESPONSE);
             return UDS_NRC_RequestCorrectlyReceived_ResponsePending;
         } else {
@@ -136,13 +135,11 @@ static UDSErr_t HandleServerResponse(UDSClient_t *client) {
             if (client->recv_size < UDS_0X10_RESP_LEN) {
                 UDS_LOGI(__FILE__, "Error: SID %x response too short",
                          kSID_DIAGNOSTIC_SESSION_CONTROL);
-                UDSTpAckRecv(client->tp);
                 changeState(client, STATE_IDLE);
                 return UDS_ERR_RESP_TOO_SHORT;
             }
 
             if (client->_options_copy & UDS_IGNORE_SRV_TIMINGS) {
-                UDSTpAckRecv(client->tp);
                 changeState(client, STATE_IDLE);
                 return UDS_OK;
             }
@@ -159,7 +156,6 @@ static UDSErr_t HandleServerResponse(UDSClient_t *client) {
             break;
         }
     }
-    UDSTpAckRecv(client->tp);
     return UDS_OK;
 }
 
@@ -223,23 +219,16 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
     }
     case STATE_AWAIT_RESPONSE: {
         UDSSDU_t info = {0};
-        ssize_t len = UDSTpPeek(client->tp, &client->recv_buf, &info);
 
-        if (UDS_A_TA_TYPE_FUNCTIONAL == info.A_TA_Type) {
-            UDSTpAckRecv(client->tp);
-            break;
-        }
+        ssize_t len = UDSTpRecv(client->tp, client->recv_buf, sizeof(client->recv_buf), &info);
         if (len < 0) {
             err = UDS_ERR_TPORT;
             changeState(client, STATE_IDLE);
-            break;
-        }
-        if (0 == len) {
+        } else if (0 == len) {
             if (UDSTimeAfter(UDSMillis(), client->p2_timer)) {
                 UDS_LOGI(__FILE__, "p2 timeout");
                 err = UDS_ERR_TIMEOUT;
                 changeState(client, STATE_IDLE);
-                break;
             }
         } else {
             UDS_LOGI(__FILE__, "received %zd bytes. Processing...", len);
@@ -256,7 +245,6 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
                 changeState(client, STATE_IDLE);
             }
 
-            UDSTpAckRecv(client->tp);
         }
         break;
     }
@@ -295,12 +283,6 @@ static UDSErr_t PreRequestCheck(UDSClient_t *client) {
     if (client->tp == NULL) {
         return UDS_ERR_TPORT;
     }
-    ssize_t ret = UDSTpGetSendBuf(client->tp, &client->send_buf);
-    if (ret < 0) {
-        return UDS_ERR_TPORT;
-    }
-    UDS_ASSERT(ret <= (ssize_t)UINT16_MAX);
-    client->send_buf_size = (uint16_t)ret;
     return UDS_OK;
 }
 
@@ -309,7 +291,7 @@ UDSErr_t UDSSendBytes(UDSClient_t *client, const uint8_t *data, uint16_t size) {
     if (err) {
         return err;
     }
-    if (size > client->send_buf_size) {
+    if (size > sizeof(client->send_buf)) {
         return UDS_ERR_BUFSIZ;
     }
     memmove(client->send_buf, data, size);
@@ -375,7 +357,7 @@ UDSErr_t UDSSendRDBI(UDSClient_t *client, const uint16_t *didList,
     client->send_buf[0] = kSID_READ_DATA_BY_IDENTIFIER;
     for (int i = 0; i < numDataIdentifiers; i++) {
         uint16_t offset = (uint16_t)(1 + DID_LEN_BYTES * i);
-        if (offset + 2 > client->send_buf_size) {
+        if (offset + 2 > sizeof(client->send_buf)) {
             return UDS_ERR_INVALID_ARG;
         }
         (client->send_buf + offset)[0] = (didList[i] & 0xFF00) >> 8;
@@ -395,7 +377,7 @@ UDSErr_t UDSSendWDBI(UDSClient_t *client, uint16_t dataIdentifier, const uint8_t
         return UDS_ERR_INVALID_ARG;
     }
     client->send_buf[0] = kSID_WRITE_DATA_BY_IDENTIFIER;
-    if (client->send_buf_size <= 3 || size > client->send_buf_size - 3) {
+    if (sizeof(client->send_buf) <= 3 || size > sizeof(client->send_buf) - 3) {
         return UDS_ERR_BUFSIZ;
     }
     client->send_buf[1] = (dataIdentifier & 0xFF00) >> 8;
@@ -430,7 +412,7 @@ UDSErr_t UDSSendRoutineCtrl(UDSClient_t *client, uint8_t type, uint16_t routineI
         if (NULL == data) {
             return UDS_ERR_INVALID_ARG;
         }
-        if (size > client->send_buf_size - UDS_0X31_REQ_MIN_LEN) {
+        if (size > sizeof(client->send_buf) - UDS_0X31_REQ_MIN_LEN) {
             return UDS_ERR_BUFSIZ;
         }
         memmove(&client->send_buf[UDS_0X31_REQ_MIN_LEN], data, size);
@@ -616,7 +598,7 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, uint8_t mode, const cha
     if ((mode == UDS_MOOP_ADDFILE) || (mode == UDS_MOOP_REPLFILE) || (mode == UDS_MOOP_RDFILE)) {
         bufSize += 1;
     }
-    if (client->send_buf_size < bufSize)
+    if (sizeof(client->send_buf) < bufSize)
         return UDS_ERR_BUFSIZ;
 
     client->send_buf[0] = kSID_REQUEST_FILE_TRANSFER;
@@ -679,7 +661,7 @@ UDSErr_t UDSCtrlDTCSetting(UDSClient_t *client, uint8_t dtcSettingType, uint8_t 
         if (size == 0) {
             UDS_LOGI(__FILE__, "warning: size == 0 and data is non-null");
         }
-        if (size > client->send_buf_size - 2) {
+        if (size > sizeof(client->send_buf) - 2) {
             return UDS_ERR_BUFSIZ;
         }
         memmove(&client->send_buf[2], data, size);
@@ -712,7 +694,7 @@ UDSErr_t UDSSendSecurityAccess(UDSClient_t *client, uint8_t level, uint8_t *data
     if (NULL == data) {
         return UDS_ERR_INVALID_ARG;
     }
-    if (size > client->send_buf_size - UDS_0X27_REQ_BASE_LEN) {
+    if (size > sizeof(client->send_buf) - UDS_0X27_REQ_BASE_LEN) {
         return UDS_ERR_BUFSIZ;
     }
     if (size == 0 && NULL != data) {

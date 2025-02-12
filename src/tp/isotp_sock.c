@@ -2,6 +2,7 @@
 
 #include "tp/isotp_sock.h"
 #include "uds.h"
+#include "log.h"
 #include <string.h>
 #include <errno.h>
 #include <linux/can.h>
@@ -105,7 +106,7 @@ static ssize_t isotp_sock_tp_peek(UDSTp_t *hdl, uint8_t **p_buf, UDSSDU_t *info)
     }
 
     if (ret > 0) {
-        UDS_LOGD(__FILE__, "'%s' received %d bytes from 0x%03x (%s), ", impl->tag, ret, msg->A_TA,
+        UDS_LOGD(__FILE__, "'%s' received %ld bytes from 0x%03x (%s), ", impl->tag, ret, msg->A_TA,
                  msg->A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
         UDS_LOG_SDU(__FILE__, impl->recv_buf, ret, msg);
     }
@@ -117,6 +118,40 @@ done:
             *info = *msg;
         }
     }
+    return ret;
+}
+
+static ssize_t isotp_sock_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
+    UDS_ASSERT(hdl);
+    UDS_ASSERT(buf);
+    ssize_t ret = 0;
+    UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
+    UDSSDU_t *msg = &impl->recv_info;
+
+    ret = tp_recv_once(impl->phys_fd, buf, bufsize);
+    if (ret > 0) {
+        msg->A_TA = impl->phys_sa;
+        msg->A_SA = impl->phys_ta;
+        msg->A_TA_Type = UDS_A_TA_TYPE_PHYSICAL;
+    } else {
+        ret = tp_recv_once(impl->func_fd, buf, bufsize);
+        if (ret > 0) {
+            msg->A_TA = impl->func_sa;
+            msg->A_SA = impl->func_ta;
+            msg->A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL;
+        }
+    }
+
+    if (ret > 0) {
+        if (info) {
+            *info = *msg;
+        }
+
+        UDS_LOGD(__FILE__, "'%s' received %ld bytes from 0x%03x (%s), ", impl->tag, ret, msg->A_TA,
+                 msg->A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
+        UDS_LOG_SDU(__FILE__, impl->recv_buf, ret, msg);
+    }
+
     return ret;
 }
 
@@ -151,7 +186,7 @@ static ssize_t isotp_sock_tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len, UDSSDU
     }
 done:
     int ta = ta_type == UDS_A_TA_TYPE_PHYSICAL ? impl->phys_ta : impl->func_ta;
-    UDS_LOGD(__FILE__, "'%s' sends %d bytes to 0x%03x (%s)", impl->tag, len, ta,
+    UDS_LOGD(__FILE__, "'%s' sends %ld bytes to 0x%03x (%s)", impl->tag, len, ta,
              ta_type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
     UDS_LOG_SDU(__FILE__, buf, len, info);
 
@@ -221,6 +256,7 @@ UDSErr_t UDSTpIsoTpSockInitServer(UDSTpIsoTpSock_t *tp, const char *ifname, uint
     memset(tp, 0, sizeof(*tp));
     tp->hdl.peek = isotp_sock_tp_peek;
     tp->hdl.send = isotp_sock_tp_send;
+    tp->hdl.recv = isotp_sock_tp_recv;
     tp->hdl.poll = isotp_sock_tp_poll;
     tp->hdl.ack_recv = isotp_sock_tp_ack_recv;
     tp->hdl.get_send_buf = isotp_sock_tp_get_send_buf;
@@ -249,6 +285,7 @@ UDSErr_t UDSTpIsoTpSockInitClient(UDSTpIsoTpSock_t *tp, const char *ifname, uint
     memset(tp, 0, sizeof(*tp));
     tp->hdl.peek = isotp_sock_tp_peek;
     tp->hdl.send = isotp_sock_tp_send;
+    tp->hdl.recv = isotp_sock_tp_recv;
     tp->hdl.poll = isotp_sock_tp_poll;
     tp->hdl.ack_recv = isotp_sock_tp_ack_recv;
     tp->hdl.get_send_buf = isotp_sock_tp_get_send_buf;

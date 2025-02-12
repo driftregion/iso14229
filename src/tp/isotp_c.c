@@ -1,6 +1,7 @@
 #if defined(UDS_TP_ISOTP_C)
 
 #include "util.h"
+#include "log.h"
 #include "tp/isotp_c.h"
 #include "tp/isotp-c/isotp.h"
 
@@ -125,6 +126,40 @@ done:
     return ret;
 }
 
+static ssize_t tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
+    UDS_ASSERT(hdl);
+    UDS_ASSERT(buf);
+    uint16_t out_size = 0;
+    UDSISOTpC_t *tp = (UDSISOTpC_t *)hdl;
+
+    int ret = isotp_receive(&tp->phys_link, buf, bufsize, &out_size);
+    if (ret == ISOTP_RET_OK) {
+        UDS_LOGI(__FILE__, "just got %d bytes\n", out_size);
+        if (NULL != info) {
+            info->A_TA = tp->phys_sa;
+            info->A_SA = tp->phys_ta;
+            info->A_TA_Type = UDS_A_TA_TYPE_PHYSICAL;
+        }
+    } else if (ret == ISOTP_RET_NO_DATA) {
+        ret = isotp_receive(&tp->func_link, buf, bufsize, &out_size);
+        if (ret == ISOTP_RET_OK) {
+            UDS_LOGI(__FILE__, "just got %d bytes on func link\n", out_size);
+            if (NULL != info) {
+                info->A_TA = tp->func_sa;
+                info->A_SA = tp->func_ta;
+                info->A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL;
+            }
+        } else if (ret == ISOTP_RET_NO_DATA) {
+            return 0;
+        } else {
+            UDS_LOGE(__FILE__, "unhandled return code from func link %d\n", ret);
+        }
+    } else {
+        UDS_LOGE(__FILE__, "unhandled return code from phys link %d\n", ret);
+    }
+    return out_size;
+}
+
 static void tp_ack_recv(UDSTp_t *hdl) {
     UDS_LOGI(__FILE__, "ack recv\n");
     UDS_ASSERT(hdl);
@@ -146,6 +181,7 @@ UDSErr_t UDSISOTpCInit(UDSISOTpC_t *tp, const UDSISOTpCConfig_t *cfg) {
     }
     tp->hdl.poll = tp_poll;
     tp->hdl.send = tp_send;
+    tp->hdl.recv = tp_recv;
     tp->hdl.peek = tp_peek;
     tp->hdl.ack_recv = tp_ack_recv;
     tp->hdl.get_send_buf = tp_get_send_buf;

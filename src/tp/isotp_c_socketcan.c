@@ -46,6 +46,9 @@ void isotp_user_debug(const char *message, ...) {
     va_end(args);
 }
 
+#ifndef ISO_TP_USER_SEND_CAN_ARG
+#error "ISO_TP_USER_SEND_CAN_ARG must be defined"
+#endif
 int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t *data, const uint8_t size,
                         void *user_data) {
     fflush(stdout);
@@ -221,10 +224,44 @@ static ssize_t isotp_c_socketcan_tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len,
         goto done;
     }
 done:
-    UDS_LOGD(__FILE__, "'%s' sends %d bytes to 0x%03x (%s)", tp->tag, len, ta,
+    UDS_LOGD(__FILE__, "'%s' sends %ld bytes to 0x%03x (%s)", tp->tag, len, ta,
              ta_type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
     UDS_LOG_SDU(__FILE__, buf, len, info);
     return ret;
+}
+
+static ssize_t isotp_c_socketcan_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
+    UDS_ASSERT(hdl);
+    UDS_ASSERT(buf);
+    uint16_t out_size = 0;
+    UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
+
+    int ret = isotp_receive(&tp->phys_link, buf, bufsize, &out_size);
+    if (ret == ISOTP_RET_OK) {
+        UDS_LOGI(__FILE__, "just got %d bytes\n", out_size);
+        if (NULL != info) {
+            info->A_TA = tp->phys_sa;
+            info->A_SA = tp->phys_ta;
+            info->A_TA_Type = UDS_A_TA_TYPE_PHYSICAL;
+        }
+    } else if (ret == ISOTP_RET_NO_DATA) {
+        ret = isotp_receive(&tp->func_link, buf, bufsize, &out_size);
+        if (ret == ISOTP_RET_OK) {
+            UDS_LOGI(__FILE__, "just got %d bytes on func link\n", out_size);
+            if (NULL != info) {
+                info->A_TA = tp->func_sa;
+                info->A_SA = tp->func_ta;
+                info->A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL;
+            }
+        } else if (ret == ISOTP_RET_NO_DATA) {
+            return 0;
+        } else {
+            UDS_LOGE(__FILE__, "unhandled return code from func link %d\n", ret);
+        }
+    } else {
+        UDS_LOGE(__FILE__, "unhandled return code from phys link %d\n", ret);
+    }
+    return out_size;
 }
 
 static void isotp_c_socketcan_tp_ack_recv(UDSTp_t *hdl) {
@@ -249,6 +286,7 @@ UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, const char *ifname, uint32_t source_
     UDS_ASSERT(ifname);
     tp->hdl.poll = isotp_c_socketcan_tp_poll;
     tp->hdl.send = isotp_c_socketcan_tp_send;
+    tp->hdl.recv = isotp_c_socketcan_tp_recv;
     tp->hdl.peek = isotp_c_socketcan_tp_peek;
     tp->hdl.ack_recv = isotp_c_socketcan_tp_ack_recv;
     tp->hdl.get_send_buf = isotp_c_socketcan_tp_get_send_buf;
