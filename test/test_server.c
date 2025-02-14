@@ -102,6 +102,7 @@ int fn_test_0x10_diagnostic_session_control(UDSServer_t *srv, UDSEvent_t ev, voi
 void test_0x10_suppress_pos_resp(void **state) {
     Env_t *e = *state;
     e->server->fn = fn_test_0x10_diagnostic_session_control;
+    uint8_t buf[8] = {0};
 
     // When a diagnostic session control request is sent to the server with the suppressPositiveResponse bit set
     const uint8_t REQ[] = {
@@ -114,7 +115,8 @@ void test_0x10_suppress_pos_resp(void **state) {
     EnvRunMillis(e, 10000);
 
     // there should be no response from the server
-    TEST_INT_EQUAL(UDSTpGetRecvLen(e->client_tp), 0);
+    int len = UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL);
+    TEST_INT_EQUAL(len, 0);
 
     // however, the server sessionType should have changed
     TEST_INT_EQUAL(e->server->sessionType, UDS_LEV_DS_EXTDS);
@@ -153,7 +155,7 @@ void test_0x11_no_send_after_ECU_reset(void **state) {
 
     const unsigned LONG_TIME_MS = 5000;
     UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
-    EXPECT_WHILE_MS(e, UDSTpGetRecvLen(e->client_tp) == 0, LONG_TIME_MS);
+    EXPECT_WHILE_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) == 0, LONG_TIME_MS);
 
     // Additionally the ECU reset handler should have been called exactly once.
     TEST_INT_EQUAL(call_count, 1);
@@ -599,6 +601,7 @@ int fn_test_0x3e_suppress_positive_response(UDSServer_t *srv, UDSEvent_t ev, voi
 
 void test_0x3e_suppress_positive_response(void **state) {
     Env_t *e = *state;
+    uint8_t buf[8] = {0};
     e->server->fn = fn_test_0x3e_suppress_positive_response;
 
     // When the suppressPositiveResponse bit is set
@@ -607,7 +610,7 @@ void test_0x3e_suppress_positive_response(void **state) {
 
     // there should be no response even after running for a long time
     EnvRunMillis(e, 10000);
-    TEST_INT_EQUAL(UDSTpGetRecvLen(e->client_tp), 0);
+    TEST_INT_EQUAL(UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL), 0);
 }
 
 int main(int ac, char **av) {

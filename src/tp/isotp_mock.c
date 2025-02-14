@@ -62,19 +62,6 @@ static void NetworkPoll(void) {
     }
 }
 
-static ssize_t mock_tp_peek(struct UDSTp *hdl, uint8_t **p_buf, UDSSDU_t *info) {
-    assert(hdl);
-    assert(p_buf);
-    ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
-    if (p_buf) {
-        *p_buf = tp->recv_buf;
-    }
-    if (info) {
-        *info = tp->recv_info;
-    }
-    return tp->recv_len;
-}
-
 static ssize_t mock_tp_send(struct UDSTp *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
     assert(hdl);
     ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
@@ -140,20 +127,6 @@ static UDSTpStatus_t mock_tp_poll(struct UDSTp *hdl) {
     return UDS_TP_IDLE;
 }
 
-static ssize_t mock_tp_get_send_buf(struct UDSTp *hdl, uint8_t **p_buf) {
-    assert(hdl);
-    assert(p_buf);
-    ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
-    *p_buf = tp->send_buf;
-    return sizeof(tp->send_buf);
-}
-
-static void mock_tp_ack_recv(struct UDSTp *hdl) {
-    assert(hdl);
-    ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
-    tp->recv_len = 0;
-}
-
 static_assert(offsetof(ISOTPMock_t, hdl) == 0, "ISOTPMock_t must not have any members before hdl");
 
 static void ISOTPMockAttach(ISOTPMock_t *tp, ISOTPMockArgs_t *args) {
@@ -161,12 +134,9 @@ static void ISOTPMockAttach(ISOTPMock_t *tp, ISOTPMockArgs_t *args) {
     assert(args);
     assert(TPCount < MAX_NUM_TP);
     TPs[TPCount++] = tp;
-    tp->hdl.peek = mock_tp_peek;
     tp->hdl.send = mock_tp_send;
     tp->hdl.recv = mock_tp_recv;
     tp->hdl.poll = mock_tp_poll;
-    tp->hdl.get_send_buf = mock_tp_get_send_buf;
-    tp->hdl.ack_recv = mock_tp_ack_recv;
     tp->sa_func = args->sa_func;
     tp->sa_phys = args->sa_phys;
     tp->ta_func = args->ta_func;
