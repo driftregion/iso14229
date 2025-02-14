@@ -45,6 +45,7 @@ jobs:
     - name: build
       run: |
         arduino-cli core install arduino:samd
+        arduino-cli lib install CAN
         arduino-cli -b arduino:samd:mkrwifi1010 compile examples/arduino_server/main 
 
 
