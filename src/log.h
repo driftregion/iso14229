@@ -95,11 +95,11 @@ typedef enum {
         }                                                                                          \
     } while (0)
 
-
 #if defined(__GNUC__) || defined(__clang__)
-  #define UDS_PRINTF_FORMAT(fmt_index, first_arg) __attribute__((format(printf, fmt_index, first_arg)))
+#define UDS_PRINTF_FORMAT(fmt_index, first_arg)                                                    \
+    __attribute__((format(printf, fmt_index, first_arg)))
 #else
-  #define UDS_PRINTF_FORMAT(fmt_index, first_arg)
+#define UDS_PRINTF_FORMAT(fmt_index, first_arg)
 #endif
 
 void UDS_LogWrite(UDS_LogLevel_t level, const char *tag, const char *format, ...)

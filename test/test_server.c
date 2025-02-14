@@ -1,4 +1,5 @@
 #include "test/env.h"
+#include <stdint.h>
 
 int Setup(void **state) {
     Env_t *env = malloc(sizeof(Env_t));
@@ -68,6 +69,7 @@ void test_programming_session_times_out(void **state) {
 
 void test_0x10_no_fn_results_in_negative_resp(void **state) {
     Env_t *e = *state;
+    uint8_t buf[8] = {0};
 
     // When a diagnostic session control request is sent to the server
     const uint8_t REQ[] = {0x10, 0x02};
@@ -75,12 +77,13 @@ void test_0x10_no_fn_results_in_negative_resp(void **state) {
 
     // the server should respond with a negative response within p2 ms
     const uint8_t EXP_RESP[] = {0x7f, 0x10, 0x11};
-    EXPECT_WITHIN_MS(e, UDSTpGetRecvLen(e->client_tp) > 0, UDS_CLIENT_DEFAULT_P2_MS);
-    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(e->client_tp, NULL), EXP_RESP, sizeof(EXP_RESP));
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXP_RESP, sizeof(EXP_RESP));
 }
 
 void test_0x10_no_fn_results_in_negative_resp_functional(void **state) {
     Env_t *e = *state;
+    uint8_t buf[8] = {0};
 
     // When a diagnostic session control request is sent to the server in functional mode
     const uint8_t REQ[] = {0x10, 0x02};
@@ -88,8 +91,8 @@ void test_0x10_no_fn_results_in_negative_resp_functional(void **state) {
 
     // the server should respond with a negative response within p2 ms
     const uint8_t EXP_RESP[] = {0x7f, 0x10, 0x11};
-    EXPECT_WITHIN_MS(e, (UDSTpGetRecvLen(e->client_tp) > 0), UDS_CLIENT_DEFAULT_P2_MS);
-    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(e->client_tp, NULL), EXP_RESP, sizeof(EXP_RESP));
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXP_RESP, sizeof(EXP_RESP));
 }
 
 int fn_test_0x10_diagnostic_session_control(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
@@ -99,6 +102,7 @@ int fn_test_0x10_diagnostic_session_control(UDSServer_t *srv, UDSEvent_t ev, voi
 void test_0x10_suppress_pos_resp(void **state) {
     Env_t *e = *state;
     e->server->fn = fn_test_0x10_diagnostic_session_control;
+    uint8_t buf[8] = {0};
 
     // When a diagnostic session control request is sent to the server with the suppressPositiveResponse bit set
     const uint8_t REQ[] = {
@@ -111,7 +115,8 @@ void test_0x10_suppress_pos_resp(void **state) {
     EnvRunMillis(e, 10000);
 
     // there should be no response from the server
-    TEST_INT_EQUAL(UDSTpGetRecvLen(e->client_tp), 0);
+    int len = UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL);
+    TEST_INT_EQUAL(len, 0);
 
     // however, the server sessionType should have changed
     TEST_INT_EQUAL(e->server->sessionType, UDS_LEV_DS_EXTDS);
@@ -133,6 +138,7 @@ int fn_test_0x11_no_send_recv_after_ECU_reset(UDSServer_t *srv, UDSEvent_t ev, v
 void test_0x11_no_send_after_ECU_reset(void **state) {
     Env_t *e = *state;
     int call_count = 0;
+    uint8_t buf[8] = {0};
 
     // When a server handler function is installed
     e->server->fn = fn_test_0x11_no_send_recv_after_ECU_reset;
@@ -144,14 +150,12 @@ void test_0x11_no_send_after_ECU_reset(void **state) {
 
     // the server should respond with a positive response within p2 ms
     const uint8_t RESP[] = {0x51, 0x01};
-    EXPECT_WITHIN_MS(e, UDSTpGetRecvLen(e->client_tp) > 0, UDS_CLIENT_DEFAULT_P2_MS);
-    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(e->client_tp, NULL), RESP, sizeof(RESP));
-    UDSTpAckRecv(e->client_tp);
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, RESP, sizeof(RESP));
 
-    // and subsequent ECU reset requests should never receive any response
     const unsigned LONG_TIME_MS = 5000;
     UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
-    EXPECT_WHILE_MS(e, UDSTpGetRecvLen(e->client_tp) == 0, LONG_TIME_MS);
+    EXPECT_WHILE_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) == 0, LONG_TIME_MS);
 
     // Additionally the ECU reset handler should have been called exactly once.
     TEST_INT_EQUAL(call_count, 1);
@@ -183,6 +187,7 @@ int fn_test_0x22(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
 // 11.2.5.2 Example #1 read single dataIdentifier 0xF190
 void test_0x22(void **state) {
     Env_t *e = *state;
+    uint8_t buf[32] = {0};
 
     // When a server handler function is installed
     e->server->fn = fn_test_0x22;
@@ -194,12 +199,14 @@ void test_0x22(void **state) {
     // the server should respond with the correct data
     const uint8_t RESP[] = {0x62, 0xF1, 0x90, 0x57, 0x30, 0x4C, 0x30, 0x30, 0x30, 0x30,
                             0x34, 0x33, 0x4D, 0x42, 0x35, 0x34, 0x31, 0x33, 0x32, 0x36};
-    EXPECT_WITHIN_MS(e, UDSTpGetRecvLen(e->client_tp) == sizeof(RESP), UDS_CLIENT_DEFAULT_P2_MS);
-    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(e->client_tp, NULL), RESP, sizeof(RESP));
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) == sizeof(RESP),
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, RESP, sizeof(RESP));
 }
 
 void test_0x22_nonexistent(void **state) {
     Env_t *e = *state;
+    uint8_t buf[8] = {0};
 
     // When a server handler function is installed
     e->server->fn = fn_test_0x22;
@@ -210,8 +217,9 @@ void test_0x22_nonexistent(void **state) {
 
     // the server should respond with a negative response
     const uint8_t RESP[] = {0x7F, 0x22, 0x31};
-    EXPECT_WITHIN_MS(e, UDSTpGetRecvLen(e->client_tp) == sizeof(RESP), UDS_CLIENT_DEFAULT_P2_MS);
-    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(e->client_tp, NULL), RESP, sizeof(RESP));
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) == sizeof(RESP),
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, RESP, sizeof(RESP));
 }
 
 int fn_test_0x22_misuse(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
@@ -220,6 +228,7 @@ int fn_test_0x22_misuse(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
 
 void test_0x22_misuse(void **state) {
     Env_t *e = *state;
+    uint8_t buf[8] = {0};
 
     // When a server handler function is installed that does not handle the UDS_EVT_ReadDataByIdent event
     e->server->fn = fn_test_0x22_misuse;
@@ -230,8 +239,8 @@ void test_0x22_misuse(void **state) {
 
     // the server should respond with a negative response
     const uint8_t RESP[] = {0x7F, 0x22, 0x10};
-    EXPECT_WITHIN_MS(e, UDSTpGetRecvLen(e->client_tp) == sizeof(RESP), UDS_CLIENT_DEFAULT_P2_MS);
-    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(e->client_tp, NULL), RESP, sizeof(RESP));
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) == sizeof(RESP), UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, RESP, sizeof(RESP));
 }
 
 
@@ -245,6 +254,7 @@ int fn_test_0x23(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
 
 void test_0x23(void **state) {
     Env_t *e = *state;
+    uint8_t buf[512] = {0};
 
     uint8_t FakeData[259];
     for (int i = 0; i < sizeof(FakeData); i++) {
@@ -274,8 +284,8 @@ void test_0x23(void **state) {
     UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
 
     // the client transport should receive a positive response within client_p2 ms
-    EXPECT_WITHIN_MS(e, UDSTpGetRecvLen(e->client_tp) > 0, UDS_CLIENT_DEFAULT_P2_MS);
-    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(e->client_tp, NULL), EXPECTED_RESP, sizeof(EXPECTED_RESP));
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
 void test_0x27_level_is_zero_at_init(void **state) {
@@ -311,6 +321,7 @@ int fn_test_0x27_security_access(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
 // 0x27 SecurityAccess Happy Path
 void test_0x27_unlock(void **state) {
     Env_t *e = *state;
+    uint8_t buf[8] = {0};
 
     // When a server handler function is installed
     e->server->fn = fn_test_0x27_security_access;
@@ -324,9 +335,8 @@ void test_0x27_unlock(void **state) {
 
     // the server should respond with a seed within p2 ms
     const uint8_t SEED_RESPONSE[] = {0x67, 0x01, 0x36, 0x57};
-    EXPECT_WITHIN_MS(e, UDSTpGetRecvLen(e->client_tp) > 0, UDS_CLIENT_DEFAULT_P2_MS);
-    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(e->client_tp, NULL), SEED_RESPONSE, sizeof(SEED_RESPONSE));
-    UDSTpAckRecv(e->client_tp);
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, SEED_RESPONSE, sizeof(SEED_RESPONSE));
 
     // and the server security level should still be 0
     TEST_INT_EQUAL(e->server->securityLevel, 0);
@@ -337,9 +347,8 @@ void test_0x27_unlock(void **state) {
 
     // the server should respond with a positive response within p2 ms
     const uint8_t UNLOCK_RESPONSE[] = {0x67, 0x02};
-    EXPECT_WITHIN_MS(e, UDSTpGetRecvLen(e->client_tp) > 0, UDS_CLIENT_DEFAULT_P2_MS);
-    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(e->client_tp, NULL), UNLOCK_RESPONSE, sizeof(UNLOCK_RESPONSE));
-    UDSTpAckRecv(e->client_tp);
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, UNLOCK_RESPONSE, sizeof(UNLOCK_RESPONSE));
 
     // and the server security level should now be 1
     TEST_INT_EQUAL(e->server->securityLevel, 1);
@@ -349,8 +358,8 @@ void test_0x27_unlock(void **state) {
 
     // the server should now respond with a "already unlocked" response
     const uint8_t ALREADY_UNLOCKED_RESPONSE[] = {0x67, 0x01, 0x00, 0x00};
-    EXPECT_WITHIN_MS(e, UDSTpGetRecvLen(e->client_tp) > 0, UDS_CLIENT_DEFAULT_P2_MS);
-    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(e->client_tp, NULL), ALREADY_UNLOCKED_RESPONSE, sizeof(ALREADY_UNLOCKED_RESPONSE));
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, ALREADY_UNLOCKED_RESPONSE, sizeof(ALREADY_UNLOCKED_RESPONSE));
 
     // And the server security level should still be 1
     TEST_INT_EQUAL(e->server->securityLevel, 1);
@@ -358,6 +367,7 @@ void test_0x27_unlock(void **state) {
 
 void test_0x27_brute_force_prevention_1(void **state) {
     Env_t *e = *state;
+    uint8_t buf[8] = {0};
 
     // When a server handler function is installed and the anti-brute-force timeout has not expired
     e->server->fn = fn_test_0x27_security_access;
@@ -368,8 +378,8 @@ void test_0x27_brute_force_prevention_1(void **state) {
 
     // should get this response
     const uint8_t NEG_RESPONSE[] = {0x7F, 0x27, 0x37};
-    EXPECT_WITHIN_MS(e, UDSTpGetRecvLen(e->client_tp) > 0, UDS_CLIENT_DEFAULT_P2_MS);
-    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(e->client_tp, NULL), NEG_RESPONSE, sizeof(NEG_RESPONSE));
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, NEG_RESPONSE, sizeof(NEG_RESPONSE));
     
     // the server security level should still be 0
     TEST_INT_EQUAL(e->server->securityLevel, 0);
@@ -377,6 +387,7 @@ void test_0x27_brute_force_prevention_1(void **state) {
 
 void test_0x27_brute_force_prevention_2(void **state) {
     Env_t *e = *state;
+    uint8_t buf[8] = {0};
 
     // When a server handler function is installed
     e->server->fn = fn_test_0x27_security_access;
@@ -390,9 +401,8 @@ void test_0x27_brute_force_prevention_2(void **state) {
 
     // should get this response
     const uint8_t SEED_RESPONSE[] = {0x67, 0x01, 0x36, 0x57};
-    EXPECT_WITHIN_MS(e, UDSTpGetRecvLen(e->client_tp) > 0, UDS_CLIENT_DEFAULT_P2_MS);
-    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(e->client_tp, NULL), SEED_RESPONSE, sizeof(SEED_RESPONSE));
-    UDSTpAckRecv(e->client_tp);
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, SEED_RESPONSE, sizeof(SEED_RESPONSE));
 
     // the server security level should still be 0
     TEST_INT_EQUAL(e->server->securityLevel, 0);
@@ -403,9 +413,8 @@ void test_0x27_brute_force_prevention_2(void **state) {
 
     // should get a negative response 
     const uint8_t NEG_RESPONSE[] = {0x7F, 0x27, 0x33};
-    EXPECT_WITHIN_MS(e, UDSTpGetRecvLen(e->client_tp) > 0, UDS_CLIENT_DEFAULT_P2_MS);
-    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(e->client_tp, NULL), NEG_RESPONSE, sizeof(NEG_RESPONSE));
-    UDSTpAckRecv(e->client_tp);
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, NEG_RESPONSE, sizeof(NEG_RESPONSE));
 
     // the server security level should still be 0
     TEST_INT_EQUAL(e->server->securityLevel, 0);
@@ -415,8 +424,8 @@ void test_0x27_brute_force_prevention_2(void **state) {
 
     // should get a negative response due to brute force prevention
     const uint8_t DENIED[] = {0x7F, 0x27, 0x36};
-    EXPECT_WITHIN_MS(e, UDSTpGetRecvLen(e->client_tp) > 0, UDS_CLIENT_DEFAULT_P2_MS);
-    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(e->client_tp, NULL), DENIED, sizeof(DENIED));
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, UDS_CLIENT_DEFAULT_P2_MS)
+    TEST_MEMORY_EQUAL(buf, DENIED, sizeof(DENIED));
 }
 
 
@@ -426,6 +435,7 @@ int fn_test_0x31_RCRRP(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
 
 void test_0x31_RCRRP(void **state) {
     Env_t *e = *state;
+    uint8_t buf[8] = {0};
 
     // when a server handler func initially returns RRCRP
     int resp = UDS_NRC_RequestCorrectlyReceived_ResponsePending;
@@ -438,23 +448,19 @@ void test_0x31_RCRRP(void **state) {
 
     // the server should respond with RCRRP within p2 ms
     const uint8_t RCRRP[] = {0x7F, 0x31, 0x78};
-    EXPECT_WITHIN_MS(e, UDSTpGetRecvLen(e->client_tp) > 0, UDS_CLIENT_DEFAULT_P2_MS);
-    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(e->client_tp, NULL), RCRRP, sizeof(RCRRP));
-    UDSTpAckRecv(e->client_tp);
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, RCRRP, sizeof(RCRRP));
 
     // The server should again respond within p2_star * 0.3 ms
-    EXPECT_IN_APPROX_MS(e, UDSTpGetRecvLen(e->client_tp) > 0, e->server->p2_star_ms * 0.3);
-    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(e->client_tp, NULL), RCRRP, sizeof(RCRRP));
-    UDSTpAckRecv(e->client_tp);
+    EXPECT_IN_APPROX_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, e->server->p2_star_ms * 0.3);
+    TEST_MEMORY_EQUAL(buf, RCRRP, sizeof(RCRRP));
 
     // and keep responding at intervals of p2_star * 0.3 ms indefinitely
-    EXPECT_IN_APPROX_MS(e, UDSTpGetRecvLen(e->client_tp) > 0, e->server->p2_star_ms * 0.3);
-    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(e->client_tp, NULL), RCRRP, sizeof(RCRRP));
-    UDSTpAckRecv(e->client_tp);
+    EXPECT_IN_APPROX_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, e->server->p2_star_ms * 0.3);
+    TEST_MEMORY_EQUAL(buf, RCRRP, sizeof(RCRRP));
 
-    EXPECT_IN_APPROX_MS(e, UDSTpGetRecvLen(e->client_tp) > 0, e->server->p2_star_ms * 0.3);
-    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(e->client_tp, NULL), RCRRP, sizeof(RCRRP));
-    UDSTpAckRecv(e->client_tp);
+    EXPECT_IN_APPROX_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, e->server->p2_star_ms * 0.3);
+    TEST_MEMORY_EQUAL(buf, RCRRP, sizeof(RCRRP));
 
     // When the server handler func now returns a positive response
     resp = UDS_PositiveResponse;
@@ -462,12 +468,13 @@ void test_0x31_RCRRP(void **state) {
     // the server's next response should be a positive one
     // and it should arrive within p2 ms
     const uint8_t POSITIVE_RESPONSE[] = {0x71, 0x01, 0x12, 0x34};
-    EXPECT_WITHIN_MS(e, UDSTpGetRecvLen(e->client_tp) > 0, UDS_CLIENT_DEFAULT_P2_MS);
-    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(e->client_tp, NULL), POSITIVE_RESPONSE, sizeof(POSITIVE_RESPONSE));
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, POSITIVE_RESPONSE, sizeof(POSITIVE_RESPONSE));
 }
 
 void test_0x34_no_handler(void **state) {
     Env_t *e = *state;
+    uint8_t buf[8] = {0};
 
     // When no handler function is installed
     e->server->fn = NULL; // (noop, NULL by default)
@@ -478,8 +485,8 @@ void test_0x34_no_handler(void **state) {
 
     // should return a UDS_NRC_ServiceNotSupported response
     const uint8_t RESP[] = {0x7F, 0x34, 0x11};
-    EXPECT_WITHIN_MS(e, UDSTpGetRecvLen(e->client_tp) > 0, UDS_CLIENT_DEFAULT_P2_MS);
-    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(e->client_tp, NULL), RESP, sizeof(RESP));
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, RESP, sizeof(RESP));
 }
 
 int fn_test_0x34(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
@@ -495,6 +502,7 @@ int fn_test_0x34(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
 
 void test_0x34(void **state) {
     Env_t *e = *state;
+    uint8_t buf[8] = {0};
 
     // When a handler is installed that implements UDS-1:2013 Table 415
     e->server->fn = fn_test_0x34;
@@ -505,12 +513,13 @@ void test_0x34(void **state) {
 
     // should receive a positive response matching UDS-1:2013 Table 415
     const uint8_t RESP[] = {0x74, 0x20, 0x00, 0x81};
-    EXPECT_WITHIN_MS(e, UDSTpGetRecvLen(e->client_tp) > 0, UDS_CLIENT_DEFAULT_P2_MS);
-    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(e->client_tp, NULL), RESP, sizeof(RESP));
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, RESP, sizeof(RESP));
 }
 
 void test_0x38_no_handler(void **state) {
     Env_t *e = *state;
+    uint8_t buf[8] = {0};
 
     // When no handler function is installed
     e->server->fn = NULL;
@@ -523,8 +532,8 @@ void test_0x38_no_handler(void **state) {
 
     // should return a kServiceNotSupported response
     const uint8_t RESP[] = {0x7F, 0x38, 0x11};
-    EXPECT_WITHIN_MS(e, UDSTpGetRecvLen(e->client_tp) > 0, UDS_CLIENT_DEFAULT_P2_MS);
-    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(e->client_tp, NULL), RESP, sizeof(RESP));
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, RESP, sizeof(RESP));
 }
 
 int fn_test_0x38_addfile(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
@@ -542,6 +551,7 @@ int fn_test_0x38_addfile(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
 
 void test_0x38_addfile(void **state) {
     Env_t *e = *state;
+    uint8_t buf[8] = {0};
 
     // When a handler is installed that implements UDS-1:2013 Table 435
     e->server->fn = fn_test_0x38_addfile;
@@ -554,8 +564,8 @@ void test_0x38_addfile(void **state) {
 
     // should receive a positive response matching UDS-1:2013 Table 435
     const uint8_t RESP[] = {0x78, 0x01, 0x02, 0x00, 0x81};
-    EXPECT_WITHIN_MS(e, UDSTpGetRecvLen(e->client_tp) > 0, UDS_CLIENT_DEFAULT_P2_MS);
-    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(e->client_tp, NULL), RESP, sizeof(RESP));
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, RESP, sizeof(RESP));
 }
 
 int fn_test_0x38_delfile(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
@@ -569,6 +579,7 @@ int fn_test_0x38_delfile(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
 
 void test_0x38_delfile(void **state) {
     Env_t *e = *state;
+    uint8_t buf[8] = {0};
 
     // When a handler is installed that implements UDS-1:2013 Table 435
     e->server->fn = fn_test_0x38_delfile;
@@ -580,8 +591,8 @@ void test_0x38_delfile(void **state) {
 
     // should receive a positive response matching UDS-1:2013 Table 435
     const uint8_t RESP[] = {0x78, 0x02};
-    EXPECT_WITHIN_MS(e, UDSTpGetRecvLen(e->client_tp) > 0, UDS_CLIENT_DEFAULT_P2_MS);
-    TEST_MEMORY_EQUAL(UDSTpGetRecvBuf(e->client_tp, NULL), RESP, sizeof(RESP));
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, RESP, sizeof(RESP));
 }
 
 int fn_test_0x3e_suppress_positive_response(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
@@ -590,6 +601,7 @@ int fn_test_0x3e_suppress_positive_response(UDSServer_t *srv, UDSEvent_t ev, voi
 
 void test_0x3e_suppress_positive_response(void **state) {
     Env_t *e = *state;
+    uint8_t buf[8] = {0};
     e->server->fn = fn_test_0x3e_suppress_positive_response;
 
     // When the suppressPositiveResponse bit is set
@@ -598,7 +610,7 @@ void test_0x3e_suppress_positive_response(void **state) {
 
     // there should be no response even after running for a long time
     EnvRunMillis(e, 10000);
-    TEST_INT_EQUAL(UDSTpGetRecvLen(e->client_tp), 0);
+    TEST_INT_EQUAL(UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL), 0);
 }
 
 int main(int ac, char **av) {

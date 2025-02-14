@@ -1,6 +1,7 @@
 #pragma once
 
 #include "sys.h"
+#include "config.h"
 #include "tp.h"
 #include "uds.h"
 
@@ -14,12 +15,6 @@ typedef struct UDSClient {
     UDSTp_t *tp;
 
     uint32_t p2_timer;
-    uint8_t *recv_buf;
-    uint8_t *send_buf;
-    uint16_t recv_buf_size;
-    uint16_t send_buf_size;
-    uint16_t recv_size;
-    uint16_t send_size;
     uint8_t state; // client request state
 
     uint8_t options;
@@ -30,6 +25,11 @@ typedef struct UDSClient {
     // callback function
     int (*fn)(struct UDSClient *client, UDSEvent_t evt, void *ev_data);
     void *fn_data; // user-specified function data
+
+    uint16_t recv_size;
+    uint16_t send_size;
+    uint8_t recv_buf[UDS_CLIENT_RECV_BUF_SIZE];
+    uint8_t send_buf[UDS_CLIENT_SEND_BUF_SIZE];
 } UDSClient_t;
 
 struct SecurityAccessResponse {

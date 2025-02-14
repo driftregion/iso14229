@@ -46,6 +46,9 @@ void isotp_user_debug(const char *message, ...) {
     va_end(args);
 }
 
+#ifndef ISO_TP_USER_SEND_CAN_ARG
+#error "ISO_TP_USER_SEND_CAN_ARG must be defined"
+#endif
 int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t *data, const uint8_t size,
                         void *user_data) {
     fflush(stdout);
@@ -108,83 +111,6 @@ static UDSTpStatus_t isotp_c_socketcan_tp_poll(UDSTp_t *hdl) {
     return status;
 }
 
-static int isotp_c_socketcan_tp_peek_link(IsoTpLink *link, uint8_t *buf, size_t bufsize,
-                                          bool functional) {
-    UDS_ASSERT(link);
-    UDS_ASSERT(buf);
-    int ret = -1;
-    switch (link->receive_status) {
-    case ISOTP_RECEIVE_STATUS_IDLE:
-        ret = 0;
-        goto done;
-    case ISOTP_RECEIVE_STATUS_INPROGRESS:
-        ret = 0;
-        goto done;
-    case ISOTP_RECEIVE_STATUS_FULL:
-        ret = link->receive_size;
-        UDS_LOGI(__FILE__, "The link is full. Copying %d bytes", ret);
-        memmove(buf, link->receive_buffer, link->receive_size);
-        break;
-    default:
-        UDS_LOGI(__FILE__, "receive_status %d not implemented\n", link->receive_status);
-        ret = -1;
-        goto done;
-    }
-done:
-    return ret;
-}
-
-static ssize_t isotp_c_socketcan_tp_peek(UDSTp_t *hdl, uint8_t **p_buf, UDSSDU_t *info) {
-    UDS_ASSERT(hdl);
-    UDS_ASSERT(p_buf);
-    UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
-    if (ISOTP_RECEIVE_STATUS_FULL == tp->phys_link.receive_status) { // recv not yet acked
-        *p_buf = tp->recv_buf;
-        return tp->phys_link.receive_size;
-    }
-    int ret = -1;
-    ret = isotp_c_socketcan_tp_peek_link(&tp->phys_link, tp->recv_buf, sizeof(tp->recv_buf), false);
-    UDS_A_TA_Type_t ta_type = UDS_A_TA_TYPE_PHYSICAL;
-    uint32_t ta = tp->phys_ta;
-    uint32_t sa = tp->phys_sa;
-
-    if (ret > 0) {
-        UDS_LOGI(__FILE__, "just got %d bytes", ret);
-        ta = tp->phys_sa;
-        sa = tp->phys_ta;
-        ta_type = UDS_A_TA_TYPE_PHYSICAL;
-        *p_buf = tp->recv_buf;
-        goto done;
-    } else if (ret < 0) {
-        goto done;
-    } else {
-        ret = isotp_c_socketcan_tp_peek_link(&tp->func_link, tp->recv_buf, sizeof(tp->recv_buf),
-                                             true);
-        if (ret > 0) {
-            UDS_LOGI(__FILE__, "just got %d bytes on func link", ret);
-            ta = tp->func_sa;
-            sa = tp->func_ta;
-            ta_type = UDS_A_TA_TYPE_FUNCTIONAL;
-            *p_buf = tp->recv_buf;
-            goto done;
-        } else if (ret < 0) {
-            goto done;
-        }
-    }
-done:
-    if (ret > 0) {
-        if (info) {
-            info->A_TA = ta;
-            info->A_SA = sa;
-            info->A_TA_Type = ta_type;
-        }
-        UDS_LOGD(__FILE__, "%s recv, 0x%03x (%s), ", tp->tag, ta,
-                 ta_type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
-        UDS_LOG_SDU(__FILE__, *p_buf, ret, info);
-    }
-    return ret;
-}
-
 static ssize_t isotp_c_socketcan_tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     ssize_t ret = -1;
@@ -221,25 +147,45 @@ static ssize_t isotp_c_socketcan_tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len,
         goto done;
     }
 done:
-    UDS_LOGD(__FILE__, "'%s' sends %d bytes to 0x%03x (%s)", tp->tag, len, ta,
+    UDS_LOGD(__FILE__, "'%s' sends %ld bytes to 0x%03x (%s)", tp->tag, len, ta,
              ta_type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
     UDS_LOG_SDU(__FILE__, buf, len, info);
     return ret;
 }
 
-static void isotp_c_socketcan_tp_ack_recv(UDSTp_t *hdl) {
-    UDS_LOGI(__FILE__, "ack recv\n");
+static ssize_t isotp_c_socketcan_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize,
+                                         UDSSDU_t *info) {
     UDS_ASSERT(hdl);
-    UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
+    UDS_ASSERT(buf);
     uint16_t out_size = 0;
-    isotp_receive(&tp->phys_link, tp->recv_buf, sizeof(tp->recv_buf), &out_size);
-}
-
-static ssize_t isotp_c_socketcan_tp_get_send_buf(UDSTp_t *hdl, uint8_t **p_buf) {
-    UDS_ASSERT(hdl);
     UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
-    *p_buf = tp->send_buf;
-    return sizeof(tp->send_buf);
+
+    int ret = isotp_receive(&tp->phys_link, buf, bufsize, &out_size);
+    if (ret == ISOTP_RET_OK) {
+        UDS_LOGI(__FILE__, "just got %d bytes\n", out_size);
+        if (NULL != info) {
+            info->A_TA = tp->phys_sa;
+            info->A_SA = tp->phys_ta;
+            info->A_TA_Type = UDS_A_TA_TYPE_PHYSICAL;
+        }
+    } else if (ret == ISOTP_RET_NO_DATA) {
+        ret = isotp_receive(&tp->func_link, buf, bufsize, &out_size);
+        if (ret == ISOTP_RET_OK) {
+            UDS_LOGI(__FILE__, "just got %d bytes on func link\n", out_size);
+            if (NULL != info) {
+                info->A_TA = tp->func_sa;
+                info->A_SA = tp->func_ta;
+                info->A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL;
+            }
+        } else if (ret == ISOTP_RET_NO_DATA) {
+            return 0;
+        } else {
+            UDS_LOGE(__FILE__, "unhandled return code from func link %d\n", ret);
+        }
+    } else {
+        UDS_LOGE(__FILE__, "unhandled return code from phys link %d\n", ret);
+    }
+    return out_size;
 }
 
 UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, const char *ifname, uint32_t source_addr,
@@ -249,9 +195,7 @@ UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, const char *ifname, uint32_t source_
     UDS_ASSERT(ifname);
     tp->hdl.poll = isotp_c_socketcan_tp_poll;
     tp->hdl.send = isotp_c_socketcan_tp_send;
-    tp->hdl.peek = isotp_c_socketcan_tp_peek;
-    tp->hdl.ack_recv = isotp_c_socketcan_tp_ack_recv;
-    tp->hdl.get_send_buf = isotp_c_socketcan_tp_get_send_buf;
+    tp->hdl.recv = isotp_c_socketcan_tp_recv;
     tp->phys_sa = source_addr;
     tp->phys_ta = target_addr;
     tp->func_sa = source_addr_func;

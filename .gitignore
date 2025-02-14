@@ -1,7 +1,11 @@
 bazel-bin
 bazel-out/k8-fastbuild/bin
+bazel-out/k8-fastbuild/bin/iso14229.c
+bazel-out/k8-fastbuild/bin/iso14229.h
 codechecker_reports
 codechecker_report
+misra_rports
+coverage_report
 html
 reports
 .rsync-filter
