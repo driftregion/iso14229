@@ -43,7 +43,9 @@ jobs:
       uses: arduino/setup-arduino-cli@v2
 
     - name: build
-      run: arduino-cli -b arduino:samd:mkrwifi1010 compile examples/arduino_server/main 
+      run: |
+      arduino-cli core install arduino:samd
+      arduino-cli -b arduino:samd:mkrwifi1010 compile examples/arduino_server/main 
 
 
   build-esp32:
