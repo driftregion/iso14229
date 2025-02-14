@@ -1034,6 +1034,6 @@ void UDSServerPoll(UDSServer_t *srv) {
             if (UDS_NRC_RequestCorrectlyReceived_ResponsePending == response) {
                 srv->RCRRP = true;
             }
-        } 
+        }
     }
 }

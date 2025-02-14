@@ -244,7 +244,6 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
                 client->fn(client, UDS_EVT_ResponseReceived, NULL);
                 changeState(client, STATE_IDLE);
             }
-
         }
         break;
     }

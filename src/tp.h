@@ -66,7 +66,8 @@ typedef struct UDSTp {
      * @param hdl: transport handle
      * @param buf: receive buffer
      * @param bufsize: size of the receive buffer
-     * @param info: pointer to SDU info to be updated by transport implementation. May be NULL. If non-NULL, the transport implementation must populate it with valid values.
+     * @param info: pointer to SDU info to be updated by transport implementation. May be NULL. If
+     * non-NULL, the transport implementation must populate it with valid values.
      */
     ssize_t (*recv)(struct UDSTp *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info);
 

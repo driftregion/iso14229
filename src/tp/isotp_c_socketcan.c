@@ -153,7 +153,8 @@ done:
     return ret;
 }
 
-static ssize_t isotp_c_socketcan_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
+static ssize_t isotp_c_socketcan_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize,
+                                         UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     UDS_ASSERT(buf);
     uint16_t out_size = 0;
