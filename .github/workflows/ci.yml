@@ -31,3 +31,18 @@ jobs:
     - name: run unit tests
       run: bazel test //test:all --verbose_failures --test_output=all 
 
+
+  build-arduino:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v3
+
+    - name: Install Arduino CLI
+      uses: arduino/setup-arduino-cli@v2
+
+    - name: build
+      run: |
+      make update_examples
+      arduino-cli -b arduino:samd:mkrwifi1010 compile examples/arduino_server/main 

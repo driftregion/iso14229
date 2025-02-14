@@ -58,11 +58,12 @@ static int isotp_send_flow_control(const IsoTpLink* link, uint8_t flow_status, u
     return ret;
 }
 
-static int isotp_send_single_frame(const IsoTpLink* link, uint32_t) {
+static int isotp_send_single_frame(const IsoTpLink* link, uint32_t id) {
 
     IsoTpCanMessage message;
     int ret;
     uint8_t size = 0;
+    (void)id;
 
     /* multi frame message length must greater than 7  */
     assert(link->send_size <= 7);

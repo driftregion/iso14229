@@ -6,11 +6,18 @@
 UDSServer_t srv;
 UDSISOTpC_t tp;
 
-int send_can(const uint32_t arb_id, const uint8_t *data, const uint8_t size, void *ud) {
+extern "C" uint32_t isotp_user_get_us(void) { return UDSMillis() * 1000; }
+
+extern "C" int isotp_user_send_can(uint32_t arb_id, const uint8_t *data, const uint8_t size, void *ud) {
+  (void)ud;
   CAN.beginPacket(arb_id);
   CAN.write(data, size);
   CAN.endPacket();
   return size;
+}
+
+extern "C" void isotp_user_debug(const char *fmt, ...) {
+  (void)fmt;
 }
 
 static void CANRecv(UDSISOTpC_t *tp) {
@@ -24,7 +31,6 @@ static void CANRecv(UDSISOTpC_t *tp) {
         }
         CAN.readBytes(buf, len);
         UDS_LOGI(__FILE__, "can recv\n");
-        UDS_DBG_PRINTHEX(buf, len);
         if (CAN.packetId() == tp->phys_sa) {
           UDS_LOGI(__FILE__, "phys frame received\n");
           isotp_on_can_message(&tp->phys_link, buf, len);
@@ -38,17 +44,12 @@ static void CANRecv(UDSISOTpC_t *tp) {
   }
 }
 
-extern "C" int print_impl(const char *fmt, ...);
 
 const UDSISOTpCConfig_t tp_cfg = {
     .source_addr=0x7E8,
     .target_addr=0x7E0,
     .source_addr_func=0x7DF,
     .target_addr_func=UDS_TP_NOOP_ADDR,
-    .isotp_user_send_can=send_can,
-    .isotp_user_get_ms=UDSMillis,
-    .isotp_user_debug=NULL,
-    .user_data=NULL,
 };
 
 int print_impl(const char *fmt, ...) {
@@ -61,18 +62,18 @@ int print_impl(const char *fmt, ...) {
   return ret;
 }
 
-uint8_t fn(UDSServer_t *srv, int ev, const void *arg) {
-     Serial.print("Got event ");
-   Serial.println(ev);
-   switch(ev) {
-    case UDS_EVT_Err:
-    {
-          UDSErr_t *p_err = (UDSErr_t *)arg;
-      Serial.print("Err: ");
-      Serial.println(*p_err);
-      break;
+static UDSErr_t fn(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+    Serial.print("Got event ");
+    Serial.println(ev);
+    switch (ev) {
+    case UDS_EVT_Err: {
+        UDSErr_t *p_err = (UDSErr_t *)arg;
+        Serial.print("Err: ");
+        Serial.println(*p_err);
+        break;
     }
-   }
+    }
+    return UDS_NRC_ServiceNotSupported;
 }
 
 void setup() {

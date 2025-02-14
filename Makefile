@@ -12,4 +12,8 @@ compile_commands.json:
 static_analysis: compile_commands.json $(MISRA_RULES_TXT)
 	.CodeChecker/run.sh
 
-.phony: static_analysis compile_commands.json
+update_examples:
+	bazel build //:iso14229.c //:iso14229.h 
+	cp --update=none bazel-out/k8-fastbuild/bin/iso14229.c bazel-out/k8-fastbuild/bin/iso14229.h -t examples/arduino_server/main
+
+.phony: static_analysis compile_commands.json update_examples
