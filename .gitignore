@@ -1,4 +1,7 @@
 bazel-bin
+bazel-iso14229
+bazel-out
+bazel-testlogs
 bazel-out/k8-fastbuild/bin
 bazel-out/k8-fastbuild/bin/iso14229.c
 bazel-out/k8-fastbuild/bin/iso14229.h

@@ -44,27 +44,13 @@ static void CANRecv(UDSISOTpC_t *tp) {
   }
 }
 
-
-const UDSISOTpCConfig_t tp_cfg = {
-    .source_addr=0x7E8,
-    .target_addr=0x7E0,
-    .source_addr_func=0x7DF,
-    .target_addr_func=UDS_TP_NOOP_ADDR,
-};
-
-int print_impl(const char *fmt, ...) {
-  char buf[256];
-  va_list args;
-  va_start(args, fmt);
-  int ret = vsnprintf(buf, sizeof(buf), fmt, args);
-  Serial.print(buf);
-  va_end(args);
-  return ret;
-}
-
 static UDSErr_t fn(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     Serial.print("Got event ");
-    Serial.println(ev);
+    Serial.print(ev);
+    Serial.print(", (");
+    Serial.print(UDSEventToStr(ev));
+    Serial.println(")");
+
     switch (ev) {
     case UDS_EVT_Err: {
         UDSErr_t *p_err = (UDSErr_t *)arg;
@@ -72,15 +58,15 @@ static UDSErr_t fn(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
         Serial.println(*p_err);
         break;
     }
+
     case UDS_EVT_EcuReset:
         Serial.println("EcuReset");
         return UDS_OK;
 
     case UDS_EVT_DoScheduledReset:
-        Serial.println("DoScheduledReset");
-        //reset
         NVIC_SystemReset();   // Perform a system reset
         return UDS_OK;
+
     default:
         printf("Unhandled event %s (%d)\n", UDSEventToStr(ev), ev);
         return UDS_NRC_ServiceNotSupported;
@@ -90,15 +76,25 @@ static UDSErr_t fn(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
 
 void setup() {
   Serial.begin(9600);
-  while (!Serial);
 
-  if(UDS_OK != UDSServerInit(&srv)) {
-    Serial.println("UDSServerInit failed");
+  UDSErr_t err = UDSServerInit(&srv);
+  if(UDS_OK != err) {
+    Serial.print("UDSServerInit failed with err: ");
+    Serial.println(UDSErrToStr(err));
     while(1);
   }
 
-  if (UDS_OK != UDSISOTpCInit(&tp, &tp_cfg)) {
-    Serial.println("UDSISOTpCInit failed");
+  const UDSISOTpCConfig_t tp_cfg = {
+      .source_addr=0x7E8,
+      .target_addr=0x7E0,
+      .source_addr_func=0x7DF,
+      .target_addr_func=UDS_TP_NOOP_ADDR,
+  };
+
+  err = UDSISOTpCInit(&tp, &tp_cfg);
+  if (UDS_OK != err) {
+    Serial.print("UDSISOTpCInit failed with err: ");
+    Serial.println(UDSErrToStr(err));
     while(1);
   }
   
