@@ -3,8 +3,8 @@
 #include <stdarg.h>
 #include <stdint.h>
 
-UDSServer_t srv;
-UDSISOTpC_t tp;
+static UDSServer_t srv;
+static UDSISOTpC_t tp;
 
 extern "C" uint32_t isotp_user_get_us(void) { return UDSMillis() * 1000; }
 
@@ -72,6 +72,18 @@ static UDSErr_t fn(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
         Serial.println(*p_err);
         break;
     }
+    case UDS_EVT_EcuReset:
+        Serial.println("EcuReset");
+        return UDS_OK;
+
+    case UDS_EVT_DoScheduledReset:
+        Serial.println("DoScheduledReset");
+        //reset
+        NVIC_SystemReset();   // Perform a system reset
+        return UDS_OK;
+    default:
+        printf("Unhandled event %s (%d)\n", UDSEventToStr(ev), ev);
+        return UDS_NRC_ServiceNotSupported;
     }
     return UDS_NRC_ServiceNotSupported;
 }
@@ -80,12 +92,12 @@ void setup() {
   Serial.begin(9600);
   while (!Serial);
 
-  if(!UDSServerInit(&srv)) {
+  if(UDS_OK != UDSServerInit(&srv)) {
     Serial.println("UDSServerInit failed");
     while(1);
   }
 
-  if (!UDSISOTpCInit(&tp, &tp_cfg)) {
+  if (UDS_OK != UDSISOTpCInit(&tp, &tp_cfg)) {
     Serial.println("UDSISOTpCInit failed");
     while(1);
   }

@@ -52,7 +52,7 @@ static int fn(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
             }
         }
         default:
-            printf("Unhandled event: %s\n", UDSEvtToStr(ev));
+            printf("Unhandled event: %s\n", UDSEventToStr(ev));
             return UDS_NRC_ServiceNotSupported;
     }
 }
