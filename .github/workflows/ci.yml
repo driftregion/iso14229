@@ -31,3 +31,34 @@ jobs:
     - name: run unit tests
       run: bazel test //test:all --verbose_failures --test_output=all 
 
+
+  build-arduino:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v3
+
+    - name: Install Arduino CLI
+      uses: arduino/setup-arduino-cli@v2
+
+    - name: build
+      run: |
+        arduino-cli core install arduino:samd
+        arduino-cli lib install CAN
+        arduino-cli -b arduino:samd:mkrwifi1010 compile examples/arduino_server/main 
+
+
+  build-esp32:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v3
+
+    - name: esp-idf build
+      uses: espressif/esp-idf-ci-action@v1
+      with:
+        esp_idf_version: v5.2
+        target: esp32
+        path: 'examples/esp32_server'

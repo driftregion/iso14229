@@ -23,4 +23,4 @@ uint32_t UDSMillis(void);
 bool UDSSecurityAccessLevelIsReserved(uint8_t securityLevel);
 
 const char *UDSErrToStr(UDSErr_t err);
-const char *UDSEvtToStr(UDSEvent_t evt);
+const char *UDSEventToStr(UDSEvent_t evt);

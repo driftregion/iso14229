@@ -196,7 +196,7 @@ const char *UDSErrToStr(UDSErr_t err) {
     }
 }
 
-const char *UDSEvtToStr(UDSEvent_t evt) {
+const char *UDSEventToStr(UDSEvent_t evt) {
 
     switch (evt) {
     case UDS_EVT_Custom:

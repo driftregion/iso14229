@@ -120,7 +120,7 @@ static UDSErr_t HandleServerResponse(UDSClient_t *client) {
     if (0x7F == client->recv_buf[0]) {
         if (UDS_NRC_RequestCorrectlyReceived_ResponsePending == client->recv_buf[2]) {
             client->p2_timer = UDSMillis() + client->p2_star_ms;
-            UDS_LOGI(__FILE__, "got RCRRP, set p2 timer to %u", client->p2_timer);
+            UDS_LOGI(__FILE__, "got RCRRP, set p2 timer to %" PRIu32 "", client->p2_timer);
             memset(client->recv_buf, 0, sizeof(client->recv_buf));
             client->recv_size = 0;
             changeState(client, STATE_AWAIT_RESPONSE);

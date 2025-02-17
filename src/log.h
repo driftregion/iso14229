@@ -23,52 +23,50 @@ typedef enum {
 #define UDS_LOG_LEVEL UDS_LOG_NONE
 #endif
 
-#if CONFIG_LOG_COLORS
-#define LOG_COLOR_BLACK "30"
-#define LOG_COLOR_RED "31"
-#define LOG_COLOR_GREEN "32"
-#define LOG_COLOR_BROWN "33"
-#define LOG_COLOR_BLUE "34"
-#define LOG_COLOR_PURPLE "35"
-#define LOG_COLOR_CYAN "36"
+#if UDS_CONFIG_LOG_COLORS
+#define UDS_LOG_COLOR_BLACK "30"
+#define UDS_LOG_COLOR_RED "31"
+#define UDS_LOG_COLOR_GREEN "32"
+#define UDS_LOG_COLOR_BROWN "33"
+#define UDS_LOG_COLOR_BLUE "34"
+#define UDS_LOG_COLOR_PURPLE "35"
+#define UDS_LOG_COLOR_CYAN "36"
 #define LOG_COLOR(COLOR) "\033[0;" COLOR "m"
 #define LOG_BOLD(COLOR) "\033[1;" COLOR "m"
-#define LOG_RESET_COLOR "\033[0m"
-#define LOG_COLOR_E LOG_COLOR(LOG_COLOR_RED)
-#define LOG_COLOR_W LOG_COLOR(LOG_COLOR_BROWN)
-#define LOG_COLOR_I LOG_COLOR(LOG_COLOR_GREEN)
-#define LOG_COLOR_D
-#define LOG_COLOR_V
-#else // CONFIG_LOG_COLORS
-#define LOG_COLOR_E
-#define LOG_COLOR_W
-#define LOG_COLOR_I
-#define LOG_COLOR_D
-#define LOG_COLOR_V
-#define LOG_RESET_COLOR
-#endif // CONFIG_LOG_COLORS
+#define UDS_LOG_RESET_COLOR "\033[0m"
+#define UDS_LOG_COLOR_E LOG_COLOR(UDS_LOG_COLOR_RED)
+#define UDS_LOG_COLOR_W LOG_COLOR(UDS_LOG_COLOR_BROWN)
+#define UDS_LOG_COLOR_I LOG_COLOR(UDS_LOG_COLOR_GREEN)
+#define UDS_LOG_COLOR_D
+#define UDS_LOG_COLOR_V
+#else // UDS_CONFIG_LOG_COLORS
+#define UDS_LOG_COLOR_E
+#define UDS_LOG_COLOR_W
+#define UDS_LOG_COLOR_I
+#define UDS_LOG_COLOR_D
+#define UDS_LOG_COLOR_V
+#define UDS_LOG_RESET_COLOR
+#endif // UDS_CONFIG_LOG_COLORS
 
-#define LOG_FORMAT(letter, format)                                                                 \
-    LOG_COLOR_##letter #letter " (%" PRIu32 ") %s: " format LOG_RESET_COLOR "\n"
-#define LOG_SYSTEM_TIME_FORMAT(letter, format)                                                     \
-    LOG_COLOR_##letter #letter " (%s) %s: " format LOG_RESET_COLOR "\n"
+#define UDS_LOG_FORMAT(letter, format)                                                             \
+    UDS_LOG_COLOR_##letter #letter " (%" PRIu32 ") %s: " format UDS_LOG_RESET_COLOR "\n"
 
 #define UDS_LOG_AT_LEVEL(level, tag, format, ...)                                                  \
     do {                                                                                           \
         if (level == UDS_LOG_ERROR) {                                                              \
-            UDS_LogWrite(UDS_LOG_ERROR, tag, LOG_FORMAT(E, format), UDSMillis(), tag,              \
+            UDS_LogWrite(UDS_LOG_ERROR, tag, UDS_LOG_FORMAT(E, format), UDSMillis(), tag,          \
                          ##__VA_ARGS__);                                                           \
         } else if (level == UDS_LOG_WARN) {                                                        \
-            UDS_LogWrite(UDS_LOG_WARN, tag, LOG_FORMAT(W, format), UDSMillis(), tag,               \
+            UDS_LogWrite(UDS_LOG_WARN, tag, UDS_LOG_FORMAT(W, format), UDSMillis(), tag,           \
                          ##__VA_ARGS__);                                                           \
         } else if (level == UDS_LOG_INFO) {                                                        \
-            UDS_LogWrite(UDS_LOG_INFO, tag, LOG_FORMAT(I, format), UDSMillis(), tag,               \
+            UDS_LogWrite(UDS_LOG_INFO, tag, UDS_LOG_FORMAT(I, format), UDSMillis(), tag,           \
                          ##__VA_ARGS__);                                                           \
         } else if (level == UDS_LOG_DEBUG) {                                                       \
-            UDS_LogWrite(UDS_LOG_DEBUG, tag, LOG_FORMAT(D, format), UDSMillis(), tag,              \
+            UDS_LogWrite(UDS_LOG_DEBUG, tag, UDS_LOG_FORMAT(D, format), UDSMillis(), tag,          \
                          ##__VA_ARGS__);                                                           \
         } else if (level == UDS_LOG_VERBOSE) {                                                     \
-            UDS_LogWrite(UDS_LOG_VERBOSE, tag, LOG_FORMAT(V, format), UDSMillis(), tag,            \
+            UDS_LogWrite(UDS_LOG_VERBOSE, tag, UDS_LOG_FORMAT(V, format), UDSMillis(), tag,        \
                          ##__VA_ARGS__);                                                           \
         } else {                                                                                   \
             ;                                                                                      \

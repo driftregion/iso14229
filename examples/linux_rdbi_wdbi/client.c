@@ -25,7 +25,7 @@ typedef struct {
 UDSErr_t fn(UDSClient_t *client, UDSEvent_t evt, void *ev_data) {
     SequenceContext_t *c = (SequenceContext_t *)client->fn_data;
     if (evt != UDS_EVT_Poll) {
-        UDS_LOGI(__FILE__, "%s (%d)", UDSEvtToStr(evt), evt);
+        UDS_LOGI(__FILE__, "%s (%d)", UDSEventToStr(evt), evt);
     }
     if (UDS_EVT_Err == evt) {
         UDS_LOGE(__FILE__, "Exiting on step %d with error: %s", c->step, UDSErrToStr(*(UDSErr_t*)ev_data));
