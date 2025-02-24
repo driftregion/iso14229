@@ -16,7 +16,8 @@ srcs = {os.path.basename(src): src for src in args.srcs}
 
 
 def strip_includes(src):
-    return re.sub(r'#include ".*', "", src, flags=re.MULTILINE)
+    sub1 = re.sub(r'#include ".*', "", src, flags=re.MULTILINE)
+    return re.sub(r'#pragma once', "", sub1, flags=re.MULTILINE)
 
 isotp_c_wrapped_c = "#if defined(UDS_TP_ISOTP_C)\n" + \
     "#ifndef ISO_TP_USER_SEND_CAN_ARG\n" + \

@@ -1,9 +1,13 @@
 bazel-bin
+bazel-iso14229
+bazel-out
+bazel-testlogs
 bazel-out/k8-fastbuild/bin
 bazel-out/k8-fastbuild/bin/iso14229.c
 bazel-out/k8-fastbuild/bin/iso14229.h
 codechecker_reports
 codechecker_report
+codechecker_cppcheck_reports
 misra_rports
 coverage_report
 html
@@ -23,8 +27,6 @@ fuzzer
 **/build
 **/sdkconfig*
 release/
-examples/**/iso14229.c
-examples/**/iso14229.h
 *.pem
 *.der
 compile_commands.json
@@ -38,3 +40,5 @@ misra_reports
 report.txt
 json_report.json
 cppcheck_reports
+.venv
+.cppcheck/misra_c_2023__headlines_for_cppcheck.txt

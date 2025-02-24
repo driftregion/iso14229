@@ -73,7 +73,7 @@ int fn_log_call_count(UDSClient_t *client, UDSEvent_t evt, void *ev_data) {
             break;
         }
         default:
-            UDS_LOGI(__FILE__, "client event %s (%d)", UDSEvtToStr(evt), evt);
+            UDS_LOGI(__FILE__, "client event %s (%d)", UDSEventToStr(evt), evt);
     }
     return UDS_OK;
 }
