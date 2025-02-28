@@ -31,6 +31,8 @@
 #define __builtin_bswap64 _byteswap_uint64
 #endif
 
+#define LE32TOH(le) ((uint32_t)(((le) << 24) | (((le) & 0x0000FF00) << 8) | (((le) & 0x00FF0000) >> 8) | ((le) >> 24)))
+
 /**************************************************************
  * internal used defines
  *************************************************************/
@@ -83,7 +85,15 @@ typedef struct {
     uint8_t type:4;
     uint8_t FF_DL_low;
     uint8_t data[6];
-} IsoTpFirstFrame;
+} IsoTpFirstFrameShort;
+
+typedef struct __attribute__((packed)) {
+    uint8_t set_to_zero_high:4;
+    uint8_t type:4;
+    uint8_t set_to_zero_low;
+    uint32_t FF_DL;
+    uint8_t data[2];
+} IsoTpFirstFrameLong;
 
 typedef struct {
     uint8_t SN:4;
@@ -124,7 +134,7 @@ typedef struct {
 } IsoTpSingleFrame;
 
 /*
-* first frame
+* first frame short
 * +-------------------------+-----------------------+-----+
 * | byte #0                 | byte #1               | ... |
 * +-------------------------+-----------+-----------+-----+
@@ -184,7 +194,8 @@ typedef struct {
     union {
         IsoTpPciType          common;
         IsoTpSingleFrame      single_frame;
-        IsoTpFirstFrame       first_frame;
+        IsoTpFirstFrameShort  first_frame_short;
+        IsoTpFirstFrameLong   first_frame_long;
         IsoTpConsecutiveFrame consecutive_frame;
         IsoTpFlowControl      flow_control;
         IsoTpDataArray        data_array;
