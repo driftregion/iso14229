@@ -112,7 +112,7 @@ static int isotp_send_first_frame(IsoTpLink* link, uint32_t id) {
         #endif
 
         );
-        if (ISOTP_RET_OK == ret) {
+        if (ISOTP_RET_OK == ret)
             link->send_offset += sizeof(message.as.first_frame_short.data);
     }
     else // ISO15765-2:2016
@@ -131,9 +131,8 @@ static int isotp_send_first_frame(IsoTpLink* link, uint32_t id) {
         #endif
 
         );
-        if (ISOTP_RET_OK == ret) {
+        if (ISOTP_RET_OK == ret)
             link->send_offset += sizeof(message.as.first_frame_long.data);
-        }
     }
 
     link->send_sn = 1;
