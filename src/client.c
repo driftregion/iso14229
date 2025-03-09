@@ -372,7 +372,7 @@ UDSErr_t UDSSendRDBI(UDSClient_t *client, const uint16_t *didList,
     client->send_buf[0] = kSID_READ_DATA_BY_IDENTIFIER;
     for (int i = 0; i < numDataIdentifiers; i++) {
         uint16_t offset = (uint16_t)(1 + DID_LEN_BYTES * i);
-        if (offset + 2 > sizeof(client->send_buf)) {
+        if ((size_t)(offset + 2) > sizeof(client->send_buf)) {
             return UDS_ERR_INVALID_ARG;
         }
         (client->send_buf + offset)[0] = (didList[i] & 0xFF00) >> 8;

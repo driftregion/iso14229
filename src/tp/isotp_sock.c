@@ -136,6 +136,7 @@ static ssize_t isotp_sock_tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len, UDSSDU
         perror("write");
     }
 done:
+    ;
     int ta = ta_type == UDS_A_TA_TYPE_PHYSICAL ? impl->phys_ta : impl->func_ta;
     UDS_LOGD(__FILE__, "'%s' sends %ld bytes to 0x%03x (%s)", impl->tag, len, ta,
              ta_type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
