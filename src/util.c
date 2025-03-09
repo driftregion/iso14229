@@ -34,7 +34,7 @@ uint32_t UDSMillis(void) {
  * @return false
  */
 bool UDSSecurityAccessLevelIsReserved(uint8_t subFunction) {
-    uint8_t securityLevel = subFunction & 0b00111111u;
+    uint8_t securityLevel = subFunction & 0x3F;
     if (0u == securityLevel) {
         return true;
     }
