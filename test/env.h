@@ -9,18 +9,31 @@
 #include <setjmp.h>  // needed for cmocka
 #include <cmocka.h>
 
-// A mock server explicitly for client testing
+// A mock server for client testing
 typedef struct {
     UDSTp_t *tp;
     void *impl;
 } MockServer_t;
 
 struct Behavior {
-    uint8_t req_data[UDS_TP_MTU];
-    size_t req_len;
-    uint8_t resp_data[UDS_TP_MTU];
-    size_t resp_len;
-    uint32_t delay_ms;
+    enum {
+        ExactRequestResponse = 0,
+        TimedSend,
+    } tag;
+    union {
+        struct ExactRequestResponse { 
+            uint8_t req_data[UDS_TP_MTU];
+            size_t req_len;
+            uint8_t resp_data[UDS_TP_MTU];
+            size_t resp_len;
+            uint32_t delay_ms;
+        } exact_request_response;
+        struct TimedSend {
+            uint8_t send_data[UDS_TP_MTU];
+            size_t send_len;
+            uint32_t when;
+        } timed_send;
+    };
 };
 
 void MockServerPoll(MockServer_t *srv);
@@ -37,6 +50,7 @@ typedef struct {
     MockServer_t *mock_server;
     UDSTp_t *server_tp;
     UDSTp_t *client_tp;
+
     bool is_real_time; // if true, EnvRunMillis will run for a wall-time duration rather than
                        // simulated time. This makes tests much slower, so use it only when
                        // necessary.
