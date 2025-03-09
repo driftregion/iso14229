@@ -178,6 +178,22 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
         break;
     }
     case STATE_SENDING: {
+        {
+            UDSSDU_t info = {0};
+            ssize_t len = UDSTpRecv(client->tp, client->recv_buf, sizeof(client->recv_buf), &info);
+            if (len < 0) {
+                UDS_LOGE(__FILE__, "transport returned error %zd", len);
+            } else if (len == 0) {
+                ; // expected
+            } else {
+                UDS_LOGW(__FILE__, "received %zd unexpected bytes:", len);
+                UDS_LOG_SDU(__FILE__, client->recv_buf, len, &info);
+            }
+        }
+
+        memset(client->recv_buf, 0, sizeof(client->recv_buf));
+        client->recv_size = 0;
+
         UDSTpAddr_t ta_type = client->_options_copy & UDS_FUNCTIONAL ? UDS_A_TA_TYPE_FUNCTIONAL
                                                                      : UDS_A_TA_TYPE_PHYSICAL;
         UDSSDU_t info = {

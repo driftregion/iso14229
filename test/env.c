@@ -41,13 +41,22 @@ void MockServerFree(MockServer_t *srv) {
 }
 
 void MockServerAddBehavior(MockServer_t *srv, struct Behavior *b) {
-    // a behavior string takes the form:  "rx=0x11,0x22; tx=0x00,0x33,0x44; delay_ms=200"
-    // arguments are separated by semicolons
-    // bytes are separated by commas. Parse the bytes 
     struct MockServerImpl *impl = srv->impl;
     struct Behavior *new_b = &impl->behaviors[impl->num_behaviors++];
     memcpy(new_b, b, sizeof(struct Behavior));
-    UDS_LOGI(__FILE__, "added behavior with %d ms delay", b->delay_ms);
+    switch (b->tag) {
+        case ExactRequestResponse:
+            UDS_LOGI(__FILE__, "added behavior ExactRequestResponse with %d ms delay", b->exact_request_response.delay_ms);
+            break;
+        case TimedSend:
+            struct ScheduledEvent *evt = &impl->events[impl->num_events++];
+            evt->b = b;
+            evt->time_ms = b->timed_send.when;
+            UDS_LOGI(__FILE__, "added behavior TimedSend");
+            break;
+        default:
+            break;
+    }
 }
 
 void MockServerPoll(MockServer_t *srv) {
@@ -62,12 +71,19 @@ void MockServerPoll(MockServer_t *srv) {
     if (recv_len > 0) {
         for (int i = 0; i < impl->num_behaviors; i++) {
             struct Behavior *b = &impl->behaviors[i];
-            if (recv_len == b->req_len && memcmp(buf, b->req_data, recv_len) == 0) {
-                struct ScheduledEvent *evt = &impl->events[impl->num_events++];
-                evt->time_ms = UDSMillis() + b->delay_ms;
-                evt->b = b;
-                UDS_LOGI(__FILE__, "scheduled event in %d ms", b->delay_ms);
-                break;
+            switch (b->tag) {
+                case ExactRequestResponse:
+                    struct ExactRequestResponse *s = &b->exact_request_response;
+                    if (recv_len == s->req_len && memcmp(buf, s->req_data, recv_len) == 0) {
+                        struct ScheduledEvent *evt = &impl->events[impl->num_events++];
+                        evt->time_ms = UDSMillis() + s->delay_ms;
+                        evt->b = b;
+                        UDS_LOGI(__FILE__, "scheduled event in %d ms", s->delay_ms);
+                        break;
+                    }
+                    break;
+                default:
+                    break;
             }
         }
     }
@@ -75,7 +91,21 @@ void MockServerPoll(MockServer_t *srv) {
     for (int i = 0; i < impl->num_events; i++) {
         struct ScheduledEvent *evt = &impl->events[i];
         if (UDSMillis() >= evt->time_ms) {
-            UDSTpSend(srv->tp, evt->b->resp_data, evt->b->resp_len, NULL);
+            switch (evt->b->tag) {
+                case ExactRequestResponse: {
+                    struct ExactRequestResponse *s = &evt->b->exact_request_response;
+                    UDSTpSend(srv->tp, s->resp_data, s->resp_len, NULL);
+                    break;
+                }
+                case TimedSend: {
+                    struct TimedSend *s = &evt->b->timed_send;
+                    UDSTpSend(srv->tp, s->send_data, s->send_len, NULL);
+                    break;
+                }
+                default:
+                    break;
+            }
+
             for (int j = i + 1; j < impl->num_events; j++) {
                 impl->events[j - 1] = impl->events[j];
             }

@@ -81,11 +81,14 @@ int fn_log_call_count(UDSClient_t *client, UDSEvent_t evt, void *ev_data) {
 void test_0x11_good_response(void **state) {
     Env_t *e = *state;
     MockServerAddBehavior(e->mock_server, &(struct Behavior){
-        .req_data = {0x11, 0x01},
-        .req_len = 2,
-        .resp_data = {0x51, 0x01},
-        .resp_len = 2,
-        .delay_ms = 0, // immediate response
+        .tag = ExactRequestResponse,
+        .exact_request_response = {
+            .req_data = {0x11,0x01}, 
+            .req_len = 2, 
+            .resp_data = {0x51,0x01},
+            .resp_len = 2,
+            .delay_ms = 0,
+        }
     });
     int call_count[UDS_EVT_MAX] = {0};
     e->client->fn = fn_log_call_count;
@@ -99,11 +102,14 @@ void test_0x11_good_response(void **state) {
 void test_0x11_timeout(void **state) {
     Env_t *e = *state;
     MockServerAddBehavior(e->mock_server, &(struct Behavior){
-        .req_data = {0x11, 0x01},
-        .req_len = 2,
-        .resp_data = {0x51, 0x01},
-        .resp_len = 2,
-        .delay_ms = e->client->p2_ms + 10,  // timeout
+        .tag = ExactRequestResponse,
+        .exact_request_response = {
+            .req_data = {0x11, 0x01},
+            .req_len = 2,
+            .resp_data = {0x51, 0x01},
+            .resp_len = 2,
+            .delay_ms = e->client->p2_ms + 10,  // timeout
+        }
     });
     int call_count[UDS_EVT_MAX] = {0};
     e->client->fn = fn_log_call_count;
@@ -116,11 +122,14 @@ void test_0x11_timeout(void **state) {
 void test_0x11_sid_mismatch(void **state) {
     Env_t *e = *state;
     MockServerAddBehavior(e->mock_server, &(struct Behavior){
-        .req_data = {0x11, 0x01},
-        .req_len = 2,
-        .resp_data = {0x50, 0x01}, // (bad SID) should be 0x51
-        .resp_len = 2,
-        .delay_ms = 0, // immediate response
+        .tag = ExactRequestResponse,
+        .exact_request_response = {
+            .req_data = {0x11, 0x01},
+            .req_len = 2,
+            .resp_data = {0x50, 0x01}, // (bad SID) should be 0x51
+            .resp_len = 2,
+            .delay_ms = 0, 
+        }
     });
     int call_count[UDS_EVT_MAX] = {0};
     e->client->fn = fn_log_call_count;
@@ -133,11 +142,14 @@ void test_0x11_sid_mismatch(void **state) {
 void test_0x11_short_response(void **state) {
     Env_t *e = *state;
     MockServerAddBehavior(e->mock_server, &(struct Behavior){
-        .req_data = {0x11, 0x01},
-        .req_len = 2,
-        .resp_data = {0x51}, // short response (ECUReset response should be 2-3 bytes)
-        .resp_len = 1,
-        .delay_ms = 0, // immediate response
+        .tag = ExactRequestResponse,
+        .exact_request_response = {
+            .req_data = {0x11, 0x01},
+            .req_len = 2,
+            .resp_data = {0x51}, // short response (ECUReset response should be 2-3 bytes)
+            .resp_len = 1,
+            .delay_ms = 0,
+        }
     });
     int call_count[UDS_EVT_MAX] = {0};
     e->client->fn = fn_log_call_count;
@@ -150,11 +162,14 @@ void test_0x11_short_response(void **state) {
 void test_0x11_inconsistent_subfunc(void **state) {
     Env_t *e = *state;
     MockServerAddBehavior(e->mock_server, &(struct Behavior){
-        .req_data = {0x11, 0x01},
-        .req_len = 2,
-        .resp_data = {0x51, 0x02}, // subfunction (0x02) inconsistent with request (0x01)
-        .resp_len = 2,
-        .delay_ms = 0, // immediate response
+        .tag = ExactRequestResponse,
+        .exact_request_response = {
+            .req_data = {0x11, 0x01},
+            .req_len = 2,
+            .resp_data = {0x51, 0x02}, // subfunction (0x02) inconsistent with request (0x01)
+            .resp_len = 2,
+            .delay_ms = 0, 
+        }
     });
     int call_count[UDS_EVT_MAX] = {0};
     e->client->fn = fn_log_call_count;
@@ -167,11 +182,14 @@ void test_0x11_inconsistent_subfunc(void **state) {
 void test_0x11_neg_resp(void **state) {
     Env_t *e = *state;
     MockServerAddBehavior(e->mock_server, &(struct Behavior){
-        .req_data = {0x11, 0x01},
-        .req_len = 2,
-        .resp_data = {0x7F, 0x11, 0x10},
-        .resp_len = 3,
-        .delay_ms = 0, // immediate response
+        .tag = ExactRequestResponse,
+        .exact_request_response = {
+            .req_data = {0x11, 0x01},
+            .req_len = 2,
+            .resp_data = {0x7F, 0x11, 0x10},
+            .resp_len = 3,
+            .delay_ms = 0,
+        }
     });
     int call_count[UDS_EVT_MAX] = {0};
     e->client->fn = fn_log_call_count;
@@ -184,11 +202,14 @@ void test_0x11_neg_resp(void **state) {
 void test_0x11_rcrrp_timeout(void **state) {
     Env_t *e = *state;
     MockServerAddBehavior(e->mock_server, &(struct Behavior){
-        .req_data = {0x11, 0x01},
-        .req_len = 2,
-        .resp_data = {0x7F, 0x11, 0x78}, // RCRRP
-        .resp_len = 3,
-        .delay_ms = 0, // immediate response
+        .tag = ExactRequestResponse,
+        .exact_request_response = {
+            .req_data = {0x11, 0x01},
+            .req_len = 2,
+            .resp_data = {0x7F, 0x11, 0x78}, // RCRRP
+            .resp_len = 3,
+            .delay_ms = 0, 
+        }
     });
     int call_count[UDS_EVT_MAX] = {0};
     e->client->fn = fn_log_call_count;
@@ -204,11 +225,14 @@ void test_0x11_rcrrp_timeout(void **state) {
 void test_0x11_rcrrp_ok(void **state) {
     Env_t *e = *state;
     MockServerAddBehavior(e->mock_server, &(struct Behavior){
-        .req_data = {0x11, 0x01},
-        .req_len = 2,
-        .resp_data = {0x7F, 0x11, 0x78}, // RCRRP
-        .resp_len = 3,
-        .delay_ms = 0, // immediate response
+        .tag = ExactRequestResponse,
+        .exact_request_response = {
+            .req_data = {0x11, 0x01},
+            .req_len = 2,
+            .resp_data = {0x7F, 0x11, 0x78}, // RCRRP
+            .resp_len = 3,
+            .delay_ms = 0,
+        }
     });
     int call_count[UDS_EVT_MAX] = {0};
     e->client->fn = fn_log_call_count;
@@ -248,11 +272,14 @@ void test_0x22_unpack_rdbi_response(void **state) {
     e->client->fn_data = call_count;
 
     MockServerAddBehavior(e->mock_server, &(struct Behavior){
-        .req_data = {0x22, 0xf1, 0x90},
-        .req_len = 3,
-        .resp_data = {0x62, 0xf1, 0x90, 0x0a, 0x00},
-        .resp_len = 5,
-        .delay_ms = 0, // immediate response
+        .tag = ExactRequestResponse,
+        .exact_request_response = {
+            .req_data = {0x22, 0xf1, 0x90},
+            .req_len = 3,
+            .resp_data = {0x62, 0xf1, 0x90, 0x0a, 0x00},
+            .resp_len = 5,
+            .delay_ms = 0,
+        }
     });
 
     const uint16_t did_list[] = {0xf190};
@@ -303,6 +330,38 @@ void test_0x38_format_delete_file(void **state) {
     TEST_MEMORY_EQUAL(e->client->send_buf, CORRECT_REQUEST, sizeof(CORRECT_REQUEST));
 }
 
+void test_0x2e_issue_59(void **state) {
+    Env_t *e = *state;
+    int call_count[UDS_EVT_MAX] = {0};
+    e->client->fn = fn_log_call_count;
+    e->client->fn_data = call_count;
+
+    // When a server sends an unsolicited but valid response
+    MockServerAddBehavior(e->mock_server, &(struct Behavior){
+        .tag = TimedSend,
+        .timed_send = {
+            .send_data = {0x6E, 0x12, 0x34},
+            .send_len = 3,
+            .when = UDSMillis(),
+        }
+    });
+
+    EnvRunMillis(e, 50);
+
+    // And the client *later* sends the request which would result in such a response
+    uint8_t wdbi_data[] = {0x01, 0x02, 0x03, 0x04};
+    UDSErr_t err = UDSSendWDBI(e->client, 0x1234, wdbi_data, sizeof(wdbi_data));
+    
+    // there request should be sent successfully
+    TEST_ERR_EQUAL(UDS_OK, err);
+
+    // but it should later time out
+    EnvRunMillis(e, 1000);
+    TEST_INT_EQUAL(call_count[UDS_EVT_SendComplete], 1);
+    TEST_INT_EQUAL(call_count[UDS_EVT_ResponseReceived], 0);
+    TEST_INT_EQUAL(call_count[UDS_EVT_Err], 1);
+}
+
 int main(int ac, char **av) {
     if (ac > 1) {
         cmocka_set_test_filter(av[1]);
@@ -323,6 +382,7 @@ int main(int ac, char **av) {
         cmocka_unit_test_setup_teardown(test_0x34_format, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x38_format_add_file, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x38_format_delete_file, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x2e_issue_59, Setup, Teardown),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
