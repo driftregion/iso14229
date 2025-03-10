@@ -38,9 +38,6 @@
 
 static_assert(UDS_CLIENT_DEFAULT_P2_STAR_MS > UDS_CLIENT_DEFAULT_P2_MS, "");
 
-#ifndef UDS_SERVER_DEFAULT_POWER_DOWN_TIME_MS
-#define UDS_SERVER_DEFAULT_POWER_DOWN_TIME_MS (10)
-#endif
 
 // Default value from ISO14229-2 2013 Table 4: 50 ms
 #ifndef UDS_SERVER_DEFAULT_P2_MS
@@ -61,6 +58,17 @@ static_assert((0 < UDS_SERVER_DEFAULT_P2_MS) &&
                   (UDS_SERVER_DEFAULT_P2_MS < UDS_SERVER_DEFAULT_P2_STAR_MS) &&
                   (UDS_SERVER_DEFAULT_P2_STAR_MS < UDS_SERVER_DEFAULT_S3_MS),
               "");
+
+// Duration between the server sending a positive response to an ECU reset request and the emission
+// of a UDS_EVT_DoScheduledReset event. This should be set to a duration adequate for the server
+// transport layer to finish responding to the ECU reset request.
+#ifndef UDS_SERVER_DEFAULT_POWER_DOWN_TIME_MS
+#define UDS_SERVER_DEFAULT_POWER_DOWN_TIME_MS (60)
+#endif
+
+#if (UDS_SERVER_DEFAULT_POWER_DOWN_TIME_MS < UDS_SERVER_DEFAULT_P2_MS)
+#error "The server shall have adequate time to respond before reset"
+#endif
 
 // Amount of time to wait after boot before accepting 0x27 requests.
 #ifndef UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_BOOT_DELAY_MS

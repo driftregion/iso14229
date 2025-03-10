@@ -62,7 +62,7 @@ static ssize_t tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *inf
 
     int ret = isotp_receive(&tp->phys_link, buf, bufsize, &out_size);
     if (ret == ISOTP_RET_OK) {
-        UDS_LOGI(__FILE__, "just got %d bytes\n", out_size);
+        UDS_LOGI(__FILE__, "phys link received %d bytes", out_size);
         if (NULL != info) {
             info->A_TA = tp->phys_sa;
             info->A_SA = tp->phys_ta;
@@ -71,7 +71,7 @@ static ssize_t tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *inf
     } else if (ret == ISOTP_RET_NO_DATA) {
         ret = isotp_receive(&tp->func_link, buf, bufsize, &out_size);
         if (ret == ISOTP_RET_OK) {
-            UDS_LOGI(__FILE__, "just got %d bytes on func link\n", out_size);
+            UDS_LOGI(__FILE__, "func link received %d bytes", out_size);
             if (NULL != info) {
                 info->A_TA = tp->func_sa;
                 info->A_SA = tp->func_ta;
