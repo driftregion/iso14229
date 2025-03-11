@@ -10,6 +10,7 @@ iso14229_c = os.path.join(out_dir, "iso14229.c")
 parser = argparse.ArgumentParser()
 parser.add_argument("--out_c", help="output c file", default=iso14229_c)
 parser.add_argument("--out_h", help="output h file", default=iso14229_h)
+parser.add_argument("--git_ref", help="ref to be embedded as metadata")
 parser.add_argument("srcs", nargs="*")
 args = parser.parse_args()
 srcs = {os.path.basename(src): src for src in args.srcs}

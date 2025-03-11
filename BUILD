@@ -33,17 +33,12 @@ cc_library(
     ],
 )
 
-py_binary(
-    name="amalgamate",
-    srcs=["amalgamate.py"],
-)
-
 genrule(
     name="amalgamated",
     srcs=glob(["src/**/*.c", "src/**/*.h"]),
     outs=["iso14229.c", "iso14229.h"],
-    cmd="$(location //:amalgamate) --out_c $(location //:iso14229.c) --out_h $(location //:iso14229.h) $(SRCS)",
-    tools=["//:amalgamate"],
+    cmd="$(location //tools:amalgamate) --out_c $(location //:iso14229.c) --out_h $(location //:iso14229.h) $(SRCS)",
+    tools=["//tools:amalgamate"],
 )
 
 genrule(
