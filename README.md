@@ -383,7 +383,7 @@ bazel build //:release
 - [ ] be sure branch is rebased on main
 - [ ] run all tests locally (including vcan and examples) with `bazel test //...`
 - [ ] push branch, check all tests are passing in CI
-- [ ] update release notes in README.md
+- [ ] update changelog in README.md
 - [ ] increment version in `src/version.h` and commit changes
 - [ ] `git tag` with version, e.g. `git tag v0.8.0` (the current implementation of `.github/workflows/release.yml` grabs the release triple from the git tag)
 
@@ -472,3 +472,8 @@ bazel build //:release
 
 ## 0.0.0
 - initial release
+
+
+# Cited by
+
+- https://saemobilus.sae.org/papers/comparing-open-source-uds-implementations-fuzz-testing-2024-01-2799

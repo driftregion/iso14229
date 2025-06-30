@@ -53,3 +53,13 @@ gcc-powerpc64-linux-gnu \
 gcc-powerpc64le-linux-gnu \
 clang-15 \
 ```
+
+```sh
+# ABI change testing needs 
+sudo apt install -y abigail-tools
+```
+
+```sh
+# static analysis needs
+pip3 install codechecker
+```
