@@ -382,9 +382,10 @@ bazel build //:release
 
 - [ ] branch is rebased on main `git fetch && git merge origin main`
 - [ ] push branch, all checks pass in CI `git push`
-- [ ] update changelog in README.md
-- [ ] `git tag $(cat bazel-bin/VERSION)`
-- [ ] `git push`
+- [ ] update changelog in README.md, commit
+- [ ] build release `bazel build //:release`
+- [ ] `git tag v$(cat bazel-bin/VERSION)`
+- [ ] `git push v$(cat bazel-bin/VERSION)`
 
 # Acknowledgements
 
