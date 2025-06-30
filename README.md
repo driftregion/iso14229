@@ -380,12 +380,11 @@ bazel build //:release
 
 ### Release Checklist
 
-- [ ] be sure branch is rebased on main
-- [ ] run all tests locally (including vcan and examples) with `bazel test //...`
-- [ ] push branch, check all tests are passing in CI
+- [ ] branch is rebased on main `git fetch && git merge origin main`
+- [ ] push branch, all checks pass in CI `git push`
 - [ ] update changelog in README.md
-- [ ] increment version in `src/version.h` and commit changes
-- [ ] `git tag` with version, e.g. `git tag v0.8.0` (the current implementation of `.github/workflows/release.yml` grabs the release triple from the git tag)
+- [ ] `git tag $(cat bazel-bin/VERSION)`
+- [ ] `git push`
 
 # Acknowledgements
 
@@ -397,6 +396,7 @@ bazel build //:release
 - breaking API changes:
     - converted subfunction enums to #defines with standard-consistent naming
     - simplified transport API
+- refined release checklist in #60
 
 ## 0.8.0
 - breaking API changes:
