@@ -386,6 +386,7 @@ bazel build //:release
 - [ ] build release `bazel build //:release`
 - [ ] `git tag v$(cat bazel-bin/VERSION)`
 - [ ] `git push v$(cat bazel-bin/VERSION)`
+- [ ] `./.github/release.sh`
 
 # Acknowledgements
 
