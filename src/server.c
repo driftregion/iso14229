@@ -31,7 +31,7 @@ static UDSErr_t Handle_0x10_DiagnosticSessionControl(UDSServer_t *srv, UDSReq_t 
         return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
-    uint8_t sessType = r->recv_buf[1] & 0x4F;
+    uint8_t sessType = r->recv_buf[1] & 0x7F;
 
     UDSDiagSessCtrlArgs_t args = {
         .type = sessType,
