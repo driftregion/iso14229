@@ -5,7 +5,7 @@
 <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
 </p>
 
-iso14229 is an implementation of UDS (ISO14229) targeting embedded systems. It is tested with [`isotp-c`](https://github.com/lishen2/isotp-c) as well as [linux kernel](https://github.com/linux-can/can-utils/blob/master/include/linux/can/isotp.h) ISO15765-2 (ISO-TP) transport layer implementations. 
+iso14229 is an implementation of UDS (ISO14229) targeting embedded systems. It is tested with [`isotp-c`](https://github.com/SimonCahill/isotp-c) as well as [linux kernel](https://github.com/linux-can/can-utils/blob/master/include/linux/can/isotp.h) ISO15765-2 (ISO-TP) transport layer implementations. 
 
 API status: Major version zero (0.y.z) **(not yet stable)**. Anything MAY change at any time.
 
@@ -380,12 +380,13 @@ bazel build //:release
 
 ### Release Checklist
 
-- [ ] be sure branch is rebased on main
-- [ ] run all tests locally (including vcan and examples) with `bazel test //...`
-- [ ] push branch, check all tests are passing in CI
-- [ ] update release notes in README.md
-- [ ] increment version in `src/version.h` and commit changes
-- [ ] `git tag` with version, e.g. `git tag v0.8.0` (the current implementation of `.github/workflows/release.yml` grabs the release triple from the git tag)
+- [ ] branch is rebased on main `git fetch && git merge origin main`
+- [ ] push branch, all checks pass in CI `git push`
+- [ ] update changelog in README.md, commit
+- [ ] build release `bazel build //:release`
+- [ ] `git tag v$(cat bazel-bin/VERSION)`
+- [ ] `git push v$(cat bazel-bin/VERSION)`
+- [ ] `./.github/release.sh`
 
 # Acknowledgements
 
@@ -397,6 +398,7 @@ bazel build //:release
 - breaking API changes:
     - converted subfunction enums to #defines with standard-consistent naming
     - simplified transport API
+- refined release checklist in #60
 
 ## 0.8.0
 - breaking API changes:
@@ -472,3 +474,8 @@ bazel build //:release
 
 ## 0.0.0
 - initial release
+
+
+# Cited by
+
+- https://saemobilus.sae.org/papers/comparing-open-source-uds-implementations-fuzz-testing-2024-01-2799

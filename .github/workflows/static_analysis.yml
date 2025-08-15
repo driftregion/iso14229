@@ -39,4 +39,4 @@ jobs:
         GITHUB_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
-        python3 .CodeChecker/post_to_github.py report.json
+        python3 tools/CodeChecker/post_to_github.py report.json

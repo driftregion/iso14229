@@ -6,8 +6,8 @@ cppcheck \
 --project=compile_commands.json \
 --platform=unix64 \
 --enable=all \
---addon=.cppcheck/misra.json \
---suppressions-list=.CodeChecker/suppressions.txt \
+--addon=tools/cppcheck/misra.json \
+--suppressions-list=tools/CodeChecker/suppressions.txt \
 --plist-output=cppcheck_reports \
  -DUDS_SYS=UDS_SYS_UNIX \
 --checkers-report=cppcheck_reports/checkers.txt \

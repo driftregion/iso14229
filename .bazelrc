@@ -1,6 +1,8 @@
 common --enable_platform_specific_config
 build --strip=never
 build --incompatible_enable_cc_toolchain_resolution
+build --workspace_status_command=tools/workspace_status.sh
+build --stamp
 
 build --extra_toolchains //toolchain:arm_linux_gcc
 build --extra_toolchains //toolchain:arm_none_gcc

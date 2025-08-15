@@ -86,7 +86,8 @@ with open(args.out_h, "w", encoding="utf-8") as f:
         "src/server.h",
     ]:
         f.write("\n")
-        with open(src, "r", encoding="utf-8") as src_file:
+        src_path = next((s for s in args.srcs if src in s))
+        with open(src_path, "r", encoding="utf-8") as src_file:
             stripped = strip_includes(src_file.read())
             f.write(stripped)
             f.write("\n")
