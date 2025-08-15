@@ -963,6 +963,8 @@ void UDSServerPoll(UDSServer_t *srv) {
     if (UDS_LEV_DS_DS != srv->sessionType &&
         UDSTimeAfter(UDSMillis(), srv->s3_session_timeout_timer)) {
         EmitEvent(srv, UDS_EVT_SessionTimeout, NULL);
+        srv->sessionType = UDS_LEV_DS_DS;
+        srv->securityLevel = 0;
     }
 
     if (srv->ecuResetScheduled && UDSTimeAfter(UDSMillis(), srv->ecuResetTimer)) {

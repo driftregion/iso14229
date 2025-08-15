@@ -38,7 +38,6 @@
 
 static_assert(UDS_CLIENT_DEFAULT_P2_STAR_MS > UDS_CLIENT_DEFAULT_P2_MS, "");
 
-
 // Default value from ISO14229-2 2013 Table 4: 50 ms
 #ifndef UDS_SERVER_DEFAULT_P2_MS
 #define UDS_SERVER_DEFAULT_P2_MS (50)
