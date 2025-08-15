@@ -111,8 +111,8 @@ void test_0x10_suppress_pos_resp(void **state) {
     }; 
     UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
 
-    // even after running for a long time
-    EnvRunMillis(e, 10000);
+    // even after running for a long time, but not long enough to timeout
+    EnvRunMillis(e, 1000);
 
     // there should be no response from the server
     int len = UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL);
@@ -613,6 +613,67 @@ void test_0x3e_suppress_positive_response(void **state) {
     TEST_INT_EQUAL(UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL), 0);
 }
 
+int fn_0x27_noop(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+    switch (ev) {
+    case UDS_EVT_SecAccessRequestSeed: {
+        UDSSecAccessRequestSeedArgs_t *r = (UDSSecAccessRequestSeedArgs_t *)arg;
+        const uint8_t seed[] = {0x36, 0x57};
+        return r->copySeed(srv, seed, sizeof(seed));
+    }
+    case UDS_EVT_SecAccessValidateKey: {
+        return UDS_PositiveResponse;
+    }
+    default:
+        break;
+    }
+    return UDS_PositiveResponse;
+}
+
+void test_security_level_resets_on_session_timeout(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[8] = {0};
+
+    // When a server handler function is installed
+    e->server->fn = fn_0x27_noop;
+
+    // and the anti-brute-force timeout has expired
+    EnvRunMillis(e, UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_BOOT_DELAY_MS + 10);
+
+    // and a seed request is sent to the server
+    const uint8_t SEED_REQUEST[] = {0x27, 0x01};
+    UDSTpSend(e->client_tp, SEED_REQUEST, sizeof(SEED_REQUEST), NULL);
+
+    // the server should respond with a seed within p2 ms
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, UDS_CLIENT_DEFAULT_P2_MS);
+
+    // and the server security level should still be 0
+    TEST_INT_EQUAL(e->server->securityLevel, 0);
+
+    // When an unlock request is sent to the server
+    const uint8_t UNLOCK_REQUEST[] = {0x27, 0x02, 0xC9, 0xA9};
+    UDSTpSend(e->client_tp, UNLOCK_REQUEST, sizeof(UNLOCK_REQUEST), NULL);
+
+    // the server should respond with a positive response within p2 ms
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, UDS_CLIENT_DEFAULT_P2_MS);
+
+    // and the server security level should now be 1
+    TEST_INT_EQUAL(e->server->securityLevel, 1);
+
+    // Switch to programming session (to allow timeout)
+    const uint8_t SESSION_REQUEST[] = {0x10, 0x02};
+    UDSTpSend(e->client_tp, SESSION_REQUEST, sizeof(SESSION_REQUEST), NULL);
+    UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL);
+
+    // Wait for session timeout
+    EnvRunMillis(e, e->server->s3_ms + 10);
+
+    // Should now be in default session
+    TEST_INT_EQUAL(e->server->sessionType, UDS_LEV_DS_DS);
+
+    // Security level should be reset to locked 
+    TEST_INT_EQUAL(e->server->securityLevel, 0);
+}
+
 int main(int ac, char **av) {
     if (ac > 1) {
         cmocka_set_test_filter(av[1]);
@@ -639,6 +700,7 @@ int main(int ac, char **av) {
         cmocka_unit_test_setup_teardown(test_0x38_addfile, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x38_delfile, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x3e_suppress_positive_response, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_security_level_resets_on_session_timeout, Setup, Teardown),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
