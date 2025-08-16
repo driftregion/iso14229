@@ -50,3 +50,14 @@ filegroup(
         "tp/isotp-c/isotp.h",
     ]
 )
+
+genrule(
+    name="amalgamated",
+    srcs=[
+        "//src:sources",
+        "//src:headers",
+    ],
+    outs=["iso14229.c", "iso14229.h"],
+    cmd="$(location //tools:amalgamate) --out_c $(location :iso14229.c) --out_h $(location :iso14229.h) $(SRCS)",
+    tools=["//tools:amalgamate"],
+)

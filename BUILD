@@ -19,12 +19,12 @@ refresh_compile_commands(
 refresh_compile_commands(
     name = "lib_compile_commands",
     targets = {
-        "//:iso14229": "",
+        "//:iso14229_unamalgamated": "",
     }
 )
 
 cc_library(
-    name = "iso14229",
+    name = "iso14229_unamalgamated",
     srcs=[
         "//src:sources",
         "//src:headers",
@@ -33,11 +33,11 @@ cc_library(
     copts = [
         # gcc adds system headers by default. However, the compile_commands.json used for static analysis needs this include path to be explicit.
         "-I/usr/include",
-    ],
+    ]
 )
 
 cc_binary(
-    name = "libiso14229.so",
+    name = "libiso14229_unamalgamated.so",
     srcs=[
         "//src:sources",
         "//src:headers",
@@ -55,15 +55,29 @@ cc_binary(
     linkshared = 1,
 )
 
-genrule(
-    name="amalgamated",
+cc_library(
+    name="iso14229",
     srcs=[
-        "//src:sources",
-        "//src:headers",
+        "//src:iso14229.c",
     ],
-    outs=["iso14229.c", "iso14229.h"],
-    cmd="$(location //tools:amalgamate) --out_c $(location //:iso14229.c) --out_h $(location //:iso14229.h) $(SRCS)",
-    tools=["//tools:amalgamate"],
+    hdrs=[
+        "//src:iso14229.h",
+    ],
+    copts = select({
+        "@platforms//os:windows": [],
+        "//conditions:default": [ "-g", ],
+    }),
+    defines = [
+        "UDS_TP_ISOTP_MOCK",
+        "UDS_CUSTOM_MILLIS",
+        "UDS_LOG_LEVEL=UDS_LOG_VERBOSE",
+    ] + select({
+        "@platforms//os:windows": [],
+        "//conditions:default": [ 
+            "UDS_TP_ISOTP_C_SOCKETCAN",
+            "UDS_TP_ISOTP_SOCK",
+        ],
+    }),
 )
 
 genrule(
@@ -81,8 +95,9 @@ genrule(
 )
 
 genrule(
-    name="gen_version_txt",
-    outs=["VERSION"],
-    cmd="awk '/STABLE_README_VERSION/ {v=$$2} /STABLE_SCM_REVISION/ {r=$$2} /STABLE_SCM_DIRTY/ {d=$$2} END{print v \"+\" r d}' bazel-out/stable-status.txt > $(OUTS)",
-    stamp=1,
+    name = "gen_version_txt",
+    outs = ["VERSION"],
+    stamp = 1,
+    cmd = "$(location //tools:gen_version) bazel-out/stable-status.txt $(OUTS)",
+    tools = ["//tools:gen_version"],
 )

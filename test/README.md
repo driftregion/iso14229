@@ -27,10 +27,17 @@ bazel build -s --verbose_failures --config=x85_64_clang //test:test_fuzz_server
 mkdir .libfuzzer_artifacts .libfuzzer_corpus
 bazel-bin/test/test_fuzz_server -jobs=7 -artifact_prefix=./.libfuzzer_artifacts/ .libfuzzer_corpus
 
-# generate coverage
-bazel coverage --config=x86_64_gcc -s --combined_report=lcov --instrument_test_targets --instrumentation_filter=^//... --coverage_report_generator=@bazel_tools//tools/test/CoverageOutputGenerator/java/com/google/devtools/coverageoutputgenerator:Main  //test:test_client_sequence
+```
 
-genhtml --branch-coverage --output genhtml "$(bazel info output_path)/_coverage/_coverage_report.dat"
+## Coverage Testing
+
+The target of coverage testing is the amalgamated source file pair {iso14229.c, iso14229.h}.
+
+```sh
+# generate coverage
+bazel coverage -s --combined_report=lcov --instrumentation_filter='^//:(iso14229)$'  --experimental_collect_code_coverage_for_generated_files --nocache_test_results //test:test_client_tp_mock //test:test_server_tp_mock //test:test_tp_isotp_compliance_mock
+
+genhtml --branch-coverage --output-directory coverage_html "$(bazel info output_path)/_coverage/_coverage_report.dat"
 ```
 
 
