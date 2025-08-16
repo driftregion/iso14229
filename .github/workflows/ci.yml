@@ -38,7 +38,6 @@ jobs:
       with:
         files: coverage.lcov          # point directly at the Bazel LCOV
         disable_search: true          # don’t look for anything else
-        flags: bazel-c,iso14229       # optional: helpful grouping
         name: iso14229-coverage
         fail_ci_if_error: true
         token: ${{ secrets.CODECOV_TOKEN }}
