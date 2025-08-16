@@ -74,7 +74,6 @@ jobs:
           build: ${CIRCLE_BUILD_NUM}
           branch: ${CIRCLE_BRANCH}
           sha: ${CIRCLE_SHA1}
-          verbose: true
 
 workflows:
   version: 2
