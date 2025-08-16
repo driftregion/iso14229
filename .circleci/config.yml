@@ -26,16 +26,6 @@ jobs:
             sudo ip link add dev vcan0 type vcan || true
             sudo ip link set vcan0 up
             ip -details link show vcan0
-            # Prefer kernel ISO-TP if present
-            if grep -q '^CONFIG_CAN_ISOTP=y' /boot/config-$(uname -r) || sudo modprobe can-isotp 2>/dev/null; then
-              echo "COPT=-DUDS_TP_ISOTP_SOCK" >> $BASH_ENV
-              echo "USING=kernel isotp" >> $BASH_ENV
-            else
-              echo "COPT=-DUDS_TP_ISOTP_C_SOCKETCAN" >> $BASH_ENV
-              echo "USING=userspace isotp-c" >> $BASH_ENV
-            fi
-            source $BASH_ENV
-            echo "Transport: $USING"
 
       # Optional smoke test (only if kernel ISO-TP succeeded)
       - run:
@@ -43,15 +33,11 @@ jobs:
           when: on_success
           command: |
             set -euxo pipefail
-            if [ "${USING}" = "kernel isotp" ]; then
-              isotprecv -s 0x700 -d 0x701 -l vcan0 &
-              sleep 1
-              printf "01 0C\n" | isotpsend -s 0x701 -d 0x700 vcan0
-              sleep 1
-              pkill isotprecv || true
-            else
-              echo "Skipping kernel ISO-TP smoke test (using isotp-c)."
-            fi
+            isotprecv -s 0x700 -d 0x701 -l vcan0 &
+            sleep 1
+            printf "01 0C\n" | isotpsend -s 0x701 -d 0x700 vcan0
+            sleep 1
+            pkill isotprecv || true
 
       - run:
           name: Bazel tests
