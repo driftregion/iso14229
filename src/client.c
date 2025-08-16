@@ -9,7 +9,6 @@
 #define STATE_SENDING 1
 #define STATE_AWAIT_SEND_COMPLETE 2
 #define STATE_AWAIT_RESPONSE 3
-#define STATE_PROCESS_RESPONSE 4
 
 UDSErr_t UDSClientInit(UDSClient_t *client) {
     if (NULL == client) {
@@ -39,8 +38,6 @@ static const char *ClientStateName(uint8_t state) {
         return "AwaitSendComplete";
     case STATE_AWAIT_RESPONSE:
         return "AwaitResponse";
-    case STATE_PROCESS_RESPONSE:
-        return "ProcessResponse";
     default:
         return "Unknown";
     }
@@ -62,8 +59,6 @@ static void changeState(UDSClient_t *client, uint8_t state) {
         case STATE_AWAIT_SEND_COMPLETE:
             break;
         case STATE_AWAIT_RESPONSE:
-            break;
-        case STATE_PROCESS_RESPONSE:
             break;
         default:
             UDS_ASSERT(0);
