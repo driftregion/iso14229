@@ -1,4 +1,6 @@
 version: 2.1
+orbs:
+  codecov: codecov/codecov@4.0.1
 
 jobs:
   linux-transport-unit-tests-and-coverage:
@@ -64,21 +66,11 @@ jobs:
             sed -E -i 's#^SF:bazel-out/.*/iso14229.h#SF:iso14229.h#' coverage.lcov
             ls -l coverage.lcov
 
-      - run:
-          name: Upload coverage to Codecov
-          command: |
-            set -euxo pipefail
-            curl -Os https://uploader.codecov.io/latest/linux/codecov
-            chmod +x codecov
-            ./codecov \
-              --file coverage.lcov \
-              --disable-search \
-              --name iso14229-coverage \
-              --fail-on-error \ 
-              --sha "${CIRCLE_SHA1}" \
-              --branch "${CIRCLE_BRANCH}" \
-              --slug "${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}" \
-              --build "${CIRCLE_BUILD_NUM}"
+      - codecov/upload:
+          file: coverage.lcov
+          name: iso14229-coverage
+          flags: iso14229
+          token: CODECOV_TOKEN
 
 workflows:
   version: 2
