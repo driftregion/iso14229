@@ -67,7 +67,21 @@ jobs:
             sed -E -i 's#^SF:bazel-out/.*/iso14229.h#SF:iso14229.h#' coverage.lcov
             ls -l coverage.lcov
 
-      - codecov/upload
+      # Upload with explicit context; orb v5.4.3 syntax
+      - codecov/upload:
+          files: coverage.lcov
+          upload_name: iso14229-coverage
+          flags: iso14229
+          disable_search: true
+          fail_ci_if_error: true
+          # VCS context
+          slug: driftregion/iso14229
+          branch: << pipeline.git.branch >>
+          sha: << pipeline.git.revision >>
+          build: ${CIRCLE_BUILD_NUM}
+          pr: ${CI_PR_NUMBER}
+          # Token is needed for private repos or if your org disables tokenless uploads for public repos
+          token: CODECOV_TOKEN
 
 workflows:
   version: 2
