@@ -75,7 +75,6 @@ jobs:
               --disable-search \
               --name iso14229-coverage \
               --fail-on-error \ 
-              --verbose \
               --sha "${CIRCLE_SHA1}" \
               --branch "${CIRCLE_BRANCH}" \
               --slug "${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}" \
