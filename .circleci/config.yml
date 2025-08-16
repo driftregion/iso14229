@@ -55,6 +55,32 @@ jobs:
             set -euxo pipefail
             bazel test //test:all --test_output=errors
 
+      - run:
+          name: Run coverage (Bazel)
+          command: |
+            set -euxo pipefail
+            bazel coverage \
+              --combined_report=lcov \
+              --instrumentation_filter='^//:(iso14229)$' \
+              --experimental_collect_code_coverage_for_generated_files \
+              //test:all \
+            cp "$(bazel info output_path)/_coverage/_coverage_report.dat" coverage.lcov
+            sed -E -i 's#^SF:bazel-out/.*/iso14229.c#SF:iso14229.c#' coverage.lcov
+            sed -E -i 's#^SF:bazel-out/.*/iso14229.h#SF:iso14229.h#' coverage.lcov
+            ls -l coverage.lcov
+
+      - run:
+          name: Upload coverage to Codecov
+          command: |
+            set -euxo pipefail
+            curl -Os https://uploader.codecov.io/latest/linux/codecov
+            chmod +x codecov
+            ./codecov \
+              --file coverage.lcov \
+              --disable-search \
+              --name iso14229-coverage \
+              --fail-on-error
+
 workflows:
   version: 2
   build:
