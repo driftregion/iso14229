@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Go to repo root
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+bazel build //src:amalgamated >/dev/null
+
+BAZEL_BIN="$(bazel info bazel-bin)"
+SRC_C="$BAZEL_BIN/src/iso14229.c"
+SRC_H="$BAZEL_BIN/src/iso14229.h"
+
+# Sanity check
+if [[ ! -f "$SRC_C" || ! -f "$SRC_H" ]]; then
+  echo "pre-commit: expected files not found at:"
+  echo "  $SRC_C"
+  echo "  $SRC_H"
+  echo "Verify the target (//src:amalgamated) and output paths."
+  exit 1
+fi
+
+# Copy to repository root
+cp -f "$SRC_C" "$REPO_ROOT/iso14229.c"
+cp -f "$SRC_H" "$REPO_ROOT/iso14229.h"
+
+# Stage them so they’re included in the commit
+git add iso14229.c iso14229.h

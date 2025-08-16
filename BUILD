@@ -55,24 +55,13 @@ cc_binary(
     linkshared = 1,
 )
 
-genrule(
-    name="amalgamated",
-    srcs=[
-        "//src:sources",
-        "//src:headers",
-    ],
-    outs=["iso14229.c", "iso14229.h"],
-    cmd="$(location //tools:amalgamate) --out_c $(location //:iso14229.c) --out_h $(location //:iso14229.h) $(SRCS)",
-    tools=["//tools:amalgamate"],
-)
-
 cc_library(
     name="iso14229",
     srcs=[
-        "//:iso14229.c",
+        "//src:iso14229.c",
     ],
     hdrs=[
-        "//:iso14229.h",
+        "//src:iso14229.h",
     ],
     copts = select({
         "@platforms//os:windows": [],
@@ -89,6 +78,7 @@ cc_library(
             "UDS_TP_ISOTP_SOCK",
         ],
     }),
+    strip_include_prefix="src"
 )
 
 genrule(
