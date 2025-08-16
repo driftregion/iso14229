@@ -74,7 +74,11 @@ jobs:
               --file coverage.lcov \
               --disable-search \
               --name iso14229-coverage \
-              --fail-on-error
+              --fail-on-error \ 
+              --sha "${CIRCLE_SHA1}" \
+              --branch "${CIRCLE_BRANCH}" \
+              --slug "${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}" \
+              --build "${CIRCLE_BUILD_NUM}"
 
 workflows:
   version: 2
