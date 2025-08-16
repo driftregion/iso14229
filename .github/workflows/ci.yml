@@ -37,6 +37,10 @@ jobs:
         sudo ip link set up vcan0
         ip link show vcan0
 
+        # ISO-TP protocol socket
+        sudo modprobe can-isotp
+        lsmod | egrep 'vcan|can_isotp' || true
+
     - name: run unit tests
       run: bazel test //test:all --test_output=errors
 
