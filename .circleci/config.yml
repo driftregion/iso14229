@@ -68,10 +68,10 @@ jobs:
             ls -l coverage.lcov
 
       - codecov/upload:
-          file: coverage.lcov
-          name: iso14229-coverage
+          files: coverage.lcov
+          upload_name: iso14229-coverage
           flags: iso14229
-          token: CODECOV_TOKEN
+          verbose: true
 
 workflows:
   version: 2
