@@ -68,12 +68,6 @@ jobs:
             ls -l coverage.lcov
 
       - codecov/upload:
-          files: coverage.lcov
-          upload_name: iso14229-coverage
-          flags: iso14229
-          build: ${CIRCLE_BUILD_NUM}
-          branch: ${CIRCLE_BRANCH}
-          sha: ${CIRCLE_SHA1}
 
 workflows:
   version: 2
