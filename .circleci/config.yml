@@ -73,9 +73,7 @@ jobs:
           upload_name: iso14229-coverage
           flags: iso14229
           disable_search: true
-          fail_ci_if_error: true
           # VCS context
-          slug: driftregion/iso14229
           branch: << pipeline.git.branch >>
           sha: << pipeline.git.revision >>
           build: ${CIRCLE_BUILD_NUM}
