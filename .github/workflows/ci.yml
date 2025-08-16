@@ -21,7 +21,10 @@ jobs:
     - name: Install build deps & can-utils
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential pkg-config can-utils python3 python3-pip
+        # Pull extras that contain vcan.ko (and can-isotp.ko on many kernels)
+        sudo apt-get install -y "linux-modules-extra-$(uname -r)" || \
+          sudo apt-get install -y linux-modules-extra-azure
+        sudo apt-get install -y can-utils
 
     - name: Enable SocketCAN (vcan) + ISO-TP
       run: |
