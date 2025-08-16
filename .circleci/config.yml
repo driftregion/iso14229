@@ -6,6 +6,7 @@ jobs:
       image: ubuntu-2204:current   # Dedicated VM; 24.04 is fine if/when available
     resource_class: medium
     steps:
+
       - checkout
 
       - run:
