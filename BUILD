@@ -19,12 +19,12 @@ refresh_compile_commands(
 refresh_compile_commands(
     name = "lib_compile_commands",
     targets = {
-        "//:iso14229": "",
+        "//:iso14229_unamalgamated": "",
     }
 )
 
 cc_library(
-    name = "iso14229",
+    name = "iso14229_unamalgamated",
     srcs=[
         "//src:sources",
         "//src:headers",
@@ -33,11 +33,11 @@ cc_library(
     copts = [
         # gcc adds system headers by default. However, the compile_commands.json used for static analysis needs this include path to be explicit.
         "-I/usr/include",
-    ],
+    ]
 )
 
 cc_binary(
-    name = "libiso14229.so",
+    name = "libiso14229_unamalgamated.so",
     srcs=[
         "//src:sources",
         "//src:headers",
@@ -64,6 +64,31 @@ genrule(
     outs=["iso14229.c", "iso14229.h"],
     cmd="$(location //tools:amalgamate) --out_c $(location //:iso14229.c) --out_h $(location //:iso14229.h) $(SRCS)",
     tools=["//tools:amalgamate"],
+)
+
+cc_library(
+    name="iso14229",
+    srcs=[
+        "//:iso14229.c",
+    ],
+    hdrs=[
+        "//:iso14229.h",
+    ],
+    copts = select({
+        "@platforms//os:windows": [],
+        "//conditions:default": [ "-g", ],
+    }),
+    defines = [
+        "UDS_TP_ISOTP_MOCK",
+        "UDS_CUSTOM_MILLIS",
+        "UDS_LOG_LEVEL=UDS_LOG_VERBOSE",
+    ] + select({
+        "@platforms//os:windows": [],
+        "//conditions:default": [ 
+            "UDS_TP_ISOTP_C_SOCKETCAN",
+            "UDS_TP_ISOTP_SOCK",
+        ],
+    }),
 )
 
 genrule(

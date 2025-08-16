@@ -3,22 +3,11 @@ cc_library(
     srcs = [
         "env.c",
         "env.h",
-        "//:iso14229.h",
-        "//:iso14229.c",
     ],
-    deps = [ "@cmocka" ],
-    defines = [
-        "UDS_TP_ISOTP_MOCK",
-        "UDS_CUSTOM_MILLIS",
-        "UDS_LOG_LEVEL=UDS_LOG_VERBOSE",
-        "UDS_LINES",
-    ] + select({
-        "@platforms//os:windows": [],
-        "//conditions:default": [ 
-            "UDS_TP_ISOTP_C_SOCKETCAN",
-            "UDS_TP_ISOTP_SOCK",
-        ],
-    }),
+    deps = [ 
+        "@cmocka",
+        "//:iso14229",
+    ],
     copts = select({
         "@platforms//os:windows": [],
         "//conditions:default": [ "-g", ],
@@ -37,12 +26,12 @@ TEST_NAMES = [ src.split(".c")[0] for src in TEST_SRCS ]
         name=name + "_tp_mock", 
         srcs = [
             src,
-            "env.c",
-            "env.h",
-            "//:iso14229.h",
-            "//:iso14229.c",
         ],
-        deps = [ "@cmocka" ],
+        deps = [ 
+            "//:iso14229",
+            "@cmocka",
+            ":env",
+        ],
         size = "small",
         copts = select({
             "@platforms//os:windows": [],
@@ -165,12 +154,11 @@ cc_binary(
         name = "test_tp_isotp_compliance_" + tp_name,
         srcs = [
             "test_tp_isotp_compliance.c",
-            "env.c",
-            "env.h",
-            "//:iso14229.h",
-            "//:iso14229.c",
         ],
-        deps = [ "@cmocka" ],
+        deps = [ 
+            "@cmocka",
+            ":env",
+        ],
         defines = [
             "UDS_CUSTOM_MILLIS",
             "UDS_LINES",
