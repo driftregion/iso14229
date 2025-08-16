@@ -98,5 +98,6 @@ genrule(
     name = "gen_version_txt",
     outs = ["VERSION"],
     stamp = 1,
-    cmd = "python tools/gen_version.py bazel-out/stable-status.txt $(OUTS)",
+    cmd = "$(location //tools:gen_version) bazel-out/stable-status.txt $(OUTS)",
+    tools = ["//tools:gen_version"],
 )
