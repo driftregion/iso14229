@@ -31,6 +31,8 @@ jobs:
         //test:test_server_tp_mock \
         //test:test_tp_isotp_compliance_mock
         cp $(bazel info output_path)/_coverage/_coverage_report.dat coverage.lcov
+        sed -E -i 's#^SF:bazel-out/.*/iso14229.c#SF:iso14229.c#' coverage.lcov
+        sed -E -i 's#^SF:bazel-out/.*/iso14229.h#SF:iso14229.h#' coverage.lcov
         ls -l coverage.lcov
     
     - name: upload coverage to Codecov
