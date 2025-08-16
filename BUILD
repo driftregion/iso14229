@@ -78,7 +78,6 @@ cc_library(
             "UDS_TP_ISOTP_SOCK",
         ],
     }),
-    strip_include_prefix="src"
 )
 
 genrule(
@@ -96,8 +95,8 @@ genrule(
 )
 
 genrule(
-    name="gen_version_txt",
-    outs=["VERSION"],
-    cmd="awk '/STABLE_README_VERSION/ {v=$$2} /STABLE_SCM_REVISION/ {r=$$2} /STABLE_SCM_DIRTY/ {d=$$2} END{print v \"+\" r d}' bazel-out/stable-status.txt > $(OUTS)",
-    stamp=1,
+    name = "gen_version_txt",
+    outs = ["VERSION"],
+    stamp = 1,
+    cmd = "python tools/gen_version.py bazel-out/stable-status.txt $(OUTS)",
 )
