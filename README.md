@@ -1,7 +1,10 @@
 # iso14229
 
 <p align="center">
-<a href="https://github.com/driftregion/iso14229/actions"><img src="https://github.com/driftregion/iso14229/actions/workflows/runtests.yml/badge.svg" alt="Build Status"></a>
+<a href="https://github.com/driftregion/iso14229/actions"><img src="https://github.com/driftregion/iso14229/actions/workflows/ci.yml/badge.svg" alt="Build Status"></a>
+<a href="https://codecov.io/github/driftregion/iso14229" > 
+<img src="https://codecov.io/github/driftregion/iso14229/graph/badge.svg?token=SZP3Q3Y0YE"/> 
+</a>
 <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
 </p>
 
@@ -11,7 +14,7 @@ API status: Major version zero (0.y.z) **(not yet stable)**. Anything MAY change
 
 ## Using this library 
 
-1. Download `iso14229.zip` from the [releases page](https://github.com/driftregion/iso14229/releases), copy `iso14229.c` and `iso14229.h` into your project.
+1. Copy `iso14229.c` and `iso14229.h` into your project.
 2. Select a transport layer using the table below and enable it by defining the `copt` in your project's build configuration.
 
 | Transport Layer | `copt` | Suitable for | 
@@ -36,13 +39,6 @@ The following features are configured with preprocessor defines:
 | `-DUDS_SERVER_...` | server configuration options | see [`src/config.h`](src/config.h) |
 | `-DUDS_CLIENT_...` | client configuration options | see [`src/config.h`](src/config.h) |
 | `-DUDS_SYS=` | Selects target system. See [`src/sys.h`](src/sys.h) | `UDS_SYS_CUSTOM,UDS_SYS_UNIX,UDS_SYS_WINDOWS,UDS_SYS_ARDUINO,UDS_SYS_ESP32`  |
-
-### Deprecated Compile-Time Features
-
-| Define | Reason for deprecation | mitigation | 
-|-|-|-|
-| `-DUDS_ENABLE_ASSERT` | redundant | Use the standard `-DNDEBUG` to disable assertions. |
-| `-DUDS_ENABLE_DEBUG_PRINT` | replaced by `UDS_LOG` | Use `-DUDS_LOG_LEVEL=` to set or disable logging. |
 
 ## Features
 
