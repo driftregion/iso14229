@@ -14,7 +14,17 @@ jobs:
           command: |
             sudo apt-get update
             # Extras usually contain vcan.ko and can-isotp.ko on Ubuntu generic kernels
-            sudo apt-get install -y "linux-modules-extra-$(uname -r)" can-utils build-essential
+            sudo apt-get install -y "linux-modules-extra-$(uname -r)" can-utils build-essential curl
+
+      - run:
+          name: Install Bazel (Bazelisk)
+          command: |
+            set -euxo pipefail
+            curl -L https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64 -o bazelisk
+            sudo mv bazelisk /usr/local/bin/bazel
+            sudo chmod +x /usr/local/bin/bazel
+            bazel version
+
 
       - run:
           name: Enable SocketCAN (vcan) + try ISO-TP
