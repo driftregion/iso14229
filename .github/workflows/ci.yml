@@ -26,20 +26,36 @@ jobs:
           sudo apt-get install -y linux-modules-extra-azure
         sudo apt-get install -y can-utils
 
-    - name: Enable SocketCAN (vcan) + ISO-TP
+    - name: Enable SocketCAN + ISO-TP (with fallback)
+      shell: bash
       run: |
-        sudo modprobe can
-        sudo modprobe can_raw
-        sudo modprobe vcan
-        # ISO-TP is a kernel module since Linux 5.10; load it if available
-        sudo modprobe can-isotp || true
-        sudo ip link add dev vcan0 type vcan || true
-        sudo ip link set up vcan0
-        ip link show vcan0
+        set -euxo pipefail
 
-        # ISO-TP protocol socket
-        sudo modprobe can-isotp
-        lsmod | egrep 'vcan|can_isotp' || true
+        sudo apt-get update
+        # Try distro-provided modules first (sometimes contains vcan/isotp)
+        sudo apt-get install -y "linux-modules-extra-$(uname -r)" || true
+
+        # Core CAN + vcan
+        sudo modprobe can || true
+        sudo modprobe can_raw || true
+        sudo modprobe vcan || true
+        sudo ip link add dev vcan0 type vcan || true
+        sudo ip link set vcan0 up
+        ip -details link show vcan0
+
+        # Try loading ISO-TP; if missing, build it
+        if ! sudo modprobe can-isotp 2>/dev/null; then
+          echo "can-isotp not packaged for $(uname -r); building out-of-tree..."
+          sudo apt-get install -y git build-essential "linux-headers-$(uname -r)"
+          git clone --depth=1 https://github.com/hartkopp/can-isotp
+          make -C can-isotp
+          # Install so modprobe can find it, refresh module deps, then load
+          sudo make -C can-isotp modules_install
+          sudo depmod -a
+          sudo modprobe can-isotp
+        fi
+
+        lsmod | egrep 'can_isotp|vcan' || true
 
     - name: run unit tests
       run: bazel test //test:all --test_output=errors
