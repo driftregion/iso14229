@@ -63,7 +63,7 @@ jobs:
               --combined_report=lcov \
               --instrumentation_filter='^//:(iso14229)$' \
               --experimental_collect_code_coverage_for_generated_files \
-              //test:all \
+              //test:all
             cp "$(bazel info output_path)/_coverage/_coverage_report.dat" coverage.lcov
             sed -E -i 's#^SF:bazel-out/.*/iso14229.c#SF:iso14229.c#' coverage.lcov
             sed -E -i 's#^SF:bazel-out/.*/iso14229.h#SF:iso14229.h#' coverage.lcov
