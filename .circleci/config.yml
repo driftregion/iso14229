@@ -1,7 +1,7 @@
 version: 2.1
 
 jobs:
-  test-linux:
+  linux-transport-unit-tests-and-coverage:
     machine:
       image: ubuntu-2204:current   # Dedicated VM; 24.04 is fine if/when available
     resource_class: medium
@@ -50,19 +50,14 @@ jobs:
             pkill isotprecv || true
 
       - run:
-          name: Bazel tests
-          command: |
-            set -euxo pipefail
-            bazel test //test:all --test_output=errors
-
-      - run:
-          name: Run coverage (Bazel)
+          name: Run tests with coverage
           command: |
             set -euxo pipefail
             bazel coverage \
               --combined_report=lcov \
               --instrumentation_filter='^//:(iso14229)$' \
               --experimental_collect_code_coverage_for_generated_files \
+              --test_output=errors \
               //test:all
             cp "$(bazel info output_path)/_coverage/_coverage_report.dat" coverage.lcov
             sed -E -i 's#^SF:bazel-out/.*/iso14229.c#SF:iso14229.c#' coverage.lcov
