@@ -12,14 +12,30 @@ jobs:
 
     steps:
     - name: checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: lint
       run: CHECK_FORMAT=1 ./tools/run_clang_format.sh
       continue-on-error: true
 
+    - name: Install build deps & can-utils
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential pkg-config can-utils python3 python3-pip
+
+    - name: Enable SocketCAN (vcan) + ISO-TP
+      run: |
+        sudo modprobe can
+        sudo modprobe can_raw
+        sudo modprobe vcan
+        # ISO-TP is a kernel module since Linux 5.10; load it if available
+        sudo modprobe can-isotp || true
+        sudo ip link add dev vcan0 type vcan || true
+        sudo ip link set up vcan0
+        ip link show vcan0
+
     - name: run unit tests
-      run: bazel test //test:all --test_tag_filters=-vcan
+      run: bazel test //test:all
 
     - name: run coverage
       run: |
@@ -29,7 +45,9 @@ jobs:
         --experimental_collect_code_coverage_for_generated_files \
         //test:test_client_tp_mock \
         //test:test_server_tp_mock \
-        //test:test_tp_isotp_compliance_mock
+        //test:test_tp_isotp_compliance_mock \
+        //test:test_tp_isotp_compliance_c \
+        //test:test_tp_isotp_compliance_sock
         cp $(bazel info output_path)/_coverage/_coverage_report.dat coverage.lcov
         sed -E -i 's#^SF:bazel-out/.*/iso14229.c#SF:iso14229.c#' coverage.lcov
         sed -E -i 's#^SF:bazel-out/.*/iso14229.h#SF:iso14229.h#' coverage.lcov
