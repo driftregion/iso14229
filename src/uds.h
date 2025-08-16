@@ -192,7 +192,7 @@ typedef enum {
 #define UDS_MAX_DIAGNOSTIC_SERVICES 0x7F
 
 #define UDS_RESPONSE_SID_OF(request_sid) ((request_sid) + 0x40)
-#define UDS_REQUEST_SID_OF(response_sid) ((response_sid)-0x40)
+#define UDS_REQUEST_SID_OF(response_sid) ((response_sid) - 0x40)
 
 #define UDS_NEG_RESP_LEN 3U
 #define UDS_0X10_REQ_LEN 2U

@@ -5,6 +5,8 @@ set -euo pipefail
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
+$REPO_ROOT/tools/run_clang_format.sh
+
 bazel build //src:amalgamated >/dev/null
 
 BAZEL_BIN="$(bazel info bazel-bin)"

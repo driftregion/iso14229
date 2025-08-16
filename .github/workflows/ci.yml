@@ -12,14 +12,53 @@ jobs:
 
     steps:
     - name: checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: lint
       run: CHECK_FORMAT=1 ./tools/run_clang_format.sh
       continue-on-error: true
 
+    - name: Install build deps & can-utils
+      run: |
+        sudo apt-get update
+        # Pull extras that contain vcan.ko (and can-isotp.ko on many kernels)
+        sudo apt-get install -y "linux-modules-extra-$(uname -r)" || \
+          sudo apt-get install -y linux-modules-extra-azure
+        sudo apt-get install -y can-utils
+
+    - name: Enable SocketCAN + ISO-TP (with fallback)
+      shell: bash
+      run: |
+        set -euxo pipefail
+
+        sudo apt-get update
+        # Try distro-provided modules first (sometimes contains vcan/isotp)
+        sudo apt-get install -y "linux-modules-extra-$(uname -r)" || true
+
+        # Core CAN + vcan
+        sudo modprobe can || true
+        sudo modprobe can_raw || true
+        sudo modprobe vcan || true
+        sudo ip link add dev vcan0 type vcan || true
+        sudo ip link set vcan0 up
+        ip -details link show vcan0
+
+        # Try loading ISO-TP; if missing, build it
+        if ! sudo modprobe can-isotp 2>/dev/null; then
+          echo "can-isotp not packaged for $(uname -r); building out-of-tree..."
+          sudo apt-get install -y git build-essential "linux-headers-$(uname -r)"
+          git clone --depth=1 https://github.com/hartkopp/can-isotp
+          make -C can-isotp
+          # Install so modprobe can find it, refresh module deps, then load
+          sudo make -C can-isotp modules_install
+          sudo depmod -a
+          sudo modprobe can-isotp
+        fi
+
+        lsmod | egrep 'can_isotp|vcan' || true
+
     - name: run unit tests
-      run: bazel test //test:all --test_tag_filters=-vcan
+      run: bazel test //test:all --test_output=errors
 
     - name: run coverage
       run: |
@@ -29,7 +68,9 @@ jobs:
         --experimental_collect_code_coverage_for_generated_files \
         //test:test_client_tp_mock \
         //test:test_server_tp_mock \
-        //test:test_tp_isotp_compliance_mock
+        //test:test_tp_isotp_compliance_mock \
+        //test:test_tp_isotp_compliance_c \
+        //test:test_tp_isotp_compliance_sock
         cp $(bazel info output_path)/_coverage/_coverage_report.dat coverage.lcov
         sed -E -i 's#^SF:bazel-out/.*/iso14229.c#SF:iso14229.c#' coverage.lcov
         sed -E -i 's#^SF:bazel-out/.*/iso14229.h#SF:iso14229.h#' coverage.lcov
