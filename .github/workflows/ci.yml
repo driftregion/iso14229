@@ -38,7 +38,7 @@ jobs:
         ip link show vcan0
 
     - name: run unit tests
-      run: bazel test //test:all
+      run: bazel test //test:all --test_output=errors
 
     - name: run coverage
       run: |
