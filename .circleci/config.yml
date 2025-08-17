@@ -89,7 +89,7 @@ jobs:
             echo "CIRCLE_SHA1=${CIRCLE_SHA1}"
 
       - run:
-          name: Sanity: repo/sha/paths going to Codecov
+          name: Sanity
           command: |
             set -euxo pipefail
             git remote -v
