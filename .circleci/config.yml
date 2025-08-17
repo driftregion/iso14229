@@ -96,7 +96,9 @@ jobs:
             echo "HEAD=$(git rev-parse HEAD)"
             echo "CIRCLE_SHA1=${CIRCLE_SHA1}"
             echo "Expect slug=driftregion/iso14229"
-            awk -F: '/^SF:/ {print "LCOV SF:", $2}' coverage.lcov | xargs -I{} test -f "{}" -a -r "{}" && echo "LCOV paths exist OK"
+            # Validate each SF path exists (no pretty prefix; print JUST the path)
+            awk -F: '/^SF:/ {print $2}' coverage.lcov | xargs -r -I{} test -f "{}" -a -r "{}"
+            echo "LCOV paths exist OK"
 
       # Upload with explicit context; orb v5.4.3 syntax
       - codecov/upload:
