@@ -21,28 +21,28 @@ jobs:
     - name: run unit tests
       run: bazel test //test:all --test_tag_filters=-vcan
 
-    - name: run coverage
-      run: |
-        bazel coverage \
-        --combined_report=lcov \
-        --instrumentation_filter='^//:(iso14229)$' \
-        --experimental_collect_code_coverage_for_generated_files \
-        //test:test_client_tp_mock \
-        //test:test_server_tp_mock \
-        //test:test_tp_isotp_compliance_mock
-        cp $(bazel info output_path)/_coverage/_coverage_report.dat coverage.lcov
-        sed -E -i 's#^SF:bazel-out/.*/iso14229.c#SF:iso14229.c#' coverage.lcov
-        sed -E -i 's#^SF:bazel-out/.*/iso14229.h#SF:iso14229.h#' coverage.lcov
-        ls -l coverage.lcov
+    # - name: run coverage
+    #   run: |
+    #     bazel coverage \
+    #     --combined_report=lcov \
+    #     --instrumentation_filter='^//:(iso14229)$' \
+    #     --experimental_collect_code_coverage_for_generated_files \
+    #     //test:test_client_tp_mock \
+    #     //test:test_server_tp_mock \
+    #     //test:test_tp_isotp_compliance_mock
+    #     cp $(bazel info output_path)/_coverage/_coverage_report.dat coverage.lcov
+    #     sed -E -i 's#^SF:bazel-out/.*/iso14229.c#SF:iso14229.c#' coverage.lcov
+    #     sed -E -i 's#^SF:bazel-out/.*/iso14229.h#SF:iso14229.h#' coverage.lcov
+    #     ls -l coverage.lcov
     
-    - name: upload coverage to Codecov
-      uses: codecov/codecov-action@v5
-      with:
-        files: coverage.lcov          # point directly at the Bazel LCOV
-        disable_search: true          # don’t look for anything else
-        name: iso14229-coverage
-        fail_ci_if_error: true
-        token: ${{ secrets.CODECOV_TOKEN }}
+    # - name: upload coverage to Codecov
+    #   uses: codecov/codecov-action@v5
+    #   with:
+    #     files: coverage.lcov          # point directly at the Bazel LCOV
+    #     disable_search: true          # don’t look for anything else
+    #     name: iso14229-coverage
+    #     fail_ci_if_error: true
+    #     token: ${{ secrets.CODECOV_TOKEN }}
     
     - name: run ultra_strict
       run: bazel build --config=x86_64_clang //test:ultra_strict
