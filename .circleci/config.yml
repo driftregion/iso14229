@@ -88,6 +88,16 @@ jobs:
             echo "HEAD=$(git rev-parse HEAD)"
             echo "CIRCLE_SHA1=${CIRCLE_SHA1}"
 
+      - run:
+          name: Sanity: repo/sha/paths going to Codecov
+          command: |
+            set -euxo pipefail
+            git remote -v
+            echo "HEAD=$(git rev-parse HEAD)"
+            echo "CIRCLE_SHA1=${CIRCLE_SHA1}"
+            echo "Expect slug=driftregion/iso14229"
+            awk -F: '/^SF:/ {print "LCOV SF:", $2}' coverage.lcov | xargs -I{} test -f "{}" -a -r "{}" && echo "LCOV paths exist OK"
+
       # Upload with explicit context; orb v5.4.3 syntax
       - codecov/upload:
           slug: driftregion/iso14229
@@ -100,6 +110,7 @@ jobs:
           sha: ${CIRCLE_SHA1}
           parent_sha: ${CI_COMMIT_PARENT}
           verbose: true
+          network_root_folder: /home/circleci/project
 
 workflows:
   version: 2
