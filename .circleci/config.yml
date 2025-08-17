@@ -99,9 +99,6 @@ jobs:
           branch: << pipeline.git.branch >>
           sha: ${CIRCLE_SHA1}
           parent_sha: ${CI_COMMIT_PARENT}
-          # build: ${CIRCLE_BUILD_NUM}
-          # pr: ${CI_PR_NUMBER}
-          # build_url: "https://app.circleci.com/pipelines/github/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${CIRCLE_BUILD_NUM}"
           verbose: true
 
 workflows:
