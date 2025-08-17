@@ -90,6 +90,7 @@ jobs:
 
       # Upload with explicit context; orb v5.4.3 syntax
       - codecov/upload:
+          slug: driftregion/iso14229
           files: coverage.lcov
           upload_name: iso14229-coverage
           flags: iso14229
@@ -97,10 +98,10 @@ jobs:
           # VCS context
           branch: << pipeline.git.branch >>
           sha: ${CIRCLE_SHA1}
-          build: ${CIRCLE_BUILD_NUM}
-          pr: ${CI_PR_NUMBER}
-          build_url: "https://app.circleci.com/pipelines/github/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${CIRCLE_BUILD_NUM}"
           parent_sha: ${CI_COMMIT_PARENT}
+          # build: ${CIRCLE_BUILD_NUM}
+          # pr: ${CI_PR_NUMBER}
+          # build_url: "https://app.circleci.com/pipelines/github/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${CIRCLE_BUILD_NUM}"
           verbose: true
 
 workflows:
