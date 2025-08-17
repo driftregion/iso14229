@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 
-#define UDS_VERSION "0.9.0+0e4df5f"
+#define UDS_VERSION "0.9.0+27f24d4"
 
 
 
