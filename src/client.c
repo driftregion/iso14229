@@ -14,6 +14,7 @@ UDSErr_t UDSClientInit(UDSClient_t *client) {
     if (NULL == client) {
         return UDS_ERR_INVALID_ARG;
     }
+
     memset(client, 0, sizeof(*client));
     client->state = STATE_IDLE;
 
