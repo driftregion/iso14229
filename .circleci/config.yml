@@ -63,10 +63,14 @@ jobs:
               --test_output=errors \
               //test:all
             cp "$(bazel info output_path)/_coverage/_coverage_report.dat" coverage.lcov
-            sed -E -i 's#^SF:bazel-out/.*/iso14229.c#SF:iso14229.c#' coverage.lcov
-            sed -E -i 's#^SF:bazel-out/.*/iso14229.h#SF:iso14229.h#' coverage.lcov
+            sed -E -i 's#^SF:bazel-out/.*/iso14229.c#SF:./iso14229.c#' coverage.lcov
+            sed -E -i 's#^SF:bazel-out/.*/iso14229.h#SF:./iso14229.h#' coverage.lcov
             ls -l coverage.lcov
-            cat coverage.lcov
+
+            # Sanity: confirm every SF path exists in the checkout
+            while IFS= read -r p; do
+              [ -f "$p" ] || { echo "LCOV path does not exist in repo: $p"; exit 1; }
+            done < <(awk -F: '/^SF:/ {print $2}' coverage.lcov)
       
       - run:
           name: Prepare git metadata for Codecov
@@ -81,6 +85,8 @@ jobs:
             if git rev-parse --verify -q origin/main >/dev/null; then
               echo "export CI_COMMIT_PARENT=$(git merge-base origin/main HEAD || true)" >> "$BASH_ENV"
             fi
+            echo "HEAD=$(git rev-parse HEAD)"
+            echo "CIRCLE_SHA1=${CIRCLE_SHA1}"
 
       # Upload with explicit context; orb v5.4.3 syntax
       - codecov/upload:
@@ -90,7 +96,7 @@ jobs:
           disable_search: true
           # VCS context
           branch: << pipeline.git.branch >>
-          sha: << pipeline.git.revision >>
+          sha: ${CIRCLE_SHA1}
           build: ${CIRCLE_BUILD_NUM}
           pr: ${CI_PR_NUMBER}
           build_url: "https://app.circleci.com/pipelines/github/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${CIRCLE_BUILD_NUM}"
