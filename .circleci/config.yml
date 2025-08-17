@@ -101,6 +101,7 @@ jobs:
           pr: ${CI_PR_NUMBER}
           build_url: "https://app.circleci.com/pipelines/github/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${CIRCLE_BUILD_NUM}"
           parent_sha: ${CI_COMMIT_PARENT}
+          verbose: true
 
 workflows:
   version: 2
