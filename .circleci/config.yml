@@ -67,6 +67,20 @@ jobs:
             sed -E -i 's#^SF:bazel-out/.*/iso14229.h#SF:iso14229.h#' coverage.lcov
             ls -l coverage.lcov
             cat coverage.lcov
+      
+      - run:
+          name: Prepare git metadata for Codecov
+          command: |
+            set -euxo pipefail
+            git fetch --no-tags --prune origin +refs/heads/*:refs/remotes/origin/* || true
+            git fetch --no-tags --prune --unshallow || true
+            if [ -n "${CIRCLE_PULL_REQUEST:-}" ]; then
+              echo "export CI_PR_NUMBER=$(basename "$CIRCLE_PULL_REQUEST")" >> "$BASH_ENV"
+            fi
+            # adjust 'main' if your default branch differs
+            if git rev-parse --verify -q origin/main >/dev/null; then
+              echo "export CI_COMMIT_PARENT=$(git merge-base origin/main HEAD || true)" >> "$BASH_ENV"
+            fi
 
       # Upload with explicit context; orb v5.4.3 syntax
       - codecov/upload:
@@ -79,8 +93,8 @@ jobs:
           sha: << pipeline.git.revision >>
           build: ${CIRCLE_BUILD_NUM}
           pr: ${CI_PR_NUMBER}
-          # Token is needed for private repos or if your org disables tokenless uploads for public repos
-          token: CODECOV_TOKEN
+          build_url: "https://app.circleci.com/pipelines/github/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${CIRCLE_BUILD_NUM}"
+          parent_sha: ${CI_COMMIT_PARENT}
 
 workflows:
   version: 2
