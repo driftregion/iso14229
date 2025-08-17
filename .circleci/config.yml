@@ -66,6 +66,7 @@ jobs:
             sed -E -i 's#^SF:bazel-out/.*/iso14229.c#SF:iso14229.c#' coverage.lcov
             sed -E -i 's#^SF:bazel-out/.*/iso14229.h#SF:iso14229.h#' coverage.lcov
             ls -l coverage.lcov
+            cat coverage.lcov
 
       # Upload with explicit context; orb v5.4.3 syntax
       - codecov/upload:
