@@ -90,6 +90,7 @@ jobs:
 
       # Upload with explicit context; orb v5.4.3 syntax
       - codecov/upload:
+          slug: driftregion/iso14229
           files: coverage.lcov
           upload_name: iso14229-coverage
           flags: iso14229
