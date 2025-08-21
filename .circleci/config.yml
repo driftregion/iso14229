@@ -50,10 +50,19 @@ jobs:
             pkill isotprecv || true
 
       - run:
-          name: Bazel tests
+          name: coverage
           command: |
             set -euxo pipefail
-            bazel test //test:all --test_output=errors
+            tools/coverage_run.sh
+            cp "$(bazel info output_path)/_coverage/_coverage_report.dat" coverage.lcov
+
+      - run: 
+          name: coverage upload
+          command: |
+            curl -Os https://cli.codecov.io/latest/linux/codecov
+            chmod +x codecov
+            ./codecov upload-process -t $CODECOV_TOKEN
+
 
 workflows:
   version: 2
