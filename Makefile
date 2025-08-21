@@ -12,9 +12,17 @@ compile_commands.json:
 static_analysis: compile_commands.json $(MISRA_RULES_TXT)
 	tools/CodeChecker/run.sh
 
-update_examples:
-	bazel build //:iso14229.c //:iso14229.h 
-	cp --no-preserve=mode bazel-out/k8-fastbuild/bin/iso14229.c bazel-out/k8-fastbuild/bin/iso14229.h -t examples/arduino_server/main
-	cp --no-preserve=mode bazel-out/k8-fastbuild/bin/iso14229.c bazel-out/k8-fastbuild/bin/iso14229.h -t examples/esp32_server/main
+update_srcs:
+	tools/update_srcs.sh
 
-.phony: static_analysis compile_commands.json update_examples
+coverage:
+	tools/canifup.sh
+	tools/coverage_run.sh
+
+coverage-html:
+	tools/coverage_make_html.sh
+
+coverage-upload:
+	./codecov upload-process -t $CODECOV_TOKEN 
+
+.phony: static_analysis compile_commands.json update_srcs coverage coverage-html

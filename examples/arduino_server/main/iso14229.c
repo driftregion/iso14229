@@ -14,7 +14,6 @@
 #define STATE_SENDING 1
 #define STATE_AWAIT_SEND_COMPLETE 2
 #define STATE_AWAIT_RESPONSE 3
-#define STATE_PROCESS_RESPONSE 4
 
 UDSErr_t UDSClientInit(UDSClient_t *client) {
     if (NULL == client) {
@@ -44,8 +43,6 @@ static const char *ClientStateName(uint8_t state) {
         return "AwaitSendComplete";
     case STATE_AWAIT_RESPONSE:
         return "AwaitResponse";
-    case STATE_PROCESS_RESPONSE:
-        return "ProcessResponse";
     default:
         return "Unknown";
     }
@@ -67,8 +64,6 @@ static void changeState(UDSClient_t *client, uint8_t state) {
         case STATE_AWAIT_SEND_COMPLETE:
             break;
         case STATE_AWAIT_RESPONSE:
-            break;
-        case STATE_PROCESS_RESPONSE:
             break;
         default:
             UDS_ASSERT(0);
@@ -183,6 +178,22 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
         break;
     }
     case STATE_SENDING: {
+        {
+            UDSSDU_t info = {0};
+            ssize_t len = UDSTpRecv(client->tp, client->recv_buf, sizeof(client->recv_buf), &info);
+            if (len < 0) {
+                UDS_LOGE(__FILE__, "transport returned error %zd", len);
+            } else if (len == 0) {
+                ; // expected
+            } else {
+                UDS_LOGW(__FILE__, "received %zd unexpected bytes:", len);
+                UDS_LOG_SDU(__FILE__, client->recv_buf, len, &info);
+            }
+        }
+
+        memset(client->recv_buf, 0, sizeof(client->recv_buf));
+        client->recv_size = 0;
+
         UDSTpAddr_t ta_type = client->_options_copy & UDS_FUNCTIONAL ? UDS_A_TA_TYPE_FUNCTIONAL
                                                                      : UDS_A_TA_TYPE_PHYSICAL;
         UDSSDU_t info = {
@@ -361,7 +372,7 @@ UDSErr_t UDSSendRDBI(UDSClient_t *client, const uint16_t *didList,
     client->send_buf[0] = kSID_READ_DATA_BY_IDENTIFIER;
     for (int i = 0; i < numDataIdentifiers; i++) {
         uint16_t offset = (uint16_t)(1 + DID_LEN_BYTES * i);
-        if (offset + 2 > sizeof(client->send_buf)) {
+        if ((size_t)(offset + 2) > sizeof(client->send_buf)) {
             return UDS_ERR_INVALID_ARG;
         }
         (client->send_buf + offset)[0] = (didList[i] & 0xFF00) >> 8;
@@ -884,7 +895,7 @@ static UDSErr_t Handle_0x10_DiagnosticSessionControl(UDSServer_t *srv, UDSReq_t 
         return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
-    uint8_t sessType = r->recv_buf[1] & 0x4F;
+    uint8_t sessType = r->recv_buf[1] & 0x7F;
 
     UDSDiagSessCtrlArgs_t args = {
         .type = sessType,
@@ -1816,6 +1827,8 @@ void UDSServerPoll(UDSServer_t *srv) {
     if (UDS_LEV_DS_DS != srv->sessionType &&
         UDSTimeAfter(UDSMillis(), srv->s3_session_timeout_timer)) {
         EmitEvent(srv, UDS_EVT_SessionTimeout, NULL);
+        srv->sessionType = UDS_LEV_DS_DS;
+        srv->securityLevel = 0;
     }
 
     if (srv->ecuResetScheduled && UDSTimeAfter(UDSMillis(), srv->ecuResetTimer)) {
@@ -1955,7 +1968,7 @@ uint32_t UDSMillis(void) {
  * @return false
  */
 bool UDSSecurityAccessLevelIsReserved(uint8_t subFunction) {
-    uint8_t securityLevel = subFunction & 0b00111111u;
+    uint8_t securityLevel = subFunction & 0x3F;
     if (0u == securityLevel) {
         return true;
     }
@@ -2266,7 +2279,7 @@ static ssize_t tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *inf
 
     int ret = isotp_receive(&tp->phys_link, buf, bufsize, &out_size);
     if (ret == ISOTP_RET_OK) {
-        UDS_LOGI(__FILE__, "just got %d bytes\n", out_size);
+        UDS_LOGI(__FILE__, "phys link received %d bytes", out_size);
         if (NULL != info) {
             info->A_TA = tp->phys_sa;
             info->A_SA = tp->phys_ta;
@@ -2275,7 +2288,7 @@ static ssize_t tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *inf
     } else if (ret == ISOTP_RET_NO_DATA) {
         ret = isotp_receive(&tp->func_link, buf, bufsize, &out_size);
         if (ret == ISOTP_RET_OK) {
-            UDS_LOGI(__FILE__, "just got %d bytes on func link\n", out_size);
+            UDS_LOGI(__FILE__, "func link received %d bytes", out_size);
             if (NULL != info) {
                 info->A_TA = tp->func_sa;
                 info->A_SA = tp->func_ta;
@@ -2481,7 +2494,7 @@ static ssize_t isotp_c_socketcan_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufs
 
     int ret = isotp_receive(&tp->phys_link, buf, bufsize, &out_size);
     if (ret == ISOTP_RET_OK) {
-        UDS_LOGI(__FILE__, "just got %d bytes\n", out_size);
+        UDS_LOGI(__FILE__, "phys link received %d bytes", out_size);
         if (NULL != info) {
             info->A_TA = tp->phys_sa;
             info->A_SA = tp->phys_ta;
@@ -2490,7 +2503,7 @@ static ssize_t isotp_c_socketcan_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufs
     } else if (ret == ISOTP_RET_NO_DATA) {
         ret = isotp_receive(&tp->func_link, buf, bufsize, &out_size);
         if (ret == ISOTP_RET_OK) {
-            UDS_LOGI(__FILE__, "just got %d bytes on func link\n", out_size);
+            UDS_LOGI(__FILE__, "func link received %d bytes", out_size);
             if (NULL != info) {
                 info->A_TA = tp->func_sa;
                 info->A_SA = tp->func_ta;
@@ -2681,7 +2694,7 @@ static ssize_t isotp_sock_tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len, UDSSDU
     if (ret < 0) {
         perror("write");
     }
-done:
+done:;
     int ta = ta_type == UDS_A_TA_TYPE_PHYSICAL ? impl->phys_ta : impl->func_ta;
     UDS_LOGD(__FILE__, "'%s' sends %ld bytes to 0x%03x (%s)", impl->tag, len, ta,
              ta_type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");

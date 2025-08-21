@@ -119,6 +119,15 @@ sh_test(
     ],
 )
 
+sh_test(
+    name = "test_version",
+    srcs = ["test_version.sh"],
+    data = [
+        "//:iso14229.h",
+        "//:README.md",
+    ],
+)
+
 cc_library(
     name = "ultra_strict",
     srcs = [
