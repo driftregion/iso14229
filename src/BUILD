@@ -1,13 +1,5 @@
 package(default_visibility = ["//visibility:public"])
 
-genrule(
-    name="gen_version_h",
-    srcs=["//:VERSION"],
-    outs=["version.h"],
-    # #define UDS_VERSION "$(VERSION)"
-    cmd="awk '{print \"#define UDS_VERSION \\\"\" $$1 \"\\\"\"}' $< > $@",
-)
-
 filegroup(
     name = "sources",
     srcs = [

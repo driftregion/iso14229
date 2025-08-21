@@ -674,6 +674,10 @@ void test_security_level_resets_on_session_timeout(void **state) {
     TEST_INT_EQUAL(e->server->securityLevel, 0);
 }
 
+void test_badness(void **state) {
+    TEST_INT_EQUAL(UDS_ERR_INVALID_ARG,  UDSServerInit(NULL));
+}
+
 int main(int ac, char **av) {
     if (ac > 1) {
         cmocka_set_test_filter(av[1]);
