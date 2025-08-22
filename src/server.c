@@ -8,6 +8,7 @@
 static inline UDSErr_t NegativeResponse(UDSReq_t *r, UDSErr_t nrc) {
     UDS_ASSERT(nrc >= 0 && nrc <= 0xFF);
 
+
     r->send_buf[0] = 0x7F;
     r->send_buf[1] = r->recv_buf[0];
     r->send_buf[2] = (uint8_t)nrc;
