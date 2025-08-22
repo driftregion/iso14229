@@ -6,7 +6,10 @@
 #include <stdint.h>
 
 static inline UDSErr_t NegativeResponse(UDSReq_t *r, UDSErr_t nrc) {
-    UDS_ASSERT(nrc >= 0 && nrc <= 0xFF);
+    if (nrc < 0 || nrc > 0xFF) {
+        UDS_LOGW(__FILE__, "Invalid negative response code: %d (0x%x)", nrc, nrc);
+        nrc = UDS_NRC_GeneralReject;
+    }
 
     r->send_buf[0] = 0x7F;
     r->send_buf[1] = r->recv_buf[0];
@@ -18,12 +21,18 @@ static inline UDSErr_t NegativeResponse(UDSReq_t *r, UDSErr_t nrc) {
 static inline void NoResponse(UDSReq_t *r) { r->send_len = 0; }
 
 static UDSErr_t EmitEvent(UDSServer_t *srv, UDSEvent_t evt, void *data) {
+    UDSErr_t err = UDS_OK;
     if (srv->fn) {
-        return srv->fn(srv, evt, data);
+        err = srv->fn(srv, evt, data);
     } else {
         UDS_LOGI(__FILE__, "Unhandled UDSEvent %d, srv.fn not installed!\n", evt);
-        return UDS_NRC_GeneralReject;
+        err = UDS_NRC_GeneralReject;
     }
+    if (!UDSErrIsNRC(err)) {
+        UDS_LOGW(__FILE__, "The returned error code %d (0x%x) is not a negative response code", err,
+                 err);
+    }
+    return err;
 }
 
 static UDSErr_t Handle_0x10_DiagnosticSessionControl(UDSServer_t *srv, UDSReq_t *r) {
@@ -113,6 +122,9 @@ static UDSErr_t Handle_0x11_ECUReset(UDSServer_t *srv, UDSReq_t *r) {
 
 static uint8_t safe_copy(UDSServer_t *srv, const void *src, uint16_t count) {
     if (srv == NULL) {
+        return UDS_NRC_GeneralReject;
+    }
+    if (src == NULL) {
         return UDS_NRC_GeneralReject;
     }
     UDSReq_t *r = (UDSReq_t *)&srv->r;
@@ -662,36 +674,71 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
         return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
-    uint8_t operation = r->recv_buf[1];
-    uint16_t file_path_len = (uint16_t)(((uint16_t)r->recv_buf[2] << 8) + (uint16_t)r->recv_buf[3]);
-    uint8_t file_mode = 0;
-    if ((operation == UDS_MOOP_ADDFILE) || (operation == UDS_MOOP_REPLFILE) ||
-        (operation == UDS_MOOP_RDFILE)) {
-        file_mode = r->recv_buf[UDS_0X38_REQ_BASE_LEN + file_path_len];
+    uint8_t mode_of_operation = r->recv_buf[1];
+    if (mode_of_operation < UDS_MOOP_ADDFILE || mode_of_operation > UDS_MOOP_RDFILE) {
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
+    uint16_t file_path_len = (uint16_t)(((uint16_t)r->recv_buf[2] << 8) + (uint16_t)r->recv_buf[3]);
+    uint8_t data_format_identifier = 0;
+    uint8_t file_size_parameter_length = 0;
     size_t file_size_uncompressed = 0;
     size_t file_size_compressed = 0;
-    if ((operation == UDS_MOOP_ADDFILE) || (operation == UDS_MOOP_REPLFILE)) {
-        size_t size = r->recv_buf[UDS_0X38_REQ_BASE_LEN + file_path_len + 1];
-        if (size > sizeof(size_t)) {
+    uint16_t byte_idx = 4 + file_path_len;
+
+    if (byte_idx > r->recv_len) {
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+    }
+
+    if ((mode_of_operation == UDS_MOOP_DELFILE) || (mode_of_operation == UDS_MOOP_RDDIR)) {
+        // ISO14229:2020 Table 481:
+        // If the modeOfOperation parameter equals to 0x02 (DeleteFile) and 0x05 (ReadDir) this
+        // parameter [dataFormatIdentifier] shall not be included in the request message.
+    } else {
+        data_format_identifier = r->recv_buf[byte_idx];
+        byte_idx++;
+    }
+
+    if ((mode_of_operation == UDS_MOOP_DELFILE) || (mode_of_operation == UDS_MOOP_RDFILE) ||
+        (mode_of_operation == UDS_MOOP_RDDIR)) {
+        // ISO14229:2020 Table 481:
+        // If the modeOfOperation parameter equals to 0x02 (DeleteFile), 0x04 (ReadFile) or 0x05
+        // (ReadDir) this parameter [fileSizeParameterLength] shall not be included in the request
+        // message. If the modeOfOperation parameter equals to 0x02 (DeleteFile), 0x04 (ReadFile) or
+        // 0x05 (ReadDir) this parameter [fileSizeUncompressed] shall not be included in the request
+        // message. If the modeOfOperation parameter equals to 0x02 (DeleteFile), 0x04 (ReadFile) or
+        // 0x05 (ReadDir) this parameter [fileSizeCompressed] shall not be included in the request
+        // message.
+    } else {
+        file_size_parameter_length = r->recv_buf[byte_idx];
+        byte_idx++;
+
+        static_assert(sizeof(file_size_uncompressed) == sizeof(file_size_compressed),
+                      "Both should be k-byte numbers per Table 480");
+        if (file_size_parameter_length > sizeof(file_size_compressed)) {
             return NegativeResponse(r, UDS_NRC_RequestOutOfRange);
         }
-        for (size_t byteIdx = 0; byteIdx < size; byteIdx++) {
-            size_t byte = r->recv_buf[UDS_0X38_REQ_BASE_LEN + file_path_len + 2 + byteIdx];
-            uint8_t shiftBytes = (uint8_t)(size - 1 - byteIdx);
-            file_size_uncompressed |= byte << (8 * shiftBytes);
+        if (byte_idx + 2 * file_size_uncompressed > r->recv_len) {
+            return NegativeResponse(r, UDS_NRC_RequestOutOfRange);
         }
-        for (size_t byteIdx = 0; byteIdx < size; byteIdx++) {
-            size_t byte = r->recv_buf[UDS_0X38_REQ_BASE_LEN + file_path_len + 2 + size + byteIdx];
-            uint8_t shiftBytes = (uint8_t)(size - 1 - byteIdx);
-            file_size_compressed |= byte << (8 * shiftBytes);
+        for (size_t i = 0; i < file_size_parameter_length; i++) {
+            uint8_t data_byte = r->recv_buf[byte_idx];
+            uint8_t shift_by_bytes = file_size_parameter_length - i - 1;
+            file_size_uncompressed |= (size_t)data_byte << (8 * shift_by_bytes);
+            byte_idx++;
+        }
+        for (size_t i = 0; i < file_size_parameter_length; i++) {
+            uint8_t data_byte = r->recv_buf[byte_idx];
+            uint8_t shift_by_bytes = file_size_parameter_length - i - 1;
+            file_size_compressed |= (size_t)data_byte << (8 * shift_by_bytes);
+            byte_idx++;
         }
     }
+
     UDSRequestFileTransferArgs_t args = {
-        .modeOfOperation = operation,
+        .modeOfOperation = mode_of_operation,
         .filePathLen = file_path_len,
-        .filePath = &r->recv_buf[UDS_0X38_REQ_BASE_LEN],
-        .dataFormatIdentifier = file_mode,
+        .filePath = &r->recv_buf[4],
+        .dataFormatIdentifier = data_format_identifier,
         .fileSizeUnCompressed = file_size_uncompressed,
         .fileSizeCompressed = file_size_compressed,
     };

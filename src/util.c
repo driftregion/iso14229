@@ -249,3 +249,71 @@ const char *UDSEventToStr(UDSEvent_t evt) {
         return "unknown";
     }
 }
+
+bool UDSErrIsNRC(UDSErr_t err) {
+    switch (err) {
+    case UDS_PositiveResponse:
+    case UDS_NRC_GeneralReject:
+    case UDS_NRC_ServiceNotSupported:
+    case UDS_NRC_SubFunctionNotSupported:
+    case UDS_NRC_IncorrectMessageLengthOrInvalidFormat:
+    case UDS_NRC_ResponseTooLong:
+    case UDS_NRC_BusyRepeatRequest:
+    case UDS_NRC_ConditionsNotCorrect:
+    case UDS_NRC_RequestSequenceError:
+    case UDS_NRC_NoResponseFromSubnetComponent:
+    case UDS_NRC_FailurePreventsExecutionOfRequestedAction:
+    case UDS_NRC_RequestOutOfRange:
+    case UDS_NRC_SecurityAccessDenied:
+    case UDS_NRC_AuthenticationRequired:
+    case UDS_NRC_InvalidKey:
+    case UDS_NRC_ExceedNumberOfAttempts:
+    case UDS_NRC_RequiredTimeDelayNotExpired:
+    case UDS_NRC_SecureDataTransmissionRequired:
+    case UDS_NRC_SecureDataTransmissionNotAllowed:
+    case UDS_NRC_SecureDataVerificationFailed:
+    case UDS_NRC_CertficateVerificationFailedInvalidTimePeriod:
+    case UDS_NRC_CertficateVerificationFailedInvalidSignature:
+    case UDS_NRC_CertficateVerificationFailedInvalidChainOfTrust:
+    case UDS_NRC_CertficateVerificationFailedInvalidType:
+    case UDS_NRC_CertficateVerificationFailedInvalidFormat:
+    case UDS_NRC_CertficateVerificationFailedInvalidContent:
+    case UDS_NRC_CertficateVerificationFailedInvalidScope:
+    case UDS_NRC_CertficateVerificationFailedInvalidCertificate:
+    case UDS_NRC_OwnershipVerificationFailed:
+    case UDS_NRC_ChallengeCalculationFailed:
+    case UDS_NRC_SettingAccessRightsFailed:
+    case UDS_NRC_SessionKeyCreationOrDerivationFailed:
+    case UDS_NRC_ConfigurationDataUsageFailed:
+    case UDS_NRC_DeAuthenticationFailed:
+    case UDS_NRC_UploadDownloadNotAccepted:
+    case UDS_NRC_TransferDataSuspended:
+    case UDS_NRC_GeneralProgrammingFailure:
+    case UDS_NRC_WrongBlockSequenceCounter:
+    case UDS_NRC_RequestCorrectlyReceived_ResponsePending:
+    case UDS_NRC_SubFunctionNotSupportedInActiveSession:
+    case UDS_NRC_ServiceNotSupportedInActiveSession:
+    case UDS_NRC_RpmTooHigh:
+    case UDS_NRC_RpmTooLow:
+    case UDS_NRC_EngineIsRunning:
+    case UDS_NRC_EngineIsNotRunning:
+    case UDS_NRC_EngineRunTimeTooLow:
+    case UDS_NRC_TemperatureTooHigh:
+    case UDS_NRC_TemperatureTooLow:
+    case UDS_NRC_VehicleSpeedTooHigh:
+    case UDS_NRC_VehicleSpeedTooLow:
+    case UDS_NRC_ThrottlePedalTooHigh:
+    case UDS_NRC_ThrottlePedalTooLow:
+    case UDS_NRC_TransmissionRangeNotInNeutral:
+    case UDS_NRC_TransmissionRangeNotInGear:
+    case UDS_NRC_BrakeSwitchNotClosed:
+    case UDS_NRC_ShifterLeverNotInPark:
+    case UDS_NRC_TorqueConverterClutchLocked:
+    case UDS_NRC_VoltageTooHigh:
+    case UDS_NRC_VoltageTooLow:
+    case UDS_NRC_ResourceTemporarilyNotAvailable:
+        return true;
+    default:
+        return false;
+    }
+}

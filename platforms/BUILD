@@ -40,6 +40,15 @@ platform(
 )
 
 platform(
+    name = "aarch64_linux_clang",
+    constraint_values = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+        "//platforms/compiler:clang",
+    ],
+)
+
+platform(
     name = "arm_none",
     constraint_values = [
         "@platforms//cpu:arm",

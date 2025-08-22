@@ -50,9 +50,9 @@ TEST_NAMES = [ src.split(".c")[0] for src in TEST_SRCS ]
 cc_test(
     name = "test_fuzz_server",
     srcs = [
-        "test_fuzz_server.c",
-        "//:iso14229.h",
-        "//:iso14229.c",
+        "test_fuzz_server.cc",
+        "//src:iso14229.h",
+        "//src:iso14229.c",
     ],
     defines = [
         "UDS_TP_ISOTP_MOCK",
@@ -68,6 +68,8 @@ cc_test(
     ],
     linkopts = [
         "-fsanitize=fuzzer,signed-integer-overflow,address,undefined",
+        "-fprofile-instr-generate",
+        "-fcoverage-mapping",
     ],
     size = "enormous",
     target_compatible_with = ["//platforms/compiler:clang"],

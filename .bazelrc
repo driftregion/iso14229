@@ -5,6 +5,7 @@ build --workspace_status_command=tools/workspace_status.sh
 build --stamp
 
 build --extra_toolchains //toolchain:arm_linux_gcc
+build --extra_toolchains //toolchain:aarch64_linux_clang
 build --extra_toolchains //toolchain:arm_none_gcc
 build --extra_toolchains //toolchain:ppc_gcc
 build --extra_toolchains //toolchain:ppc64_gcc
@@ -13,6 +14,7 @@ build --extra_toolchains //toolchain:x86_64_clang
 build --extra_toolchains //toolchain:x86_64_gcc
 
 build:arm_linux --platforms=//platforms:arm_linux
+build:aarch64_linux_clang --platforms=//platforms:aarch64_linux_clang
 build:s32k --platforms=//platforms:s32k_evb
 build:ppc --platforms=//platforms:ppc
 build:ppc64 --platforms=//platforms:ppc64

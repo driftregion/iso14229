@@ -61,7 +61,15 @@ gcc_toolchain(
     ]
 )
 
-clang_toolchain(name="x86_64_clang")
+clang_toolchain(name="x86_64_clang", platforms=[
+    "@platforms//os:linux",
+    "@platforms//cpu:x86_64",
+])
+
+clang_toolchain(name="aarch64_linux_clang", platforms=[
+    "@platforms//os:linux",
+    "@platforms//cpu:aarch64",
+])
 
 gcc_toolchain(
     name="x86_64_gcc",

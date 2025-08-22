@@ -6,9 +6,5 @@ tools/update_srcs.sh
 # Stage them so they’re included in the commit
 git add \
 iso14229.c \
-iso14229.h \
-examples/arduino_server/main/iso14229.c \
-examples/arduino_server/main/iso14229.h \
-examples/esp32_server/main/iso14229.c \
-examples/esp32_server/main/iso14229.h
+iso14229.h
 
