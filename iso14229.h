@@ -563,7 +563,7 @@ enum UDSDiagnosticServiceId {
 
 /* returns true if `a` is after `b` */
 static inline bool UDSTimeAfter(uint32_t a, uint32_t b) {
-    return ((int32_t)((int32_t)(b) - (int32_t)(a)) < 0);
+    return (int32_t)(a - b) > 0;
 }
 
 /**
