@@ -62,11 +62,12 @@ clang-15 \
 ```
 
 ```sh
-# ABI change testing needs 
-sudo apt install -y abigail-tools
-```
-
-```sh
 # static analysis needs
 pip3 install codechecker
 ```
+
+
+## CI
+
+CircleCI is used to run the coverage tests because it has socketcan support.
+The Github Actions Ubuntu runner is not built with socketcan or isotp socket support.
