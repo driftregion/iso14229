@@ -112,11 +112,6 @@ sh_test(
     data = [":test_log_disable_c"],
     args = ["$(locations :test_log_disable_c)"],
     size = "small",
-
-    target_compatible_with = [
-        "@platforms//cpu:x86_64",
-        "@platforms//os:linux",
-    ],
 )
 
 sh_test(
