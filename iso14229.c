@@ -2299,6 +2299,7 @@ bool UDSErrIsNRC(UDSErr_t err) {
     }
 }
 
+
 #ifdef UDS_LINES
 #line 1 "src/log.c"
 #endif
