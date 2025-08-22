@@ -99,8 +99,8 @@ cc_binary(
     name = "test_log_disable_c",
     srcs = [
         "test_log_disable.c",
-        "//:iso14229.h",
-        "//:iso14229.c",
+        "//src:iso14229.h",
+        "//src:iso14229.c",
     ],
     linkopts = ["-Wl,--gc-sections"],
 )
@@ -122,8 +122,9 @@ sh_test(
 sh_test(
     name = "test_version",
     srcs = ["test_version.sh"],
+    args = ["$(locations //src:iso14229.h)"],
     data = [
-        "//:iso14229.h",
+        "//src:iso14229.h",
         "//:README.md",
     ],
 )
@@ -131,8 +132,8 @@ sh_test(
 cc_library(
     name = "ultra_strict",
     srcs = [
-        "//:iso14229.h",
-        "//:iso14229.c",
+        "//src:iso14229.h",
+        "//src:iso14229.c",
     ],
     copts = [
         "-Werror",
@@ -154,7 +155,7 @@ cc_binary(
     name = "make_corpus",
     srcs = [
         "make_corpus.c",
-        "//:iso14229.h",
+        "//src:iso14229.h",
     ],
 )
 
