@@ -21,6 +21,7 @@ static inline bool UDSTimeAfter(uint32_t a, uint32_t b) {
 uint32_t UDSMillis(void);
 
 bool UDSSecurityAccessLevelIsReserved(uint8_t securityLevel);
+bool UDSErrIsNRC(UDSErr_t err);
 
 const char *UDSErrToStr(UDSErr_t err);
 const char *UDSEventToStr(UDSEvent_t evt);

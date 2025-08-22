@@ -31,8 +31,9 @@ static void NetworkPoll(void) {
                 if (tp->sa_phys == msgs[i].info.A_TA || tp->sa_func == msgs[i].info.A_TA) {
                     found = true;
                     if (tp->recv_len > 0) {
-                        fprintf(stderr, "TPMock: %s recv buffer is already full. Message dropped\n",
-                                tp->name);
+                        UDS_LOGW(__FILE__,
+                                 "TPMock: %s recv buffer is already full. Message dropped",
+                                 tp->name);
                         continue;
                     }
 

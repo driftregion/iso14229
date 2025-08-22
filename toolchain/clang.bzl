@@ -91,6 +91,8 @@ def _impl(ctx):
         cxx_builtin_include_directories = [
             "/usr/lib/llvm-15/lib/clang/15.0.7/include",
             "/usr/lib/llvm-15/lib/clang/15.0.7/share",
+            '/usr/lib/llvm-15/lib/clang/15.0.6/share',
+            '/usr/lib/llvm-15/lib/clang/15.0.6/include',
             "/usr/include",
             "/usr/lib/x86_64-linux-gnu/",
         ],
@@ -110,7 +112,7 @@ clang_toolchain_config = rule(
     provides = [CcToolchainConfigInfo],
 )
 
-def clang_toolchain(name):
+def clang_toolchain(name, platforms):
     CONFIG_NAME = name + "_config"
     CC_TOOLCHAIN_NAME = name + "_cc_toolchain"
 
@@ -133,14 +135,8 @@ def clang_toolchain(name):
 
     native.toolchain(
         name = name,
-        exec_compatible_with = [
-            "@platforms//os:linux",
-            "@platforms//cpu:x86_64",
-        ],
-        target_compatible_with = [
-            "@platforms//os:linux",
-            "@platforms//cpu:x86_64",
-        ],
+        exec_compatible_with = platforms,
+        target_compatible_with = platforms,
         toolchain = CC_TOOLCHAIN_NAME,
         toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
     )

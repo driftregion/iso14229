@@ -513,7 +513,7 @@ typedef enum {
 #define UDS_0X36_RESP_BASE_LEN 2U
 #define UDS_0X37_REQ_BASE_LEN 1U
 #define UDS_0X37_RESP_BASE_LEN 1U
-#define UDS_0X38_REQ_BASE_LEN 4U
+#define UDS_0X38_REQ_BASE_LEN 9U
 #define UDS_0X38_RESP_BASE_LEN 3U
 #define UDS_0X3E_REQ_MIN_LEN 2U
 #define UDS_0X3E_REQ_MAX_LEN 2U
@@ -573,6 +573,7 @@ static inline bool UDSTimeAfter(uint32_t a, uint32_t b) {
 uint32_t UDSMillis(void);
 
 bool UDSSecurityAccessLevelIsReserved(uint8_t securityLevel);
+bool UDSErrIsNRC(UDSErr_t err);
 
 const char *UDSErrToStr(UDSErr_t err);
 const char *UDSEventToStr(UDSEvent_t evt);

@@ -11,6 +11,7 @@ typedef struct {
 
 
 int main() {
+    system("mkdir -p corpus");
     FILE *fp = fopen("corpus/test_fuzz_server", "w");
     StuffToFuzz_t fuzz_buf = {
         .sdu_info = {
