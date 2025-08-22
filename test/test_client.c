@@ -40,7 +40,6 @@ int fn_test_poll_events(UDSClient_t *client, UDSEvent_t evt, void *ev_data) {
 
 void test_poll_events(void **state) {
     Env_t *e = *state;
-    UDSEvent_t *evt = NULL;
     int count = 0;
     e->client->fn = fn_test_poll_events;
     e->client->fn_data = &count;

@@ -175,7 +175,6 @@ void test_send_recv_functional(void **state) {
 
     // When a functional request is sent
     const uint8_t MSG[] = {0x10, 0x02};
-    UDSSDU_t info = {0};
     UDSTpSend(e->client_tp, MSG, sizeof(MSG), &(UDSSDU_t){.A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL});
 
 
@@ -194,7 +193,6 @@ void test_send_recv_largest_single_frame(void **state) {
 
     // When a functional request is sent
     const uint8_t MSG[] = {1, 2, 3, 4, 5, 6, 7};
-    UDSSDU_t info = {0};
     UDSTpSend(e->client_tp, MSG, sizeof(MSG), &(UDSSDU_t){.A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL});
 
     // the server should receive it quickly
