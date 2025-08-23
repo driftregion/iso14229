@@ -17,7 +17,7 @@ platform(
 
 platform(
     name = "x86_64_clang",
-    parents = [":x86_64"],
+    parents = ["@toolchains_llvm//platforms:linux-x86_64"],
     constraint_values = [
         "//platforms/compiler:clang",
     ],
@@ -41,9 +41,8 @@ platform(
 
 platform(
     name = "aarch64_linux_clang",
+    parents = ["@toolchains_llvm//platforms:linux-aarch64"],
     constraint_values = [
-        "@platforms//cpu:aarch64",
-        "@platforms//os:linux",
         "//platforms/compiler:clang",
     ],
 )
