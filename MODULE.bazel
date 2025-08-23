@@ -41,3 +41,16 @@ http_archive(
 )
 
 bazel_dep(name = "platforms", version="0.0.10", dev_dependency = True)
+
+bazel_dep(name = "toolchains_llvm", version = "1.4.0")
+
+# Configure and register the toolchain.
+llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm")
+llvm.toolchain(
+   llvm_version = "16.0.0",
+)
+
+use_repo(llvm, "llvm_toolchain")
+# use_repo(llvm, "llvm_toolchain_llvm") # if you depend on specific tools in scripts
+
+register_toolchains("@llvm_toolchain//:all")
