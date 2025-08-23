@@ -12,11 +12,11 @@ build --extra_toolchains //toolchain:ppc64_gcc
 build --extra_toolchains //toolchain:ppc64le_gcc
 build --extra_toolchains //toolchain:x86_64_clang
 build --extra_toolchains //toolchain:x86_64_gcc
-build --extra_toolchains @llvm_toolchain//:cc-toolchain-x86_64-linux
-build --extra_toolchains @llvm_toolchain//:cc-toolchain-aarch64-linux
+build:x86_64_clang --extra_toolchains @llvm_toolchain//:cc-toolchain-x86_64-linux
+build:aarch64_linux_clang --extra_toolchains @llvm_toolchain//:cc-toolchain-aarch64-linux
 
 build:arm_linux --platforms=//platforms:arm_linux
-build:aarch64_linux_clang --platforms=//platforms:aarch64_linux_clang
+build:aarch64_linux_clang --platforms=@toolchains_llvm//platforms:linux-aarch64
 build:s32k --platforms=//platforms:s32k_evb
 build:ppc --platforms=//platforms:ppc
 build:ppc64 --platforms=//platforms:ppc64
