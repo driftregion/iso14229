@@ -72,7 +72,7 @@ cc_test(
         "-fcoverage-mapping",
     ],
     size = "enormous",
-    target_compatible_with = ["//platforms/compiler:clang"],
+    tags = ["clang"],
 )
 
 cc_library(
@@ -145,7 +145,7 @@ cc_library(
         "UDS_TP_ISOTP_SOCK",
         "UDS_TP_ISOTP_MOCK",
     ],
-    target_compatible_with = ["//platforms/compiler:clang"],
+    tags = ["clang"],
 )
 
 cc_binary(

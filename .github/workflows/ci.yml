@@ -19,7 +19,7 @@ jobs:
       continue-on-error: true
 
     - name: run unit tests
-      run: bazel test //test:all --test_tag_filters=-vcan
+      run: bazel test //test:all --test_tag_filters=-vcan,-clang
 
     - name: run coverage
       run: |
