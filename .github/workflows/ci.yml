@@ -29,9 +29,12 @@ jobs:
       uses: actions/checkout@v3
 
     - name: run ultra_strict
-      run: bazel build --config=x86_64_clang_nonhermetic //test:ultra_strict
+      run: |
+        sudo apt-get update 
+        sudo apt-get install -y libtinfo5
+        bazel build --config=x86_64_clang_nonhermetic //test:ultra_strict
   
-  fuzz-replay:
+  fuzz-replay-linux-clang:
     runs-on: ubuntu-22.04
 
     steps:
@@ -40,6 +43,8 @@ jobs:
 
     - name: run coverage
       run: |
+        sudo apt-get update 
+        sudo apt-get install -y libtinfo5
         ./scripts/2_replay_corpus.sh
     
     - name: upload coverage to Codecov
@@ -48,7 +53,7 @@ jobs:
         chmod +x codecov
         ./codecov upload-process -t $CODECOV_TOKEN -F fuzz
     
-  build-windows:
+  unittest-windows:
     runs-on: windows-latest
 
     steps:
