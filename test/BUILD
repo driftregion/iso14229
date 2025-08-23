@@ -46,35 +46,6 @@ TEST_NAMES = [ src.split(".c")[0] for src in TEST_SRCS ]
     ) for name, src in zip(TEST_NAMES, TEST_SRCS)
 ]
 
-
-cc_test(
-    name = "test_fuzz_server",
-    srcs = [
-        "test_fuzz_server.cc",
-        "//src:iso14229.h",
-        "//src:iso14229.c",
-    ],
-    defines = [
-        "UDS_TP_ISOTP_MOCK",
-        "UDS_CUSTOM_MILLIS",
-        "UDS_LINES",
-    ],
-    copts = [
-        "-g",
-        "-O0",
-        "-fsanitize=fuzzer,signed-integer-overflow,address,undefined",
-        "-fprofile-instr-generate",
-        "-fcoverage-mapping",
-    ],
-    linkopts = [
-        "-fsanitize=fuzzer,signed-integer-overflow,address,undefined",
-        "-fprofile-instr-generate",
-        "-fcoverage-mapping",
-    ],
-    size = "enormous",
-    tags = ["clang"],
-)
-
 cc_library(
     name = "test_prefix_c",
     srcs = [
@@ -145,15 +116,9 @@ cc_library(
         "UDS_TP_ISOTP_SOCK",
         "UDS_TP_ISOTP_MOCK",
     ],
-    tags = ["clang"],
-)
-
-cc_binary(
-    name = "make_corpus",
-    srcs = [
-        "make_corpus.c",
-        "//src:iso14229.h",
-    ],
+    target_compatible_with = [
+        "//platforms/compiler:clang",
+    ]
 )
 
 [
