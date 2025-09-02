@@ -773,6 +773,47 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
     return UDS_PositiveResponse;
 }
 
+static UDSErr_t Handle_0x3D_WriteMemoryByAddress(UDSServer_t *srv, UDSReq_t *r) {
+    UDSErr_t ret = UDS_PositiveResponse;
+    void *address = 0;
+    size_t length = 0;
+
+    if (r->recv_len < UDS_0X3D_REQ_MIN_LEN) {
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+    }
+
+    ret = decodeAddressAndLength(r, &r->recv_buf[1], &address, &length);
+    if (UDS_PositiveResponse != ret) {
+        return NegativeResponse(r, ret);
+    }
+
+    uint8_t memorySizeLength = (r->recv_buf[1] & 0xF0) >> 4;
+    uint8_t memoryAddressLength = r->recv_buf[1] & 0x0F;
+
+    uint8_t dataOffset = 2 + memorySizeLength + memoryAddressLength;
+
+    if (dataOffset + length != r->recv_len) {
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+    }
+
+    UDSWriteMemByAddrArgs_t args = {
+        .memAddr = address,
+        .memSize = length,
+        .data = &r->recv_buf[dataOffset],
+    };
+
+    ret = EmitEvent(srv, UDS_EVT_WriteMemByAddr, &args);
+    if (UDS_PositiveResponse != ret) {
+        return NegativeResponse(r, ret);
+    }
+
+    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_WRITE_MEMORY_BY_ADDRESS);
+    // echo addressAndLengthFormatIdentifier, memoryAddress, and memorySize
+    memcpy(&r->send_buf[1], &r->recv_buf[1], 1 + memorySizeLength + memoryAddressLength);
+    r->send_len = UDS_0X3D_RESP_BASE_LEN + memorySizeLength + memoryAddressLength;
+    return UDS_PositiveResponse;
+}
+
 static UDSErr_t Handle_0x3E_TesterPresent(UDSServer_t *srv, UDSReq_t *r) {
     if ((r->recv_len < UDS_0X3E_REQ_MIN_LEN) || (r->recv_len > UDS_0X3E_REQ_MAX_LEN)) {
         return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
@@ -853,7 +894,7 @@ static UDSService getServiceForSID(uint8_t sid) {
     case kSID_REQUEST_FILE_TRANSFER:
         return Handle_0x38_RequestFileTransfer;
     case kSID_WRITE_MEMORY_BY_ADDRESS:
-        return NULL;
+        return Handle_0x3D_WriteMemoryByAddress;
     case kSID_TESTER_PRESENT:
         return Handle_0x3E_TesterPresent;
     case kSID_ACCESS_TIMING_PARAMETER:
