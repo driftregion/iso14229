@@ -288,6 +288,165 @@ void test_0x23(void **state) {
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
+typedef struct {
+    const void* expectedMemAddr;
+    const size_t expectedMemSize;
+    const void* expectedMemData;
+} Test0x3DTestFnData_t;
+
+int fn_test_0x3D(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+    Test0x3DTestFnData_t *fnData = (Test0x3DTestFnData_t *)srv->fn_data;
+
+    TEST_INT_EQUAL(ev, UDS_EVT_WriteMemByAddr);
+    UDSWriteMemByAddrArgs_t *r = (UDSWriteMemByAddrArgs_t *)arg;
+
+    TEST_PTR_EQUAL(r->memAddr, fnData->expectedMemAddr);
+    TEST_INT_EQUAL(r->memSize, fnData->expectedMemSize);
+    TEST_MEMORY_EQUAL(r->data, fnData->expectedMemData, r->memSize);
+
+    return UDS_PositiveResponse;
+}
+
+void test_0x3D_example_1(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t expected_mem_data[] = {0x00, 0x8C};
+
+    Test0x3DTestFnData_t fnData = {
+        .expectedMemAddr = (void *)0x00002048,
+        .expectedMemSize = 2,
+        .expectedMemData = expected_mem_data,
+    };
+
+    e->server->fn = fn_test_0x3D;
+    e->server->fn_data = &fnData;
+
+    // Request per ISO14229-1 2020 Table 289
+    const uint8_t REQ[] = {
+        0x3D, // SID
+        0x12, // AddressAndLengthFormatIdentifier
+        0x20, // memoryAddress byte #1 (MSB)
+        0x48, // memoryAddress byte #2 (LSB)
+        0x02, // memorySize byte #1
+        0x00, // data byte #1
+        0x8C, // data byte #2
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    // the client transport should receive a positive response within client_p2 ms
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, UDS_CLIENT_DEFAULT_P2_MS);
+
+    // Response per ISO14229-1 2020 Table 290
+    const uint8_t EXPECTED_RESP[] = {
+        0x7D, // SID 0x3D + 0x40
+        0x12, // AddressAndLengthFormatIdentifier
+        0x20, // memoryAddress byte #1 (MSB)
+        0x48, // memoryAddress byte #2 (LSB)
+        0x02, // memorySize byte #1
+    };
+
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x3D_example_2(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t expected_mem_data[] = {0x00, 0x01, 0x8C};
+
+    Test0x3DTestFnData_t fnData = {
+        .expectedMemAddr = (void *)0x00204813,
+        .expectedMemSize = 3,
+        .expectedMemData = expected_mem_data,
+    };
+
+    e->server->fn = fn_test_0x3D;
+    e->server->fn_data = &fnData;
+
+    // Request per ISO14229-1 2020 Table 291
+    const uint8_t REQ[] = {
+        0x3D, // SID
+        0x13, // AddressAndLengthFormatIdentifier
+        0x20, // memoryAddress byte #1 (MSB)
+        0x48, // memoryAddress byte #2
+        0x13, // memoryAddress byte #3 (LSB)
+        0x03, // memorySize byte #1
+        0x00, // data byte #1
+        0x01, // data byte #2
+        0x8C, // data byte #3
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    // the client transport should receive a positive response within client_p2 ms
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, UDS_CLIENT_DEFAULT_P2_MS);
+
+    // Response per ISO14229-1 2020 Table 292
+    const uint8_t EXPECTED_RESP[] = {
+        0x7D, // SID 0x3D + 0x40
+        0x13, // AddressAndLengthFormatIdentifier
+        0x20, // memoryAddress byte #1 (MSB)
+        0x48, // memoryAddress byte #2
+        0x13, // memoryAddress byte #3 (LSB)
+        0x03, // memorySize byte #1
+    };
+
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+
+void test_0x3D_example_3(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t expected_mem_data[] = {0x00, 0x01, 0x8C, 0x09, 0xAF};
+
+    Test0x3DTestFnData_t fnData = {
+        .expectedMemAddr = (void *)0x000020481309,
+        .expectedMemSize = 5,
+        .expectedMemData = expected_mem_data,
+    };
+
+    e->server->fn = fn_test_0x3D;
+    e->server->fn_data = &fnData;
+
+    // Request per ISO14229-1 2020 Table 289
+    const uint8_t REQ[] = {
+        0x3D, // SID
+        0x14, // AddressAndLengthFormatIdentifier
+        0x20, // memoryAddress byte #1 (MSB)
+        0x48, // memoryAddress byte #2
+        0x13, // memoryAddress byte #3
+        0x09, // memoryAddress byte #4 (LSB)
+        0x05, // memorySize byte #1
+        0x00, // data byte #1
+        0x01, // data byte #2
+        0x8C, // data byte #3
+        0x09, // data byte #4
+        0xAF, // data byte #5
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    // the client transport should receive a positive response within client_p2 ms
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, UDS_CLIENT_DEFAULT_P2_MS);
+
+    // Response per ISO14229-1 2020 Table 290
+    const uint8_t EXPECTED_RESP[] = {
+        0x7D, // SID 0x3D + 0x40
+        0x14, // AddressAndLengthFormatIdentifier
+        0x20, // memoryAddress byte #1 (MSB)
+        0x48, // memoryAddress byte #2
+        0x13, // memoryAddress byte #3
+        0x09, // memoryAddress byte #4 (LSB)
+        0x05, // memorySize byte #1
+    };
+
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
 void test_0x27_level_is_zero_at_init(void **state) {
     Env_t *e = *state;
     TEST_INT_EQUAL(e->server->securityLevel, 0);
@@ -703,6 +862,9 @@ int main(int ac, char **av) {
         cmocka_unit_test_setup_teardown(test_0x38_no_handler, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x38_addfile, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x38_delfile, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x3D_example_1, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x3D_example_2, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x3D_example_3, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x3e_suppress_positive_response, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_security_level_resets_on_session_timeout, Setup, Teardown),
     };

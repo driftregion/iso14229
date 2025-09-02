@@ -307,6 +307,7 @@ typedef enum UDSEvent {
     UDS_EVT_SecAccessRequestSeed, // UDSSecAccessRequestSeedArgs_t *
     UDS_EVT_SecAccessValidateKey, // UDSSecAccessValidateKeyArgs_t *
     UDS_EVT_WriteDataByIdent,     // UDSWDBIArgs_t *
+    UDS_EVT_WriteMemByAddr,       // UDSWriteMemByAddrArgs_t *
     UDS_EVT_RoutineCtrl,          // UDSRoutineCtrlArgs_t*
     UDS_EVT_RequestDownload,      // UDSRequestDownloadArgs_t*
     UDS_EVT_RequestUpload,        // UDSRequestUploadArgs_t *
@@ -515,6 +516,8 @@ typedef enum {
 #define UDS_0X37_RESP_BASE_LEN 1U
 #define UDS_0X38_REQ_BASE_LEN 9U
 #define UDS_0X38_RESP_BASE_LEN 3U
+#define UDS_0X3D_REQ_MIN_LEN 5U
+#define UDS_0X3D_RESP_BASE_LEN 2U
 #define UDS_0X3E_REQ_MIN_LEN 2U
 #define UDS_0X3E_REQ_MAX_LEN 2U
 #define UDS_0X3E_RESP_LEN 2U
@@ -916,6 +919,12 @@ typedef struct {
     const uint8_t *const data; /*! pointer to data */
     const uint16_t len;        /*! length of data */
 } UDSWDBIArgs_t;
+
+typedef struct {
+    const void *memAddr;       /*! pointer to memory address */
+    const size_t memSize;      /*! size of memory */
+    const uint8_t *const data; /*! pointer to data */
+} UDSWriteMemByAddrArgs_t;
 
 typedef struct {
     const uint8_t ctrlType;      /*! routineControlType */
