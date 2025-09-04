@@ -124,6 +124,12 @@ typedef struct {
 } UDSWDBIArgs_t;
 
 typedef struct {
+    const void *memAddr;       /*! pointer to memory address */
+    const size_t memSize;      /*! size of memory */
+    const uint8_t *const data; /*! pointer to data */
+} UDSWriteMemByAddrArgs_t;
+
+typedef struct {
     const uint8_t ctrlType;      /*! routineControlType */
     const uint16_t id;           /*! routineIdentifier */
     const uint8_t *optionRecord; /*! optional data */
