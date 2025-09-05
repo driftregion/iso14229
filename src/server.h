@@ -86,6 +86,18 @@ typedef struct {
 } UDSECUResetArgs_t;
 
 typedef struct {
+    const uint8_t type; /*! invoked subfunction */
+    uint8_t (*copy)(UDSServer_t *srv, const void *src,
+                    uint16_t count); /*! function for copying data */
+
+    union {
+        struct {
+            uint8_t mask; /*! DTC status mask*/
+        } reportNumberOfDTCByStatusMaskArgs;
+    };
+} UDSRDTCIArgs_t;
+
+typedef struct {
     const uint16_t dataId; /*! RDBI Data Identifier */
     uint8_t (*copy)(UDSServer_t *srv, const void *src,
                     uint16_t count); /*! function for copying data */

@@ -136,6 +136,104 @@ static uint8_t safe_copy(UDSServer_t *srv, const void *src, uint16_t count) {
     return UDS_NRC_ResponseTooLong;
 }
 
+static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
+    UDSErr_t ret = UDS_PositiveResponse;
+    uint8_t type = r->recv_buf[1];
+
+    if (r->recv_len < UDS_0X19_REQ_MIN_LEN) {
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+    }
+
+    // Shared by all SubFunc
+    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_READ_DTC_INFORMATION);
+    r->send_buf[1] = type;
+    r->send_len = UDS_0X19_RESP_BASE_LEN;
+
+    UDSRDTCIArgs_t args = {
+        .type = type,
+        .copy = safe_copy,
+    };
+
+    // Before checks and emitting Request
+    switch (type) {
+    case 0x01: // reportNumberOfDTCByStatusMask
+        if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 1) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.reportNumberOfDTCByStatusMaskArgs.mask = r->recv_buf[2];
+        break;
+    case 0x02: // reportDTCByStatusMask
+    case 0x03: // reportDTCSnapshotIdentification
+    case 0x04: // reportDTCSnapshotRecordByDTCNumber
+    case 0x05: // reportDTCStoredDataByRecordNumber
+    case 0x06: // reportDTCExtDataRecordByDTCNumber
+    case 0x07: // reportNumberOfDTCBySeverityMaskRecord
+    case 0x08: // reportDTCBySeverityMaskRecord
+    case 0x09: // reportSeverityInformationOfDTC
+    case 0x0A: // reportSupportedDTC
+    case 0x0B: // reportFirstTestFailedDTC
+    case 0x0C: // reportFirstConfirmedDTC
+    case 0x0D: // reportMostRecentTestFailedDTC
+    case 0x0E: // reportMostRecentConfirmedDTC
+    case 0x14: // reportDTCFaultDetectionCounter
+    case 0x15: // reportDTCWithPermanentStatus
+    case 0x16: // reportDTCExtDataRecordByNumber
+    case 0x17: // reportUserDefMemoryDTCByStatusMask
+    case 0x18: // reportUserDefMemoryDTCSnapshotRecordByDTCNumber
+    case 0x19: // reportUserDefMemoryDTCExtDAtaRecordByDTCNumber
+    case 0x1A: // reportDTCExtendedDataRecordIdentification
+    case 0x42: // reportWWHOBDDTCByMaskRecord
+    case 0x55: // reportWWHOBDDTCWithPermanentStatus
+    case 0x56: // reportDTCInformationByDTCReadinessGroupIdentifier
+
+    default:
+        return UDS_NRC_SubFunctionNotSupported;
+    }
+
+    ret = EmitEvent(srv, UDS_EVT_ReadDTCInformation, &args);
+
+    if (UDS_PositiveResponse != ret) {
+        return NegativeResponse(r, ret);
+    }
+
+    // reply len checks
+    switch (type) {
+    case 0x01: // reportNumberOfDTCByStatusMask
+        if (r->send_len != UDS_0X19_RESP_BASE_LEN + 4) {
+            return UDS_NRC_GeneralProgrammingFailure;
+        }
+        break;
+    case 0x02: // reportDTCByStatusMask
+    case 0x03: // reportDTCSnapshotIdentification
+    case 0x04: // reportDTCSnapshotRecordByDTCNumber
+    case 0x05: // reportDTCStoredDataByRecordNumber
+    case 0x06: // reportDTCExtDataRecordByDTCNumber
+    case 0x07: // reportNumberOfDTCBySeverityMaskRecord
+    case 0x08: // reportDTCBySeverityMaskRecord
+    case 0x09: // reportSeverityInformationOfDTC
+    case 0x0A: // reportSupportedDTC
+    case 0x0B: // reportFirstTestFailedDTC
+    case 0x0C: // reportFirstConfirmedDTC
+    case 0x0D: // reportMostRecentTestFailedDTC
+    case 0x0E: // reportMostRecentConfirmedDTC
+    case 0x14: // reportDTCFaultDetectionCounter
+    case 0x15: // reportDTCWithPermanentStatus
+    case 0x16: // reportDTCExtDataRecordByNumber
+    case 0x17: // reportUserDefMemoryDTCByStatusMask
+    case 0x18: // reportUserDefMemoryDTCSnapshotRecordByDTCNumber
+    case 0x19: // reportUserDefMemoryDTCExtDAtaRecordByDTCNumber
+    case 0x1A: // reportDTCExtendedDataRecordIdentification
+    case 0x42: // reportWWHOBDDTCByMaskRecord
+    case 0x55: // reportWWHOBDDTCWithPermanentStatus
+    case 0x56: // reportDTCInformationByDTCReadinessGroupIdentifier
+    default:
+        return UDS_NRC_SubFunctionNotSupported;
+    }
+
+    return UDS_PositiveResponse;
+}
+
 static UDSErr_t Handle_0x22_ReadDataByIdentifier(UDSServer_t *srv, UDSReq_t *r) {
     uint8_t numDIDs;
     uint16_t dataId = 0;
@@ -862,7 +960,7 @@ static UDSService getServiceForSID(uint8_t sid) {
     case kSID_CLEAR_DIAGNOSTIC_INFORMATION:
         return NULL;
     case kSID_READ_DTC_INFORMATION:
-        return NULL;
+        return Handle_0x19_ReadDTCInformation;
     case kSID_READ_DATA_BY_IDENTIFIER:
         return Handle_0x22_ReadDataByIdentifier;
     case kSID_READ_MEMORY_BY_ADDRESS:
