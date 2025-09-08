@@ -108,7 +108,7 @@ typedef struct {
         struct {
             uint8_t severityMask; /*! DTC Severity Mask */
             uint8_t statusMask;   /*! DTC Status Mask */
-        } numOfDTCBySeverityMaskArgs;
+        } numOfDTCBySeverityMaskArgs, reportBySeverityMaskArgs;
     };
 } UDSRDTCIArgs_t;
 
