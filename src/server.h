@@ -98,6 +98,9 @@ typedef struct {
             uint32_t dtc;        /*! DTC Mask Record */
             uint8_t snapshotNum; /*! DTC Snaphot Record Number */
         } dtcSnapshotRecordbyDTCNumArgs;
+        struct {
+            uint8_t recordNum; /*! DTC Stored Data Record Number */
+        } storedDataByRecordNumberArgs;
     };
 } UDSRDTCIArgs_t;
 
