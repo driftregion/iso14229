@@ -188,6 +188,9 @@ int fn_test_0x19(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
             TEST_INT_EQUAL(r->reportDTCStatusByMaskArgs.mask, 0x01);
             return r->copy(srv, fnData->data, fnData->len);
         }
+    case 0x03: // reportDTCSnapshotIdentification
+        return r->copy(srv, fnData->data, fnData->len);
+        break;
 
     default:
         return UDS_NRC_ConditionsNotCorrect;
@@ -305,6 +308,79 @@ void test_0x19_Sub_2_no_matching_dtc(void **state) {
         0x59, /* Response SID */
         0x02, /* SubFunction */
         0x7F, /* DTCStatusAvailabilityMask */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// 12.3.5.5 Example #4 - ReadDTCInformation, SubFunction = reportDTCSnapshotIdentification
+void test_0x19_Sub_3(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {
+        0x12, 0x34, 0x56, 0x01, 0x12, 0x34, 0x57, 0x02, 0x78, 0x9A, 0xBC, 0x01,
+    };
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 351 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x03, /* reportDTCSnapshotIdentification */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 352 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x03, /* SubFunction */
+        0x12, /* DTCAndStatusRecord#1 [DTC High Byte] */
+        0x34, /* DTCAndStatusRecord#1 [DTC Middle Byte */
+        0x56, /* DTCAndStatusRecord#1 [DTC Low Byte] */
+        0x01, /* DTCAndStatusRecord#1 [DTC Snapshot Record Number] */
+        0x12, /* DTCAndStatusRecord#2 [DTC High Byte] */
+        0x34, /* DTCAndStatusRecord#2 [DTC Middle Byte] */
+        0x57, /* DTCAndStatusRecord#2 [DTC Low Byte] */
+        0x02, /* DTCAndStatusRecord#2 [DTC Snapshot Record Number] */
+        0x78, /* DTCAndStatusRecord#3 [DTC High Byte] */
+        0x9A, /* DTCAndStatusRecord#3 [DTC Middle Byte] */
+        0xBC, /* DTCAndStatusRecord#3 [DTC Low Byte] */
+        0x01, /* DTCAndStatusRecord#3 [DTC Snapshot Record Number] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x19_Sub_3_no_snapshots(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x03, /* reportDTCSnapshotIdentification */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x03, /* SubFunction */
     };
 
     /* the client transport should receive a positive response within client_p2 ms */
@@ -1022,6 +1098,9 @@ int main(int ac, char **av) {
         cmocka_unit_test_setup_teardown(test_0x19_Sub_1, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x19_Sub_2, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x19_Sub_2_no_matching_dtc, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_Sub_3, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_Sub_3_no_snapshots, Setup, Teardown),
+
         cmocka_unit_test_setup_teardown(test_0x22, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22_nonexistent, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22_misuse, Setup, Teardown),

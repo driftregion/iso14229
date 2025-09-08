@@ -171,6 +171,8 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
         args.reportDTCStatusByMaskArgs.mask = r->recv_buf[2];
         break;
     case 0x03: // reportDTCSnapshotIdentification
+        // has no subfunction specific args
+        break;
     case 0x04: // reportDTCSnapshotRecordByDTCNumber
     case 0x05: // reportDTCStoredDataByRecordNumber
     case 0x06: // reportDTCExtDataRecordByDTCNumber
@@ -203,19 +205,28 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
         return NegativeResponse(r, ret);
     }
 
-    // reply len checks
+    if (r->send_len < UDS_0X19_RESP_BASE_LEN) {
+        return UDS_NRC_GeneralProgrammingFailure;
+    }
+
+    /* subfunc specific  reply len checks */
     switch (type) {
-    case 0x01: // reportNumberOfDTCByStatusMask
+    case 0x01: /* reportNumberOfDTCByStatusMask */
         if (r->send_len != UDS_0X19_RESP_BASE_LEN + 4) {
             return UDS_NRC_GeneralProgrammingFailure;
         }
         break;
-    case 0x02: // reportDTCByStatusMask
-        if (r->send_len < UDS_0X19_RESP_BASE_LEN + 1 || (r->send_len -  (UDS_0X19_RESP_BASE_LEN + 1)) % 4 != 0) {
+    case 0x02: /* reportDTCByStatusMask */
+        if (r->send_len < UDS_0X19_RESP_BASE_LEN + 1 ||
+            (r->send_len - (UDS_0X19_RESP_BASE_LEN + 1)) % 4 != 0) {
             return UDS_NRC_GeneralProgrammingFailure;
         }
         break;
-    case 0x03: // reportDTCSnapshotIdentification
+    case 0x03: /* reportDTCSnapshotIdentification */
+        if ((r->send_len - UDS_0X19_RESP_BASE_LEN) % 4 != 0) {
+            return UDS_NRC_GeneralProgrammingFailure;
+        }
+        break;
     case 0x04: // reportDTCSnapshotRecordByDTCNumber
     case 0x05: // reportDTCStoredDataByRecordNumber
     case 0x06: // reportDTCExtDataRecordByDTCNumber
