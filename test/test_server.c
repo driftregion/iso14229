@@ -189,6 +189,7 @@ int fn_test_0x19(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
         break;
     case 0x03: // reportDTCSnapshotIdentification
     case 0x0A: // reportSupportedDTC
+    case 0x0B: // reportFirstTestFailedDTC
         /* No additional arguments to check */
         break;
     case 0x04: // reportDTCSnapshotRecordByDTCNumber
@@ -893,6 +894,78 @@ void test_0x19_sub_A(void **state) {
         0xCD, /* DTCAndStatusRecord#3 [Middle Byte] */
         0x01, /* DTCAndStatusRecord#3 [Low Byte] */
         0x2F, /* DTCAndStatusRecord#3 [Status] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// ISO14229-1 2020 12.3.5.13Example #12 - ReadDTCInformation, SubFunction =
+// reportFirstTestFailedDTC, information available
+void test_0x19_sub_B(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0xFF, 0x12, 0x34, 0x56, 0x26};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 378 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x0B, /* reportFirstTestFailedDTC */
+
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 376 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x0B, /* reportType = SubFunction */
+        0xFF, /* DTCStatusAvailabilityMask */
+        0x12, /* DTCAndStatusRecord [High Byte] */
+        0x34, /* DTCAndStatusRecord [Middle Byte] */
+        0x56, /* DTCAndStatusRecord [Low Byte] */
+        0x26, /* DTCAndStatusRecord [Status] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// ISO14229-1 2020 12.3.5.14Example #13 - ReadDTCInformation, SubFunction =
+// reportFirstTestFailedDTC, no information available
+void test_0x19_sub_B_no_info(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0xFF};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 380 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x0B, /* reportFirstTestFailedDTC */
+
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 381 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x0B, /* reportType = SubFunction */
+        0xFF, /* DTCStatusAvailabilityMask */
     };
 
     /* the client transport should receive a positive response within client_p2 ms */
@@ -1624,6 +1697,8 @@ int main(int ac, char **av) {
         cmocka_unit_test_setup_teardown(test_0x19_sub_9, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x19_sub_9_no_dtc, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x19_sub_A, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_B, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_B_no_info, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22_nonexistent, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22_misuse, Setup, Teardown),
