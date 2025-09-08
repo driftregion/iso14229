@@ -200,6 +200,10 @@ int fn_test_0x19(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
         TEST_INT_EQUAL(r->extDtaRecordByDTCNumArgs.dtc, 0x00123456);
         TEST_INT_EQUAL(r->extDtaRecordByDTCNumArgs.extDataRecNum, 0xFF);
         break;
+    case 0x07: // reportNumberOfDTCBySeverityMaskRecord
+        TEST_INT_EQUAL(r->numOfDTCBySeverityMaskArgs.severityMask, 0xC0);
+        TEST_INT_EQUAL(r->numOfDTCBySeverityMaskArgs.statusMask, 0x01);
+        break;
 
     default:
         return UDS_NRC_ConditionsNotCorrect;
@@ -645,6 +649,48 @@ void test_0x19_sub_6_no_data(void **state) {
         0x34, /* DTCAndStatusRecord [Middle Byte] */
         0x56, /* DTCAndStatusRecord [Low Byte] */
         0x24, /* DTCAndStatusRecord [status of DTC] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+// ISO14229-1 2020 12.3.5.9 Example #8 - ReadDTCInformation, SubFunction =
+// reportNumberOfDTC-BySeverityMaskRecord
+void test_0x19_sub_7(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {
+        0x09,
+        0x01,
+        0x00,
+        0x01,
+    };
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 366 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x07, /* reportNumberOfDTCBySeverityMaskRecord */
+        0xC0, /* DTCSeverityMaskRecord [DTC Severity Mask] */
+        0x01, /* DTCSeverityMaskRecord [DTC Status Mask] */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 367 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x07, /* reportType = SubFunction */
+        0x09, /* DTCStatusAvailabilityMask */
+        0x01, /* DTCFormatIdentifier */
+        0x00, /* DTCCount [High Byte] */
+        0x01, /* DTCCount [Low Byte] */
     };
 
     /* the client transport should receive a positive response within client_p2 ms */
@@ -1370,6 +1416,7 @@ int main(int ac, char **av) {
         cmocka_unit_test_setup_teardown(test_0x19_sub_5_no_data, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x19_sub_6, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x19_sub_6_no_data, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_7, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22_nonexistent, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22_misuse, Setup, Teardown),

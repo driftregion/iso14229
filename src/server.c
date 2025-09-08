@@ -199,6 +199,13 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
         args.extDtaRecordByDTCNumArgs.extDataRecNum = r->recv_buf[5];
         break;
     case 0x07: // reportNumberOfDTCBySeverityMaskRecord
+        if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 2) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.numOfDTCBySeverityMaskArgs.severityMask = r->recv_buf[2];
+        args.numOfDTCBySeverityMaskArgs.statusMask = r->recv_buf[3];
+        break;
     case 0x08: // reportDTCBySeverityMaskRecord
     case 0x09: // reportSeverityInformationOfDTC
     case 0x0A: // reportSupportedDTC
@@ -234,6 +241,7 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
     /* subfunc specific reply len checks */
     switch (type) {
     case 0x01: /* reportNumberOfDTCByStatusMask */
+    case 0x07: /* reportNumberOfDTCBySeverityMaskRecord */
         if (r->send_len != UDS_0X19_RESP_BASE_LEN + 4) {
             return UDS_NRC_GeneralProgrammingFailure;
         }
@@ -249,22 +257,17 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
             return UDS_NRC_GeneralProgrammingFailure;
         }
         break;
-    case 0x04: // reportDTCSnapshotRecordByDTCNumber
+    case 0x04: /* reportDTCSnapshotRecordByDTCNumber */
+    case 0x06: /* reportDTCExtDataRecordByDTCNumber */
         if (r->send_len < UDS_0X19_RESP_BASE_LEN + 4) {
             return UDS_NRC_GeneralProgrammingFailure;
         }
         break;
-    case 0x05: // reportDTCStoredDataByRecordNumber
+    case 0x05: /* reportDTCStoredDataByRecordNumber */
         if (r->send_len < UDS_0X19_RESP_BASE_LEN + 1) {
             return UDS_NRC_GeneralProgrammingFailure;
         }
         break;
-    case 0x06: // reportDTCExtDataRecordByDTCNumber
-        if (r->send_len < UDS_0X19_RESP_BASE_LEN + 4) {
-            return UDS_NRC_GeneralProgrammingFailure;
-        }
-        break;
-    case 0x07: // reportNumberOfDTCBySeverityMaskRecord
     case 0x08: // reportDTCBySeverityMaskRecord
     case 0x09: // reportSeverityInformationOfDTC
     case 0x0A: // reportSupportedDTC

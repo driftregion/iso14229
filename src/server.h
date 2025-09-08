@@ -105,6 +105,10 @@ typedef struct {
             uint32_t dtc;          /*! DTC Mask Record */
             uint8_t extDataRecNum; /*! DTC Extended Data Record Number */
         } extDtaRecordByDTCNumArgs;
+        struct {
+            uint8_t severityMask; /*! DTC Severity Mask */
+            uint8_t statusMask;   /*! DTC Status Mask */
+        } numOfDTCBySeverityMaskArgs;
     };
 } UDSRDTCIArgs_t;
 
