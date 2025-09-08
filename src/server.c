@@ -187,7 +187,7 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        args.storedDataByRecordNumberArgs.recordNum = r->recv_buf[2];
+        args.storedDataByRecordNumArgs.recordNum = r->recv_buf[2];
         break;
     case 0x06: /* reportDTCExtDataRecordByDTCNumber */
         if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 4) {
@@ -208,6 +208,13 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
         args.numOfDTCBySeverityMaskArgs.statusMask = r->recv_buf[3];
         break;
     case 0x09: /* reportSeverityInformationOfDTC */
+        if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 1) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.reportSeverityInformationArgs.dtc =
+            (r->recv_buf[2] << 16 | r->recv_buf[3] << 8 | r->recv_buf[4]) & 0x00FFFFFF;
+        break;
     case 0x0A: /* reportSupportedDTC */
     case 0x0B: /* reportFirstTestFailedDTC */
     case 0x0C: /* reportFirstConfirmedDTC */
@@ -269,27 +276,27 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
         }
         break;
     case 0x08: /* reportDTCBySeverityMaskRecord */
+    case 0x09: /* reportSeverityInformationOfDTC */
         if (r->send_len < UDS_0X19_RESP_BASE_LEN + 1 ||
             (r->send_len - (UDS_0X19_RESP_BASE_LEN + 1)) % 6 != 0) {
             return UDS_NRC_GeneralProgrammingFailure;
         }
         break;
-    case 0x09: // reportSeverityInformationOfDTC
-    case 0x0A: // reportSupportedDTC
-    case 0x0B: // reportFirstTestFailedDTC
-    case 0x0C: // reportFirstConfirmedDTC
-    case 0x0D: // reportMostRecentTestFailedDTC
-    case 0x0E: // reportMostRecentConfirmedDTC
-    case 0x14: // reportDTCFaultDetectionCounter
-    case 0x15: // reportDTCWithPermanentStatus
-    case 0x16: // reportDTCExtDataRecordByNumber
-    case 0x17: // reportUserDefMemoryDTCByStatusMask
-    case 0x18: // reportUserDefMemoryDTCSnapshotRecordByDTCNumber
-    case 0x19: // reportUserDefMemoryDTCExtDAtaRecordByDTCNumber
-    case 0x1A: // reportDTCExtendedDataRecordIdentification
-    case 0x42: // reportWWHOBDDTCByMaskRecord
-    case 0x55: // reportWWHOBDDTCWithPermanentStatus
-    case 0x56: // reportDTCInformationByDTCReadinessGroupIdentifier
+    case 0x0A: /* reportSupportedDTC */
+    case 0x0B: /* reportFirstTestFailedDTC */
+    case 0x0C: /* reportFirstConfirmedDTC */
+    case 0x0D: /* reportMostRecentTestFailedDTC */
+    case 0x0E: /* reportMostRecentConfirmedDTC */
+    case 0x14: /* reportDTCFaultDetectionCounter */
+    case 0x15: /* reportDTCWithPermanentStatus */
+    case 0x16: /* reportDTCExtDataRecordByNumber */
+    case 0x17: /* reportUserDefMemoryDTCByStatusMask */
+    case 0x18: /* reportUserDefMemoryDTCSnapshotRecordByDTCNumber */
+    case 0x19: /* reportUserDefMemoryDTCExtDAtaRecordByDTCNumber */
+    case 0x1A: /* reportDTCExtendedDataRecordIdentification */
+    case 0x42: /* reportWWHOBDDTCByMaskRecord */
+    case 0x55: /* reportWWHOBDDTCWithPermanentStatus */
+    case 0x56: /* reportDTCInformationByDTCReadinessGroupIdentifier */
     default:
         return UDS_NRC_SubFunctionNotSupported;
     }
