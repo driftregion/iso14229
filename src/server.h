@@ -94,6 +94,10 @@ typedef struct {
         struct {
             uint8_t mask; /*! DTC status mask */
         } reportNumberOfDTCByStatusMaskArgs, reportDTCStatusByMaskArgs;
+        struct {
+            uint32_t dtc;        /*! DTC Mask Record */
+            uint8_t snapshotNum; /*! DTC Snaphot Record Number */
+        } dtcSnapshotRecordbyDTCNumArgs;
     };
 } UDSRDTCIArgs_t;
 

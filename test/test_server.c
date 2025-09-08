@@ -190,6 +190,10 @@ int fn_test_0x19(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
         }
     case 0x03: // reportDTCSnapshotIdentification
         return r->copy(srv, fnData->data, fnData->len);
+    case 0x04: // reportDTCSnapshotRecordByDTCNumber
+        TEST_INT_EQUAL(r->dtcSnapshotRecordbyDTCNumArgs.dtc, 0x00123456);
+        TEST_INT_EQUAL(r->dtcSnapshotRecordbyDTCNumArgs.snapshotNum, 0x02);
+        return r->copy(srv, fnData->data, fnData->len);
         break;
 
     default:
@@ -381,6 +385,97 @@ void test_0x19_Sub_3_no_snapshots(void **state) {
     const uint8_t EXPECTED_RESP[] = {
         0x59, /* Response SID */
         0x03, /* SubFunction */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// 12.3.5.6 Example #5 - ReadDTCInformation, SubFunction = reportDTCSnapshotRecordByDTCNumber
+void test_0x19_Sub_4(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {
+        0x12, 0x34, 0x56, 0x24, 0x02, 0x01, 0x47, 0x11, 0xA6, 0x66, 0x07, 0x50, 0x20,
+    };
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 354 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x04, /* reportDTCSnapshotRecordByDTCNumber */
+        0x12, /* DTCMaskRecord [DTC High Byte] */
+        0x34, /* DTCMaskRecord [DTC Middle Byte] */
+        0x56, /* DTCMaskRecord [DTC Low Byte] */
+        0x02, /* DTCSnapshotRecordNumber */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Request per ISO14229-1 2020 Table 355 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x04, /* SubFunction */
+        0x12, /* DTCAndStatusRecord#1 [DTC High Byte] */
+        0x34, /* DTCAndStatusRecord#1 [DTC Middle Byte */
+        0x56, /* DTCAndStatusRecord#1 [DTC Low Byte] */
+        0x24, /* DTCAndStatusRecord#1 [status of DTC] */
+        0x02, /* DTCSnapshotRecordNumber */
+        0x01, /* DTCSnapshotRecordNumberOfIdentifiers */
+        0x47, /* DataIdentifier [High Byte] */
+        0x11, /* DataIdentifier [Low Byte] */
+        0xA6, /* DTCSnapshotRecordData#1 */
+        0x66, /* DTCSnapshotRecordData#2 */
+        0x07, /* DTCSnapshotRecordData#3 */
+        0x50, /* DTCSnapshotRecordData#4 */
+        0x20, /* DTCSnapshotRecordData#5 */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x19_Sub_4_no_records(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {
+        0x12,
+        0x34,
+        0x56,
+        0x24,
+    };
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x04, /* reportDTCSnapshotRecordByDTCNumber */
+        0x12, /* DTCMaskRecord [DTC High Byte] */
+        0x34, /* DTCMaskRecord [DTC Middle Byte] */
+        0x56, /* DTCMaskRecord [DTC Low Byte] */
+        0x02, /* DTCSnapshotRecordNumber */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x04, /* SubFunction */
+        0x12, /* DTCAndStatusRecord#1 [DTC High Byte] */
+        0x34, /* DTCAndStatusRecord#1 [DTC Middle Byte */
+        0x56, /* DTCAndStatusRecord#1 [DTC Low Byte] */
+        0x24, /* DTCAndStatusRecord#1 [status of DTC] */
     };
 
     /* the client transport should receive a positive response within client_p2 ms */
@@ -1100,6 +1195,8 @@ int main(int ac, char **av) {
         cmocka_unit_test_setup_teardown(test_0x19_Sub_2_no_matching_dtc, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x19_Sub_3, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x19_Sub_3_no_snapshots, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_Sub_4, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_Sub_4_no_records, Setup, Teardown),
 
         cmocka_unit_test_setup_teardown(test_0x22, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22_nonexistent, Setup, Teardown),
