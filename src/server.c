@@ -164,6 +164,12 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
         args.reportNumberOfDTCByStatusMaskArgs.mask = r->recv_buf[2];
         break;
     case 0x02: // reportDTCByStatusMask
+        if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 1) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.reportDTCStatusByMaskArgs.mask = r->recv_buf[2];
+        break;
     case 0x03: // reportDTCSnapshotIdentification
     case 0x04: // reportDTCSnapshotRecordByDTCNumber
     case 0x05: // reportDTCStoredDataByRecordNumber
@@ -205,6 +211,10 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
         }
         break;
     case 0x02: // reportDTCByStatusMask
+        if (r->send_len < UDS_0X19_RESP_BASE_LEN + 1 || (r->send_len -  (UDS_0X19_RESP_BASE_LEN + 1)) % 4 != 0) {
+            return UDS_NRC_GeneralProgrammingFailure;
+        }
+        break;
     case 0x03: // reportDTCSnapshotIdentification
     case 0x04: // reportDTCSnapshotRecordByDTCNumber
     case 0x05: // reportDTCStoredDataByRecordNumber

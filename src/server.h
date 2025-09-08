@@ -92,8 +92,8 @@ typedef struct {
 
     union {
         struct {
-            uint8_t mask; /*! DTC status mask*/
-        } reportNumberOfDTCByStatusMaskArgs;
+            uint8_t mask; /*! DTC status mask */
+        } reportNumberOfDTCByStatusMaskArgs, reportDTCStatusByMaskArgs;
     };
 } UDSRDTCIArgs_t;
 
