@@ -101,6 +101,10 @@ typedef struct {
         struct {
             uint8_t recordNum; /*! DTC Stored Data Record Number */
         } storedDataByRecordNumberArgs;
+        struct {
+            uint32_t dtc;          /*! DTC Mask Record */
+            uint8_t extDataRecNum; /*! DTC Extended Data Record Number */
+        } extDtaRecordByDTCNumArgs;
     };
 } UDSRDTCIArgs_t;
 

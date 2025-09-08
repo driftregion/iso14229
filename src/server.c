@@ -190,6 +190,14 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
         args.storedDataByRecordNumberArgs.recordNum = r->recv_buf[2];
         break;
     case 0x06: // reportDTCExtDataRecordByDTCNumber
+        if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 4) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.extDtaRecordByDTCNumArgs.dtc =
+            (r->recv_buf[2] << 16 | r->recv_buf[3] << 8 | r->recv_buf[4]) & 0x00FFFFFF;
+        args.extDtaRecordByDTCNumArgs.extDataRecNum = r->recv_buf[5];
+        break;
     case 0x07: // reportNumberOfDTCBySeverityMaskRecord
     case 0x08: // reportDTCBySeverityMaskRecord
     case 0x09: // reportSeverityInformationOfDTC
@@ -223,7 +231,7 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
         return UDS_NRC_GeneralProgrammingFailure;
     }
 
-    /* subfunc specific  reply len checks */
+    /* subfunc specific reply len checks */
     switch (type) {
     case 0x01: /* reportNumberOfDTCByStatusMask */
         if (r->send_len != UDS_0X19_RESP_BASE_LEN + 4) {
@@ -252,6 +260,10 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
         }
         break;
     case 0x06: // reportDTCExtDataRecordByDTCNumber
+        if (r->send_len < UDS_0X19_RESP_BASE_LEN + 4) {
+            return UDS_NRC_GeneralProgrammingFailure;
+        }
+        break;
     case 0x07: // reportNumberOfDTCBySeverityMaskRecord
     case 0x08: // reportDTCBySeverityMaskRecord
     case 0x09: // reportSeverityInformationOfDTC
