@@ -224,7 +224,7 @@ int fn_test_0x19(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
 
 // ISO14229-1 2020 12.3.5.2 Example #1 - ReadDTCInformation, SubFunction =
 // reportNumberOfDTCByStatusMask
-void test_0x19_sub_1(void **state) {
+void test_0x19_sub_0x01(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
@@ -261,7 +261,7 @@ void test_0x19_sub_1(void **state) {
 
 // ISO14229-1 2020 12.3.5.3 Example #2 - ReadDTCInformation, SubFunction = reportDTCByStatusMask,
 // matching DTCs returned
-void test_0x19_sub_2(void **state) {
+void test_0x19_sub_0x02(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
@@ -306,7 +306,7 @@ void test_0x19_sub_2(void **state) {
 
 // ISO14229-1 2020 12.3.5.4 Example #3 - ReadDTCInformation, SubFunction = reportDTCByStatusMask, no
 // matching DTCs returned
-void test_0x19_sub_2_no_matching_dtc(void **state) {
+void test_0x19_sub_0x02_no_matching_dtc(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
@@ -344,7 +344,7 @@ void test_0x19_sub_2_no_matching_dtc(void **state) {
 
 // ISO14229-1 2020 12.3.5.5 Example #4 - ReadDTCInformation, SubFunction =
 // reportDTCSnapshotIdentification
-void test_0x19_sub_3(void **state) {
+void test_0x19_sub_0x03(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
@@ -388,7 +388,7 @@ void test_0x19_sub_3(void **state) {
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
-void test_0x19_sub_3_no_snapshots(void **state) {
+void test_0x19_sub_0x03_no_snapshots(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
@@ -418,7 +418,7 @@ void test_0x19_sub_3_no_snapshots(void **state) {
 
 // ISO14229-1 2020 12.3.5.6 Example #5 - ReadDTCInformation, SubFunction =
 // reportDTCSnapshotRecordByDTCNumber
-void test_0x19_sub_4(void **state) {
+void test_0x19_sub_0x04(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
@@ -467,7 +467,7 @@ void test_0x19_sub_4(void **state) {
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
-void test_0x19_sub_4_no_records(void **state) {
+void test_0x19_sub_0x04_no_records(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
@@ -510,7 +510,7 @@ void test_0x19_sub_4_no_records(void **state) {
 
 // ISO14229-1 2020 12.3.5.7 Example #6 - ReadDTCInformation, SubFunction =
 // reportDTCStoredDataByRecordNumber
-void test_0x19_sub_5(void **state) {
+void test_0x19_sub_0x05(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
@@ -555,7 +555,7 @@ void test_0x19_sub_5(void **state) {
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
-void test_0x19_sub_5_no_data(void **state) {
+void test_0x19_sub_0x05_no_data(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
@@ -589,7 +589,7 @@ void test_0x19_sub_5_no_data(void **state) {
 
 // ISO14229-1 2020 12.3.5.8 Example #7 - ReadDTCInformation, SubFunction =
 // reportDTCExtDataRecordByDTCNumber
-void test_0x19_sub_6(void **state) {
+void test_0x19_sub_0x06(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
@@ -631,7 +631,7 @@ void test_0x19_sub_6(void **state) {
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
-void test_0x19_sub_6_no_data(void **state) {
+void test_0x19_sub_0x06_no_data(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
@@ -668,7 +668,7 @@ void test_0x19_sub_6_no_data(void **state) {
 }
 // ISO14229-1 2020 12.3.5.9 Example #8 - ReadDTCInformation, SubFunction =
 // reportNumberOfDTC-BySeverityMaskRecord
-void test_0x19_sub_7(void **state) {
+void test_0x19_sub_0x07(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
@@ -711,7 +711,7 @@ void test_0x19_sub_7(void **state) {
 
 // ISO14229-1 2020 12.3.5.10Example #9 - ReadDTCInformation, SubFunction =
 // reportDTCBySeverityMaskRecord
-void test_0x19_sub_8(void **state) {
+void test_0x19_sub_0x08(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
@@ -750,7 +750,7 @@ void test_0x19_sub_8(void **state) {
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
-void test_0x19_sub_8_no_dtc(void **state) {
+void test_0x19_sub_0x08_no_dtc(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
@@ -785,7 +785,7 @@ void test_0x19_sub_8_no_dtc(void **state) {
 
 // ISO14229-1 2020 12.3.5.11Example #10 - ReadDTCInformation, SubFunction =
 // reportSeverityInformationOfDTC
-void test_0x19_sub_9(void **state) {
+void test_0x19_sub_0x09(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
@@ -825,7 +825,7 @@ void test_0x19_sub_9(void **state) {
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
-void test_0x19_sub_9_no_dtc(void **state) {
+void test_0x19_sub_0x09_no_dtc(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
@@ -860,7 +860,7 @@ void test_0x19_sub_9_no_dtc(void **state) {
 }
 
 // ISO14229-1 2020 12.3.5.12 Example #11 – ReadDTCInformation - SubFunction = reportSupportedDTCs
-void test_0x19_sub_A(void **state) {
+void test_0x19_sub_0x0A(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
@@ -907,7 +907,7 @@ void test_0x19_sub_A(void **state) {
 
 // ISO14229-1 2020 12.3.5.13Example #12 - ReadDTCInformation, SubFunction =
 // reportFirstTestFailedDTC, information available
-void test_0x19_sub_B(void **state) {
+void test_0x19_sub_0x0B(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
@@ -945,7 +945,7 @@ void test_0x19_sub_B(void **state) {
 
 // ISO14229-1 2020 12.3.5.14Example #13 - ReadDTCInformation, SubFunction =
 // reportFirstTestFailedDTC, no information available
-void test_0x19_sub_B_no_info(void **state) {
+void test_0x19_sub_0x0B_no_info(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
@@ -979,7 +979,7 @@ void test_0x19_sub_B_no_info(void **state) {
 
 // closely follows ISO14229-1 2020 12.3.5.13Example #12 but for SubFunction =
 // reportMostRecentTestFailedDTC
-void test_0x19_sub_D(void **state) {
+void test_0x19_sub_0x0D(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
@@ -1017,7 +1017,7 @@ void test_0x19_sub_D(void **state) {
 
 // closely follows ISO14229-1 2020 12.3.5.14Example #13 but for SubFunction =
 // reportMostRecentTestFailedDTC
-void test_0x19_sub_D_no_info(void **state) {
+void test_0x19_sub_0x0D_no_info(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
@@ -1051,7 +1051,7 @@ void test_0x19_sub_D_no_info(void **state) {
 
 // closely follows ISO14229-1 2020 12.3.5.13Example #12 but for SubFunction =
 // reportFirstConfirmedDTC
-void test_0x19_sub_C(void **state) {
+void test_0x19_sub_0x0C(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
@@ -1089,7 +1089,7 @@ void test_0x19_sub_C(void **state) {
 
 // closely follows ISO14229-1 2020 12.3.5.14Example #13 but for SubFunction =
 // reportFirstConfirmedDTC
-void test_0x19_sub_C_no_info(void **state) {
+void test_0x19_sub_0x0C_no_info(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
@@ -1123,7 +1123,7 @@ void test_0x19_sub_C_no_info(void **state) {
 
 // closely follows ISO14229-1 2020 12.3.5.13Example #12 but for SubFunction =
 // reportMostRecentConfirmedDTC
-void test_0x19_sub_E(void **state) {
+void test_0x19_sub_0x0E(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
@@ -1160,7 +1160,7 @@ void test_0x19_sub_E(void **state) {
 
 // closely follows ISO14229-1 2020 12.3.5.14Example #13 but for SubFunction =
 // reportMostRecentConfirmedDTC
-void test_0x19_sub_E_no_info(void **state) {
+void test_0x19_sub_0x0E_no_info(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
@@ -1898,31 +1898,31 @@ int main(int ac, char **av) {
                                         Teardown),
         cmocka_unit_test_setup_teardown(test_0x10_suppress_pos_resp, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x11_no_send_after_ECU_reset, Setup, Teardown),
-        cmocka_unit_test_setup_teardown(test_0x19_sub_1, Setup, Teardown),
-        cmocka_unit_test_setup_teardown(test_0x19_sub_2, Setup, Teardown),
-        cmocka_unit_test_setup_teardown(test_0x19_sub_2_no_matching_dtc, Setup, Teardown),
-        cmocka_unit_test_setup_teardown(test_0x19_sub_3, Setup, Teardown),
-        cmocka_unit_test_setup_teardown(test_0x19_sub_3_no_snapshots, Setup, Teardown),
-        cmocka_unit_test_setup_teardown(test_0x19_sub_4, Setup, Teardown),
-        cmocka_unit_test_setup_teardown(test_0x19_sub_4_no_records, Setup, Teardown),
-        cmocka_unit_test_setup_teardown(test_0x19_sub_5, Setup, Teardown),
-        cmocka_unit_test_setup_teardown(test_0x19_sub_5_no_data, Setup, Teardown),
-        cmocka_unit_test_setup_teardown(test_0x19_sub_6, Setup, Teardown),
-        cmocka_unit_test_setup_teardown(test_0x19_sub_6_no_data, Setup, Teardown),
-        cmocka_unit_test_setup_teardown(test_0x19_sub_7, Setup, Teardown),
-        cmocka_unit_test_setup_teardown(test_0x19_sub_8, Setup, Teardown),
-        cmocka_unit_test_setup_teardown(test_0x19_sub_8_no_dtc, Setup, Teardown),
-        cmocka_unit_test_setup_teardown(test_0x19_sub_9, Setup, Teardown),
-        cmocka_unit_test_setup_teardown(test_0x19_sub_9_no_dtc, Setup, Teardown),
-        cmocka_unit_test_setup_teardown(test_0x19_sub_A, Setup, Teardown),
-        cmocka_unit_test_setup_teardown(test_0x19_sub_B, Setup, Teardown),
-        cmocka_unit_test_setup_teardown(test_0x19_sub_B_no_info, Setup, Teardown),
-        cmocka_unit_test_setup_teardown(test_0x19_sub_C, Setup, Teardown),
-        cmocka_unit_test_setup_teardown(test_0x19_sub_C_no_info, Setup, Teardown),
-        cmocka_unit_test_setup_teardown(test_0x19_sub_D, Setup, Teardown),
-        cmocka_unit_test_setup_teardown(test_0x19_sub_D_no_info, Setup, Teardown),
-        cmocka_unit_test_setup_teardown(test_0x19_sub_E, Setup, Teardown),
-        cmocka_unit_test_setup_teardown(test_0x19_sub_E_no_info, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x01, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x02, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x02_no_matching_dtc, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x03, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x03_no_snapshots, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x04, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x04_no_records, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x05, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x05_no_data, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x06, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x06_no_data, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x07, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x08, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x08_no_dtc, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x09, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x09_no_dtc, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x0A, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x0B, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x0B_no_info, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x0C, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x0C_no_info, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x0D, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x0D_no_info, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x0E, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x0E_no_info, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22_nonexistent, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22_misuse, Setup, Teardown),
