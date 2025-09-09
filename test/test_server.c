@@ -177,38 +177,39 @@ int fn_test_0x19(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     Test0x19FnData_t *fnData = (Test0x19FnData_t *)srv->fn_data;
 
     switch (r->type) {
-    case 0x01: // reportNumberOfDTCByStatusMask
+    case 0x01: /* reportNumberOfDTCByStatusMask */
         TEST_INT_EQUAL(r->reportNumberOfDTCByStatusMaskArgs.mask, 0x8);
         break;
-    case 0x02: // reportDTCByStatusMas
+    case 0x02: /* reportDTCByStatusMask */
         if (strcmp("test_0x19_Sub_2", fnData->test_identifier) == 0) {
             TEST_INT_EQUAL(r->reportDTCStatusByMaskArgs.mask, 0x84);
         } else if (strcmp("test_0x19_Sub_2_no_matching_dtc", fnData->test_identifier) == 0) {
             return r->copy(srv, fnData->data, fnData->len);
         }
         break;
-    case 0x03: // reportDTCSnapshotIdentification
-    case 0x0A: // reportSupportedDTC
-    case 0x0B: // reportFirstTestFailedDTC
+    case 0x03: /* reportDTCSnapshotIdentification */
+    case 0x0A: /* reportSupportedDTC */
+    case 0x0B: /* reportFirstTestFailedDTC */
+    case 0x0D: /* reportMostRecentTestFailedDTC */
         /* No additional arguments to check */
         break;
-    case 0x04: // reportDTCSnapshotRecordByDTCNumber
+    case 0x04: /* reportDTCSnapshotRecordByDTCNumber */
         TEST_INT_EQUAL(r->dtcSnapshotRecordbyDTCNumArgs.dtc, 0x00123456);
         TEST_INT_EQUAL(r->dtcSnapshotRecordbyDTCNumArgs.snapshotNum, 0x02);
         break;
-    case 0x05: // reportDTCStoredDataByRecordNumber
+    case 0x05: /* reportDTCStoredDataByRecordNumber */
         TEST_INT_EQUAL(r->storedDataByRecordNumArgs.recordNum, 0x02);
         break;
-    case 0x06: // reportDTCExtDataRecordByDTCNumber
+    case 0x06: /* reportDTCExtDataRecordByDTCNumber */
         TEST_INT_EQUAL(r->extDtaRecordByDTCNumArgs.dtc, 0x00123456);
         TEST_INT_EQUAL(r->extDtaRecordByDTCNumArgs.extDataRecNum, 0xFF);
         break;
-    case 0x07: // reportNumberOfDTCBySeverityMaskRecord
-    case 0x08: // reportDTCBySeverityMaskRecord
+    case 0x07: /* reportNumberOfDTCBySeverityMaskRecord */
+    case 0x08: /* reportDTCBySeverityMaskRecord */
         TEST_INT_EQUAL(r->numOfDTCBySeverityMaskArgs.severityMask, 0xC0);
         TEST_INT_EQUAL(r->numOfDTCBySeverityMaskArgs.statusMask, 0x01);
         break;
-    case 0x09: // reportDTCBySeverityMaskRecord
+    case 0x09: /* reportDTCBySeverityMaskRecord */
         TEST_INT_EQUAL(r->reportSeverityInformationArgs.dtc, 0x00080511);
         break;
 
@@ -974,6 +975,78 @@ void test_0x19_sub_B_no_info(void **state) {
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
+// closely follows ISO14229-1 2020 12.3.5.13Example #12 but for SubFunction =
+// reportMostRecentTestFailedDTC
+void test_0x19_sub_D(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0xFF, 0x12, 0x34, 0x56, 0x26};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 378 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x0D, /* reportMostRecentTestFailedDTC */
+
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 376 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x0D, /* reportType = SubFunction */
+        0xFF, /* DTCStatusAvailabilityMask */
+        0x12, /* DTCAndStatusRecord [High Byte] */
+        0x34, /* DTCAndStatusRecord [Middle Byte] */
+        0x56, /* DTCAndStatusRecord [Low Byte] */
+        0x26, /* DTCAndStatusRecord [Status] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// closely follows ISO14229-1 2020 12.3.5.14Example #13 but for SubFunction =
+// reportMostRecentTestFailedDTC
+void test_0x19_sub_D_no_info(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0xFF};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 380 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x0D, /* reportMostRecentTestFailedDTC */
+
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 381 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x0D, /* reportType = SubFunction */
+        0xFF, /* DTCStatusAvailabilityMask */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
 int fn_test_0x22(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     TEST_INT_EQUAL(UDS_EVT_ReadDataByIdent, ev);
 
@@ -1699,6 +1772,8 @@ int main(int ac, char **av) {
         cmocka_unit_test_setup_teardown(test_0x19_sub_A, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x19_sub_B, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x19_sub_B_no_info, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_D, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_D_no_info, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22_nonexistent, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22_misuse, Setup, Teardown),
