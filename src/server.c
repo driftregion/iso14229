@@ -175,6 +175,7 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
     case 0x0B: /* reportFirstTestFailedDTC */
     case 0x0C: /* reportFirstConfirmedDTC */
     case 0x0D: /* reportMostRecentTestFailedDTC */
+    case 0x0E: /* reportMostRecentConfirmedDTC */
         /* has no subfunction specific args */
         break;
     case 0x04: /* reportDTCSnapshotRecordByDTCNumber */
@@ -219,7 +220,6 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
         args.reportSeverityInformationArgs.dtc =
             (r->recv_buf[2] << 16 | r->recv_buf[3] << 8 | r->recv_buf[4]) & 0x00FFFFFF;
         break;
-    case 0x0E: /* reportMostRecentConfirmedDTC */
     case 0x14: /* reportDTCFaultDetectionCounter */
     case 0x15: /* reportDTCWithPermanentStatus */
     case 0x16: /* reportDTCExtDataRecordByNumber */
@@ -258,6 +258,7 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
     case 0x0B: /* reportFirstTestFailedDTC */
     case 0x0C: /* reportFirstConfirmedDTC */
     case 0x0D: /* reportMostRecentTestFailedDTC */
+    case 0x0E: /* reportMostRecentConfirmedDTC */
         if (r->send_len < UDS_0X19_RESP_BASE_LEN + 1 ||
             (r->send_len - (UDS_0X19_RESP_BASE_LEN + 1)) % 4 != 0) {
             return UDS_NRC_GeneralProgrammingFailure;
@@ -286,7 +287,6 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
             return UDS_NRC_GeneralProgrammingFailure;
         }
         break;
-    case 0x0E: /* reportMostRecentConfirmedDTC */
     case 0x14: /* reportDTCFaultDetectionCounter */
     case 0x15: /* reportDTCWithPermanentStatus */
     case 0x16: /* reportDTCExtDataRecordByNumber */
