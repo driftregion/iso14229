@@ -97,7 +97,8 @@ typedef struct {
         struct {
             uint32_t dtc;        /*! DTC Mask Record */
             uint8_t snapshotNum; /*! DTC Snaphot Record Number */
-        } dtcSnapshotRecordbyDTCNumArgs;
+            uint8_t memory;      /*! Memory Selection (only used when type == 0x18)*/
+        } dtcSnapshotRecordbyDTCNumArgs, userDefMemoryDTCSnapshotRecordByDTCNumArgs;
         struct {
             uint8_t recordNum; /*! DTC Stored Data Record Number */
         } storedDataByRecordNumArgs, extDataRecordByRecordNumArgs;
