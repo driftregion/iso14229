@@ -112,6 +112,10 @@ typedef struct {
         struct {
             uint32_t dtc; /*! DTC Mask Record */
         } reportSeverityInformationArgs;
+        struct {
+            uint8_t mask;   /*! DTC status mask */
+            uint8_t memory; /*! Memory Selection*/
+        } userDefMemoryDTCByStatusMaskArgs;
     };
 } UDSRDTCIArgs_t;
 
