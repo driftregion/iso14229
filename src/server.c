@@ -191,6 +191,7 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
         break;
     case 0x05: /* reportDTCStoredDataByRecordNumber */
     case 0x16: /* reportDTCExtDataRecordByNumber */
+    case 0x1A: /* reportDTCExtendedDataRecordIdentification */
         if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 1) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
@@ -251,7 +252,6 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
         args.userDefMemDTCExtDataRecordByDTCNumArgs.extDataRecNum = r->recv_buf[5];
         args.userDefMemDTCExtDataRecordByDTCNumArgs.memory = r->recv_buf[6];
         break;
-    case 0x1A: /* reportDTCExtendedDataRecordIdentification */
     case 0x42: /* reportWWHOBDDTCByMaskRecord */
     case 0x55: /* reportWWHOBDDTCWithPermanentStatus */
     case 0x56: /* reportDTCInformationByDTCReadinessGroupIdentifier */
@@ -287,7 +287,7 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
     case 0x15: /* reportDTCWithPermanentStatus */
         if (r->send_len < UDS_0X19_RESP_BASE_LEN + 1 ||
             (r->send_len > UDS_0X19_RESP_BASE_LEN + 1) &&
-            (r->send_len - (UDS_0X19_RESP_BASE_LEN + 1)) % 4 != 0) {
+                (r->send_len - (UDS_0X19_RESP_BASE_LEN + 1)) % 4 != 0) {
             return UDS_NRC_GeneralProgrammingFailure;
         }
         break;
@@ -331,6 +331,13 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
         }
         break;
     case 0x1A: /* reportDTCExtendedDataRecordIdentification */
+        if (r->send_len < UDS_0X19_RESP_BASE_LEN + 1 ||
+            (r->send_len != UDS_0X19_RESP_BASE_LEN + 5) ||
+            (r->send_len > UDS_0X19_RESP_BASE_LEN + 5 &&
+             (r->send_len - UDS_0X19_RESP_BASE_LEN + 5) % 4 != 0)) {
+            return UDS_NRC_GeneralProgrammingFailure;
+        }
+        break;
     case 0x42: /* reportWWHOBDDTCByMaskRecord */
     case 0x55: /* reportWWHOBDDTCWithPermanentStatus */
     case 0x56: /* reportDTCInformationByDTCReadinessGroupIdentifier */

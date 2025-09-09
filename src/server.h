@@ -97,11 +97,11 @@ typedef struct {
         struct {
             uint32_t dtc;        /*! DTC Mask Record */
             uint8_t snapshotNum; /*! DTC Snaphot Record Number */
-            uint8_t memory;      /*! Memory Selection (only used when type == 0x18)*/
+            uint8_t memory;      /*! Memory Selection (only used when type == 0x18) */
         } dtcSnapshotRecordbyDTCNumArgs, userDefMemoryDTCSnapshotRecordByDTCNumArgs;
         struct {
-            uint8_t recordNum; /*! DTC Stored Data Record Number */
-        } storedDataByRecordNumArgs, extDataRecordByRecordNumArgs;
+            uint8_t recordNum; /*! DTC Data Record Number */
+        } dtcStoredDataByRecordNumArgs, dtcExtDataRecordByRecordNumArgs, dtcExtDataRecordIdArgs;
         struct {
             uint32_t dtc;          /*! DTC Mask Record */
             uint8_t extDataRecNum; /*! DTC Extended Data Record Number */
@@ -116,7 +116,7 @@ typedef struct {
         } reportSeverityInformationArgs;
         struct {
             uint8_t mask;   /*! DTC status mask */
-            uint8_t memory; /*! Memory Selection*/
+            uint8_t memory; /*! Memory Selection */
         } userDefMemoryDTCByStatusMaskArgs;
     };
 } UDSRDTCIArgs_t;
