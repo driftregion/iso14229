@@ -100,7 +100,7 @@ typedef struct {
         } dtcSnapshotRecordbyDTCNumArgs;
         struct {
             uint8_t recordNum; /*! DTC Stored Data Record Number */
-        } storedDataByRecordNumArgs;
+        } storedDataByRecordNumArgs, extDataRecordByRecordNumArgs;
         struct {
             uint32_t dtc;          /*! DTC Mask Record */
             uint8_t extDataRecNum; /*! DTC Extended Data Record Number */

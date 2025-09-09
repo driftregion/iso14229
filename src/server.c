@@ -190,6 +190,7 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
         args.dtcSnapshotRecordbyDTCNumArgs.snapshotNum = r->recv_buf[5];
         break;
     case 0x05: /* reportDTCStoredDataByRecordNumber */
+    case 0x16: /* reportDTCExtDataRecordByNumber */
         if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 1) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
@@ -222,7 +223,6 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
         args.reportSeverityInformationArgs.dtc =
             (r->recv_buf[2] << 16 | r->recv_buf[3] << 8 | r->recv_buf[4]) & 0x00FFFFFF;
         break;
-    case 0x16: /* reportDTCExtDataRecordByNumber */
     case 0x17: /* reportUserDefMemoryDTCByStatusMask */
     case 0x18: /* reportUserDefMemoryDTCSnapshotRecordByDTCNumber */
     case 0x19: /* reportUserDefMemoryDTCExtDAtaRecordByDTCNumber */
@@ -278,6 +278,7 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
         }
         break;
     case 0x05: /* reportDTCStoredDataByRecordNumber */
+    case 0x16: /* reportDTCExtDataRecordByNumber */
         if (r->send_len < UDS_0X19_RESP_BASE_LEN + 1) {
             return UDS_NRC_GeneralProgrammingFailure;
         }
@@ -289,7 +290,6 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
             return UDS_NRC_GeneralProgrammingFailure;
         }
         break;
-    case 0x16: /* reportDTCExtDataRecordByNumber */
     case 0x17: /* reportUserDefMemoryDTCByStatusMask */
     case 0x18: /* reportUserDefMemoryDTCSnapshotRecordByDTCNumber */
     case 0x19: /* reportUserDefMemoryDTCExtDAtaRecordByDTCNumber */
