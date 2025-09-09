@@ -319,7 +319,7 @@ void test_0x19_sub_0x02(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -357,7 +357,7 @@ void test_0x19_sub_0x02_no_matching_dtc(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -403,7 +403,7 @@ void test_0x19_sub_0x03(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -431,7 +431,7 @@ void test_0x19_sub_0x03_no_snapshots(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -482,7 +482,7 @@ void test_0x19_sub_0x04(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -523,7 +523,7 @@ void test_0x19_sub_0x04_no_records(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -570,7 +570,7 @@ void test_0x19_sub_0x05(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -602,7 +602,7 @@ void test_0x19_sub_0x05_no_data(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -646,7 +646,7 @@ void test_0x19_sub_0x06(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -682,7 +682,7 @@ void test_0x19_sub_0x06_no_data(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 // ISO14229-1 2020 12.3.5.9 Example #8 - ReadDTCInformation, SubFunction =
@@ -724,7 +724,7 @@ void test_0x19_sub_0x07(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -765,7 +765,7 @@ void test_0x19_sub_0x08(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -798,7 +798,7 @@ void test_0x19_sub_0x08_no_dtc(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -840,7 +840,7 @@ void test_0x19_sub_0x09(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -874,7 +874,7 @@ void test_0x19_sub_0x09_no_dtc(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -920,7 +920,7 @@ void test_0x19_sub_0x0A(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -958,7 +958,7 @@ void test_0x19_sub_0x0B(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -992,7 +992,7 @@ void test_0x19_sub_0x0B_no_info(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -1030,7 +1030,7 @@ void test_0x19_sub_0x0D(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -1064,7 +1064,7 @@ void test_0x19_sub_0x0D_no_info(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -1102,7 +1102,7 @@ void test_0x19_sub_0x0C(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -1136,7 +1136,7 @@ void test_0x19_sub_0x0C_no_info(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -1173,7 +1173,7 @@ void test_0x19_sub_0x0E(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -1207,7 +1207,7 @@ void test_0x19_sub_0x0E_no_info(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -1244,7 +1244,7 @@ void test_0x19_sub_0x14(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -1282,7 +1282,7 @@ void test_0x19_sub_0x15(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -1312,7 +1312,7 @@ void test_0x19_sub_0x15_no_data(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -1364,7 +1364,7 @@ void test_0x19_sub_0x16(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -1395,7 +1395,7 @@ void test_0x19_sub_0x16_no_record(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -1441,7 +1441,7 @@ void test_0x19_sub_0x17(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -1480,7 +1480,7 @@ void test_0x19_sub_0x17_no_matching_dtc(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -1537,7 +1537,7 @@ void test_0x19_sub_0x18(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
@@ -1578,7 +1578,7 @@ void test_0x19_sub_0x18_no_record(void **state) {
 
     /* the client transport should receive a positive response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     2 * UDS_CLIENT_DEFAULT_P2_MS);
+                     UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
