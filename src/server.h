@@ -105,7 +105,8 @@ typedef struct {
         struct {
             uint32_t dtc;          /*! DTC Mask Record */
             uint8_t extDataRecNum; /*! DTC Extended Data Record Number */
-        } extDtaRecordByDTCNumArgs;
+            uint8_t memory;        /*! Memory Selection (only used when type == 0x19) */
+        } extDtaRecordByDTCNumArgs, userDefMemDTCExtDataRecordByDTCNumArgs;
         struct {
             uint8_t severityMask; /*! DTC Severity Mask */
             uint8_t statusMask;   /*! DTC Status Mask */
