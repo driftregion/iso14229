@@ -269,6 +269,13 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
         args.WWHOBDDTCWithPermanentStatusArgs.functionalGroup = r->recv_buf[2];
         break;
     case 0x56: /* reportDTCInformationByDTCReadinessGroupIdentifier */
+        if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 2) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.dtcInformationByDTCReadinessGroupIdentifierArgs.functionalGroup = r->recv_buf[2];
+        args.dtcInformationByDTCReadinessGroupIdentifierArgs.readinessGroup = r->recv_buf[3];
+        break;
     default:
         return UDS_NRC_SubFunctionNotSupported;
     }
@@ -366,6 +373,12 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
         }
         break;
     case 0x56: /* reportDTCInformationByDTCReadinessGroupIdentifier */
+        if (r->send_len < UDS_0X19_RESP_BASE_LEN + 4 ||
+            (r->send_len > UDS_0X19_RESP_BASE_LEN + 4 &&
+             (r->send_len - (UDS_0X19_RESP_BASE_LEN + 4)) % 4 != 0)) {
+            return UDS_NRC_GeneralProgrammingFailure;
+        }
+        break;
     default:
         return UDS_NRC_SubFunctionNotSupported;
     }

@@ -122,7 +122,9 @@ typedef struct {
         } userDefMemoryDTCByStatusMaskArgs;
         struct {
             uint8_t functionalGroup; /*! Functional Group Identifier */
-        } WWHOBDDTCWithPermanentStatusArgs;
+            uint8_t
+                readinessGroup; /*! DTC Readiness Group Identifier (only used when type == 0x56) */
+        } WWHOBDDTCWithPermanentStatusArgs, dtcInformationByDTCReadinessGroupIdentifierArgs;
     };
 } UDSRDTCIArgs_t;
 
