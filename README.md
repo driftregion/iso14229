@@ -48,35 +48,35 @@ The following features are configured with preprocessor defines:
     - systems: linux, Windows, esp32, Arduino, NXP s32k
     - transports: isotp-c, linux isotp sockets
 
-##  supported functions (server and client )
+##  Supported Services
 
-| SID | name | supported |
-| - | - | - |
-| 0x10 | diagnostic session control | ✅ |
-| 0x11 | ECU reset | ✅ |
-| 0x14 | clear diagnostic information | ❌ |
-| 0x19 | read DTC information | ❌ |
-| 0x22 | read data by identifier | ✅ |
-| 0x23 | read memory by address | ❌ |
-| 0x24 | read scaling data by identifier | ❌ |
-| 0x27 | security access | ✅ |
-| 0x28 | communication control | ✅ |
-| 0x2A | read periodic data by identifier | ❌ |
-| 0x2C | dynamically define data identifier | ❌ |
-| 0x2E | write data by identifier | ✅ |
-| 0x2F | input control by identifier | ❌ |
-| 0x31 | routine control | ✅ |
-| 0x34 | request download | ✅ |
-| 0x35 | request upload | ✅ |
-| 0x36 | transfer data | ✅ |
-| 0x37 | request transfer exit | ✅ |
-| 0x38 | request file transfer | ✅ |
-| 0x3D | write memory by address | ❌ |
-| 0x3E | tester present | ✅ |
-| 0x83 | access timing parameter | ❌ |
-| 0x84 | secured data transmission | ❌ |
-| 0x85 | control DTC setting | ✅ |
-| 0x86 | response on event | ❌ |
+| Service ID (SID) | Service Name | server | client |
+| - | - | - | - |
+| 0x10 | diagnostic session control | ✅ | ✅ |
+| 0x11 | ECU reset | ✅ | ✅ |
+| 0x14 | clear diagnostic information | ❌ | ❌ |
+| 0x19 | read DTC information | ❌ |  ❌ |
+| 0x22 | read data by identifier | ✅ | ✅ |
+| 0x23 | read memory by address | ❌ | ❌ |
+| 0x24 | read scaling data by identifier | ❌ | ❌ |
+| 0x27 | security access | ✅ | ✅ |
+| 0x28 | communication control | ✅ | ✅ |
+| 0x2A | read periodic data by identifier | ❌ | ❌ |
+| 0x2C | dynamically define data identifier | ❌ | ❌ |
+| 0x2E | write data by identifier | ✅ | ✅ |
+| 0x2F | input control by identifier | ❌ | ❌ |
+| 0x31 | routine control | ✅ | ✅ |
+| 0x34 | request download | ✅ | ✅ |
+| 0x35 | request upload | ✅ | ✅ |
+| 0x36 | transfer data | ✅ | ✅ |
+| 0x37 | request transfer exit | ✅ | ✅ |
+| 0x38 | request file transfer | ✅ | ✅ |
+| 0x3D | write memory by address | ✅ | ❌ |
+| 0x3E | tester present | ✅ | ✅ |
+| 0x83 | access timing parameter | ❌ | ❌ |
+| 0x84 | secured data transmission | ❌ | ❌ |
+| 0x85 | control DTC setting | ✅ | ✅ |
+| 0x86 | response on event | ❌ | ❌ |
 
 # Documentation: Server
 
