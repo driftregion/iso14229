@@ -2041,6 +2041,42 @@ void test_0x19_subfunc_not_suported(void **state) {
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
+int fn_test_0x19_invalid_req_len(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+    /* This function should never be called */
+    TEST_INT_EQUAL(1, 2);
+    return UDS_PositiveResponse;
+}
+
+void test_0x19_invalid_req_len(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19_invalid_req_len;
+    e->server->fn_data = &fn_data;
+
+    /* Invalid Request: Missing DTCStatusMask field */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x01, /* reportNumberOfDTCByStatusMask */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x7F, /* Response SID */
+        0x19, /* reportType = SubFunction */
+        0x13, /* NRC: IncorrectMessageLengthOrInvalidFormat */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
 int fn_test_0x22(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     TEST_INT_EQUAL(UDS_EVT_ReadDataByIdent, ev);
 
@@ -2792,6 +2828,7 @@ int main(int ac, char **av) {
         cmocka_unit_test_setup_teardown(test_0x19_sub_0x56, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x19_sub_0x56_no_record, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x19_subfunc_not_suported, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_invalid_req_len, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22_nonexistent, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22_misuse, Setup, Teardown),
