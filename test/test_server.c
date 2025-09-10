@@ -2005,6 +2005,42 @@ void test_0x19_sub_0x56_no_record(void **state) {
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
+int fn_test_0x19_subfunc_not_suported(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+    /* This function should never be called */
+    TEST_INT_EQUAL(1, 2);
+    return UDS_PositiveResponse;
+}
+
+void test_0x19_subfunc_not_suported(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    /* We should not reach this function */
+    e->server->fn = fn_test_0x19_subfunc_not_suported;
+    e->server->fn_data = NULL;
+
+    /* Request with unknown subfunc */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x57, /* Unknown SubFunc */
+        0x33,
+        0x01,
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x7F, /* Response SID */
+        0x19, /* Unknown SubFunc */
+        0x12, /* NRC: SubFunctionNotSupported */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
 int fn_test_0x22(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     TEST_INT_EQUAL(UDS_EVT_ReadDataByIdent, ev);
 
@@ -2755,6 +2791,7 @@ int main(int ac, char **av) {
         cmocka_unit_test_setup_teardown(test_0x19_sub_0x55_no_record, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x19_sub_0x56, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x19_sub_0x56_no_record, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_subfunc_not_suported, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22_nonexistent, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22_misuse, Setup, Teardown),

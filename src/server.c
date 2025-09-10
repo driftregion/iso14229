@@ -277,7 +277,7 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
         args.dtcInfoByDTCReadinessGroupIdArgs.readinessGroup = r->recv_buf[3];
         break;
     default:
-        return UDS_NRC_SubFunctionNotSupported;
+        return NegativeResponse(r, UDS_NRC_SubFunctionNotSupported);
     }
 
     ret = EmitEvent(srv, UDS_EVT_ReadDTCInformation, &args);
