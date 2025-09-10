@@ -161,14 +161,14 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        args.reportNumberOfDTCByStatusMaskArgs.mask = r->recv_buf[2];
+        args.numOfDTCByStatusMaskArgs.mask = r->recv_buf[2];
         break;
     case 0x02: /* reportDTCByStatusMask */
         if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 1) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        args.reportDTCStatusByMaskArgs.mask = r->recv_buf[2];
+        args.dtcStatusByMaskArgs.mask = r->recv_buf[2];
         break;
     case 0x03: /* reportDTCSnapshotIdentification */
     case 0x0A: /* reportSupportedDTC */
@@ -196,16 +196,16 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        args.storedDataByRecordNumArgs.recordNum = r->recv_buf[2];
+        args.dtcStoredDataByRecordNumArgs.recordNum = r->recv_buf[2];
         break;
     case 0x06: /* reportDTCExtDataRecordByDTCNumber */
         if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 4) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        args.extDtaRecordByDTCNumArgs.dtc =
+        args.dtcExtDtaRecordByDTCNumArgs.dtc =
             (r->recv_buf[2] << 16 | r->recv_buf[3] << 8 | r->recv_buf[4]) & 0x00FFFFFF;
-        args.extDtaRecordByDTCNumArgs.extDataRecNum = r->recv_buf[5];
+        args.dtcExtDtaRecordByDTCNumArgs.extDataRecNum = r->recv_buf[5];
         break;
     case 0x07: /* reportNumberOfDTCBySeverityMaskRecord */
     case 0x08: /* reportDTCBySeverityMaskRecord */
@@ -221,7 +221,7 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        args.reportSeverityInformationArgs.dtc =
+        args.severityInfoOfDTCArgs.dtc =
             (r->recv_buf[2] << 16 | r->recv_buf[3] << 8 | r->recv_buf[4]) & 0x00FFFFFF;
         break;
     case 0x17: /* reportUserDefMemoryDTCByStatusMask */
@@ -237,10 +237,10 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        args.userDefMemoryDTCSnapshotRecordByDTCNumArgs.dtc =
+        args.userDefMemDTCSnapshotRecordByDTCNumArgs.dtc =
             (r->recv_buf[2] << 16 | r->recv_buf[3] << 8 | r->recv_buf[4]) & 0x00FFFFFF;
-        args.userDefMemoryDTCSnapshotRecordByDTCNumArgs.snapshotNum = r->recv_buf[5];
-        args.userDefMemoryDTCSnapshotRecordByDTCNumArgs.memory = r->recv_buf[6];
+        args.userDefMemDTCSnapshotRecordByDTCNumArgs.snapshotNum = r->recv_buf[5];
+        args.userDefMemDTCSnapshotRecordByDTCNumArgs.memory = r->recv_buf[6];
         break;
     case 0x19: /* reportUserDefMemoryDTCExtDataRecordByDTCNumber */
         if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 5) {
@@ -257,24 +257,24 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        args.WWHOBDDTCByMaskArgs.functionalGroup = r->recv_buf[2];
-        args.WWHOBDDTCByMaskArgs.statusMask = r->recv_buf[3];
-        args.WWHOBDDTCByMaskArgs.severityMask = r->recv_buf[4];
+        args.wwhobdDTCByMaskArgs.functionalGroup = r->recv_buf[2];
+        args.wwhobdDTCByMaskArgs.statusMask = r->recv_buf[3];
+        args.wwhobdDTCByMaskArgs.severityMask = r->recv_buf[4];
         break;
     case 0x55: /* reportWWHOBDDTCWithPermanentStatus */
         if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 1) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        args.WWHOBDDTCWithPermanentStatusArgs.functionalGroup = r->recv_buf[2];
+        args.wwhobdDTCWithPermStatusArgs.functionalGroup = r->recv_buf[2];
         break;
     case 0x56: /* reportDTCInformationByDTCReadinessGroupIdentifier */
         if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 2) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        args.dtcInformationByDTCReadinessGroupIdentifierArgs.functionalGroup = r->recv_buf[2];
-        args.dtcInformationByDTCReadinessGroupIdentifierArgs.readinessGroup = r->recv_buf[3];
+        args.dtcInfoByDTCReadinessGroupIdArgs.functionalGroup = r->recv_buf[2];
+        args.dtcInfoByDTCReadinessGroupIdArgs.readinessGroup = r->recv_buf[3];
         break;
     default:
         return UDS_NRC_SubFunctionNotSupported;

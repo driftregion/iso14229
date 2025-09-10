@@ -93,12 +93,12 @@ typedef struct {
     union {
         struct {
             uint8_t mask; /*! DTC status mask */
-        } reportNumberOfDTCByStatusMaskArgs, reportDTCStatusByMaskArgs;
+        } numOfDTCByStatusMaskArgs, dtcStatusByMaskArgs;
         struct {
             uint32_t dtc;        /*! DTC Mask Record */
             uint8_t snapshotNum; /*! DTC Snaphot Record Number */
             uint8_t memory;      /*! Memory Selection (only used when type == 0x18) */
-        } dtcSnapshotRecordbyDTCNumArgs, userDefMemoryDTCSnapshotRecordByDTCNumArgs;
+        } dtcSnapshotRecordbyDTCNumArgs, userDefMemDTCSnapshotRecordByDTCNumArgs;
         struct {
             uint8_t recordNum; /*! DTC Data Record Number */
         } dtcStoredDataByRecordNumArgs, dtcExtDataRecordByRecordNumArgs, dtcExtDataRecordIdArgs;
@@ -106,16 +106,16 @@ typedef struct {
             uint32_t dtc;          /*! DTC Mask Record */
             uint8_t extDataRecNum; /*! DTC Extended Data Record Number */
             uint8_t memory;        /*! Memory Selection (only used when type == 0x19) */
-        } extDtaRecordByDTCNumArgs, userDefMemDTCExtDataRecordByDTCNumArgs;
+        } dtcExtDtaRecordByDTCNumArgs, userDefMemDTCExtDataRecordByDTCNumArgs;
         struct {
             uint8_t
                 functionalGroup;  /*! Functional Group Identifier (only used when type == 0x42) */
             uint8_t severityMask; /*! DTC Severity Mask */
             uint8_t statusMask;   /*! DTC Status Mask */
-        } numOfDTCBySeverityMaskArgs, reportBySeverityMaskArgs, WWHOBDDTCByMaskArgs;
+        } numOfDTCBySeverityMaskArgs, dtcBySeverityMaskArgs, wwhobdDTCByMaskArgs;
         struct {
             uint32_t dtc; /*! DTC Mask Record */
-        } reportSeverityInformationArgs;
+        } severityInfoOfDTCArgs;
         struct {
             uint8_t mask;   /*! DTC status mask */
             uint8_t memory; /*! Memory Selection */
@@ -124,7 +124,7 @@ typedef struct {
             uint8_t functionalGroup; /*! Functional Group Identifier */
             uint8_t
                 readinessGroup; /*! DTC Readiness Group Identifier (only used when type == 0x56) */
-        } WWHOBDDTCWithPermanentStatusArgs, dtcInformationByDTCReadinessGroupIdentifierArgs;
+        } wwhobdDTCWithPermStatusArgs, dtcInfoByDTCReadinessGroupIdArgs;
     };
 } UDSRDTCIArgs_t;
 

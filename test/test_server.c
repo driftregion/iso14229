@@ -178,13 +178,13 @@ int fn_test_0x19(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
 
     switch (r->type) {
     case 0x01: /* reportNumberOfDTCByStatusMask */
-        TEST_INT_EQUAL(r->reportNumberOfDTCByStatusMaskArgs.mask, 0x8);
+        TEST_INT_EQUAL(r->numOfDTCByStatusMaskArgs.mask, 0x8);
         break;
     case 0x02: /* reportDTCByStatusMask */
         if (strcmp("test_0x19_Sub_2", fnData->test_identifier) == 0) {
-            TEST_INT_EQUAL(r->reportDTCStatusByMaskArgs.mask, 0x84);
+            TEST_INT_EQUAL(r->dtcStatusByMaskArgs.mask, 0x84);
         } else if (strcmp("test_0x19_Sub_2_no_matching_dtc", fnData->test_identifier) == 0) {
-            TEST_INT_EQUAL(r->reportDTCStatusByMaskArgs.mask, 0x01);
+            TEST_INT_EQUAL(r->dtcStatusByMaskArgs.mask, 0x01);
         }
         break;
     case 0x03: /* reportDTCSnapshotIdentification */
@@ -202,11 +202,11 @@ int fn_test_0x19(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
         TEST_INT_EQUAL(r->dtcSnapshotRecordbyDTCNumArgs.snapshotNum, 0x02);
         break;
     case 0x05: /* reportDTCStoredDataByRecordNumber */
-        TEST_INT_EQUAL(r->storedDataByRecordNumArgs.recordNum, 0x02);
+        TEST_INT_EQUAL(r->dtcStoredDataByRecordNumArgs.recordNum, 0x02);
         break;
     case 0x06: /* reportDTCExtDataRecordByDTCNumber */
-        TEST_INT_EQUAL(r->extDtaRecordByDTCNumArgs.dtc, 0x00123456);
-        TEST_INT_EQUAL(r->extDtaRecordByDTCNumArgs.extDataRecNum, 0xFF);
+        TEST_INT_EQUAL(r->dtcExtDtaRecordByDTCNumArgs.dtc, 0x00123456);
+        TEST_INT_EQUAL(r->dtcExtDtaRecordByDTCNumArgs.extDataRecNum, 0xFF);
         break;
     case 0x07: /* reportNumberOfDTCBySeverityMaskRecord */
     case 0x08: /* reportDTCBySeverityMaskRecord */
@@ -214,10 +214,10 @@ int fn_test_0x19(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
         TEST_INT_EQUAL(r->numOfDTCBySeverityMaskArgs.statusMask, 0x01);
         break;
     case 0x09: /* reportDTCBySeverityMaskRecord */
-        TEST_INT_EQUAL(r->reportSeverityInformationArgs.dtc, 0x00080511);
+        TEST_INT_EQUAL(r->severityInfoOfDTCArgs.dtc, 0x00080511);
         break;
     case 0x16: /* reportDTCExtDataRecordByNumber */
-        TEST_INT_EQUAL(r->extDataRecordByRecordNumArgs.recordNum, 0x05);
+        TEST_INT_EQUAL(r->dtcExtDataRecordByRecordNumArgs.recordNum, 0x05);
         break;
     case 0x17: /* reportUserDefMemoryDTCByStatusMask */
         if (strcmp("test_0x19_Sub_0x17", fnData->test_identifier) == 0) {
@@ -230,9 +230,9 @@ int fn_test_0x19(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
         break;
 
     case 0x18: /* reportUserDefMemoryDTCSnapshotRecordByDTCNumber */
-        TEST_INT_EQUAL(r->userDefMemoryDTCSnapshotRecordByDTCNumArgs.dtc, 0x00123456);
-        TEST_INT_EQUAL(r->userDefMemoryDTCSnapshotRecordByDTCNumArgs.snapshotNum, 0x06);
-        TEST_INT_EQUAL(r->userDefMemoryDTCSnapshotRecordByDTCNumArgs.memory, 0x18);
+        TEST_INT_EQUAL(r->userDefMemDTCSnapshotRecordByDTCNumArgs.dtc, 0x00123456);
+        TEST_INT_EQUAL(r->userDefMemDTCSnapshotRecordByDTCNumArgs.snapshotNum, 0x06);
+        TEST_INT_EQUAL(r->userDefMemDTCSnapshotRecordByDTCNumArgs.memory, 0x18);
         break;
     case 0x19: /* reportUserDefMemoryDTCExtDataRecordByDTCNumber */
         TEST_INT_EQUAL(r->userDefMemDTCExtDataRecordByDTCNumArgs.dtc, 0x00123456);
@@ -243,16 +243,16 @@ int fn_test_0x19(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
         TEST_INT_EQUAL(r->dtcExtDataRecordIdArgs.recordNum, 0x91);
         break;
     case 0x42: /* reportWWHOBDDTCByMaskRecord */
-        TEST_INT_EQUAL(r->WWHOBDDTCByMaskArgs.functionalGroup, 0x33);
-        TEST_INT_EQUAL(r->WWHOBDDTCByMaskArgs.statusMask, 0x08);
-        TEST_INT_EQUAL(r->WWHOBDDTCByMaskArgs.severityMask, 0xFF);
+        TEST_INT_EQUAL(r->wwhobdDTCByMaskArgs.functionalGroup, 0x33);
+        TEST_INT_EQUAL(r->wwhobdDTCByMaskArgs.statusMask, 0x08);
+        TEST_INT_EQUAL(r->wwhobdDTCByMaskArgs.severityMask, 0xFF);
         break;
     case 0x55: /* reportWWHOBDDTCWithPermanentStatus */
-        TEST_INT_EQUAL(r->WWHOBDDTCByMaskArgs.functionalGroup, 0x33);
+        TEST_INT_EQUAL(r->wwhobdDTCByMaskArgs.functionalGroup, 0x33);
         break;
     case 0x56: /* reportDTCInformationByDTCReadinessGroupIdentifier */
-        TEST_INT_EQUAL(r->dtcInformationByDTCReadinessGroupIdentifierArgs.functionalGroup, 0x33);
-        TEST_INT_EQUAL(r->dtcInformationByDTCReadinessGroupIdentifierArgs.readinessGroup, 0x01);
+        TEST_INT_EQUAL(r->dtcInfoByDTCReadinessGroupIdArgs.functionalGroup, 0x33);
+        TEST_INT_EQUAL(r->dtcInfoByDTCReadinessGroupIdArgs.readinessGroup, 0x01);
         break;
 
     default:
