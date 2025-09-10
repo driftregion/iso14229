@@ -253,6 +253,14 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
         args.userDefMemDTCExtDataRecordByDTCNumArgs.memory = r->recv_buf[6];
         break;
     case 0x42: /* reportWWHOBDDTCByMaskRecord */
+        if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 3) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.WWHOBDDTCByMaskArgs.functionalGroup = r->recv_buf[2];
+        args.WWHOBDDTCByMaskArgs.statusMask = r->recv_buf[3];
+        args.WWHOBDDTCByMaskArgs.severityMask = r->recv_buf[4];
+        break;
     case 0x55: /* reportWWHOBDDTCWithPermanentStatus */
     case 0x56: /* reportDTCInformationByDTCReadinessGroupIdentifier */
 
@@ -339,6 +347,12 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
         }
         break;
     case 0x42: /* reportWWHOBDDTCByMaskRecord */
+        if (r->send_len < UDS_0X19_RESP_BASE_LEN + 4 ||
+            (r->send_len > UDS_0X19_RESP_BASE_LEN + 4 &&
+             (r->send_len - (UDS_0X19_RESP_BASE_LEN + 4)) % 5 != 0)) {
+            return UDS_NRC_GeneralProgrammingFailure;
+        }
+        break;
     case 0x55: /* reportWWHOBDDTCWithPermanentStatus */
     case 0x56: /* reportDTCInformationByDTCReadinessGroupIdentifier */
     default:

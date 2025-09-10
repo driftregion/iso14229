@@ -242,6 +242,11 @@ int fn_test_0x19(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     case 0x1A: /* reportDTCExtendedDataRecordIdentification */
         TEST_INT_EQUAL(r->dtcExtDataRecordIdArgs.recordNum, 0x91);
         break;
+    case 0x42: /* reportWWHOBDDTCByMaskRecord */
+        TEST_INT_EQUAL(r->WWHOBDDTCByMaskArgs.functionalGroup, 0x33);
+        TEST_INT_EQUAL(r->WWHOBDDTCByMaskArgs.statusMask, 0x08);
+        TEST_INT_EQUAL(r->WWHOBDDTCByMaskArgs.severityMask, 0xFF);
+        break;
 
     default:
         return UDS_NRC_ConditionsNotCorrect;
@@ -1757,6 +1762,85 @@ void test_0x19_sub_0x1A_no_data(void **state) {
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
+// ISO14229-1 2020 12.3.5.18Example #17 - ReadDTCInformation, SubFunction =
+// reportWWHOBDDTCByMaskRecord
+void test_0x19_sub_0x42(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0x33, 0xFF, 0xFF, 0x04, 0x20, 0x25, 0x22, 0x1F, 0x2F};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 390 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x42, /* reportWWHOBDDTCByMaskRecord */
+        0x33, /* FunctionalGroupIdentifier */
+        0x08, /* DTCSeverityMaskRecord [Status] */
+        0xFF, /* DTCSeverityMaskRecord [Severity] */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 391 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x42, /* reportType = SubFunction */
+        0x33, /* FunctionalGroupIdentifier */
+        0xFF, /* DTCStatusMaskAvailability */
+        0xFF, /* DTCSeverityMaskAvailability */
+        0x04, /* DTCFormatIdentifier */
+        0x20, /* DTCAndSeverityRecord [Severity] */
+        0x25, /* DTCAndSeverityRecord [High Byte] */
+        0x22, /* DTCAndSeverityRecord [Middle Byte] */
+        0x1F, /* DTCAndSeverityRecord [Low Byte] */
+        0x2F, /* DTCAndSeverityRecord [Status] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x19_sub_0x42_no_record(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0x33, 0xFF, 0xFF, 0x04};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x42, /* reportWWHOBDDTCByMaskRecord */
+        0x33, /* FunctionalGroupIdentifier */
+        0x08, /* DTCSeverityMaskRecord [Status] */
+        0xFF, /* DTCSeverityMaskRecord [Severity] */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x42, /* reportType = SubFunction */
+        0x33, /* FunctionalGroupIdentifier */
+        0xFF, /* DTCStatusMaskAvailability */
+        0xFF, /* DTCSeverityMaskAvailability */
+        0x04, /* DTCFormatIdentifier */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
 int fn_test_0x22(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     TEST_INT_EQUAL(UDS_EVT_ReadDataByIdent, ev);
 
@@ -2501,6 +2585,8 @@ int main(int ac, char **av) {
         cmocka_unit_test_setup_teardown(test_0x19_sub_0x19_no_data, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x19_sub_0x1A, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x19_sub_0x1A_no_data, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x42, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x42_no_record, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22_nonexistent, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22_misuse, Setup, Teardown),

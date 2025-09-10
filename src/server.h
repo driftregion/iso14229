@@ -108,9 +108,11 @@ typedef struct {
             uint8_t memory;        /*! Memory Selection (only used when type == 0x19) */
         } extDtaRecordByDTCNumArgs, userDefMemDTCExtDataRecordByDTCNumArgs;
         struct {
+            uint8_t
+                functionalGroup;  /*! Functional Group Identifier (only used when type == 0x42) */
             uint8_t severityMask; /*! DTC Severity Mask */
             uint8_t statusMask;   /*! DTC Status Mask */
-        } numOfDTCBySeverityMaskArgs, reportBySeverityMaskArgs;
+        } numOfDTCBySeverityMaskArgs, reportBySeverityMaskArgs, WWHOBDDTCByMaskArgs;
         struct {
             uint32_t dtc; /*! DTC Mask Record */
         } reportSeverityInformationArgs;
