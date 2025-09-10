@@ -120,6 +120,9 @@ typedef struct {
             uint8_t mask;   /*! DTC status mask */
             uint8_t memory; /*! Memory Selection */
         } userDefMemoryDTCByStatusMaskArgs;
+        struct {
+            uint8_t functionalGroup; /*! Functional Group Identifier */
+        } WWHOBDDTCWithPermanentStatusArgs;
     };
 } UDSRDTCIArgs_t;
 
