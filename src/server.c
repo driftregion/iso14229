@@ -306,8 +306,8 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
     case 0x0E: /* reportMostRecentConfirmedDTC */
     case 0x15: /* reportDTCWithPermanentStatus */
         if (r->send_len < UDS_0X19_RESP_BASE_LEN + 1 ||
-            (r->send_len > UDS_0X19_RESP_BASE_LEN + 1) &&
-                (r->send_len - (UDS_0X19_RESP_BASE_LEN + 1)) % 4 != 0) {
+            ((r->send_len > UDS_0X19_RESP_BASE_LEN + 1) &&
+             (r->send_len - (UDS_0X19_RESP_BASE_LEN + 1)) % 4 != 0)) {
             return UDS_NRC_GeneralProgrammingFailure;
         }
         break;
@@ -332,14 +332,14 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
     case 0x08: /* reportDTCBySeverityMaskRecord */
     case 0x09: /* reportSeverityInformationOfDTC */
         if (r->send_len < UDS_0X19_RESP_BASE_LEN + 1 ||
-            (r->send_len > UDS_0X19_RESP_BASE_LEN + 1 &&
+            ((r->send_len > UDS_0X19_RESP_BASE_LEN + 1) &&
              (r->send_len - (UDS_0X19_RESP_BASE_LEN + 1)) % 6 != 0)) {
             return UDS_NRC_GeneralProgrammingFailure;
         }
         break;
     case 0x17: /* reportUserDefMemoryDTCByStatusMask */
         if (r->send_len < UDS_0X19_RESP_BASE_LEN + 2 ||
-            (r->send_len > UDS_0X19_RESP_BASE_LEN + 2 &&
+            ((r->send_len > UDS_0X19_RESP_BASE_LEN + 2) &&
              (r->send_len - (UDS_0X19_RESP_BASE_LEN + 2)) % 4 != 0)) {
             return UDS_NRC_GeneralProgrammingFailure;
         }
@@ -353,28 +353,28 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
     case 0x1A: /* reportDTCExtendedDataRecordIdentification */
         if (r->send_len < UDS_0X19_RESP_BASE_LEN + 1 ||
             (r->send_len != UDS_0X19_RESP_BASE_LEN + 5) ||
-            (r->send_len > UDS_0X19_RESP_BASE_LEN + 5 &&
+            ((r->send_len > UDS_0X19_RESP_BASE_LEN + 5) &&
              (r->send_len - UDS_0X19_RESP_BASE_LEN + 5) % 4 != 0)) {
             return UDS_NRC_GeneralProgrammingFailure;
         }
         break;
     case 0x42: /* reportWWHOBDDTCByMaskRecord */
         if (r->send_len < UDS_0X19_RESP_BASE_LEN + 4 ||
-            (r->send_len > UDS_0X19_RESP_BASE_LEN + 4 &&
+            ((r->send_len > UDS_0X19_RESP_BASE_LEN + 4) &&
              (r->send_len - (UDS_0X19_RESP_BASE_LEN + 4)) % 5 != 0)) {
             return UDS_NRC_GeneralProgrammingFailure;
         }
         break;
     case 0x55: /* reportWWHOBDDTCWithPermanentStatus */
         if (r->send_len < UDS_0X19_RESP_BASE_LEN + 3 ||
-            (r->send_len > UDS_0X19_RESP_BASE_LEN + 3 &&
+            ((r->send_len > UDS_0X19_RESP_BASE_LEN + 3) &&
              (r->send_len - (UDS_0X19_RESP_BASE_LEN + 3)) % 4 != 0)) {
             return UDS_NRC_GeneralProgrammingFailure;
         }
         break;
     case 0x56: /* reportDTCInformationByDTCReadinessGroupIdentifier */
         if (r->send_len < UDS_0X19_RESP_BASE_LEN + 4 ||
-            (r->send_len > UDS_0X19_RESP_BASE_LEN + 4 &&
+            ((r->send_len > UDS_0X19_RESP_BASE_LEN + 4) &&
              (r->send_len - (UDS_0X19_RESP_BASE_LEN + 4)) % 4 != 0)) {
             return UDS_NRC_GeneralProgrammingFailure;
         }
