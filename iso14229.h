@@ -301,6 +301,7 @@ typedef enum UDSEvent {
     // Server Event ----------------- Argument Type
     UDS_EVT_DiagSessCtrl,         // UDSDiagSessCtrlArgs_t *
     UDS_EVT_EcuReset,             // UDSECUResetArgs_t *
+    UDS_EVT_ReadDTCInformation,   // UDSRDTCIArgs_t *
     UDS_EVT_ReadDataByIdent,      // UDSRDBIArgs_t *
     UDS_EVT_ReadMemByAddr,        // UDSReadMemByAddrArgs_t *
     UDS_EVT_CommCtrl,             // UDSCommCtrlArgs_t *
@@ -487,13 +488,15 @@ typedef enum {
 #define UDS_MAX_DIAGNOSTIC_SERVICES 0x7F
 
 #define UDS_RESPONSE_SID_OF(request_sid) ((request_sid) + 0x40)
-#define UDS_REQUEST_SID_OF(response_sid) ((response_sid)-0x40)
+#define UDS_REQUEST_SID_OF(response_sid) ((response_sid) - 0x40)
 
 #define UDS_NEG_RESP_LEN 3U
 #define UDS_0X10_REQ_LEN 2U
 #define UDS_0X10_RESP_LEN 6U
 #define UDS_0X11_REQ_MIN_LEN 2U
 #define UDS_0X11_RESP_BASE_LEN 2U
+#define UDS_0X19_REQ_MIN_LEN 2U
+#define UDS_0X19_RESP_BASE_LEN 2U
 #define UDS_0X23_REQ_MIN_LEN 4U
 #define UDS_0X23_RESP_BASE_LEN 1U
 #define UDS_0X22_RESP_BASE_LEN 1U
@@ -881,6 +884,49 @@ typedef struct {
     uint32_t powerDownTimeMillis; /**< when this much time has elapsed after a UDS_PositiveResponse,
                                      a UDS_EVT_DoScheduledReset will be issued */
 } UDSECUResetArgs_t;
+
+typedef struct {
+    const uint8_t type; /*! invoked subfunction */
+    uint8_t (*copy)(UDSServer_t *srv, const void *src,
+                    uint16_t count); /*! function for copying data */
+
+    union {
+        struct {
+            uint8_t mask; /*! DTC status mask */
+        } numOfDTCByStatusMaskArgs, dtcStatusByMaskArgs;
+        struct {
+            uint32_t dtc;        /*! DTC Mask Record */
+            uint8_t snapshotNum; /*! DTC Snaphot Record Number */
+            uint8_t memory;      /*! Memory Selection (only used when type == 0x18) */
+        } dtcSnapshotRecordbyDTCNumArgs, userDefMemDTCSnapshotRecordByDTCNumArgs;
+        struct {
+            uint8_t recordNum; /*! DTC Data Record Number */
+        } dtcStoredDataByRecordNumArgs, dtcExtDataRecordByRecordNumArgs, dtcExtDataRecordIdArgs;
+        struct {
+            uint32_t dtc;          /*! DTC Mask Record */
+            uint8_t extDataRecNum; /*! DTC Extended Data Record Number */
+            uint8_t memory;        /*! Memory Selection (only used when type == 0x19) */
+        } dtcExtDtaRecordByDTCNumArgs, userDefMemDTCExtDataRecordByDTCNumArgs;
+        struct {
+            uint8_t
+                functionalGroup;  /*! Functional Group Identifier (only used when type == 0x42) */
+            uint8_t severityMask; /*! DTC Severity Mask */
+            uint8_t statusMask;   /*! DTC Status Mask */
+        } numOfDTCBySeverityMaskArgs, dtcBySeverityMaskArgs, wwhobdDTCByMaskArgs;
+        struct {
+            uint32_t dtc; /*! DTC Mask Record */
+        } severityInfoOfDTCArgs;
+        struct {
+            uint8_t mask;   /*! DTC status mask */
+            uint8_t memory; /*! Memory Selection */
+        } userDefMemoryDTCByStatusMaskArgs;
+        struct {
+            uint8_t functionalGroup; /*! Functional Group Identifier */
+            uint8_t
+                readinessGroup; /*! DTC Readiness Group Identifier (only used when type == 0x56) */
+        } wwhobdDTCWithPermStatusArgs, dtcInfoByDTCReadinessGroupIdArgs;
+    };
+} UDSRDTCIArgs_t;
 
 typedef struct {
     const uint16_t dataId; /*! RDBI Data Identifier */
