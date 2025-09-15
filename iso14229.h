@@ -301,6 +301,7 @@ typedef enum UDSEvent {
     // Server Event ----------------- Argument Type
     UDS_EVT_DiagSessCtrl,         // UDSDiagSessCtrlArgs_t *
     UDS_EVT_EcuReset,             // UDSECUResetArgs_t *
+    UDS_EVT_ClearDiagnosticInfo,  // UDSCDIArgs_t *
     UDS_EVT_ReadDataByIdent,      // UDSRDBIArgs_t *
     UDS_EVT_ReadMemByAddr,        // UDSReadMemByAddrArgs_t *
     UDS_EVT_CommCtrl,             // UDSCommCtrlArgs_t *
@@ -487,13 +488,15 @@ typedef enum {
 #define UDS_MAX_DIAGNOSTIC_SERVICES 0x7F
 
 #define UDS_RESPONSE_SID_OF(request_sid) ((request_sid) + 0x40)
-#define UDS_REQUEST_SID_OF(response_sid) ((response_sid)-0x40)
+#define UDS_REQUEST_SID_OF(response_sid) ((response_sid) - 0x40)
 
 #define UDS_NEG_RESP_LEN 3U
 #define UDS_0X10_REQ_LEN 2U
 #define UDS_0X10_RESP_LEN 6U
 #define UDS_0X11_REQ_MIN_LEN 2U
 #define UDS_0X11_RESP_BASE_LEN 2U
+#define UDS_0X14_REQ_MIN_LEN 4U
+#define UDS_0X14_RESP_BASE_LEN 1U
 #define UDS_0X23_REQ_MIN_LEN 4U
 #define UDS_0X23_RESP_BASE_LEN 1U
 #define UDS_0X22_RESP_BASE_LEN 1U
@@ -881,6 +884,12 @@ typedef struct {
     uint32_t powerDownTimeMillis; /**< when this much time has elapsed after a UDS_PositiveResponse,
                                      a UDS_EVT_DoScheduledReset will be issued */
 } UDSECUResetArgs_t;
+
+typedef struct {
+    const uint32_t groupOfDTC;     /*! lower 3 bytes describe the groupOfDTC */
+    const bool hasMemorySelection; /*! `true` when a memory selection byte is present */
+    const uint8_t memorySelection; /*! memorySelection byte (optional) */
+} UDSCDIArgs_t;
 
 typedef struct {
     const uint16_t dataId; /*! RDBI Data Identifier */

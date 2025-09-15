@@ -120,6 +120,29 @@ static UDSErr_t Handle_0x11_ECUReset(UDSServer_t *srv, UDSReq_t *r) {
     return UDS_PositiveResponse;
 }
 
+static UDSErr_t Handle_0x14_ClearDiagnosticInformation(UDSServer_t *srv, UDSReq_t *r) {
+    if (r->recv_len < UDS_0X14_REQ_MIN_LEN) {
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+    }
+
+    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_CLEAR_DIAGNOSTIC_INFORMATION);
+    r->send_len = UDS_0X14_RESP_BASE_LEN;
+
+    UDSCDIArgs_t args = {
+        .groupOfDTC = (uint32_t)((r->recv_buf[1] << 16) | (r->recv_buf[2] << 8) | r->recv_buf[3]),
+        .hasMemorySelection = (r->recv_len >= 5),
+        .memorySelection = (r->recv_len >= 5) ? r->recv_buf[4] : 0,
+    };
+
+    UDSErr_t err = EmitEvent(srv, UDS_EVT_ClearDiagnosticInfo, &args);
+
+    if (err != UDS_PositiveResponse) {
+        return NegativeResponse(r, err);
+    }
+
+    return UDS_PositiveResponse;
+}
+
 static uint8_t safe_copy(UDSServer_t *srv, const void *src, uint16_t count) {
     if (srv == NULL) {
         return UDS_NRC_GeneralReject;
@@ -860,7 +883,7 @@ static UDSService getServiceForSID(uint8_t sid) {
     case kSID_ECU_RESET:
         return Handle_0x11_ECUReset;
     case kSID_CLEAR_DIAGNOSTIC_INFORMATION:
-        return NULL;
+        return Handle_0x14_ClearDiagnosticInformation;
     case kSID_READ_DTC_INFORMATION:
         return NULL;
     case kSID_READ_DATA_BY_IDENTIFIER:
