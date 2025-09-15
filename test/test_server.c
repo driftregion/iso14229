@@ -164,6 +164,104 @@ void test_0x11_no_send_after_ECU_reset(void **state) {
     TEST_INT_EQUAL(call_count, 1);
 }
 
+int fn_test_0x14(UDSServer_t *srv, UDSEvent_t ev, void *arg) { return UDS_PositiveResponse; }
+
+// ISO14229-1 2020 12.2.5 Message flow example ClearDiagnosticInformation
+void test_0x14_positive_response(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x14;
+    e->server->fn_data = NULL;
+
+    /* Request per ISO14229-1 2020 Table 300 */
+    const uint8_t REQ[] = {
+        0x14, /* SID */
+        0xFF, /* GroupOfDTC [High Byte] */
+        0xFF, /* GroupOfDTC [Middle Byte] */
+        0x33, /* GroupOfDTC [Low Byte] */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 301 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x54, /* Response SID */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x14_incorrect_request_length(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x14;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x14, /* SID */
+        0xFF, /* GroupOfDTC [High Byte] */
+        0xFF, /* GroupOfDTC [Middle Byte] */
+        /* MISSING required GroupOfDTC [Low Byte] */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x7F, /* Response SID */
+        0x14, /* Original Request SID */
+        0x13, /* NRC: IncorrectMessageLengthOrInvalidFormat */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+int fn_test_0x14_negative_response(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+    UDSCDIArgs_t *args = (UDSCDIArgs_t *)arg;
+    TEST_INT_EQUAL(ev, UDS_EVT_ClearDiagnosticInfo);
+    TEST_INT_EQUAL(args->groupOfDTC, 0x00FFDD33);
+    TEST_INT_GE(args->hasMemorySelection, 1);
+    TEST_INT_EQUAL(args->memorySelection, 0x45);
+
+    return UDS_NRC_RequestOutOfRange;
+}
+
+void test_0x14_negative_response(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x14_negative_response;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x14, /* SID */
+        0xFF, /* GroupOfDTC [High Byte] */
+        0xDD, /* GroupOfDTC [Middle Byte] */
+        0x33, /* GroupOfDTC [Low Byte] */
+        0x45, /* MemorySelection */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x7F, /* Response SID */
+        0x14, /* Original Request SID */
+        0x31, /* NRC: RequestOutOfRange */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
 int fn_test_0x22(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     TEST_INT_EQUAL(UDS_EVT_ReadDataByIdent, ev);
 
@@ -231,8 +329,8 @@ void test_0x22_misuse(void **state) {
     Env_t *e = *state;
     uint8_t buf[8] = {0};
 
-    // When a server handler function is installed that does not handle the UDS_EVT_ReadDataByIdent
-    // event
+    // When a server handler function is installed that does not handle the
+    // UDS_EVT_ReadDataByIdent event
     e->server->fn = fn_test_0x22_misuse;
 
     // and a request is sent to the server
@@ -535,7 +633,8 @@ void test_0x27_brute_force_prevention_1(void **state) {
     Env_t *e = *state;
     uint8_t buf[8] = {0};
 
-    // When a server handler function is installed and the anti-brute-force timeout has not expired
+    // When a server handler function is installed and the anti-brute-force timeout has not
+    // expired
     e->server->fn = fn_test_0x27_security_access;
 
     // sending a seed request
@@ -870,6 +969,9 @@ int main(int ac, char **av) {
                                         Teardown),
         cmocka_unit_test_setup_teardown(test_0x10_suppress_pos_resp, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x11_no_send_after_ECU_reset, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x14_positive_response, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x14_incorrect_request_length, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x14_negative_response, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22_nonexistent, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22_misuse, Setup, Teardown),

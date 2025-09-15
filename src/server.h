@@ -86,6 +86,12 @@ typedef struct {
 } UDSECUResetArgs_t;
 
 typedef struct {
+    const uint32_t groupOfDTC;     /*! lower 3 bytes describe the groupOfDTC */
+    const bool hasMemorySelection; /*! `true` when a memory selection byte is present */
+    const uint8_t memorySelection; /*! memorySelection byte (optional) */
+} UDSCDIArgs_t;
+
+typedef struct {
     const uint16_t dataId; /*! RDBI Data Identifier */
     uint8_t (*copy)(UDSServer_t *srv, const void *src,
                     uint16_t count); /*! function for copying data */
