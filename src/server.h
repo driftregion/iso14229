@@ -136,6 +136,15 @@ typedef struct {
 } UDSWriteMemByAddrArgs_t;
 
 typedef struct {
+    const uint16_t dataId;              /*! Data Identifier */
+    const uint8_t ioCtrlParam;          /*! inputOutputControlParameter */
+    const void *const ctrlStateAndMask; /*! controlState bytes and controlMask (optional) */
+    const size_t ctrlStateAndMaskLen;   /*! number of bytes in `ctrlStateAndMask` */
+    uint8_t (*copy)(UDSServer_t *srv, const void *src,
+                    uint16_t count); /*! function for copying data */
+} UDSIOCtrlArgs_t;
+
+typedef struct {
     const uint8_t ctrlType;      /*! routineControlType */
     const uint16_t id;           /*! routineIdentifier */
     const uint8_t *optionRecord; /*! optional data */
