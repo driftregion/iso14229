@@ -432,6 +432,34 @@ static UDSErr_t Handle_0x2E_WriteDataByIdentifier(UDSServer_t *srv, UDSReq_t *r)
     return UDS_PositiveResponse;
 }
 
+static UDSErr_t Handle_0x2F_IOControlByIdentifier(UDSServer_t *srv, UDSReq_t *r) {
+    if (r->recv_len < UDS_0X2F_REQ_MIN_LEN) {
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+    }
+
+    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_IO_CONTROL_BY_IDENTIFIER);
+    r->send_buf[1] = r->recv_buf[1];
+    r->send_buf[2] = r->recv_buf[2];
+    r->send_buf[3] = r->recv_buf[3];
+    r->send_len = UDS_0X2F_RESP_BASE_LEN;
+
+    UDSIOCtrlArgs_t args = {
+        .dataId = (uint16_t)(r->recv_buf[1] << 8) | (uint16_t)r->recv_buf[2],
+        .ioCtrlParam = r->recv_buf[3],
+        .ctrlStateAndMask = &r->recv_buf[UDS_0X2F_REQ_MIN_LEN],
+        .ctrlStateAndMaskLen = r->recv_len - UDS_0X2F_REQ_MIN_LEN,
+        .copy = safe_copy,
+    };
+
+    UDSErr_t err = EmitEvent(srv, UDS_EVT_IOControl, &args);
+
+    if (err != UDS_PositiveResponse) {
+        return NegativeResponse(r, err);
+    }
+
+    return UDS_PositiveResponse;
+}
+
 static UDSErr_t Handle_0x31_RoutineControl(UDSServer_t *srv, UDSReq_t *r) {
     UDSErr_t err = UDS_PositiveResponse;
     if (r->recv_len < UDS_0X31_REQ_MIN_LEN) {
@@ -902,8 +930,8 @@ static UDSService getServiceForSID(uint8_t sid) {
         return NULL;
     case kSID_WRITE_DATA_BY_IDENTIFIER:
         return Handle_0x2E_WriteDataByIdentifier;
-    case kSID_INPUT_CONTROL_BY_IDENTIFIER:
-        return NULL;
+    case kSID_IO_CONTROL_BY_IDENTIFIER:
+        return Handle_0x2F_IOControlByIdentifier;
     case kSID_ROUTINE_CONTROL:
         return Handle_0x31_RoutineControl;
     case kSID_REQUEST_DOWNLOAD:
@@ -999,7 +1027,7 @@ static UDSErr_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
     case kSID_READ_SCALING_DATA_BY_IDENTIFIER:
     case kSID_READ_PERIODIC_DATA_BY_IDENTIFIER:
     case kSID_DYNAMICALLY_DEFINE_DATA_IDENTIFIER:
-    case kSID_INPUT_CONTROL_BY_IDENTIFIER:
+    case kSID_IO_CONTROL_BY_IDENTIFIER:
     case kSID_WRITE_MEMORY_BY_ADDRESS:
     case kSID_ACCESS_TIMING_PARAMETER:
     case kSID_SECURED_DATA_TRANSMISSION:

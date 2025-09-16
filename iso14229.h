@@ -309,6 +309,7 @@ typedef enum UDSEvent {
     UDS_EVT_SecAccessValidateKey, // UDSSecAccessValidateKeyArgs_t *
     UDS_EVT_WriteDataByIdent,     // UDSWDBIArgs_t *
     UDS_EVT_WriteMemByAddr,       // UDSWriteMemByAddrArgs_t *
+    UDS_EVT_IOControl,            // UDSIOCtrlArgs_t*
     UDS_EVT_RoutineCtrl,          // UDSRoutineCtrlArgs_t*
     UDS_EVT_RequestDownload,      // UDSRequestDownloadArgs_t*
     UDS_EVT_RequestUpload,        // UDSRequestUploadArgs_t *
@@ -507,6 +508,8 @@ typedef enum {
 #define UDS_0X2E_REQ_BASE_LEN 3U
 #define UDS_0X2E_REQ_MIN_LEN 4U
 #define UDS_0X2E_RESP_LEN 3U
+#define UDS_0X2F_REQ_MIN_LEN 4U
+#define UDS_0X2F_RESP_BASE_LEN 4U
 #define UDS_0X31_REQ_MIN_LEN 4U
 #define UDS_0X31_RESP_MIN_LEN 4U
 #define UDS_0X34_REQ_BASE_LEN 3U
@@ -540,7 +543,7 @@ enum UDSDiagnosticServiceId {
     kSID_READ_PERIODIC_DATA_BY_IDENTIFIER = 0x2A,
     kSID_DYNAMICALLY_DEFINE_DATA_IDENTIFIER = 0x2C,
     kSID_WRITE_DATA_BY_IDENTIFIER = 0x2E,
-    kSID_INPUT_CONTROL_BY_IDENTIFIER = 0x2F,
+    kSID_IO_CONTROL_BY_IDENTIFIER = 0x2F,
     kSID_ROUTINE_CONTROL = 0x31,
     kSID_REQUEST_DOWNLOAD = 0x34,
     kSID_REQUEST_UPLOAD = 0x35,
@@ -934,6 +937,15 @@ typedef struct {
     const size_t memSize;      /*! size of memory */
     const uint8_t *const data; /*! pointer to data */
 } UDSWriteMemByAddrArgs_t;
+
+typedef struct {
+    const uint16_t dataId;              /*! Data Identifier */
+    const uint8_t ioCtrlParam;          /*! inputOutputControlParameter */
+    const void *const ctrlStateAndMask; /*! controlState bytes and controlMask (optional) */
+    const size_t ctrlStateAndMaskLen;   /*! number of bytes in `ctrlStateAndMask` */
+    uint8_t (*copy)(UDSServer_t *srv, const void *src,
+                    uint16_t count); /*! function for copying data */
+} UDSIOCtrlArgs_t;
 
 typedef struct {
     const uint8_t ctrlType;      /*! routineControlType */
