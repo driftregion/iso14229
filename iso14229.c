@@ -1766,7 +1766,7 @@ static UDSService getServiceForSID(uint8_t sid) {
         return NULL;
     case kSID_WRITE_DATA_BY_IDENTIFIER:
         return Handle_0x2E_WriteDataByIdentifier;
-    case kSID_INPUT_CONTROL_BY_IDENTIFIER:
+    case kSID_IO_CONTROL_BY_IDENTIFIER:
         return NULL;
     case kSID_ROUTINE_CONTROL:
         return Handle_0x31_RoutineControl;
@@ -1863,7 +1863,7 @@ static UDSErr_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
     case kSID_READ_SCALING_DATA_BY_IDENTIFIER:
     case kSID_READ_PERIODIC_DATA_BY_IDENTIFIER:
     case kSID_DYNAMICALLY_DEFINE_DATA_IDENTIFIER:
-    case kSID_INPUT_CONTROL_BY_IDENTIFIER:
+    case kSID_IO_CONTROL_BY_IDENTIFIER:
     case kSID_WRITE_MEMORY_BY_ADDRESS:
     case kSID_ACCESS_TIMING_PARAMETER:
     case kSID_SECURED_DATA_TRANSMISSION:

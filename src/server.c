@@ -437,7 +437,7 @@ static UDSErr_t Handle_0x2F_IOControlByIdentifier(UDSServer_t *srv, UDSReq_t *r)
         return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
-    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_INPUT_CONTROL_BY_IDENTIFIER);
+    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_IO_CONTROL_BY_IDENTIFIER);
     r->send_buf[1] = r->recv_buf[1];
     r->send_buf[2] = r->recv_buf[2];
     r->send_buf[3] = r->recv_buf[3];
@@ -930,7 +930,7 @@ static UDSService getServiceForSID(uint8_t sid) {
         return NULL;
     case kSID_WRITE_DATA_BY_IDENTIFIER:
         return Handle_0x2E_WriteDataByIdentifier;
-    case kSID_INPUT_CONTROL_BY_IDENTIFIER:
+    case kSID_IO_CONTROL_BY_IDENTIFIER:
         return Handle_0x2F_IOControlByIdentifier;
     case kSID_ROUTINE_CONTROL:
         return Handle_0x31_RoutineControl;
@@ -1027,7 +1027,7 @@ static UDSErr_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
     case kSID_READ_SCALING_DATA_BY_IDENTIFIER:
     case kSID_READ_PERIODIC_DATA_BY_IDENTIFIER:
     case kSID_DYNAMICALLY_DEFINE_DATA_IDENTIFIER:
-    case kSID_INPUT_CONTROL_BY_IDENTIFIER:
+    case kSID_IO_CONTROL_BY_IDENTIFIER:
     case kSID_WRITE_MEMORY_BY_ADDRESS:
     case kSID_ACCESS_TIMING_PARAMETER:
     case kSID_SECURED_DATA_TRANSMISSION:
