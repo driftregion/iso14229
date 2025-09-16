@@ -1153,7 +1153,12 @@ static UDSErr_t Handle_0x23_ReadMemoryByAddress(UDSServer_t *srv, UDSReq_t *r) {
         return NegativeResponse(r, ret);
     }
     if (r->send_len != UDS_0X23_RESP_BASE_LEN + length) {
-        return UDS_NRC_GeneralProgrammingFailure;
+        UDS_LOGE(
+            __FILE__,
+            "ReadMemoryByAddress: mismatch between requested length %d and actual length %d\n",
+            length, r->send_len - UDS_0X23_RESP_BASE_LEN
+        );
+        return NegativeResponse(r, UDS_NRC_GeneralReject);
     }
     return UDS_PositiveResponse;
 }
