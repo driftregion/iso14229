@@ -55,42 +55,42 @@ typedef enum {
 #define UDS_LOGE(tag, format, ...) \
     UDS_LogWrite(UDS_LOG_ERROR, tag, UDS_LOG_FORMAT(E, format), UDSMillis(), tag, ##__VA_ARGS__)
 #else
-#define UDS_LOGE(tag, format, ...) ((void)0)
+#define UDS_LOGE(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
 #endif
 
 #if UDS_LOG_LEVEL >= UDS_LOG_WARN && UDS_LOG_LEVEL > UDS_LOG_NONE
 #define UDS_LOGW(tag, format, ...) \
     UDS_LogWrite(UDS_LOG_WARN, tag, UDS_LOG_FORMAT(W, format), UDSMillis(), tag, ##__VA_ARGS__)
 #else
-#define UDS_LOGW(tag, format, ...) ((void)0)
+#define UDS_LOGW(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
 #endif
 
 #if UDS_LOG_LEVEL >= UDS_LOG_INFO && UDS_LOG_LEVEL > UDS_LOG_NONE
 #define UDS_LOGI(tag, format, ...) \
     UDS_LogWrite(UDS_LOG_INFO, tag, UDS_LOG_FORMAT(I, format), UDSMillis(), tag, ##__VA_ARGS__)
 #else
-#define UDS_LOGI(tag, format, ...) ((void)0)
+#define UDS_LOGI(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
 #endif
 
 #if UDS_LOG_LEVEL >= UDS_LOG_DEBUG && UDS_LOG_LEVEL > UDS_LOG_NONE
 #define UDS_LOGD(tag, format, ...) \
     UDS_LogWrite(UDS_LOG_DEBUG, tag, UDS_LOG_FORMAT(D, format), UDSMillis(), tag, ##__VA_ARGS__)
 #else
-#define UDS_LOGD(tag, format, ...) ((void)0)
+#define UDS_LOGD(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
 #endif
 
 #if UDS_LOG_LEVEL >= UDS_LOG_VERBOSE && UDS_LOG_LEVEL > UDS_LOG_NONE
 #define UDS_LOGV(tag, format, ...) \
     UDS_LogWrite(UDS_LOG_VERBOSE, tag, UDS_LOG_FORMAT(V, format), UDSMillis(), tag, ##__VA_ARGS__)
 #else
-#define UDS_LOGV(tag, format, ...) ((void)0)
+#define UDS_LOGV(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
 #endif
 
 #if UDS_LOG_LEVEL >= UDS_LOG_DEBUG && UDS_LOG_LEVEL > UDS_LOG_NONE
 #define UDS_LOG_SDU(tag, buffer, buff_len, info) \
     UDS_LogSDUInternal(UDS_LOG_DEBUG, tag, buffer, buff_len, info)
 #else
-#define UDS_LOG_SDU(tag, buffer, buff_len, info) ((void)0)
+#define UDS_LOG_SDU(tag, buffer, buff_len, info) UDS_LogSDUDummy(tag, buffer, buff_len, info)
 #endif
 
 #if defined(__GNUC__) || defined(__clang__)
@@ -105,4 +105,12 @@ void UDS_LogWrite(UDS_LogLevel_t level, const char *tag, const char *format, ...
     UDS_PRINTF_FORMAT(3, 4);
 void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *buffer,
                         size_t buff_len, UDSSDU_t *info);
+#else
+// Dummy function that consumes arguments but does nothing
+static inline void UDS_LogDummy(const char *tag, const char *format, ...) {
+    (void)tag; (void)format;
+}
+static inline void UDS_LogSDUDummy(const char *tag, const uint8_t *buffer, size_t buff_len, void *info) {
+    (void)tag; (void)buffer; (void)buff_len; (void)info;
+}
 #endif
