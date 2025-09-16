@@ -40,4 +40,45 @@ http_archive(
     strip_prefix = "rules_cc-0.0.17",
 )
 
-bazel_dep(name = "platforms", version="0.0.10", dev_dependency = True)
+bazel_dep(name = "platforms", version="1.0.0")
+
+bazel_dep(name = "toolchains_llvm", version = "1.4.0")
+
+# Chromium sysroot (Debian Bullseye) - includes isotp headers
+http_archive(
+    name = "org_chromium_sysroot_linux_x64",
+    build_file_content = """
+filegroup(
+  name = "sysroot",
+  srcs = glob(["*/**"], exclude=["**/*\\\\*"]),
+  visibility = ["//visibility:public"],
+)
+""",
+    sha256 = "36a164623d03f525e3dfb783a5e9b8a00e98e1ddd2b5cff4e449bd016dd27e50",
+    urls = ["https://commondatastorage.googleapis.com/chrome-linux-sysroot/36a164623d03f525e3dfb783a5e9b8a00e98e1ddd2b5cff4e449bd016dd27e50"],
+    type = "tar.xz",
+)
+
+
+
+
+# Configure and register the toolchain.
+git_override(
+  module_name = "toolchains_llvm",
+  commit = "d103be73bce9a804ebc4e57637fbaf9d6f23e682",
+  remote = "https://github.com/bazel-contrib/toolchains_llvm",
+)
+llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm")
+llvm.toolchain(
+    name="llvm_toolchain",
+    llvm_version = "16.0.0",
+)
+llvm.sysroot(
+    name = "llvm_toolchain",
+    label = "@org_chromium_sysroot_linux_x64//:sysroot",
+    targets = ["linux-x86_64"],
+)
+use_repo(llvm, "llvm_toolchain")
+
+
+bazel_dep(name = "rules_fuzzing", version = "0.6.0")

@@ -10,12 +10,12 @@ uint32_t UDSMillis(void) {
     struct timeval te;
     gettimeofday(&te, NULL); // cppcheck-suppress misra-c2012-21.6
     long long milliseconds = (te.tv_sec * 1000LL) + (te.tv_usec / 1000);
-    return milliseconds;
+    return (uint32_t)milliseconds;
 #elif UDS_SYS == UDS_SYS_WINDOWS
     struct timespec ts;
     timespec_get(&ts, TIME_UTC);
     long long milliseconds = ts.tv_sec * 1000LL + ts.tv_nsec / 1000000;
-    return milliseconds;
+    return (uint32_t)milliseconds;
 #elif UDS_SYS == UDS_SYS_ARDUINO
     return millis();
 #elif UDS_SYS == UDS_SYS_ESP32

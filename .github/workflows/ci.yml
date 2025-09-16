@@ -7,7 +7,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
+  build-linux:
     runs-on: ubuntu-latest
 
     steps:
@@ -20,34 +20,58 @@ jobs:
 
     - name: run unit tests
       run: bazel test //test:all --test_tag_filters=-vcan
+    
+  build-linux-clang:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v3
+
+    - name: run ultra_strict
+      run: |
+        sudo apt-get update 
+        sudo apt-get install -y libtinfo5
+        bazel build --repo_env=CC=clang --repo_env=CXX=clang++ //test:ultra_strict
+  
+  fuzz-replay-linux-clang:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v3
+
+    - name: Cache Bazel
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/bazel
+        key: ${{ runner.os }}-bazel-${{ hashFiles('**/MODULE.bazel', '**/*.bzl', '**/BUILD*') }}
+        restore-keys: |
+          ${{ runner.os }}-bazel-
 
     - name: run coverage
       run: |
-        bazel coverage \
-        --combined_report=lcov \
-        --instrumentation_filter='^//:(iso14229)$' \
-        --experimental_collect_code_coverage_for_generated_files \
-        //test:test_client_tp_mock \
-        //test:test_server_tp_mock \
-        //test:test_tp_isotp_compliance_mock
-        cp $(bazel info output_path)/_coverage/_coverage_report.dat coverage.lcov
-        sed -E -i 's#^SF:bazel-out/.*/iso14229.c#SF:iso14229.c#' coverage.lcov
-        sed -E -i 's#^SF:bazel-out/.*/iso14229.h#SF:iso14229.h#' coverage.lcov
-        ls -l coverage.lcov
+        sudo apt-get update
+        sudo apt-get install -y libtinfo5
+        ./scripts/2_replay_corpus.sh
     
     - name: upload coverage to Codecov
-      uses: codecov/codecov-action@v5
-      with:
-        files: coverage.lcov          # point directly at the Bazel LCOV
-        disable_search: true          # don’t look for anything else
-        name: iso14229-coverage
-        fail_ci_if_error: true
-        token: ${{ secrets.CODECOV_TOKEN }}
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      run: |
+        # Verify coverage file exists
+        if [ ! -f coverage.lcov ]; then
+          echo "Error: coverage.lcov file not found"
+          exit 1
+        fi
+        echo "Coverage file size: $(wc -l < coverage.lcov) lines"
+        # Download and run codecov
+        curl -Os https://cli.codecov.io/latest/linux/codecov
+        chmod +x codecov
+        ./codecov upload-process --fail-on-error -t $CODECOV_TOKEN -F fuzz --file coverage.lcov
     
-    - name: run ultra_strict
-      run: bazel build --config=x86_64_clang //test:ultra_strict
-    
-  build-windows:
+  unittest-windows:
     runs-on: windows-latest
 
     steps:

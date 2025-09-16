@@ -1,0 +1,28 @@
+load("@rules_fuzzing//fuzzing:cc_defs.bzl", "cc_fuzz_test")
+
+cc_fuzz_test(
+    name = "fuzz_server",
+    srcs = [
+        "fuzz_server.cc",
+        "//src:iso14229.h",
+        "//src:iso14229.c",
+    ],
+    defines = [
+        "UDS_TP_ISOTP_MOCK",
+        "UDS_CUSTOM_MILLIS",
+        "UDS_LINES",
+    ],
+    copts = [
+        "-g",
+        "-O0"
+    ],
+    size = "small",
+    corpus = [
+        ":corpus_filegroup"
+    ]
+)
+
+filegroup(
+    name = "corpus_filegroup",
+    srcs = glob(["outputs/corpus/**"], allow_empty=True),
+)

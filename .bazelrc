@@ -1,31 +1,30 @@
-common --enable_platform_specific_config
+# common --toolchain_resolution_debug='@bazel_tools//tools/cpp:toolchain_type'
+
 build --strip=never
-build --incompatible_enable_cc_toolchain_resolution
 build --workspace_status_command=tools/workspace_status.sh
 build --stamp
 
-build --extra_toolchains //toolchain:arm_linux_gcc
-build --extra_toolchains //toolchain:aarch64_linux_clang
-build --extra_toolchains //toolchain:arm_none_gcc
-build --extra_toolchains //toolchain:ppc_gcc
-build --extra_toolchains //toolchain:ppc64_gcc
-build --extra_toolchains //toolchain:ppc64le_gcc
-build --extra_toolchains //toolchain:x86_64_clang
-build --extra_toolchains //toolchain:x86_64_gcc
+# Hermetic LLVM toolchain with Debian Bullseye sysroot (includes isotp headers)
+common:hermetic-llvm --extra_toolchains @llvm_toolchain//:cc-toolchain-x86_64-linux
+common:hermetic-llvm --platforms=//platforms:x86_64_clang
 
-build:arm_linux --platforms=//platforms:arm_linux
-build:aarch64_linux_clang --platforms=//platforms:aarch64_linux_clang
-build:s32k --platforms=//platforms:s32k_evb
-build:ppc --platforms=//platforms:ppc
-build:ppc64 --platforms=//platforms:ppc64
-build:ppc64le --platforms=//platforms:ppc64le
-build:x86_64_clang --platforms=//platforms:x86_64_clang
-build:x86_64_gcc --platforms=//platforms:x86_64_gcc
+# Hermetic fuzzing configuration with LibFuzzer
+common:hermetic-fuzz --config=hermetic-llvm
+common:hermetic-fuzz --@rules_fuzzing//fuzzing:cc_engine=@rules_fuzzing//fuzzing/engines:libfuzzer
+common:hermetic-fuzz --@rules_fuzzing//fuzzing:cc_engine_instrumentation=libfuzzer
+common:hermetic-fuzz --@rules_fuzzing//fuzzing:cc_engine_sanitizer=asan
 
-test:arm_linux --run_under="qemu-arm -L /usr/arm-linux-gnueabihf/ "
-test:ppc --run_under="qemu-ppc -L /usr/powerpc-linux-gnu/ "
-test:ppc64 --run_under="qemu-ppc64 -L /usr/powerpc64-linux-gnu/ "
-test:ppc64le --run_under="qemu-ppc64le -L /usr/powerpc64le-linux-gnu/ "
-
-# parallel tests break on a single vcan interface
-test: --local_test_jobs=1 --test_output=all 
+# Hermetic coverage configuration
+common:hermetic-coverage --config=hermetic-llvm
+common:hermetic-coverage --@rules_fuzzing//fuzzing:cc_engine=@rules_fuzzing//fuzzing/engines:replay
+common:hermetic-coverage --@rules_fuzzing//fuzzing:cc_engine_instrumentation=none
+common:hermetic-coverage --@rules_fuzzing//fuzzing:cc_engine_sanitizer=none
+common:hermetic-coverage --instrument_test_targets
+common:hermetic-coverage --experimental_collect_code_coverage_for_generated_files
+common:hermetic-coverage --combined_report=lcov
+common:hermetic-coverage --action_env=BAZEL_USE_LLVM_NATIVE_COVERAGE=1
+common:hermetic-coverage --action_env=GCOV=llvm-profdata
+common:hermetic-coverage --action_env=BAZEL_LLVM_COV=llvm-cov
+common:hermetic-coverage --experimental_use_llvm_covmap
+common:hermetic-coverage --experimental_generate_llvm_lcov
+common:hermetic-coverage --java_runtime_version=remotejdk_11
