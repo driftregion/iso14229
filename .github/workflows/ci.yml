@@ -32,7 +32,7 @@ jobs:
       run: |
         sudo apt-get update 
         sudo apt-get install -y libtinfo5
-        bazel build --config=x86_64_clang_nonhermetic //test:ultra_strict
+        bazel build --repo_env=CC=clang --repo_env=CXX=clang++ //test:ultra_strict
   
   fuzz-replay-linux-clang:
     runs-on: ubuntu-22.04

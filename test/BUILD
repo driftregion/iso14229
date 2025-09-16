@@ -97,6 +97,11 @@ sh_test(
     ],
 )
 
+cc_binary(
+    name = "tmp",
+    srcs =[ "tmp.cc"]
+)
+
 cc_library(
     name = "ultra_strict",
     srcs = [
@@ -116,9 +121,6 @@ cc_library(
         "UDS_TP_ISOTP_SOCK",
         "UDS_TP_ISOTP_MOCK",
     ],
-    target_compatible_with = [
-        "//platforms/compiler:clang",
-    ]
 )
 
 [

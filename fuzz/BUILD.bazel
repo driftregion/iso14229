@@ -17,9 +17,6 @@ cc_fuzz_test(
         "-O0"
     ],
     size = "small",
-    target_compatible_with = [
-        "//platforms/compiler:clang",
-    ],
     corpus = [
         ":corpus_filegroup"
     ]
