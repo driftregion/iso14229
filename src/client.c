@@ -564,7 +564,7 @@ UDSErr_t UDSSendTransferDataStream(UDSClient_t *client, uint8_t blockSequenceCou
     client->send_buf[0] = kSID_TRANSFER_DATA;
     client->send_buf[1] = blockSequenceCounter;
 
-    unsigned long _size = fread(&client->send_buf[2], 1, blockLength - 2, fd);
+    size_t _size = fread(&client->send_buf[2], 1, blockLength - 2, fd);
     UDS_ASSERT(_size < UINT16_MAX);
     uint16_t size = (uint16_t)_size;
     UDS_LOGI(__FILE__, "size: %d, blocklength: %d", size, blockLength);

@@ -117,11 +117,16 @@ cc_library(
             "-Wno-gnu-zero-variadic-macro-arguments",
         ],
     }),
-    defines = [
-        "UDS_TP_ISOTP_C_SOCKETCAN",
-        "UDS_TP_ISOTP_SOCK",
-        "UDS_TP_ISOTP_MOCK",
-    ],
+    defines = select({
+        "@platforms//os:windows": [
+            "UDS_TP_ISOTP_MOCK",
+        ],
+        "//conditions:default": [
+            "UDS_TP_ISOTP_C_SOCKETCAN",
+            "UDS_TP_ISOTP_SOCK",
+            "UDS_TP_ISOTP_MOCK",
+        ],
+    }),
 )
 
 [

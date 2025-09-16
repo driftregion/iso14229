@@ -4,17 +4,6 @@ build --strip=never
 build --workspace_status_command=tools/workspace_status.sh
 build --stamp
 
-# build --extra_toolchains //toolchain:arm_linux_gcc
-# build --extra_toolchains //toolchain:arm_none_gcc
-# build --extra_toolchains //toolchain:ppc_gcc
-# build --extra_toolchains //toolchain:ppc64_gcc
-# build --extra_toolchains //toolchain:ppc64le_gcc
-# build --extra_toolchains //toolchain:x86_64_gcc
-
-# build:x86_64_clang --extra_toolchains @llvm_toolchain//:cc-toolchain-x86_64-linux
-# build:x86_64_clang --extra_toolchains //toolchain:x86_64_clang
-# build:aarch64_linux_clang --extra_toolchains @llvm_toolchain//:cc-toolchain-aarch64-linux
-
 # Hermetic LLVM toolchain with Debian Bullseye sysroot (includes isotp headers)
 common:hermetic-llvm --extra_toolchains @llvm_toolchain//:cc-toolchain-x86_64-linux
 common:hermetic-llvm --platforms=//platforms:x86_64_clang
@@ -39,69 +28,3 @@ common:hermetic-coverage --action_env=BAZEL_LLVM_COV=llvm-cov
 common:hermetic-coverage --experimental_use_llvm_covmap
 common:hermetic-coverage --experimental_generate_llvm_lcov
 common:hermetic-coverage --java_runtime_version=remotejdk_11
-
-# Windows-compatible configurations (fallback to system toolchain)
-common:windows-coverage --@rules_fuzzing//fuzzing:cc_engine=@rules_fuzzing//fuzzing/engines:replay
-common:windows-coverage --@rules_fuzzing//fuzzing:cc_engine_instrumentation=none
-common:windows-coverage --@rules_fuzzing//fuzzing:cc_engine_sanitizer=none
-common:windows-coverage --instrument_test_targets
-common:windows-coverage --experimental_collect_code_coverage_for_generated_files
-common:windows-coverage --combined_report=lcov
-common:windows-coverage --java_runtime_version=remotejdk_11
-
-# build:arm_linux --platforms=//platforms:arm_linux
-# build:aarch64_linux_clang --platforms=//platforms:aarch64_linux_clang
-# build:s32k --platforms=//platforms:s32k_evb
-# build:ppc --platforms=//platforms:ppc
-# build:ppc64 --platforms=//platforms:ppc64
-# build:ppc64le --platforms=//platforms:ppc64le
-# build:x86_64_clang --platforms=//platforms:x86_64_clang
-# build:x86_64_gcc --platforms=//platforms:x86_64_gcc
-
-# build:asan-libfuzzer --@rules_fuzzing//fuzzing:cc_engine=@rules_fuzzing//fuzzing/engines:libfuzzer
-# build:asan-libfuzzer --@rules_fuzzing//fuzzing:cc_engine_instrumentation=libfuzzer
-# build:asan-libfuzzer --@rules_fuzzing//fuzzing:cc_engine_sanitizer=asan
-# build:asan-libfuzzer --platforms=//platforms:x86_64_clang
-# build:asan-libfuzzer 
-
-# test:arm_linux --run_under="qemu-arm -L /usr/arm-linux-gnueabihf/ "
-# test:ppc --run_under="qemu-ppc -L /usr/powerpc-linux-gnu/ "
-# test:ppc64 --run_under="qemu-ppc64 -L /usr/powerpc64-linux-gnu/ "
-# test:ppc64le --run_under="qemu-ppc64le -L /usr/powerpc64le-linux-gnu/ "
-# test --build_tag_filters=-vcan,-clang --test_tag_filters=-vcan,-clang
-
-# parallel tests break on a single vcan interface
-# test: --local_test_jobs=1 --test_output=all 
-
-# coverage --@rules_fuzzing//fuzzing:cc_engine=@rules_fuzzing//fuzzing/engines:replay
-# coverage --@rules_fuzzing//fuzzing:cc_engine_instrumentation=none
-# coverage --@rules_fuzzing//fuzzing:cc_engine_sanitizer=none
-# coverage --instrument_test_targets
-# coverage --experimental_collect_code_coverage_for_generated_files
-# coverage --instrumentation_filter='^//(:iso14229|test:.*)$'
-# coverage --action_env=BAZEL_USE_LLVM_NATIVE_COVERAGE=1
-# coverage --action_env=GCOV=llvm-profdata
-# coverage --action_env=BAZEL_LLVM_COV=llvm-cov
-# coverage --combined_report=lcov
-# coverage --experimental_use_llvm_covmap
-# coverage --experimental_generate_llvm_lcov
-
-# coverage:fuzz --java_runtime_version=remotejdk_11
-# coverage:fuzz --tool_java_runtime_version=remotejdk_11
-# coverage:fuzz --platforms=//platforms:x86_64_clang
-# coverage:fuzz --extra_toolchains @llvm_toolchain//:cc-toolchain-x86_64-linux
-# common:fuzz --repo_env=CC=clang
-# common:fuzz --repo_env=CXX=clang++
-# common --linkopt="--sysroot=/home/nkirkby/clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04"
-# coverage:fuzz --@rules_fuzzing//fuzzing:cc_engine=@rules_fuzzing//fuzzing/engines:replay
-# coverage:fuzz --@rules_fuzzing//fuzzing:cc_engine_instrumentation=none
-# coverage:fuzz --@rules_fuzzing//fuzzing:cc_engine_sanitizer=none
-# coverage:fuzz --instrument_test_targets
-# coverage:fuzz --experimental_collect_code_coverage_for_generated_files
-# coverage:fuzz --test_output=all
-# coverage:fuzz --combined_report=lcov
-# coverage:fuzz --action_env=BAZEL_USE_LLVM_NATIVE_COVERAGE=1
-# coverage:fuzz --action_env=GCOV=llvm-profdata
-# coverage:fuzz --action_env=BAZEL_LLVM_COV=llvm-cov
-# coverage:fuzz --experimental_use_llvm_covmap
-# coverage:fuzz --experimental_generate_llvm_lcov
