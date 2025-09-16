@@ -86,6 +86,12 @@ typedef struct {
 } UDSECUResetArgs_t;
 
 typedef struct {
+    const uint32_t groupOfDTC;     /*! lower 3 bytes describe the groupOfDTC */
+    const bool hasMemorySelection; /*! `true` when a memory selection byte is present */
+    const uint8_t memorySelection; /*! memorySelection byte (optional) */
+} UDSCDIArgs_t;
+
+typedef struct {
     const uint16_t dataId; /*! RDBI Data Identifier */
     uint8_t (*copy)(UDSServer_t *srv, const void *src,
                     uint16_t count); /*! function for copying data */
@@ -122,6 +128,21 @@ typedef struct {
     const uint8_t *const data; /*! pointer to data */
     const uint16_t len;        /*! length of data */
 } UDSWDBIArgs_t;
+
+typedef struct {
+    const void *memAddr;       /*! pointer to memory address */
+    const size_t memSize;      /*! size of memory */
+    const uint8_t *const data; /*! pointer to data */
+} UDSWriteMemByAddrArgs_t;
+
+typedef struct {
+    const uint16_t dataId;              /*! Data Identifier */
+    const uint8_t ioCtrlParam;          /*! inputOutputControlParameter */
+    const void *const ctrlStateAndMask; /*! controlState bytes and controlMask (optional) */
+    const size_t ctrlStateAndMaskLen;   /*! number of bytes in `ctrlStateAndMask` */
+    uint8_t (*copy)(UDSServer_t *srv, const void *src,
+                    uint16_t count); /*! function for copying data */
+} UDSIOCtrlArgs_t;
 
 typedef struct {
     const uint8_t ctrlType;      /*! routineControlType */

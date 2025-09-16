@@ -120,6 +120,29 @@ static UDSErr_t Handle_0x11_ECUReset(UDSServer_t *srv, UDSReq_t *r) {
     return UDS_PositiveResponse;
 }
 
+static UDSErr_t Handle_0x14_ClearDiagnosticInformation(UDSServer_t *srv, UDSReq_t *r) {
+    if (r->recv_len < UDS_0X14_REQ_MIN_LEN) {
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+    }
+
+    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_CLEAR_DIAGNOSTIC_INFORMATION);
+    r->send_len = UDS_0X14_RESP_BASE_LEN;
+
+    UDSCDIArgs_t args = {
+        .groupOfDTC = (uint32_t)((r->recv_buf[1] << 16) | (r->recv_buf[2] << 8) | r->recv_buf[3]),
+        .hasMemorySelection = (r->recv_len >= 5),
+        .memorySelection = (r->recv_len >= 5) ? r->recv_buf[4] : 0,
+    };
+
+    UDSErr_t err = EmitEvent(srv, UDS_EVT_ClearDiagnosticInfo, &args);
+
+    if (err != UDS_PositiveResponse) {
+        return NegativeResponse(r, err);
+    }
+
+    return UDS_PositiveResponse;
+}
+
 static uint8_t safe_copy(UDSServer_t *srv, const void *src, uint16_t count) {
     if (srv == NULL) {
         return UDS_NRC_GeneralReject;
@@ -406,6 +429,34 @@ static UDSErr_t Handle_0x2E_WriteDataByIdentifier(UDSServer_t *srv, UDSReq_t *r)
     r->send_buf[1] = dataId >> 8;
     r->send_buf[2] = dataId & 0xFF;
     r->send_len = UDS_0X2E_RESP_LEN;
+    return UDS_PositiveResponse;
+}
+
+static UDSErr_t Handle_0x2F_IOControlByIdentifier(UDSServer_t *srv, UDSReq_t *r) {
+    if (r->recv_len < UDS_0X2F_REQ_MIN_LEN) {
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+    }
+
+    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_IO_CONTROL_BY_IDENTIFIER);
+    r->send_buf[1] = r->recv_buf[1];
+    r->send_buf[2] = r->recv_buf[2];
+    r->send_buf[3] = r->recv_buf[3];
+    r->send_len = UDS_0X2F_RESP_BASE_LEN;
+
+    UDSIOCtrlArgs_t args = {
+        .dataId = (uint16_t)(r->recv_buf[1] << 8) | (uint16_t)r->recv_buf[2],
+        .ioCtrlParam = r->recv_buf[3],
+        .ctrlStateAndMask = &r->recv_buf[UDS_0X2F_REQ_MIN_LEN],
+        .ctrlStateAndMaskLen = r->recv_len - UDS_0X2F_REQ_MIN_LEN,
+        .copy = safe_copy,
+    };
+
+    UDSErr_t err = EmitEvent(srv, UDS_EVT_IOControl, &args);
+
+    if (err != UDS_PositiveResponse) {
+        return NegativeResponse(r, err);
+    }
+
     return UDS_PositiveResponse;
 }
 
@@ -773,6 +824,47 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
     return UDS_PositiveResponse;
 }
 
+static UDSErr_t Handle_0x3D_WriteMemoryByAddress(UDSServer_t *srv, UDSReq_t *r) {
+    UDSErr_t ret = UDS_PositiveResponse;
+    void *address = 0;
+    size_t length = 0;
+
+    if (r->recv_len < UDS_0X3D_REQ_MIN_LEN) {
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+    }
+
+    ret = decodeAddressAndLength(r, &r->recv_buf[1], &address, &length);
+    if (UDS_PositiveResponse != ret) {
+        return NegativeResponse(r, ret);
+    }
+
+    uint8_t memorySizeLength = (r->recv_buf[1] & 0xF0) >> 4;
+    uint8_t memoryAddressLength = r->recv_buf[1] & 0x0F;
+
+    uint8_t dataOffset = 2 + memorySizeLength + memoryAddressLength;
+
+    if (dataOffset + length != r->recv_len) {
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+    }
+
+    UDSWriteMemByAddrArgs_t args = {
+        .memAddr = address,
+        .memSize = length,
+        .data = &r->recv_buf[dataOffset],
+    };
+
+    ret = EmitEvent(srv, UDS_EVT_WriteMemByAddr, &args);
+    if (UDS_PositiveResponse != ret) {
+        return NegativeResponse(r, ret);
+    }
+
+    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_WRITE_MEMORY_BY_ADDRESS);
+    // echo addressAndLengthFormatIdentifier, memoryAddress, and memorySize
+    memcpy(&r->send_buf[1], &r->recv_buf[1], 1 + memorySizeLength + memoryAddressLength);
+    r->send_len = UDS_0X3D_RESP_BASE_LEN + memorySizeLength + memoryAddressLength;
+    return UDS_PositiveResponse;
+}
+
 static UDSErr_t Handle_0x3E_TesterPresent(UDSServer_t *srv, UDSReq_t *r) {
     if ((r->recv_len < UDS_0X3E_REQ_MIN_LEN) || (r->recv_len > UDS_0X3E_REQ_MAX_LEN)) {
         return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
@@ -819,7 +911,7 @@ static UDSService getServiceForSID(uint8_t sid) {
     case kSID_ECU_RESET:
         return Handle_0x11_ECUReset;
     case kSID_CLEAR_DIAGNOSTIC_INFORMATION:
-        return NULL;
+        return Handle_0x14_ClearDiagnosticInformation;
     case kSID_READ_DTC_INFORMATION:
         return NULL;
     case kSID_READ_DATA_BY_IDENTIFIER:
@@ -838,8 +930,8 @@ static UDSService getServiceForSID(uint8_t sid) {
         return NULL;
     case kSID_WRITE_DATA_BY_IDENTIFIER:
         return Handle_0x2E_WriteDataByIdentifier;
-    case kSID_INPUT_CONTROL_BY_IDENTIFIER:
-        return NULL;
+    case kSID_IO_CONTROL_BY_IDENTIFIER:
+        return Handle_0x2F_IOControlByIdentifier;
     case kSID_ROUTINE_CONTROL:
         return Handle_0x31_RoutineControl;
     case kSID_REQUEST_DOWNLOAD:
@@ -853,7 +945,7 @@ static UDSService getServiceForSID(uint8_t sid) {
     case kSID_REQUEST_FILE_TRANSFER:
         return Handle_0x38_RequestFileTransfer;
     case kSID_WRITE_MEMORY_BY_ADDRESS:
-        return NULL;
+        return Handle_0x3D_WriteMemoryByAddress;
     case kSID_TESTER_PRESENT:
         return Handle_0x3E_TesterPresent;
     case kSID_ACCESS_TIMING_PARAMETER:
@@ -935,7 +1027,7 @@ static UDSErr_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
     case kSID_READ_SCALING_DATA_BY_IDENTIFIER:
     case kSID_READ_PERIODIC_DATA_BY_IDENTIFIER:
     case kSID_DYNAMICALLY_DEFINE_DATA_IDENTIFIER:
-    case kSID_INPUT_CONTROL_BY_IDENTIFIER:
+    case kSID_IO_CONTROL_BY_IDENTIFIER:
     case kSID_WRITE_MEMORY_BY_ADDRESS:
     case kSID_ACCESS_TIMING_PARAMETER:
     case kSID_SECURED_DATA_TRANSMISSION:
