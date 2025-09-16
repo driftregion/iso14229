@@ -48,10 +48,19 @@ jobs:
         ./scripts/2_replay_corpus.sh
     
     - name: upload coverage to Codecov
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       run: |
+        # Verify coverage file exists
+        if [ ! -f coverage.lcov ]; then
+          echo "Error: coverage.lcov file not found"
+          exit 1
+        fi
+        echo "Coverage file size: $(wc -l < coverage.lcov) lines"
+        # Download and run codecov
         curl -Os https://cli.codecov.io/latest/linux/codecov
         chmod +x codecov
-        ./codecov upload-process -t $CODECOV_TOKEN -F fuzz
+        ./codecov upload-process --fail-on-error -t $CODECOV_TOKEN -F fuzz --file coverage.lcov
     
   unittest-windows:
     runs-on: windows-latest

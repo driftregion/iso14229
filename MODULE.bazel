@@ -79,14 +79,6 @@ llvm.sysroot(
     targets = ["linux-x86_64"],
 )
 use_repo(llvm, "llvm_toolchain")
-# register_toolchains("@llvm_toolchain//:all")
 
-llvm.toolchain(
-    name="llvm_toolchain_nonhermetic",
-    llvm_version = "16.0.0",
-)
-use_repo(llvm, "llvm_toolchain_nonhermetic")
-# register_toolchains("@llvm_toolchain_nonhermetic//:all")
 
 bazel_dep(name = "rules_fuzzing", version = "0.6.0")
-
