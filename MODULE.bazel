@@ -89,3 +89,4 @@ use_repo(llvm, "llvm_toolchain_nonhermetic")
 # register_toolchains("@llvm_toolchain_nonhermetic//:all")
 
 bazel_dep(name = "rules_fuzzing", version = "0.6.0")
+
