@@ -97,11 +97,6 @@ sh_test(
     ],
 )
 
-cc_binary(
-    name = "tmp",
-    srcs =[ "tmp.cc"]
-)
-
 cc_library(
     name = "ultra_strict",
     srcs = [

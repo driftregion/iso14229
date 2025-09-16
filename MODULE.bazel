@@ -44,18 +44,22 @@ bazel_dep(name = "platforms", version="1.0.0")
 
 bazel_dep(name = "toolchains_llvm", version = "1.4.0")
 
+# Chromium sysroot (Debian Bullseye) - includes isotp headers
 http_archive(
     name = "org_chromium_sysroot_linux_x64",
     build_file_content = """
 filegroup(
   name = "sysroot",
-  srcs = glob(["*/**"]),
+  srcs = glob(["*/**"], exclude=["**/*\\\\*"]),
   visibility = ["//visibility:public"],
 )
 """,
-    sha256 = "84656a6df544ecef62169cfe3ab6e41bb4346a62d3ba2a045dc5a0a2ecea94a3",
-    urls = ["https://commondatastorage.googleapis.com/chrome-linux-sysroot/toolchain/2202c161310ffde63729f29d27fe7bb24a0bc540/debian_stretch_amd64_sysroot.tar.xz"],
+    sha256 = "36a164623d03f525e3dfb783a5e9b8a00e98e1ddd2b5cff4e449bd016dd27e50",
+    urls = ["https://commondatastorage.googleapis.com/chrome-linux-sysroot/36a164623d03f525e3dfb783a5e9b8a00e98e1ddd2b5cff4e449bd016dd27e50"],
+    type = "tar.xz",
 )
+
+
 
 
 # Configure and register the toolchain.
