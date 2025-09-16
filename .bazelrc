@@ -16,10 +16,6 @@ build --stamp
 # build:aarch64_linux_clang --extra_toolchains @llvm_toolchain//:cc-toolchain-aarch64-linux
 # build:x86_64_clang_nonhermetic --extra_toolchains @llvm_toolchain_nonhermetic//:cc-toolchain-x86_64-linux
 
-# System toolchain using LLVM from toolchains_llvm (default behavior)
-common:x86_64-linux-clang --extra_toolchains @llvm_toolchain//:cc-toolchain-x86_64-linux
-common:x86_64-linux-clang --platforms=//platforms:x86_64_clang
-
 # Hermetic LLVM toolchain with Debian Bullseye sysroot (includes isotp headers)
 common:hermetic-llvm --extra_toolchains @llvm_toolchain//:cc-toolchain-x86_64-linux
 common:hermetic-llvm --platforms=//platforms:x86_64_clang
@@ -43,6 +39,7 @@ common:hermetic-coverage --action_env=GCOV=llvm-profdata
 common:hermetic-coverage --action_env=BAZEL_LLVM_COV=llvm-cov
 common:hermetic-coverage --experimental_use_llvm_covmap
 common:hermetic-coverage --experimental_generate_llvm_lcov
+common:hermetic-coverage --java_runtime_version=remotejdk_11
 
 # build:arm_linux --platforms=//platforms:arm_linux
 # build:aarch64_linux_clang --platforms=//platforms:aarch64_linux_clang
