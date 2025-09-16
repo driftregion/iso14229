@@ -103,14 +103,20 @@ cc_library(
         "//src:iso14229.h",
         "//src:iso14229.c",
     ],
-    copts = [
-        "-Werror",
-        "-Wall",
-        "-Wextra",
-        "-Wpedantic",
-        "-Wno-unused-parameter",
-        "-Wno-gnu-zero-variadic-macro-arguments",
-    ],
+    copts = select({
+        "@platforms//os:windows": [
+            "/WX",  # Treat warnings as errors (MSVC equivalent of -Werror)
+            "/W4",  # High warning level (MSVC equivalent of -Wall -Wextra)
+        ],
+        "//conditions:default": [
+            "-Werror",
+            "-Wall",
+            "-Wextra",
+            "-Wpedantic",
+            "-Wno-unused-parameter",
+            "-Wno-gnu-zero-variadic-macro-arguments",
+        ],
+    }),
     defines = [
         "UDS_TP_ISOTP_C_SOCKETCAN",
         "UDS_TP_ISOTP_SOCK",
