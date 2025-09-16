@@ -290,7 +290,8 @@ static UDSErr_t Handle_0x23_ReadMemoryByAddress(UDSServer_t *srv, UDSReq_t *r) {
     }
     if (r->send_len != UDS_0X23_RESP_BASE_LEN + length) {
         UDS_LOGE(__FILE__,
-                 "response positive but not all data sent: expected %d, sent %d\n", length,
+                 "response positive but not all data sent: expected %zu, sent %zu", 
+                 length,
                  r->send_len - UDS_0X23_RESP_BASE_LEN);
         return NegativeResponse(r, UDS_NRC_GeneralReject);
     }
@@ -372,7 +373,7 @@ static UDSErr_t Handle_0x27_SecurityAccess(UDSServer_t *srv, UDSReq_t *r) {
             }
 
             if (r->send_len <= UDS_0X27_RESP_BASE_LEN) { // no data was copied
-                UDS_LOGE(__FILE__, "0x27: no seed data was copied\n");
+                UDS_LOGE(__FILE__, "0x27: no seed data was copied");
                 return NegativeResponse(r, UDS_NRC_GeneralReject);
             }
             return UDS_PositiveResponse;

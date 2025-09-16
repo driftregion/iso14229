@@ -1153,11 +1153,10 @@ static UDSErr_t Handle_0x23_ReadMemoryByAddress(UDSServer_t *srv, UDSReq_t *r) {
         return NegativeResponse(r, ret);
     }
     if (r->send_len != UDS_0X23_RESP_BASE_LEN + length) {
-        UDS_LOGE(
-            __FILE__,
-            "ReadMemoryByAddress: mismatch between requested length %d and actual length %d\n",
-            length, r->send_len - UDS_0X23_RESP_BASE_LEN
-        );
+        UDS_LOGE(__FILE__,
+                 "response positive but not all data sent: expected %zu, sent %zu", 
+                 length,
+                 r->send_len - UDS_0X23_RESP_BASE_LEN);
         return NegativeResponse(r, UDS_NRC_GeneralReject);
     }
     return UDS_PositiveResponse;
@@ -1238,12 +1237,12 @@ static UDSErr_t Handle_0x27_SecurityAccess(UDSServer_t *srv, UDSReq_t *r) {
             }
 
             if (r->send_len <= UDS_0X27_RESP_BASE_LEN) { // no data was copied
-                return NegativeResponse(r, UDS_NRC_GeneralProgrammingFailure);
+                UDS_LOGE(__FILE__, "0x27: no seed data was copied");
+                return NegativeResponse(r, UDS_NRC_GeneralReject);
             }
             return UDS_PositiveResponse;
         }
     }
-    return NegativeResponse(r, UDS_NRC_GeneralProgrammingFailure);
 }
 
 static UDSErr_t Handle_0x28_CommunicationControl(UDSServer_t *srv, UDSReq_t *r) {
@@ -1405,7 +1404,7 @@ static UDSErr_t Handle_0x34_RequestDownload(UDSServer_t *srv, UDSReq_t *r) {
 
     if (args.maxNumberOfBlockLength < 3) {
         UDS_LOGE(__FILE__, "maxNumberOfBlockLength too short");
-        return NegativeResponse(r, UDS_NRC_GeneralProgrammingFailure);
+        return NegativeResponse(r, UDS_NRC_GeneralReject);
     }
 
     if (UDS_PositiveResponse != err) {
@@ -1471,7 +1470,7 @@ static UDSErr_t Handle_0x35_RequestUpload(UDSServer_t *srv, UDSReq_t *r) {
 
     if (args.maxNumberOfBlockLength < 3) {
         UDS_LOGE(__FILE__, "maxNumberOfBlockLength too short");
-        return NegativeResponse(r, UDS_NRC_GeneralProgrammingFailure);
+        return NegativeResponse(r, UDS_NRC_GeneralReject);
     }
 
     if (UDS_PositiveResponse != err) {
