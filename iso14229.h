@@ -309,6 +309,7 @@ typedef enum UDSEvent {
     UDS_EVT_SecAccessValidateKey, // UDSSecAccessValidateKeyArgs_t *
     UDS_EVT_WriteDataByIdent,     // UDSWDBIArgs_t *
     UDS_EVT_WriteMemByAddr,       // UDSWriteMemByAddrArgs_t *
+    UDS_EVT_IOControl,            // UDSIOCtrlArgs_t*
     UDS_EVT_RoutineCtrl,          // UDSRoutineCtrlArgs_t*
     UDS_EVT_RequestDownload,      // UDSRequestDownloadArgs_t*
     UDS_EVT_RequestUpload,        // UDSRequestUploadArgs_t *
@@ -507,6 +508,8 @@ typedef enum {
 #define UDS_0X2E_REQ_BASE_LEN 3U
 #define UDS_0X2E_REQ_MIN_LEN 4U
 #define UDS_0X2E_RESP_LEN 3U
+#define UDS_0X2F_REQ_MIN_LEN 4U
+#define UDS_0X2F_RESP_BASE_LEN 4U
 #define UDS_0X31_REQ_MIN_LEN 4U
 #define UDS_0X31_RESP_MIN_LEN 4U
 #define UDS_0X34_REQ_BASE_LEN 3U
@@ -934,6 +937,15 @@ typedef struct {
     const size_t memSize;      /*! size of memory */
     const uint8_t *const data; /*! pointer to data */
 } UDSWriteMemByAddrArgs_t;
+
+typedef struct {
+    const uint16_t dataId;              /*! Data Identifier */
+    const uint8_t ioCtrlParam;          /*! inputOutputControlParameter */
+    const void *const ctrlStateAndMask; /*! controlState bytes and controlMask (optional) */
+    const size_t ctrlStateAndMaskLen;   /*! number of bytes in `ctrlStateAndMask` */
+    uint8_t (*copy)(UDSServer_t *srv, const void *src,
+                    uint16_t count); /*! function for copying data */
+} UDSIOCtrlArgs_t;
 
 typedef struct {
     const uint8_t ctrlType;      /*! routineControlType */
