@@ -54,7 +54,7 @@ The following features are configured with preprocessor defines:
 | - | - | - | - |
 | 0x10 | diagnostic session control | ✅ | ✅ |
 | 0x11 | ECU reset | ✅ | ✅ |
-| 0x14 | clear diagnostic information | ❌ | ❌ |
+| 0x14 | clear diagnostic information | ✅ | ❌ |
 | 0x19 | read DTC information | ❌ |  ❌ |
 | 0x22 | read data by identifier | ✅ | ✅ |
 | 0x23 | read memory by address | ❌ | ❌ |
@@ -64,7 +64,7 @@ The following features are configured with preprocessor defines:
 | 0x2A | read periodic data by identifier | ❌ | ❌ |
 | 0x2C | dynamically define data identifier | ❌ | ❌ |
 | 0x2E | write data by identifier | ✅ | ✅ |
-| 0x2F | input control by identifier | ❌ | ❌ |
+| 0x2F | input control by identifier | ✅ | ❌ |
 | 0x31 | routine control | ✅ | ✅ |
 | 0x34 | request download | ✅ | ✅ |
 | 0x35 | request upload | ✅ | ✅ |
