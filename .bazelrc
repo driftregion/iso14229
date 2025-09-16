@@ -14,7 +14,6 @@ build --stamp
 # build:x86_64_clang --extra_toolchains @llvm_toolchain//:cc-toolchain-x86_64-linux
 # build:x86_64_clang --extra_toolchains //toolchain:x86_64_clang
 # build:aarch64_linux_clang --extra_toolchains @llvm_toolchain//:cc-toolchain-aarch64-linux
-# build:x86_64_clang_nonhermetic --extra_toolchains @llvm_toolchain_nonhermetic//:cc-toolchain-x86_64-linux
 
 # Hermetic LLVM toolchain with Debian Bullseye sysroot (includes isotp headers)
 common:hermetic-llvm --extra_toolchains @llvm_toolchain//:cc-toolchain-x86_64-linux
@@ -48,7 +47,6 @@ common:hermetic-coverage --java_runtime_version=remotejdk_11
 # build:ppc64 --platforms=//platforms:ppc64
 # build:ppc64le --platforms=//platforms:ppc64le
 # build:x86_64_clang --platforms=//platforms:x86_64_clang
-# build:x86_64_clang_nonhermetic --platforms=//platforms:x86_64_clang
 # build:x86_64_gcc --platforms=//platforms:x86_64_gcc
 
 # build:asan-libfuzzer --@rules_fuzzing//fuzzing:cc_engine=@rules_fuzzing//fuzzing/engines:libfuzzer
