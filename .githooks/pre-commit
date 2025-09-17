@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+tools/run_clang_format.sh
 tools/update_srcs.sh
 
 # Stage them so they’re included in the commit
