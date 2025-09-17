@@ -60,8 +60,6 @@ filegroup(
 )
 
 
-
-
 # Configure and register the toolchain.
 git_override(
   module_name = "toolchains_llvm",
@@ -71,7 +69,7 @@ git_override(
 llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm")
 llvm.toolchain(
     name="llvm_toolchain",
-    llvm_version = "16.0.0",
+    llvm_version = "18.1.4",
 )
 llvm.sysroot(
     name = "llvm_toolchain",
