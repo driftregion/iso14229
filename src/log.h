@@ -52,42 +52,42 @@ typedef enum {
     UDS_LOG_COLOR_##letter #letter " (%" PRIu32 ") %s: " format UDS_LOG_RESET_COLOR "\n"
 
 #if UDS_LOG_LEVEL >= UDS_LOG_ERROR && UDS_LOG_LEVEL > UDS_LOG_NONE
-#define UDS_LOGE(tag, format, ...) \
+#define UDS_LOGE(tag, format, ...)                                                                 \
     UDS_LogWrite(UDS_LOG_ERROR, tag, UDS_LOG_FORMAT(E, format), UDSMillis(), tag, ##__VA_ARGS__)
 #else
 #define UDS_LOGE(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
 #endif
 
 #if UDS_LOG_LEVEL >= UDS_LOG_WARN && UDS_LOG_LEVEL > UDS_LOG_NONE
-#define UDS_LOGW(tag, format, ...) \
+#define UDS_LOGW(tag, format, ...)                                                                 \
     UDS_LogWrite(UDS_LOG_WARN, tag, UDS_LOG_FORMAT(W, format), UDSMillis(), tag, ##__VA_ARGS__)
 #else
 #define UDS_LOGW(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
 #endif
 
 #if UDS_LOG_LEVEL >= UDS_LOG_INFO && UDS_LOG_LEVEL > UDS_LOG_NONE
-#define UDS_LOGI(tag, format, ...) \
+#define UDS_LOGI(tag, format, ...)                                                                 \
     UDS_LogWrite(UDS_LOG_INFO, tag, UDS_LOG_FORMAT(I, format), UDSMillis(), tag, ##__VA_ARGS__)
 #else
 #define UDS_LOGI(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
 #endif
 
 #if UDS_LOG_LEVEL >= UDS_LOG_DEBUG && UDS_LOG_LEVEL > UDS_LOG_NONE
-#define UDS_LOGD(tag, format, ...) \
+#define UDS_LOGD(tag, format, ...)                                                                 \
     UDS_LogWrite(UDS_LOG_DEBUG, tag, UDS_LOG_FORMAT(D, format), UDSMillis(), tag, ##__VA_ARGS__)
 #else
 #define UDS_LOGD(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
 #endif
 
 #if UDS_LOG_LEVEL >= UDS_LOG_VERBOSE && UDS_LOG_LEVEL > UDS_LOG_NONE
-#define UDS_LOGV(tag, format, ...) \
+#define UDS_LOGV(tag, format, ...)                                                                 \
     UDS_LogWrite(UDS_LOG_VERBOSE, tag, UDS_LOG_FORMAT(V, format), UDSMillis(), tag, ##__VA_ARGS__)
 #else
 #define UDS_LOGV(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
 #endif
 
 #if UDS_LOG_LEVEL >= UDS_LOG_DEBUG && UDS_LOG_LEVEL > UDS_LOG_NONE
-#define UDS_LOG_SDU(tag, buffer, buff_len, info) \
+#define UDS_LOG_SDU(tag, buffer, buff_len, info)                                                   \
     UDS_LogSDUInternal(UDS_LOG_DEBUG, tag, buffer, buff_len, info)
 #else
 #define UDS_LOG_SDU(tag, buffer, buff_len, info) UDS_LogSDUDummy(tag, buffer, buff_len, info)
@@ -108,9 +108,14 @@ void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *bu
 #else
 // Dummy function that consumes arguments but does nothing
 static inline void UDS_LogDummy(const char *tag, const char *format, ...) {
-    (void)tag; (void)format;
+    (void)tag;
+    (void)format;
 }
-static inline void UDS_LogSDUDummy(const char *tag, const uint8_t *buffer, size_t buff_len, void *info) {
-    (void)tag; (void)buffer; (void)buff_len; (void)info;
+static inline void UDS_LogSDUDummy(const char *tag, const uint8_t *buffer, size_t buff_len,
+                                   void *info) {
+    (void)tag;
+    (void)buffer;
+    (void)buff_len;
+    (void)info;
 }
 #endif
