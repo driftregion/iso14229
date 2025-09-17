@@ -78,7 +78,7 @@ jobs:
         # Download and run codecov
         curl -Os https://cli.codecov.io/latest/linux/codecov
         chmod +x codecov
-        ./codecov --verbose upload-process --fail-on-error -t $CODECOV_TOKEN -F fuzz --file coverage.lcov --name "GitHub Actions Fuzz Coverage" --commit-sha $(git rev-parse HEAD) 
+        ./codecov --verbose upload-process --fail-on-error -t $CODECOV_TOKEN -F fuzz --file coverage.lcov --name "GitHub Actions Fuzz Coverage" --commit-sha $(git rev-parse HEAD) --report-code fuzz-report 
     
   unittest-windows:
     runs-on: windows-latest
