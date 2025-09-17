@@ -1174,7 +1174,7 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
     }
 
     if (r->send_len < UDS_0X19_RESP_BASE_LEN) {
-        return UDS_NRC_GeneralProgrammingFailure;
+        goto respond_to_0x19_malformed_response;
     }
 
     /* subfunc specific reply len checks */
@@ -1182,7 +1182,7 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
     case 0x01: /* reportNumberOfDTCByStatusMask */
     case 0x07: /* reportNumberOfDTCBySeverityMaskRecord */
         if (r->send_len != UDS_0X19_RESP_BASE_LEN + 4) {
-            return UDS_NRC_GeneralProgrammingFailure;
+            goto respond_to_0x19_malformed_response;
         }
         break;
     case 0x02: /* reportDTCByStatusMask */
@@ -1195,25 +1195,25 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
         if (r->send_len < UDS_0X19_RESP_BASE_LEN + 1 ||
             ((r->send_len > UDS_0X19_RESP_BASE_LEN + 1) &&
              (r->send_len - (UDS_0X19_RESP_BASE_LEN + 1)) % 4 != 0)) {
-            return UDS_NRC_GeneralProgrammingFailure;
+            goto respond_to_0x19_malformed_response;
         }
         break;
     case 0x03: /* reportDTCSnapshotIdentification */
     case 0x14: /* reportDTCFaultDetectionCounter */
         if ((r->send_len - UDS_0X19_RESP_BASE_LEN) % 4 != 0) {
-            return UDS_NRC_GeneralProgrammingFailure;
+            goto respond_to_0x19_malformed_response;
         }
         break;
     case 0x04: /* reportDTCSnapshotRecordByDTCNumber */
     case 0x06: /* reportDTCExtDataRecordByDTCNumber */
         if (r->send_len < UDS_0X19_RESP_BASE_LEN + 4) {
-            return UDS_NRC_GeneralProgrammingFailure;
+            goto respond_to_0x19_malformed_response;
         }
         break;
     case 0x05: /* reportDTCStoredDataByRecordNumber */
     case 0x16: /* reportDTCExtDataRecordByNumber */
         if (r->send_len < UDS_0X19_RESP_BASE_LEN + 1) {
-            return UDS_NRC_GeneralProgrammingFailure;
+            goto respond_to_0x19_malformed_response;
         }
         break;
     case 0x08: /* reportDTCBySeverityMaskRecord */
@@ -1221,56 +1221,62 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
         if (r->send_len < UDS_0X19_RESP_BASE_LEN + 1 ||
             ((r->send_len > UDS_0X19_RESP_BASE_LEN + 1) &&
              (r->send_len - (UDS_0X19_RESP_BASE_LEN + 1)) % 6 != 0)) {
-            return UDS_NRC_GeneralProgrammingFailure;
+            goto respond_to_0x19_malformed_response;
         }
         break;
     case 0x17: /* reportUserDefMemoryDTCByStatusMask */
         if (r->send_len < UDS_0X19_RESP_BASE_LEN + 2 ||
             ((r->send_len > UDS_0X19_RESP_BASE_LEN + 2) &&
              (r->send_len - (UDS_0X19_RESP_BASE_LEN + 2)) % 4 != 0)) {
-            return UDS_NRC_GeneralProgrammingFailure;
+            goto respond_to_0x19_malformed_response;
         }
         break;
     case 0x18: /* reportUserDefMemoryDTCSnapshotRecordByDTCNumber */
     case 0x19: /* reportUserDefMemoryDTCExtDataRecordByDTCNumber */
         if (r->send_len < UDS_0X19_RESP_BASE_LEN + 5) {
-            return UDS_NRC_GeneralProgrammingFailure;
+            goto respond_to_0x19_malformed_response;
         }
         break;
     case 0x1A: /* reportDTCExtendedDataRecordIdentification */
         if (r->send_len < UDS_0X19_RESP_BASE_LEN + 1 ||
-            (r->send_len != UDS_0X19_RESP_BASE_LEN + 5) ||
-            ((r->send_len > UDS_0X19_RESP_BASE_LEN + 5) &&
-             (r->send_len - UDS_0X19_RESP_BASE_LEN + 5) % 4 != 0)) {
-            return UDS_NRC_GeneralProgrammingFailure;
+            ((r->send_len != UDS_0X19_RESP_BASE_LEN + 6) &&
+             (r->send_len > UDS_0X19_RESP_BASE_LEN + 1) &&
+             (r->send_len < UDS_0X19_RESP_BASE_LEN + 4)) ||
+            ((r->send_len > UDS_0X19_RESP_BASE_LEN + 6) &&
+             (r->send_len - UDS_0X19_RESP_BASE_LEN + 6) % 4 != 0)) {
+            goto respond_to_0x19_malformed_response;
         }
         break;
     case 0x42: /* reportWWHOBDDTCByMaskRecord */
         if (r->send_len < UDS_0X19_RESP_BASE_LEN + 4 ||
             ((r->send_len > UDS_0X19_RESP_BASE_LEN + 4) &&
              (r->send_len - (UDS_0X19_RESP_BASE_LEN + 4)) % 5 != 0)) {
-            return UDS_NRC_GeneralProgrammingFailure;
+            goto respond_to_0x19_malformed_response;
         }
         break;
     case 0x55: /* reportWWHOBDDTCWithPermanentStatus */
         if (r->send_len < UDS_0X19_RESP_BASE_LEN + 3 ||
             ((r->send_len > UDS_0X19_RESP_BASE_LEN + 3) &&
              (r->send_len - (UDS_0X19_RESP_BASE_LEN + 3)) % 4 != 0)) {
-            return UDS_NRC_GeneralProgrammingFailure;
+            goto respond_to_0x19_malformed_response;
         }
         break;
     case 0x56: /* reportDTCInformationByDTCReadinessGroupIdentifier */
         if (r->send_len < UDS_0X19_RESP_BASE_LEN + 4 ||
             ((r->send_len > UDS_0X19_RESP_BASE_LEN + 4) &&
              (r->send_len - (UDS_0X19_RESP_BASE_LEN + 4)) % 4 != 0)) {
-            return UDS_NRC_GeneralProgrammingFailure;
+            goto respond_to_0x19_malformed_response;
         }
         break;
     default:
-        return UDS_NRC_SubFunctionNotSupported;
+        UDS_LOGW(__FILE__, "RDTCI subFunc 0x%02X is not supported.\n", type);
+        return NegativeResponse(r, UDS_NRC_SubFunctionNotSupported);
     }
 
     return UDS_PositiveResponse;
+respond_to_0x19_malformed_response:
+    UDS_LOGE(__FILE__, "RDTCI subFunc 0x%02X is malformed. Length: %d\n", type, r->send_len);
+    return NegativeResponse(r, UDS_NRC_GeneralReject);
 }
 
 static UDSErr_t Handle_0x22_ReadDataByIdentifier(UDSServer_t *srv, UDSReq_t *r) {
