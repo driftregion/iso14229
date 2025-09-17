@@ -274,6 +274,19 @@ int fn_test_0x19(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     UDSRDTCIArgs_t *r = (UDSRDTCIArgs_t *)arg;
     Test0x19FnData_t *fnData = (Test0x19FnData_t *)srv->fn_data;
 
+    if (fnData->test_identifier != NULL &&
+        strcmp("malformed_response", fnData->test_identifier) == 0) {
+        /* We don't care about the contents and just want to provoke a malformed response */
+        return r->copy(srv, fnData->data, fnData->len);
+    }
+
+    if (fnData->test_identifier != NULL &&
+        strcmp("shrink_default_response_len", fnData->test_identifier) == 0) {
+        /* We want to force a response length smaller than the default */
+        srv->r.send_len = 1;
+        return UDS_PositiveResponse;
+    }
+
     switch (r->type) {
     case 0x01: /* reportNumberOfDTCByStatusMask */
         TEST_INT_EQUAL(r->numOfDTCByStatusMaskArgs.mask, 0x8);
@@ -1332,11 +1345,14 @@ void test_0x19_sub_0x0E_no_info(void **state) {
 
 // ISO14229-1 2020 12.3.5.15Example #14 - ReadDTCInformation, SubFunction =
 // reportDTCFaultDetectionCounter
+// There is a descrepancy in the example and the definition in that the example
+// sends an additional StatusOfDTC byte before the DTCFaultDetectionCounter byte.
+// This is removed here
 void test_0x19_sub_0x14(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
-    uint8_t ResponseData[] = {0x12, 0x34, 0x56, 0x24, 0x60};
+    uint8_t ResponseData[] = {0x12, 0x34, 0x56, 0x60};
     Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
 
     e->server->fn = fn_test_0x19;
@@ -1357,7 +1373,6 @@ void test_0x19_sub_0x14(void **state) {
         0x12, /* DTCAndStatusRecord [High Byte] */
         0x34, /* DTCAndStatusRecord [Middle Byte] */
         0x56, /* DTCAndStatusRecord [Low Byte] */
-        0x24, /* DTCAndStatusRecord [status of DTC] */
         0x60, /* DTCFaultDetectionCounter */
     };
 
@@ -1524,8 +1539,8 @@ void test_0x19_sub_0x17(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
-    uint8_t ResponseData[9] = {
-        0x07F, 0x0A, 0x9B, 0x17, 0x24, 0x08, 0x05, 0x11, 0x2F,
+    uint8_t ResponseData[] = {
+        0x18, 0x07F, 0x0A, 0x9B, 0x17, 0x24, 0x08, 0x05, 0x11, 0x2F,
     };
     Test0x19FnData_t fn_data = {
         .data = ResponseData, .len = sizeof(ResponseData), .test_identifier = "test_0x19_Sub_0x17"};
@@ -1547,6 +1562,7 @@ void test_0x19_sub_0x17(void **state) {
     const uint8_t EXPECTED_RESP[] = {
         0x59, /* Response SID */
         0x17, /* SubFunction */
+        0x18, /* MemorySelection */
         0x7F, /* DTCStatusAvailabilityMask */
         0x0A, /* DTCAndStatusRecord#1 [High Byte] */
         0x9B, /* DTCAndStatusRecord#1 [Middle Byte] */
@@ -1570,7 +1586,8 @@ void test_0x19_sub_0x17_no_matching_dtc(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
-    uint8_t ResponseData[9] = {
+    uint8_t ResponseData[] = {
+        0x18,
         0x07F,
     };
     Test0x19FnData_t fn_data = {.data = ResponseData,
@@ -1594,6 +1611,7 @@ void test_0x19_sub_0x17_no_matching_dtc(void **state) {
     const uint8_t EXPECTED_RESP[] = {
         0x59, /* Response SID */
         0x17, /* SubFunction */
+        0x18, /* MemorySelection */
         0x7F, /* DTCStatusAvailabilityMask */
     };
 
@@ -2173,6 +2191,257 @@ void test_0x19_invalid_req_len(void **state) {
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
                      UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x19_invalid_subfunc(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0xFF, /* Invalid Subfunction */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x7F, /* Response SID */
+        0x19, /* reportType = SubFunction */
+        0x12, /* NRC: SubFunctionNotSupported */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x19_shrink_default_response_len(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    Test0x19FnData_t fn_data = {.test_identifier = "shrink_default_response_len"};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x01, /* reportNumberOfDTCByStatusMask */
+        0x08, /* DTCStatusMask */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x7F, /* Negative Response SID */
+        0x19, /* Original SID */
+        0x10, /* NRC: GeneralReject */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// Container to hold request and responses for malformed response tests
+typedef struct {
+    uint8_t request[10];
+    size_t request_len;
+    uint8_t response[20];
+    size_t response_len;
+} Test0x19FnMalformedResponseData_t;
+
+/* List of requests with malformed responses */
+/* SubFunc ID is the second byte (index 1) in the request */
+const Test0x19FnMalformedResponseData_t test_0x19_malformed_response_data[] = {
+    {
+        .request = {0x19, 0x01, 0x08},
+        .request_len = 3,
+        .response = {0x2F, 0x01, 0x00},
+        .response_len = 3,
+    },
+    {
+        .request = {0x19, 0x02, 0x84},
+        .request_len = 3,
+        .response = {0x7F, 0x0A},
+        .response_len = 2,
+    },
+    {
+        .request = {0x19, 0x03},
+        .request_len = 2,
+        .response = {0x12, 0x34, 0x56, 0x01, 0x12, 0x34, 0x57, 0x02, 0x78, 0x9A, 0xBC},
+        .response_len = 11,
+    },
+    {
+        .request = {0x19, 0x04, 0x12, 0x34, 0x56, 0x02},
+        .request_len = 6,
+        .response = {0x12, 0x34, 0x56},
+        .response_len = 3,
+    },
+    {
+        .request = {0x19, 0x05, 0x02},
+        .request_len = 3,
+        .response = {},
+        .response_len = 0,
+    },
+    {
+        .request = {0x19, 0x06, 0x12, 0x34, 0x56, 0xFF},
+        .request_len = 6,
+        .response = {0x12, 0x34, 0x56},
+        .response_len = 3,
+    },
+    {
+        .request = {0x19, 0x07, 0xC0, 0x01},
+        .request_len = 4,
+        .response = {0x09, 0x01, 0x00},
+        .response_len = 3,
+    },
+    {
+        .request = {0x19, 0x08, 0xC0, 0x01},
+        .request_len = 4,
+        .response = {0x7F, 0x40},
+        .response_len = 2,
+    },
+    {
+        .request = {0x19, 0x09, 0x08, 0x05, 0x11},
+        .request_len = 5,
+        .response = {0x59, 0x09},
+        .response_len = 2,
+    },
+    {
+        .request = {0x19, 0x0A},
+        .request_len = 2,
+        .response = {0x7F, 0x12, 0x34, 0x56, 0x24, 0x23, 0x45, 0x05, 0x00, 0xAB, 0xCD, 0x2F},
+        .response_len = 12,
+    },
+    {
+        .request = {0x19, 0x0B},
+        .request_len = 2,
+        .response = {0xFF, 0x12, 0x34, 0x56},
+        .response_len = 4,
+    },
+    {
+        .request = {0x19, 0x0C},
+        .request_len = 2,
+        .response = {0xFF, 0x12, 0x34, 0x56},
+        .response_len = 4,
+    },
+    {
+        .request = {0x19, 0x0D},
+        .request_len = 2,
+        .response = {0xFF, 0x12, 0x34, 0x56},
+        .response_len = 4,
+    },
+    {
+        .request = {0x19, 0x0E},
+        .request_len = 2,
+        .response = {0xFF, 0x12, 0x34, 0x56},
+        .response_len = 4,
+    },
+    {
+        .request = {0x19, 0x14},
+        .request_len = 2,
+        .response = {0x12, 0x34, 0x56},
+        .response_len = 3,
+    },
+    {
+        .request = {0x19, 0x15},
+        .request_len = 2,
+        .response = {0xFF, 0x12, 0x34, 0x56},
+        .response_len = 4,
+    },
+    {
+        .request = {0x19, 0x16, 0x05},
+        .request_len = 3,
+        .response = {},
+        .response_len = 0,
+    },
+    {
+        .request = {0x19, 0x17, 0x84, 0x18},
+        .request_len = 4,
+        .response = {0x07F},
+        .response_len = 1,
+    },
+    {
+        .request = {0x19, 0x18, 0x12, 0x34, 0x56, 0x06, 0x18},
+        .request_len = 7,
+        .response = {0x18, 0x12, 0x34, 0x56},
+        .response_len = 4,
+    },
+    {
+        .request = {0x19, 0x19, 0x12, 0x34, 0x56, 0xFF, 0x18},
+        .request_len = 7,
+        .response = {0x18, 0x12, 0x34, 0x56},
+        .response_len = 4,
+    },
+    {
+        .request = {0x19, 0x1A, 0x91},
+        .request_len = 3,
+        .response = {0x7F, 0x91},
+        .response_len = 2,
+    },
+    {
+        .request = {0x19, 0x42, 0x33, 0x08, 0xFF},
+        .request_len = 5,
+        .response = {0x33, 0xFF, 0xFF, 0x04, 0x20},
+        .response_len = 5,
+    },
+    {
+        .request = {0x19, 0x55, 0x33},
+        .request_len = 3,
+        .response = {0x33, 0xFF, 0x04, 0x08},
+        .response_len = 4,
+    },
+    {
+        .request = {0x19, 0x56, 0x33, 0x01},
+        .request_len = 4,
+        .response = {},
+        .response_len = 0,
+    },
+};
+
+void test_0x19_malformed_responses(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    size_t num_tests =
+        sizeof(test_0x19_malformed_response_data) / sizeof(test_0x19_malformed_response_data[0]);
+
+    for (size_t i = 0; i < num_tests; i++) {
+
+        printf("\t\tTesting subfunction: 0x%02X\n",
+               test_0x19_malformed_response_data[i].request[1]);
+        memset(buf, 0, sizeof(buf));
+
+        Test0x19FnData_t fn_data = {.data = (void *)test_0x19_malformed_response_data[i].response,
+                                    .len = test_0x19_malformed_response_data[i].response_len,
+                                    .test_identifier = "malformed_response"};
+
+        e->server->fn = fn_test_0x19;
+        e->server->fn_data = &fn_data;
+
+        UDSTpSend(e->client_tp, test_0x19_malformed_response_data[i].request,
+                  test_0x19_malformed_response_data[i].request_len, NULL);
+
+        // the server should respond with a General Reject negative response within p2 ms
+        const uint8_t EXPECTED_RESP[] = {
+            0x7F, /* Negative Response SID */
+            0x19, /* Original SID */
+            0x10, /* NRC: GeneralReject */
+        };
+
+        EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                         UDS_CLIENT_DEFAULT_P2_MS);
+        TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+    }
 }
 
 int fn_test_0x22(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
@@ -3071,6 +3340,9 @@ int main(int ac, char **av) {
         cmocka_unit_test_setup_teardown(test_0x19_sub_0x56_no_record, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x19_subfunc_not_suported, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x19_invalid_req_len, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_invalid_subfunc, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_shrink_default_response_len, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_malformed_responses, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22_nonexistent, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22_misuse, Setup, Teardown),
