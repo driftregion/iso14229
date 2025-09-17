@@ -5,6 +5,9 @@
 <a href="https://codecov.io/github/driftregion/iso14229" > 
 <img src="https://codecov.io/github/driftregion/iso14229/graph/badge.svg?token=SZP3Q3Y0YE"/> 
 </a>
+<a href="https://sonarcloud.io/summary/new_code?id=driftregion_iso14229">
+    <img src="https://sonarcloud.io/api/project_badges/measure?project=driftregion_iso14229&metric=alert_status">
+</a>
 <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
 </p>
 
