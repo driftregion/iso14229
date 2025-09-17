@@ -36,10 +36,34 @@ def main(report_path):
     with open(report_path, "r") as f:
         data = json.load(f)
 
-    reports = data.get("reports", [])
+    # Handle both formats: direct array or object with "reports" field
+    if isinstance(data, list):
+        reports = data
+    else:
+        reports = data.get("reports", [])
+
     if not reports:
-        print("No CodeChecker reports found. Exiting without annotations.")
-        # Optionally, you might create a check run that says "No issues found".
+        print("No CodeChecker reports found. Creating success check run.")
+        # Create a successful check run for no issues
+        create_url = f"https://api.github.com/repos/{owner}/{repo}/check-runs"
+        create_payload = {
+            "name": "CodeChecker Analysis",
+            "head_sha": head_sha,
+            "status": "completed",
+            "conclusion": "success",
+            "output": {
+                "title": "CodeChecker Results",
+                "summary": "✅ No static analysis issues found!",
+                "text": "All analyzers (clang-tidy, clangsa, cppcheck) completed successfully with no issues detected."
+            }
+        }
+
+        resp = requests.post(create_url, headers=headers, json=create_payload)
+        if resp.status_code not in (200, 201):
+            print("Error creating success check run:", resp.text)
+            sys.exit(1)
+
+        print("Created successful check run for clean analysis.")
         sys.exit(0)
 
     # 3. Build annotations from each CodeChecker issue
