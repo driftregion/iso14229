@@ -68,9 +68,4 @@ workflows:
   version: 2
   build:
     jobs:
-      - test-linux:
-          filters:
-            branches:
-              only:
-                - main
-                - /pull\/.*/
+      - test-linux
