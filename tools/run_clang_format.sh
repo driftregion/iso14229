@@ -5,10 +5,15 @@ CHECK_FORMAT=${CHECK_FORMAT:-""}
 
 files=`find src -type f \( -name '*.c' -o -name '*.h' \) -not -path "src/tp/isotp-c/*"`
 
-# Create a stable launcher to the hermetic clang-format.
-CLANG_FORMAT="${TMPDIR:-/tmp}/clang-format.bazel"
-if [[ ! -x "$CLANG_FORMAT" ]]; then
-  bazel run --script_path="$CLANG_FORMAT" @llvm_toolchain//:clang-format > /dev/null
+if [ -n "$CLANG_FORMAT" ] ; then
+    echo "Using CLANG_FORMAT from environment: $CLANG_FORMAT"
+    $CLANG_FORMAT --version
+else
+    CLANG_FORMAT="${TMPDIR:-/tmp}/clang-format.bazel"
+    if [[ ! -x "$CLANG_FORMAT" ]]; then
+        bazel run --script_path="$CLANG_FORMAT" @llvm_toolchain//:clang-format > /dev/null
+    fi
+    bash -c "$CLANG_FORMAT --version"
 fi
 
 for file in $files ; do
