@@ -69,7 +69,9 @@ jobs:
         # Download and run codecov
         curl -Os https://cli.codecov.io/latest/linux/codecov
         chmod +x codecov
-        ./codecov upload-process --fail-on-error -t $CODECOV_TOKEN -F fuzz --file coverage.lcov --name "GitHub Actions Fuzz Coverage"
+        ./codecov upload-process --fail-on-error -t $CODECOV_TOKEN -F fuzz --file coverage.lcov --name "GitHub Actions Fuzz Coverage" --verbose --dry-run
+        echo "=== Dry run completed, now doing actual upload ==="
+        ./codecov upload-process --fail-on-error -t $CODECOV_TOKEN -F fuzz --file coverage.lcov --name "GitHub Actions Fuzz Coverage" --verbose
     
   unittest-windows:
     runs-on: windows-latest
