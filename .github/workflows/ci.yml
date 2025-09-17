@@ -7,7 +7,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build-linux:
+  build-linux-lint:
     runs-on: ubuntu-latest
 
     steps:
@@ -17,10 +17,18 @@ jobs:
     - name: lint
       run: CHECK_FORMAT=1 ./tools/run_clang_format.sh
 
+
+  build-linux-unit-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v3
+
     - name: run unit tests
       run: bazel test //test:all --test_tag_filters=-vcan
     
-  build-linux-clang:
+  build-linux-ultra_strict:
     runs-on: ubuntu-22.04
 
     steps:
@@ -29,9 +37,6 @@ jobs:
 
     - name: run ultra_strict
       run: |
-        sudo apt-get update 
-        # todo: looks like this can be removed https://github.com/bazel-contrib/toolchains_llvm/issues/403
-        sudo apt-get install -y libtinfo5
         bazel build --repo_env=CC=clang --repo_env=CXX=clang++ //test:ultra_strict
   
   fuzz-replay-linux-clang:
