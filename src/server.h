@@ -131,7 +131,7 @@ typedef struct {
             uint8_t
                 readinessGroup; /*! DTC Readiness Group Identifier (only used when type == 0x56) */
         } wwhobdDTCWithPermStatusArgs, dtcInfoByDTCReadinessGroupIdArgs;
-    };
+    } subFuncArgs;
 } UDSRDTCIArgs_t;
 
 typedef struct {
