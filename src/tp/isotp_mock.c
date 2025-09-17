@@ -71,7 +71,8 @@ static ssize_t mock_tp_send(struct UDSTp *hdl, uint8_t *buf, size_t len, UDSSDU_
         return -1;
     }
     struct Msg *m = &msgs[MsgCount++];
-    UDSTpAddr_t ta_type = info == NULL ? (UDSTpAddr_t)UDS_A_TA_TYPE_PHYSICAL : (UDSTpAddr_t)info->A_TA_Type;
+    UDSTpAddr_t ta_type =
+        info == NULL ? (UDSTpAddr_t)UDS_A_TA_TYPE_PHYSICAL : (UDSTpAddr_t)info->A_TA_Type;
     m->len = len;
     m->info.A_AE = info == NULL ? 0 : info->A_AE;
     if (UDS_A_TA_TYPE_PHYSICAL == ta_type) {

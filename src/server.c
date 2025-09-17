@@ -289,10 +289,8 @@ static UDSErr_t Handle_0x23_ReadMemoryByAddress(UDSServer_t *srv, UDSReq_t *r) {
         return NegativeResponse(r, ret);
     }
     if (r->send_len != UDS_0X23_RESP_BASE_LEN + length) {
-        UDS_LOGE(__FILE__,
-                 "response positive but not all data sent: expected %zu, sent %zu", 
-                 length,
-                 r->send_len - UDS_0X23_RESP_BASE_LEN);
+        UDS_LOGE(__FILE__, "response positive but not all data sent: expected %zu, sent %zu",
+                 length, r->send_len - UDS_0X23_RESP_BASE_LEN);
         return NegativeResponse(r, UDS_NRC_GeneralReject);
     }
     return UDS_PositiveResponse;

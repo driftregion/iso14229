@@ -7,7 +7,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build-linux:
+  build-linux-lint:
     runs-on: ubuntu-latest
 
     steps:
@@ -16,12 +16,19 @@ jobs:
 
     - name: lint
       run: CHECK_FORMAT=1 ./tools/run_clang_format.sh
-      continue-on-error: true
+
+
+  build-linux-unit-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v3
 
     - name: run unit tests
       run: bazel test //test:all --test_tag_filters=-vcan
     
-  build-linux-clang:
+  build-linux-ultra_strict:
     runs-on: ubuntu-22.04
 
     steps:
@@ -30,8 +37,6 @@ jobs:
 
     - name: run ultra_strict
       run: |
-        sudo apt-get update 
-        sudo apt-get install -y libtinfo5
         bazel build --repo_env=CC=clang --repo_env=CXX=clang++ //test:ultra_strict
   
   fuzz-replay-linux-clang:
@@ -40,7 +45,16 @@ jobs:
     steps:
     - name: checkout
       uses: actions/checkout@v3
+      with:
+        ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
+    - name: Debug commit info
+      run: |
+        echo "=== Commit Debug Info ==="
+        echo "Current HEAD: $(git rev-parse HEAD)"
+        echo "PR head SHA: ${{ github.event.pull_request.head.sha }}"
+        echo "GitHub SHA: ${{ github.sha }}"
+        
     - name: Cache Bazel
       uses: actions/cache@v3
       with:
@@ -52,8 +66,6 @@ jobs:
 
     - name: run coverage
       run: |
-        sudo apt-get update
-        sudo apt-get install -y libtinfo5
         ./scripts/2_replay_corpus.sh
     
     - name: upload coverage to Codecov
@@ -69,7 +81,7 @@ jobs:
         # Download and run codecov
         curl -Os https://cli.codecov.io/latest/linux/codecov
         chmod +x codecov
-        ./codecov upload-process --fail-on-error -t $CODECOV_TOKEN -F fuzz --file coverage.lcov
+        ./codecov --verbose upload-process --fail-on-error -t $CODECOV_TOKEN -F fuzz --file coverage.lcov --name "GitHub Actions Fuzz Coverage" --commit-sha $(git rev-parse HEAD) --report-code fuzz-report 
     
   unittest-windows:
     runs-on: windows-latest
