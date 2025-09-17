@@ -1048,14 +1048,14 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        args.numOfDTCByStatusMaskArgs.mask = r->recv_buf[2];
+        args.subFuncArgs.numOfDTCByStatusMaskArgs.mask = r->recv_buf[2];
         break;
     case 0x02: /* reportDTCByStatusMask */
         if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 1) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        args.dtcStatusByMaskArgs.mask = r->recv_buf[2];
+        args.subFuncArgs.dtcStatusByMaskArgs.mask = r->recv_buf[2];
         break;
     case 0x03: /* reportDTCSnapshotIdentification */
     case 0x0A: /* reportSupportedDTC */
@@ -1072,9 +1072,9 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        args.dtcSnapshotRecordbyDTCNumArgs.dtc =
+        args.subFuncArgs.dtcSnapshotRecordbyDTCNumArgs.dtc =
             (r->recv_buf[2] << 16 | r->recv_buf[3] << 8 | r->recv_buf[4]) & 0x00FFFFFF;
-        args.dtcSnapshotRecordbyDTCNumArgs.snapshotNum = r->recv_buf[5];
+        args.subFuncArgs.dtcSnapshotRecordbyDTCNumArgs.snapshotNum = r->recv_buf[5];
         break;
     case 0x05: /* reportDTCStoredDataByRecordNumber */
     case 0x16: /* reportDTCExtDataRecordByNumber */
@@ -1083,16 +1083,16 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        args.dtcStoredDataByRecordNumArgs.recordNum = r->recv_buf[2];
+        args.subFuncArgs.dtcStoredDataByRecordNumArgs.recordNum = r->recv_buf[2];
         break;
     case 0x06: /* reportDTCExtDataRecordByDTCNumber */
         if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 4) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        args.dtcExtDtaRecordByDTCNumArgs.dtc =
+        args.subFuncArgs.dtcExtDtaRecordByDTCNumArgs.dtc =
             (r->recv_buf[2] << 16 | r->recv_buf[3] << 8 | r->recv_buf[4]) & 0x00FFFFFF;
-        args.dtcExtDtaRecordByDTCNumArgs.extDataRecNum = r->recv_buf[5];
+        args.subFuncArgs.dtcExtDtaRecordByDTCNumArgs.extDataRecNum = r->recv_buf[5];
         break;
     case 0x07: /* reportNumberOfDTCBySeverityMaskRecord */
     case 0x08: /* reportDTCBySeverityMaskRecord */
@@ -1100,15 +1100,15 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        args.numOfDTCBySeverityMaskArgs.severityMask = r->recv_buf[2];
-        args.numOfDTCBySeverityMaskArgs.statusMask = r->recv_buf[3];
+        args.subFuncArgs.numOfDTCBySeverityMaskArgs.severityMask = r->recv_buf[2];
+        args.subFuncArgs.numOfDTCBySeverityMaskArgs.statusMask = r->recv_buf[3];
         break;
     case 0x09: /* reportSeverityInformationOfDTC */
         if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 1) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        args.severityInfoOfDTCArgs.dtc =
+        args.subFuncArgs.severityInfoOfDTCArgs.dtc =
             (r->recv_buf[2] << 16 | r->recv_buf[3] << 8 | r->recv_buf[4]) & 0x00FFFFFF;
         break;
     case 0x17: /* reportUserDefMemoryDTCByStatusMask */
@@ -1116,52 +1116,52 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        args.userDefMemoryDTCByStatusMaskArgs.mask = r->recv_buf[2];
-        args.userDefMemoryDTCByStatusMaskArgs.memory = r->recv_buf[3];
+        args.subFuncArgs.userDefMemoryDTCByStatusMaskArgs.mask = r->recv_buf[2];
+        args.subFuncArgs.userDefMemoryDTCByStatusMaskArgs.memory = r->recv_buf[3];
         break;
     case 0x18: /* reportUserDefMemoryDTCSnapshotRecordByDTCNumber */
         if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 5) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        args.userDefMemDTCSnapshotRecordByDTCNumArgs.dtc =
+        args.subFuncArgs.userDefMemDTCSnapshotRecordByDTCNumArgs.dtc =
             (r->recv_buf[2] << 16 | r->recv_buf[3] << 8 | r->recv_buf[4]) & 0x00FFFFFF;
-        args.userDefMemDTCSnapshotRecordByDTCNumArgs.snapshotNum = r->recv_buf[5];
-        args.userDefMemDTCSnapshotRecordByDTCNumArgs.memory = r->recv_buf[6];
+        args.subFuncArgs.userDefMemDTCSnapshotRecordByDTCNumArgs.snapshotNum = r->recv_buf[5];
+        args.subFuncArgs.userDefMemDTCSnapshotRecordByDTCNumArgs.memory = r->recv_buf[6];
         break;
     case 0x19: /* reportUserDefMemoryDTCExtDataRecordByDTCNumber */
         if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 5) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        args.userDefMemDTCExtDataRecordByDTCNumArgs.dtc =
+        args.subFuncArgs.userDefMemDTCExtDataRecordByDTCNumArgs.dtc =
             (r->recv_buf[2] << 16 | r->recv_buf[3] << 8 | r->recv_buf[4]) & 0x00FFFFFF;
-        args.userDefMemDTCExtDataRecordByDTCNumArgs.extDataRecNum = r->recv_buf[5];
-        args.userDefMemDTCExtDataRecordByDTCNumArgs.memory = r->recv_buf[6];
+        args.subFuncArgs.userDefMemDTCExtDataRecordByDTCNumArgs.extDataRecNum = r->recv_buf[5];
+        args.subFuncArgs.userDefMemDTCExtDataRecordByDTCNumArgs.memory = r->recv_buf[6];
         break;
     case 0x42: /* reportWWHOBDDTCByMaskRecord */
         if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 3) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        args.wwhobdDTCByMaskArgs.functionalGroup = r->recv_buf[2];
-        args.wwhobdDTCByMaskArgs.statusMask = r->recv_buf[3];
-        args.wwhobdDTCByMaskArgs.severityMask = r->recv_buf[4];
+        args.subFuncArgs.wwhobdDTCByMaskArgs.functionalGroup = r->recv_buf[2];
+        args.subFuncArgs.wwhobdDTCByMaskArgs.statusMask = r->recv_buf[3];
+        args.subFuncArgs.wwhobdDTCByMaskArgs.severityMask = r->recv_buf[4];
         break;
     case 0x55: /* reportWWHOBDDTCWithPermanentStatus */
         if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 1) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        args.wwhobdDTCWithPermStatusArgs.functionalGroup = r->recv_buf[2];
+        args.subFuncArgs.wwhobdDTCWithPermStatusArgs.functionalGroup = r->recv_buf[2];
         break;
     case 0x56: /* reportDTCInformationByDTCReadinessGroupIdentifier */
         if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 2) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        args.dtcInfoByDTCReadinessGroupIdArgs.functionalGroup = r->recv_buf[2];
-        args.dtcInfoByDTCReadinessGroupIdArgs.readinessGroup = r->recv_buf[3];
+        args.subFuncArgs.dtcInfoByDTCReadinessGroupIdArgs.functionalGroup = r->recv_buf[2];
+        args.subFuncArgs.dtcInfoByDTCReadinessGroupIdArgs.readinessGroup = r->recv_buf[3];
         break;
     default:
         return NegativeResponse(r, UDS_NRC_SubFunctionNotSupported);
