@@ -43,6 +43,13 @@ jobs:
       with:
         ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
+    - name: Debug commit info
+      run: |
+        echo "=== Commit Debug Info ==="
+        echo "Current HEAD: $(git rev-parse HEAD)"
+        echo "PR head SHA: ${{ github.event.pull_request.head.sha }}"
+        echo "GitHub SHA: ${{ github.sha }}"
+
     - name: Cache Bazel
       uses: actions/cache@v3
       with:
