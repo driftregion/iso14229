@@ -277,7 +277,7 @@ int isotp_send_with_id(IsoTpLink *link, uint32_t id, const uint8_t payload[], ui
         assert(writtenChars <= messageSize);
         (void) writtenChars;
         
-        isotp_user_debug(message);
+        isotp_user_debug("%s", message);
         return ISOTP_RET_OVERFLOW;
     }
 

@@ -19,7 +19,7 @@ refresh_compile_commands(
 refresh_compile_commands(
     name = "lib_compile_commands",
     targets = {
-        "//:iso14229_unamalgamated": "",
+        "//:iso14229": "",
     }
 )
 

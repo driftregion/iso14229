@@ -173,7 +173,7 @@ UDSTp_t *ISOTPMockNew(const char *name, ISOTPMockArgs_t *args) {
     if (name) {
         strncpy(tp->name, name, sizeof(tp->name));
     } else {
-        snprintf(tp->name, sizeof(tp->name), "TPMock%u", TPCount);
+        (void)snprintf(tp->name, sizeof(tp->name), "TPMock%u", TPCount);
     }
     ISOTPMockAttach(tp, args);
     return &tp->hdl;
@@ -183,17 +183,17 @@ void ISOTPMockConnect(UDSTp_t *tp1, UDSTp_t *tp2);
 
 void ISOTPMockLogToFile(const char *filename) {
     if (LogFile) {
-        fprintf(stderr, "Log file is already open\n");
+        (void)fprintf(stderr, "Log file is already open\n");
         return;
     }
     if (!filename) {
-        fprintf(stderr, "Filename is NULL\n");
+        (void)fprintf(stderr, "Filename is NULL\n");
         return;
     }
     // create file
     LogFile = fopen(filename, "w");
     if (!LogFile) {
-        fprintf(stderr, "Failed to open log file %s\n", filename);
+        (void)fprintf(stderr, "Failed to open log file %s\n", filename);
         return;
     }
 }
