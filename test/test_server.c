@@ -269,7 +269,7 @@ typedef struct {
     char *test_identifier;
 } Test0x19FnData_t;
 
-int fn_test_0x19(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+UDSErr_t fn_test_0x19(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     TEST_INT_EQUAL(ev, UDS_EVT_ReadDTCInformation);
     UDSRDTCIArgs_t *r = (UDSRDTCIArgs_t *)arg;
     Test0x19FnData_t *fnData = (Test0x19FnData_t *)srv->fn_data;
@@ -2193,7 +2193,7 @@ void test_0x19_invalid_req_len(void **state) {
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
-void test_0x19_invalid_subfunc(void **state) {
+void test_0x19_invalid_subFunction(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
@@ -3340,7 +3340,7 @@ int main(int ac, char **av) {
         cmocka_unit_test_setup_teardown(test_0x19_sub_0x56_no_record, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x19_subfunc_not_suported, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x19_invalid_req_len, Setup, Teardown),
-        cmocka_unit_test_setup_teardown(test_0x19_invalid_subfunc, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_invalid_subFunction, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x19_shrink_default_response_len, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x19_malformed_responses, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22, Setup, Teardown),
