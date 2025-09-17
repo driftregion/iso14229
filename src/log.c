@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+#if UDS_LOG_LEVEL > UDS_LOG_NONE
 void UDS_LogWrite(UDS_LogLevel_t level, const char *tag, const char *format, ...) {
     va_list list;
     (void)level;
@@ -20,3 +21,4 @@ void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *bu
     }
     UDS_LogWrite(level, tag, "\n");
 }
+#endif

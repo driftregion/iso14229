@@ -7,6 +7,7 @@ typedef enum UDSEvent {
     // Server Event ----------------- Argument Type
     UDS_EVT_DiagSessCtrl,         // UDSDiagSessCtrlArgs_t *
     UDS_EVT_EcuReset,             // UDSECUResetArgs_t *
+    UDS_EVT_ClearDiagnosticInfo,  // UDSCDIArgs_t *
     UDS_EVT_ReadDTCInformation,   // UDSRDTCIArgs_t *
     UDS_EVT_ReadDataByIdent,      // UDSRDBIArgs_t *
     UDS_EVT_ReadMemByAddr,        // UDSReadMemByAddrArgs_t *
@@ -15,6 +16,7 @@ typedef enum UDSEvent {
     UDS_EVT_SecAccessValidateKey, // UDSSecAccessValidateKeyArgs_t *
     UDS_EVT_WriteDataByIdent,     // UDSWDBIArgs_t *
     UDS_EVT_WriteMemByAddr,       // UDSWriteMemByAddrArgs_t *
+    UDS_EVT_IOControl,            // UDSIOCtrlArgs_t*
     UDS_EVT_RoutineCtrl,          // UDSRoutineCtrlArgs_t*
     UDS_EVT_RequestDownload,      // UDSRequestDownloadArgs_t*
     UDS_EVT_RequestUpload,        // UDSRequestUploadArgs_t *
@@ -201,6 +203,8 @@ typedef enum {
 #define UDS_0X10_RESP_LEN 6U
 #define UDS_0X11_REQ_MIN_LEN 2U
 #define UDS_0X11_RESP_BASE_LEN 2U
+#define UDS_0X14_REQ_MIN_LEN 4U
+#define UDS_0X14_RESP_BASE_LEN 1U
 #define UDS_0X19_REQ_MIN_LEN 2U
 #define UDS_0X19_RESP_BASE_LEN 2U
 #define UDS_0X23_REQ_MIN_LEN 4U
@@ -213,6 +217,8 @@ typedef enum {
 #define UDS_0X2E_REQ_BASE_LEN 3U
 #define UDS_0X2E_REQ_MIN_LEN 4U
 #define UDS_0X2E_RESP_LEN 3U
+#define UDS_0X2F_REQ_MIN_LEN 4U
+#define UDS_0X2F_RESP_BASE_LEN 4U
 #define UDS_0X31_REQ_MIN_LEN 4U
 #define UDS_0X31_RESP_MIN_LEN 4U
 #define UDS_0X34_REQ_BASE_LEN 3U
@@ -246,7 +252,7 @@ enum UDSDiagnosticServiceId {
     kSID_READ_PERIODIC_DATA_BY_IDENTIFIER = 0x2A,
     kSID_DYNAMICALLY_DEFINE_DATA_IDENTIFIER = 0x2C,
     kSID_WRITE_DATA_BY_IDENTIFIER = 0x2E,
-    kSID_INPUT_CONTROL_BY_IDENTIFIER = 0x2F,
+    kSID_IO_CONTROL_BY_IDENTIFIER = 0x2F,
     kSID_ROUTINE_CONTROL = 0x31,
     kSID_REQUEST_DOWNLOAD = 0x34,
     kSID_REQUEST_UPLOAD = 0x35,

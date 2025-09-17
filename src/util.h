@@ -10,9 +10,7 @@
 #endif
 
 /* returns true if `a` is after `b` */
-static inline bool UDSTimeAfter(uint32_t a, uint32_t b) {
-    return (int32_t)(a - b) > 0;
-}
+static inline bool UDSTimeAfter(uint32_t a, uint32_t b) { return (int32_t)(a - b) > 0; }
 
 /**
  * @brief Get time in milliseconds

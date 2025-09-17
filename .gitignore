@@ -16,7 +16,6 @@ reports
 test_iso14229
 client
 server
-corpus
 *.profdata
 *.profraw
 .gdb_history

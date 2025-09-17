@@ -164,6 +164,104 @@ void test_0x11_no_send_after_ECU_reset(void **state) {
     TEST_INT_EQUAL(call_count, 1);
 }
 
+int fn_test_0x14(UDSServer_t *srv, UDSEvent_t ev, void *arg) { return UDS_PositiveResponse; }
+
+// ISO14229-1 2020 12.2.5 Message flow example ClearDiagnosticInformation
+void test_0x14_positive_response(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x14;
+    e->server->fn_data = NULL;
+
+    /* Request per ISO14229-1 2020 Table 300 */
+    const uint8_t REQ[] = {
+        0x14, /* SID */
+        0xFF, /* GroupOfDTC [High Byte] */
+        0xFF, /* GroupOfDTC [Middle Byte] */
+        0x33, /* GroupOfDTC [Low Byte] */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 301 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x54, /* Response SID */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x14_incorrect_request_length(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x14;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x14, /* SID */
+        0xFF, /* GroupOfDTC [High Byte] */
+        0xFF, /* GroupOfDTC [Middle Byte] */
+        /* MISSING required GroupOfDTC [Low Byte] */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x7F, /* Response SID */
+        0x14, /* Original Request SID */
+        0x13, /* NRC: IncorrectMessageLengthOrInvalidFormat */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+int fn_test_0x14_negative_response(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+    UDSCDIArgs_t *args = (UDSCDIArgs_t *)arg;
+    TEST_INT_EQUAL(ev, UDS_EVT_ClearDiagnosticInfo);
+    TEST_INT_EQUAL(args->groupOfDTC, 0x00FFDD33);
+    TEST_INT_GE(args->hasMemorySelection, 1);
+    TEST_INT_EQUAL(args->memorySelection, 0x45);
+
+    return UDS_NRC_RequestOutOfRange;
+}
+
+void test_0x14_negative_response(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x14_negative_response;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x14, /* SID */
+        0xFF, /* GroupOfDTC [High Byte] */
+        0xDD, /* GroupOfDTC [Middle Byte] */
+        0x33, /* GroupOfDTC [Low Byte] */
+        0x45, /* MemorySelection */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x7F, /* Response SID */
+        0x14, /* Original Request SID */
+        0x31, /* NRC: RequestOutOfRange */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
 // Container to provide data and length to the 0x19 handler function
 typedef struct {
     void *data;
@@ -2144,8 +2242,8 @@ void test_0x22_misuse(void **state) {
     Env_t *e = *state;
     uint8_t buf[8] = {0};
 
-    // When a server handler function is installed that does not handle the UDS_EVT_ReadDataByIdent
-    // event
+    // When a server handler function is installed that does not handle the
+    // UDS_EVT_ReadDataByIdent event
     e->server->fn = fn_test_0x22_misuse;
 
     // and a request is sent to the server
@@ -2448,7 +2546,8 @@ void test_0x27_brute_force_prevention_1(void **state) {
     Env_t *e = *state;
     uint8_t buf[8] = {0};
 
-    // When a server handler function is installed and the anti-brute-force timeout has not expired
+    // When a server handler function is installed and the anti-brute-force timeout has not
+    // expired
     e->server->fn = fn_test_0x27_security_access;
 
     // sending a seed request
@@ -2509,6 +2608,146 @@ void test_0x27_brute_force_prevention_2(void **state) {
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
                      UDS_CLIENT_DEFAULT_P2_MS)
     TEST_MEMORY_EQUAL(buf, DENIED, sizeof(DENIED));
+}
+
+int fn_test_0x2F(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+    UDSIOCtrlArgs_t *args = arg;
+
+    TEST_INT_EQUAL(ev, UDS_EVT_IOControl);
+    TEST_INT_EQUAL(args->dataId, 0x9B00);
+    if (args->ioCtrlParam == 0x00) {
+        TEST_INT_EQUAL(args->ctrlStateAndMaskLen, 0x00);
+        const uint8_t response_data[] = {0x3A};
+        return args->copy(srv, response_data, sizeof(response_data));
+
+    } else if (args->ioCtrlParam == 0x02) {
+        // Provoke a negative response
+        return UDS_NRC_SecurityAccessDenied;
+
+    } else if (args->ioCtrlParam == 0x03) {
+        TEST_INT_EQUAL(args->ctrlStateAndMaskLen, 0x01);
+        const uint8_t expected_data[] = {0x3C};
+        TEST_MEMORY_EQUAL(args->ctrlStateAndMask, expected_data, args->ctrlStateAndMaskLen);
+        const uint8_t response_data[] = {0x0C};
+        return args->copy(srv, response_data, sizeof(response_data));
+    }
+
+    return UDS_NRC_RequestOutOfRange;
+}
+
+// ISO14229-1 2020 13.2.5.2 Example #1 - "Air Inlet Door Position" shortTermAdjustment
+// This test just simulates the 0x2F function request/responses of the example.
+void test_0x2F_example(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x2F;
+    e->server->fn_data = NULL;
+
+    /* Request per ISO14229-1 2020 Table 406 */
+    const uint8_t REQ1[] = {
+        0x2F, /* SID */
+        0x9B, /* DataIdentifier [High Byte] */
+        0x00, /* DataIdentifier [Low Byte] */
+        0x03, /* ControlOptionRecord [inputOutputControlParamter] */
+        0x3C, /* ControlOptionRecord [State#1] */
+    };
+
+    UDSTpSend(e->client_tp, REQ1, sizeof(REQ1), NULL);
+
+    /* Response per ISO14229-1 2020 Table 407 */
+    const uint8_t EXPECTED_RESP1[] = {
+        0x6F, /* Response SID */
+        0x9B, /* DataIdentifier [High Byte] */
+        0x00, /* DataIdentifier [Low Byte] */
+        0x03, /* ControlOptionRecord [inputOutputControlParamter] */
+        0x0C, /* ControlOptionRecord [State#1] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP1, sizeof(EXPECTED_RESP1));
+
+    /* Request per ISO14229-1 2020 Table 410 */
+    const uint8_t REQ2[] = {
+        0x2F, /* SID */
+        0x9B, /* DataIdentifier [High Byte] */
+        0x00, /* DataIdentifier [Low Byte] */
+        0x00, /* ControlOptionRecord [inputOutputControlParamter] */
+    };
+
+    UDSTpSend(e->client_tp, REQ2, sizeof(REQ2), NULL);
+
+    /* Response per ISO14229-1 2020 Table 411 */
+    const uint8_t EXPECTED_RESP2[] = {
+        0x6F, /* Response SID */
+        0x9B, /* DataIdentifier [High Byte] */
+        0x00, /* DataIdentifier [Low Byte] */
+        0x00, /* ControlOptionRecord [inputOutputControlParamter] */
+        0x3A, /* ControlOptionRecord [State#1] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP2, sizeof(EXPECTED_RESP2));
+}
+
+void test_0x2F_incorrect_request_length(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x2F;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x2F, /* SID */
+        0x9B, /* DataIdentifier [High Byte] */
+        0x00, /* DataIdentifier [Low Byte] */
+              /* MISSING required ControlOptionRecord [inputOutputControlParamter] */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x7F, /* Response SID */
+        0x2F, /* Original Request SID */
+        0x13, /* NRC: IncorrectMessageLengthOrInvalidFormat */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x2F_negative_response(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x2F;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x2F, /* SID */
+        0x9B, /* DataIdentifier [High Byte] */
+        0x00, /* DataIdentifier [Low Byte] */
+        0x02, /* ControlOptionRecord [inputOutputControlParamter] */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x7F, /* Response SID */
+        0x2F, /* Original Request SID */
+        0x33, /* NRC: SecurityAccessDenied */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
 int fn_test_0x31_RCRRP(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
@@ -2783,6 +3022,9 @@ int main(int ac, char **av) {
                                         Teardown),
         cmocka_unit_test_setup_teardown(test_0x10_suppress_pos_resp, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x11_no_send_after_ECU_reset, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x14_positive_response, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x14_incorrect_request_length, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x14_negative_response, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x19_sub_0x01, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x19_sub_0x02, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x19_sub_0x02_no_matching_dtc, Setup, Teardown),
@@ -2837,6 +3079,9 @@ int main(int ac, char **av) {
         cmocka_unit_test_setup_teardown(test_0x27_unlock, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x27_brute_force_prevention_1, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x27_brute_force_prevention_2, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x2F_example, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x2F_incorrect_request_length, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x2F_negative_response, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x31_RCRRP, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x34_no_handler, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x34, Setup, Teardown),
