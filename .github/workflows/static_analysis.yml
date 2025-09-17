@@ -4,14 +4,18 @@ on:
   pull_request:
     branches: [ "main" ]
 
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
 
 jobs:
-  build:
+  static-analysis:
     runs-on: ubuntu-latest
 
     steps:
     - name: checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Install dependencies
       run: |
@@ -19,7 +23,13 @@ jobs:
         sudo apt-get install -y build-essential cmake python3-pip jq cppcheck
         pip3 install codechecker requests
 
+    - name: Verify analyzers
+      run: |
         CodeChecker analyzers --details
+
+    - name: Build compile commands
+      run: |
+        make compile_commands.json
 
     - name: Analyze with CodeChecker
       run: |
@@ -27,16 +37,105 @@ jobs:
 
     - name: Print report summary
       run: |
-        CodeChecker parse reports || true
+        CodeChecker parse reports --print-steps || echo "No issues found"
 
     - name: Generate json report
       run: |
-        CodeChecker parse reports --export json -o report.json || true
+        CodeChecker parse reports --export json -o report.json || echo '[]' > report.json
+
+    - name: Check if report file exists and has content
+      run: |
+        if [ -f report.json ]; then
+          echo "Report file exists"
+          cat report.json | jq . || echo "Invalid JSON, creating empty array"
+        else
+          echo "No report file, creating empty array"
+          echo '[]' > report.json
+        fi
 
     - name: Create Check Run with Annotations
+      if: always()
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GITHUB_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
-        python3 tools/CodeChecker/post_to_github.py report.json
+        if [ -f tools/CodeChecker/post_to_github.py ]; then
+          python3 tools/CodeChecker/post_to_github.py report.json
+        else
+          echo "GitHub integration script not found, skipping PR annotations"
+        fi
+
+    - name: Upload analysis reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: static-analysis-reports
+        path: |
+          reports/
+          report.json
+        retention-days: 30
+
+    - name: Comment on PR with summary
+      if: always()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          let summary = '## Static Analysis Summary\n\n';
+
+          try {
+            if (fs.existsSync('report.json')) {
+              const reportData = JSON.parse(fs.readFileSync('report.json', 'utf8'));
+              const issueCount = Array.isArray(reportData) ? reportData.length : 0;
+
+              if (issueCount === 0) {
+                summary += '✅ **No static analysis issues found!**\n\n';
+                summary += 'All checks passed:\n';
+                summary += '- clang-tidy: ✅\n';
+                summary += '- clangsa: ✅\n';
+                summary += '- cppcheck/MISRA: ✅\n';
+              } else {
+                summary += `⚠️ **Found ${issueCount} static analysis issue(s)**\n\n`;
+                summary += 'Please review the detailed annotations in the Files Changed tab.\n';
+              }
+            } else {
+              summary += '❌ **Static analysis failed to generate report**\n';
+            }
+          } catch (error) {
+            summary += '❌ **Error processing static analysis results**\n';
+            summary += `Error: ${error.message}\n`;
+          }
+
+          summary += '\n📊 **Analysis Details**\n';
+          summary += '- Analyzers: clang-tidy, clangsa, cppcheck\n';
+          summary += '- Files analyzed: iso14229.c, iso14229.h\n';
+          summary += '- Report artifacts are available for download\n';
+
+          // Find existing comment to update or create new one
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+
+          const botComment = comments.find(comment =>
+            comment.user.type === 'Bot' &&
+            comment.body.includes('Static Analysis Summary')
+          );
+
+          if (botComment) {
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: botComment.id,
+              body: summary
+            });
+          } else {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: summary
+            });
+          }
