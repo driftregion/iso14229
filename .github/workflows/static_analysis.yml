@@ -41,13 +41,21 @@ jobs:
 
     - name: Generate SARIF report
       run: |
-        CodeChecker parse reports --export sarif -o results.sarif || echo '{"version":"2.1.0","$schema":"https://json.schemastore.org/sarif-2.1.0.json","runs":[]}' > results.sarif
+        if [ -d "reports" ] && [ "$(ls -A reports 2>/dev/null)" ]; then
+          CodeChecker parse reports --export sarif -o results.sarif
+          # Convert absolute file URIs to relative paths for GitHub Code Scanning
+          sed -i "s|file://$PWD/||g" results.sarif
+        else
+          echo "No reports found, creating empty SARIF file"
+          echo '{"version":"2.1.0","$schema":"https://json.schemastore.org/sarif-2.1.0.json","runs":[{"tool":{"driver":{"name":"CodeChecker","version":"unknown"}},"results":[]}]}' > results.sarif
+        fi
 
     - name: Upload SARIF results to GitHub Code Scanning
       uses: github/codeql-action/upload-sarif@v3
       if: always()
       with:
         sarif_file: results.sarif
+        category: "CodeChecker Static Analysis"
 
     - name: Upload analysis reports
       uses: actions/upload-artifact@v4

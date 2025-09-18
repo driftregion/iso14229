@@ -1,0 +1,65 @@
+name: SonarCloud Analysis
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  sonarcloud:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Shallow clones should be disabled for better analysis
+
+    - name: Cache Bazel
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/bazel
+        key: ${{ runner.os }}-bazel-${{ hashFiles('**/MODULE.bazel', '**/*.bzl', '**/BUILD*') }}
+        restore-keys: |
+          ${{ runner.os }}-bazel-
+
+    - name: Run unit tests with coverage
+      run: |
+        # Run unit tests with coverage
+        bazel coverage //test:all --test_tag_filters=-vcan --combined_report=lcov
+        # Copy unit test coverage
+        cp -f "$(bazel info output_path)/_coverage/_coverage_report.dat" coverage_unit.lcov
+        # Fix paths for SonarCloud
+        sed -E -i 's#^SF:bazel-out/.*/iso14229.c#SF:iso14229.c#' coverage_unit.lcov
+        sed -E -i 's#^SF:bazel-out/.*/iso14229.h#SF:iso14229.h#' coverage_unit.lcov
+
+    - name: Run fuzz tests with coverage
+      run: |
+        # Run fuzz coverage
+        bazel coverage -c opt --config=hermetic-coverage //fuzz:fuzz_server
+        # Copy fuzz test coverage
+        cp -f "$(bazel info output_path)/_coverage/_coverage_report.dat" coverage_fuzz.lcov
+        # Fix paths for SonarCloud
+        sed -E -i 's#^SF:bazel-out/.*/iso14229.c#SF:iso14229.c#' coverage_fuzz.lcov
+        sed -E -i 's#^SF:bazel-out/.*/iso14229.h#SF:iso14229.h#' coverage_fuzz.lcov
+
+    - name: Combine coverage reports
+      run: |
+        # Install lcov for merging coverage reports
+        sudo apt-get update && sudo apt-get install -y lcov
+        # Merge coverage reports
+        lcov --add-tracefile coverage_unit.lcov --add-tracefile coverage_fuzz.lcov --output-file coverage_combined.lcov
+        # Remove external dependencies from coverage
+        lcov --remove coverage_combined.lcov '/usr/*' --output-file coverage_filtered.lcov
+
+    - name: SonarCloud Scan
+      uses: SonarSource/sonarcloud-github-action@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
