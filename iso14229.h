@@ -302,6 +302,7 @@ typedef enum UDSEvent {
     UDS_EVT_DiagSessCtrl,         // UDSDiagSessCtrlArgs_t *
     UDS_EVT_EcuReset,             // UDSECUResetArgs_t *
     UDS_EVT_ClearDiagnosticInfo,  // UDSCDIArgs_t *
+    UDS_EVT_ReadDTCInformation,   // UDSRDTCIArgs_t *
     UDS_EVT_ReadDataByIdent,      // UDSRDBIArgs_t *
     UDS_EVT_ReadMemByAddr,        // UDSReadMemByAddrArgs_t *
     UDS_EVT_CommCtrl,             // UDSCommCtrlArgs_t *
@@ -498,6 +499,8 @@ typedef enum {
 #define UDS_0X11_RESP_BASE_LEN 2U
 #define UDS_0X14_REQ_MIN_LEN 4U
 #define UDS_0X14_RESP_BASE_LEN 1U
+#define UDS_0X19_REQ_MIN_LEN 2U
+#define UDS_0X19_RESP_BASE_LEN 2U
 #define UDS_0X23_REQ_MIN_LEN 4U
 #define UDS_0X23_RESP_BASE_LEN 1U
 #define UDS_0X22_RESP_BASE_LEN 1U
@@ -571,9 +574,7 @@ enum UDSDiagnosticServiceId {
 #endif
 
 /* returns true if `a` is after `b` */
-static inline bool UDSTimeAfter(uint32_t a, uint32_t b) {
-    return (int32_t)(a - b) > 0;
-}
+static inline bool UDSTimeAfter(uint32_t a, uint32_t b) { return (int32_t)(a - b) > 0; }
 
 /**
  * @brief Get time in milliseconds
@@ -641,47 +642,47 @@ typedef enum {
 #define UDS_LOG_FORMAT(letter, format)                                                             \
     UDS_LOG_COLOR_##letter #letter " (%" PRIu32 ") %s: " format UDS_LOG_RESET_COLOR "\n"
 
-#define UDS_LOG_AT_LEVEL(level, tag, format, ...)                                                  \
-    do {                                                                                           \
-        if (level == UDS_LOG_ERROR) {                                                              \
-            UDS_LogWrite(UDS_LOG_ERROR, tag, UDS_LOG_FORMAT(E, format), UDSMillis(), tag,          \
-                         ##__VA_ARGS__);                                                           \
-        } else if (level == UDS_LOG_WARN) {                                                        \
-            UDS_LogWrite(UDS_LOG_WARN, tag, UDS_LOG_FORMAT(W, format), UDSMillis(), tag,           \
-                         ##__VA_ARGS__);                                                           \
-        } else if (level == UDS_LOG_INFO) {                                                        \
-            UDS_LogWrite(UDS_LOG_INFO, tag, UDS_LOG_FORMAT(I, format), UDSMillis(), tag,           \
-                         ##__VA_ARGS__);                                                           \
-        } else if (level == UDS_LOG_DEBUG) {                                                       \
-            UDS_LogWrite(UDS_LOG_DEBUG, tag, UDS_LOG_FORMAT(D, format), UDSMillis(), tag,          \
-                         ##__VA_ARGS__);                                                           \
-        } else if (level == UDS_LOG_VERBOSE) {                                                     \
-            UDS_LogWrite(UDS_LOG_VERBOSE, tag, UDS_LOG_FORMAT(V, format), UDSMillis(), tag,        \
-                         ##__VA_ARGS__);                                                           \
-        } else {                                                                                   \
-            ;                                                                                      \
-        }                                                                                          \
-    } while (0)
+#if UDS_LOG_LEVEL >= UDS_LOG_ERROR && UDS_LOG_LEVEL > UDS_LOG_NONE
+#define UDS_LOGE(tag, format, ...)                                                                 \
+    UDS_LogWrite(UDS_LOG_ERROR, tag, UDS_LOG_FORMAT(E, format), UDSMillis(), tag, ##__VA_ARGS__)
+#else
+#define UDS_LOGE(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
+#endif
 
-#define UDS_LOG_AT_LEVEL_LOCAL(level, tag, format, ...)                                            \
-    do {                                                                                           \
-        if (UDS_LOG_LEVEL >= level)                                                                \
-            UDS_LOG_AT_LEVEL(level, tag, format, ##__VA_ARGS__);                                   \
-    } while (0)
+#if UDS_LOG_LEVEL >= UDS_LOG_WARN && UDS_LOG_LEVEL > UDS_LOG_NONE
+#define UDS_LOGW(tag, format, ...)                                                                 \
+    UDS_LogWrite(UDS_LOG_WARN, tag, UDS_LOG_FORMAT(W, format), UDSMillis(), tag, ##__VA_ARGS__)
+#else
+#define UDS_LOGW(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
+#endif
 
-#define UDS_LOGE(tag, format, ...) UDS_LOG_AT_LEVEL_LOCAL(UDS_LOG_ERROR, tag, format, ##__VA_ARGS__)
-#define UDS_LOGW(tag, format, ...) UDS_LOG_AT_LEVEL_LOCAL(UDS_LOG_WARN, tag, format, ##__VA_ARGS__)
-#define UDS_LOGI(tag, format, ...) UDS_LOG_AT_LEVEL_LOCAL(UDS_LOG_INFO, tag, format, ##__VA_ARGS__)
-#define UDS_LOGD(tag, format, ...) UDS_LOG_AT_LEVEL_LOCAL(UDS_LOG_DEBUG, tag, format, ##__VA_ARGS__)
+#if UDS_LOG_LEVEL >= UDS_LOG_INFO && UDS_LOG_LEVEL > UDS_LOG_NONE
+#define UDS_LOGI(tag, format, ...)                                                                 \
+    UDS_LogWrite(UDS_LOG_INFO, tag, UDS_LOG_FORMAT(I, format), UDSMillis(), tag, ##__VA_ARGS__)
+#else
+#define UDS_LOGI(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
+#endif
+
+#if UDS_LOG_LEVEL >= UDS_LOG_DEBUG && UDS_LOG_LEVEL > UDS_LOG_NONE
+#define UDS_LOGD(tag, format, ...)                                                                 \
+    UDS_LogWrite(UDS_LOG_DEBUG, tag, UDS_LOG_FORMAT(D, format), UDSMillis(), tag, ##__VA_ARGS__)
+#else
+#define UDS_LOGD(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
+#endif
+
+#if UDS_LOG_LEVEL >= UDS_LOG_VERBOSE && UDS_LOG_LEVEL > UDS_LOG_NONE
 #define UDS_LOGV(tag, format, ...)                                                                 \
-    UDS_LOG_AT_LEVEL_LOCAL(UDS_LOG_VERBOSE, tag, format, ##__VA_ARGS__)
+    UDS_LogWrite(UDS_LOG_VERBOSE, tag, UDS_LOG_FORMAT(V, format), UDSMillis(), tag, ##__VA_ARGS__)
+#else
+#define UDS_LOGV(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
+#endif
 
+#if UDS_LOG_LEVEL >= UDS_LOG_DEBUG && UDS_LOG_LEVEL > UDS_LOG_NONE
 #define UDS_LOG_SDU(tag, buffer, buff_len, info)                                                   \
-    do {                                                                                           \
-        if (UDS_LOG_LEVEL >= (UDS_LOG_DEBUG)) {                                                    \
-            UDS_LogSDUInternal(UDS_LOG_DEBUG, tag, buffer, buff_len, info);                        \
-        }                                                                                          \
-    } while (0)
+    UDS_LogSDUInternal(UDS_LOG_DEBUG, tag, buffer, buff_len, info)
+#else
+#define UDS_LOG_SDU(tag, buffer, buff_len, info) UDS_LogSDUDummy(tag, buffer, buff_len, info)
+#endif
 
 #if defined(__GNUC__) || defined(__clang__)
 #define UDS_PRINTF_FORMAT(fmt_index, first_arg)                                                    \
@@ -690,10 +691,25 @@ typedef enum {
 #define UDS_PRINTF_FORMAT(fmt_index, first_arg)
 #endif
 
+#if UDS_LOG_LEVEL > UDS_LOG_NONE
 void UDS_LogWrite(UDS_LogLevel_t level, const char *tag, const char *format, ...)
     UDS_PRINTF_FORMAT(3, 4);
 void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *buffer,
                         size_t buff_len, UDSSDU_t *info);
+#else
+// Dummy function that consumes arguments but does nothing
+static inline void UDS_LogDummy(const char *tag, const char *format, ...) {
+    (void)tag;
+    (void)format;
+}
+static inline void UDS_LogSDUDummy(const char *tag, const uint8_t *buffer, size_t buff_len,
+                                   void *info) {
+    (void)tag;
+    (void)buffer;
+    (void)buff_len;
+    (void)info;
+}
+#endif
 
 
 
@@ -893,6 +909,49 @@ typedef struct {
     const bool hasMemorySelection; /*! `true` when a memory selection byte is present */
     const uint8_t memorySelection; /*! memorySelection byte (optional) */
 } UDSCDIArgs_t;
+
+typedef struct {
+    const uint8_t type; /*! invoked subfunction */
+    uint8_t (*copy)(UDSServer_t *srv, const void *src,
+                    uint16_t count); /*! function for copying data */
+
+    union {
+        struct {
+            uint8_t mask; /*! DTC status mask */
+        } numOfDTCByStatusMaskArgs, dtcStatusByMaskArgs;
+        struct {
+            uint32_t dtc;        /*! DTC Mask Record */
+            uint8_t snapshotNum; /*! DTC Snaphot Record Number */
+            uint8_t memory;      /*! Memory Selection (only used when type == 0x18) */
+        } dtcSnapshotRecordbyDTCNumArgs, userDefMemDTCSnapshotRecordByDTCNumArgs;
+        struct {
+            uint8_t recordNum; /*! DTC Data Record Number */
+        } dtcStoredDataByRecordNumArgs, dtcExtDataRecordByRecordNumArgs, dtcExtDataRecordIdArgs;
+        struct {
+            uint32_t dtc;          /*! DTC Mask Record */
+            uint8_t extDataRecNum; /*! DTC Extended Data Record Number */
+            uint8_t memory;        /*! Memory Selection (only used when type == 0x19) */
+        } dtcExtDtaRecordByDTCNumArgs, userDefMemDTCExtDataRecordByDTCNumArgs;
+        struct {
+            uint8_t
+                functionalGroup;  /*! Functional Group Identifier (only used when type == 0x42) */
+            uint8_t severityMask; /*! DTC Severity Mask */
+            uint8_t statusMask;   /*! DTC Status Mask */
+        } numOfDTCBySeverityMaskArgs, dtcBySeverityMaskArgs, wwhobdDTCByMaskArgs;
+        struct {
+            uint32_t dtc; /*! DTC Mask Record */
+        } severityInfoOfDTCArgs;
+        struct {
+            uint8_t mask;   /*! DTC status mask */
+            uint8_t memory; /*! Memory Selection */
+        } userDefMemoryDTCByStatusMaskArgs;
+        struct {
+            uint8_t functionalGroup; /*! Functional Group Identifier */
+            uint8_t
+                readinessGroup; /*! DTC Readiness Group Identifier (only used when type == 0x56) */
+        } wwhobdDTCWithPermStatusArgs, dtcInfoByDTCReadinessGroupIdArgs;
+    } subFuncArgs;
+} UDSRDTCIArgs_t;
 
 typedef struct {
     const uint16_t dataId; /*! RDBI Data Identifier */

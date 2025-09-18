@@ -8,6 +8,7 @@ typedef enum UDSEvent {
     UDS_EVT_DiagSessCtrl,         // UDSDiagSessCtrlArgs_t *
     UDS_EVT_EcuReset,             // UDSECUResetArgs_t *
     UDS_EVT_ClearDiagnosticInfo,  // UDSCDIArgs_t *
+    UDS_EVT_ReadDTCInformation,   // UDSRDTCIArgs_t *
     UDS_EVT_ReadDataByIdent,      // UDSRDBIArgs_t *
     UDS_EVT_ReadMemByAddr,        // UDSReadMemByAddrArgs_t *
     UDS_EVT_CommCtrl,             // UDSCommCtrlArgs_t *
@@ -204,6 +205,8 @@ typedef enum {
 #define UDS_0X11_RESP_BASE_LEN 2U
 #define UDS_0X14_REQ_MIN_LEN 4U
 #define UDS_0X14_RESP_BASE_LEN 1U
+#define UDS_0X19_REQ_MIN_LEN 2U
+#define UDS_0X19_RESP_BASE_LEN 2U
 #define UDS_0X23_REQ_MIN_LEN 4U
 #define UDS_0X23_RESP_BASE_LEN 1U
 #define UDS_0X22_RESP_BASE_LEN 1U

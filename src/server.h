@@ -92,6 +92,49 @@ typedef struct {
 } UDSCDIArgs_t;
 
 typedef struct {
+    const uint8_t type; /*! invoked subfunction */
+    uint8_t (*copy)(UDSServer_t *srv, const void *src,
+                    uint16_t count); /*! function for copying data */
+
+    union {
+        struct {
+            uint8_t mask; /*! DTC status mask */
+        } numOfDTCByStatusMaskArgs, dtcStatusByMaskArgs;
+        struct {
+            uint32_t dtc;        /*! DTC Mask Record */
+            uint8_t snapshotNum; /*! DTC Snaphot Record Number */
+            uint8_t memory;      /*! Memory Selection (only used when type == 0x18) */
+        } dtcSnapshotRecordbyDTCNumArgs, userDefMemDTCSnapshotRecordByDTCNumArgs;
+        struct {
+            uint8_t recordNum; /*! DTC Data Record Number */
+        } dtcStoredDataByRecordNumArgs, dtcExtDataRecordByRecordNumArgs, dtcExtDataRecordIdArgs;
+        struct {
+            uint32_t dtc;          /*! DTC Mask Record */
+            uint8_t extDataRecNum; /*! DTC Extended Data Record Number */
+            uint8_t memory;        /*! Memory Selection (only used when type == 0x19) */
+        } dtcExtDtaRecordByDTCNumArgs, userDefMemDTCExtDataRecordByDTCNumArgs;
+        struct {
+            uint8_t
+                functionalGroup;  /*! Functional Group Identifier (only used when type == 0x42) */
+            uint8_t severityMask; /*! DTC Severity Mask */
+            uint8_t statusMask;   /*! DTC Status Mask */
+        } numOfDTCBySeverityMaskArgs, dtcBySeverityMaskArgs, wwhobdDTCByMaskArgs;
+        struct {
+            uint32_t dtc; /*! DTC Mask Record */
+        } severityInfoOfDTCArgs;
+        struct {
+            uint8_t mask;   /*! DTC status mask */
+            uint8_t memory; /*! Memory Selection */
+        } userDefMemoryDTCByStatusMaskArgs;
+        struct {
+            uint8_t functionalGroup; /*! Functional Group Identifier */
+            uint8_t
+                readinessGroup; /*! DTC Readiness Group Identifier (only used when type == 0x56) */
+        } wwhobdDTCWithPermStatusArgs, dtcInfoByDTCReadinessGroupIdArgs;
+    } subFuncArgs;
+} UDSRDTCIArgs_t;
+
+typedef struct {
     const uint16_t dataId; /*! RDBI Data Identifier */
     uint8_t (*copy)(UDSServer_t *srv, const void *src,
                     uint16_t count); /*! function for copying data */

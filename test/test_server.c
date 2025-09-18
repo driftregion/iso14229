@@ -262,6 +262,2194 @@ void test_0x14_negative_response(void **state) {
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
+// Container to provide data and length to the 0x19 handler function
+typedef struct {
+    void *data;
+    size_t len;
+    char *test_identifier;
+} Test0x19FnData_t;
+
+UDSErr_t fn_test_0x19(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+    TEST_INT_EQUAL(ev, UDS_EVT_ReadDTCInformation);
+    UDSRDTCIArgs_t *r = (UDSRDTCIArgs_t *)arg;
+    Test0x19FnData_t *fnData = (Test0x19FnData_t *)srv->fn_data;
+
+    if (fnData->test_identifier != NULL &&
+        strcmp("malformed_response", fnData->test_identifier) == 0) {
+        /* We don't care about the contents and just want to provoke a malformed response */
+        return r->copy(srv, fnData->data, fnData->len);
+    }
+
+    if (fnData->test_identifier != NULL &&
+        strcmp("shrink_default_response_len", fnData->test_identifier) == 0) {
+        /* We want to force a response length smaller than the default */
+        srv->r.send_len = 1;
+        return UDS_PositiveResponse;
+    }
+
+    switch (r->type) {
+    case 0x01: /* reportNumberOfDTCByStatusMask */
+        TEST_INT_EQUAL(r->subFuncArgs.numOfDTCByStatusMaskArgs.mask, 0x8);
+        break;
+    case 0x02: /* reportDTCByStatusMask */
+        if (strcmp("test_0x19_Sub_2", fnData->test_identifier) == 0) {
+            TEST_INT_EQUAL(r->subFuncArgs.dtcStatusByMaskArgs.mask, 0x84);
+        } else if (strcmp("test_0x19_Sub_2_no_matching_dtc", fnData->test_identifier) == 0) {
+            TEST_INT_EQUAL(r->subFuncArgs.dtcStatusByMaskArgs.mask, 0x01);
+        }
+        break;
+    case 0x03: /* reportDTCSnapshotIdentification */
+    case 0x0A: /* reportSupportedDTC */
+    case 0x0B: /* reportFirstTestFailedDTC */
+    case 0x0C: /* reportFirstConfirmedDTC */
+    case 0x0D: /* reportMostRecentTestFailedDTC */
+    case 0x0E: /* reportMostRecentConfirmedDTC */
+    case 0x14: /* reportDTCFaultDetectionCounter */
+    case 0x15: /* reportDTCWithPermanentStatus */
+        /* No additional arguments to check */
+        break;
+    case 0x04: /* reportDTCSnapshotRecordByDTCNumber */
+        TEST_INT_EQUAL(r->subFuncArgs.dtcSnapshotRecordbyDTCNumArgs.dtc, 0x00123456);
+        TEST_INT_EQUAL(r->subFuncArgs.dtcSnapshotRecordbyDTCNumArgs.snapshotNum, 0x02);
+        break;
+    case 0x05: /* reportDTCStoredDataByRecordNumber */
+        TEST_INT_EQUAL(r->subFuncArgs.dtcStoredDataByRecordNumArgs.recordNum, 0x02);
+        break;
+    case 0x06: /* reportDTCExtDataRecordByDTCNumber */
+        TEST_INT_EQUAL(r->subFuncArgs.dtcExtDtaRecordByDTCNumArgs.dtc, 0x00123456);
+        TEST_INT_EQUAL(r->subFuncArgs.dtcExtDtaRecordByDTCNumArgs.extDataRecNum, 0xFF);
+        break;
+    case 0x07: /* reportNumberOfDTCBySeverityMaskRecord */
+    case 0x08: /* reportDTCBySeverityMaskRecord */
+        TEST_INT_EQUAL(r->subFuncArgs.numOfDTCBySeverityMaskArgs.severityMask, 0xC0);
+        TEST_INT_EQUAL(r->subFuncArgs.numOfDTCBySeverityMaskArgs.statusMask, 0x01);
+        break;
+    case 0x09: /* reportDTCBySeverityMaskRecord */
+        TEST_INT_EQUAL(r->subFuncArgs.severityInfoOfDTCArgs.dtc, 0x00080511);
+        break;
+    case 0x16: /* reportDTCExtDataRecordByNumber */
+        TEST_INT_EQUAL(r->subFuncArgs.dtcExtDataRecordByRecordNumArgs.recordNum, 0x05);
+        break;
+    case 0x17: /* reportUserDefMemoryDTCByStatusMask */
+        if (strcmp("test_0x19_Sub_0x17", fnData->test_identifier) == 0) {
+            TEST_INT_EQUAL(r->subFuncArgs.userDefMemoryDTCByStatusMaskArgs.mask, 0x84);
+        } else if (strcmp("test_0x19_Sub_0x17_no_matching_dtc", fnData->test_identifier) == 0) {
+            TEST_INT_EQUAL(r->subFuncArgs.userDefMemoryDTCByStatusMaskArgs.mask, 0x01);
+        }
+
+        TEST_INT_EQUAL(r->subFuncArgs.userDefMemoryDTCByStatusMaskArgs.memory, 0x18);
+        break;
+
+    case 0x18: /* reportUserDefMemoryDTCSnapshotRecordByDTCNumber */
+        TEST_INT_EQUAL(r->subFuncArgs.userDefMemDTCSnapshotRecordByDTCNumArgs.dtc, 0x00123456);
+        TEST_INT_EQUAL(r->subFuncArgs.userDefMemDTCSnapshotRecordByDTCNumArgs.snapshotNum, 0x06);
+        TEST_INT_EQUAL(r->subFuncArgs.userDefMemDTCSnapshotRecordByDTCNumArgs.memory, 0x18);
+        break;
+    case 0x19: /* reportUserDefMemoryDTCExtDataRecordByDTCNumber */
+        TEST_INT_EQUAL(r->subFuncArgs.userDefMemDTCExtDataRecordByDTCNumArgs.dtc, 0x00123456);
+        TEST_INT_EQUAL(r->subFuncArgs.userDefMemDTCExtDataRecordByDTCNumArgs.extDataRecNum, 0xFF);
+        TEST_INT_EQUAL(r->subFuncArgs.userDefMemDTCExtDataRecordByDTCNumArgs.memory, 0x18);
+        break;
+    case 0x1A: /* reportDTCExtendedDataRecordIdentification */
+        TEST_INT_EQUAL(r->subFuncArgs.dtcExtDataRecordIdArgs.recordNum, 0x91);
+        break;
+    case 0x42: /* reportWWHOBDDTCByMaskRecord */
+        TEST_INT_EQUAL(r->subFuncArgs.wwhobdDTCByMaskArgs.functionalGroup, 0x33);
+        TEST_INT_EQUAL(r->subFuncArgs.wwhobdDTCByMaskArgs.statusMask, 0x08);
+        TEST_INT_EQUAL(r->subFuncArgs.wwhobdDTCByMaskArgs.severityMask, 0xFF);
+        break;
+    case 0x55: /* reportWWHOBDDTCWithPermanentStatus */
+        TEST_INT_EQUAL(r->subFuncArgs.wwhobdDTCByMaskArgs.functionalGroup, 0x33);
+        break;
+    case 0x56: /* reportDTCInformationByDTCReadinessGroupIdentifier */
+        TEST_INT_EQUAL(r->subFuncArgs.dtcInfoByDTCReadinessGroupIdArgs.functionalGroup, 0x33);
+        TEST_INT_EQUAL(r->subFuncArgs.dtcInfoByDTCReadinessGroupIdArgs.readinessGroup, 0x01);
+        break;
+
+    default:
+        return UDS_NRC_ConditionsNotCorrect;
+    }
+
+    if (fnData->len == 0) {
+        // No data to copy, just return positive response
+        return UDS_PositiveResponse;
+    }
+
+    return r->copy(srv, fnData->data, fnData->len);
+}
+
+// ISO14229-1 2020 12.3.5.2 Example #1 - ReadDTCInformation, SubFunction =
+// reportNumberOfDTCByStatusMask
+void test_0x19_sub_0x01(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[4] = {0x2F, 0x01, 0x00, 0x01};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 340 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x01, /* reportNumberOfDTCByStatusMask */
+        0x08, /* DTCStatusMask */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Responser per ISO14229-1 2020 Table 341 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x01, /* reportType = SubFunction */
+        0x2F, /* DTCStatusAvailabilityMask */
+        0x01, /* DTCFormatIdentifier */
+        0x00, /* DTCCount [High Byte]*/
+        0x01, /* DTCCount [Low Byte] */
+    };
+
+    // the client transport should receive a positive response within client_p2 ms
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// ISO14229-1 2020 12.3.5.3 Example #2 - ReadDTCInformation, SubFunction =
+// reportDTCByStatusMask, matching DTCs returned
+void test_0x19_sub_0x02(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[9] = {
+        0x07F, 0x0A, 0x9B, 0x17, 0x24, 0x08, 0x05, 0x11, 0x2F,
+    };
+    Test0x19FnData_t fn_data = {
+        .data = ResponseData, .len = sizeof(ResponseData), .test_identifier = "test_0x19_Sub_2"};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 345 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x02, /* reportDTCByStatusMask */
+        0x84, /* DTCStatusMask */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 346 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x02, /* SubFunction */
+        0x7F, /* DTCStatusAvailabilityMask */
+        0x0A, /* DTCAndStatusRecord#1 [DTC High Byte] */
+        0x9B, /* DTCAndStatusRecord#1 [DTC Middle Byte] */
+        0x17, /* DTCAndStatusRecord#1 [DTC Low Byte] */
+        0x24, /* DTCAndStatusRecord#1 [DTC Status Byte] */
+        0x08, /* DTCAndStatusRecord#2 [DTC High Byte] */
+        0x05, /* DTCAndStatusRecord#2 [DTC Middle Byte] */
+        0x11, /* DTCAndStatusRecord#2 [DTC Low Byte] */
+        0x2F, /* DTCAndStatusRecord#2 [DTC Status Byte] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// ISO14229-1 2020 12.3.5.4 Example #3 - ReadDTCInformation, SubFunction =
+// reportDTCByStatusMask, no matching DTCs returned
+void test_0x19_sub_0x02_no_matching_dtc(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[9] = {
+        0x07F,
+    };
+    Test0x19FnData_t fn_data = {.data = ResponseData,
+                                .len = sizeof(ResponseData),
+                                .test_identifier = "test_0x19_Sub_2_no_matching_dtc"};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 349 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x02, /* reportDTCByStatusMask */
+        0x01, /* DTCStatusMask */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 350 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x02, /* SubFunction */
+        0x7F, /* DTCStatusAvailabilityMask */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// ISO14229-1 2020 12.3.5.5 Example #4 - ReadDTCInformation, SubFunction =
+// reportDTCSnapshotIdentification
+void test_0x19_sub_0x03(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {
+        0x12, 0x34, 0x56, 0x01, 0x12, 0x34, 0x57, 0x02, 0x78, 0x9A, 0xBC, 0x01,
+    };
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 351 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x03, /* reportDTCSnapshotIdentification */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 352 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x03, /* SubFunction */
+        0x12, /* DTCAndStatusRecord#1 [DTC High Byte] */
+        0x34, /* DTCAndStatusRecord#1 [DTC Middle Byte */
+        0x56, /* DTCAndStatusRecord#1 [DTC Low Byte] */
+        0x01, /* DTCAndStatusRecord#1 [DTC Snapshot Record Number] */
+        0x12, /* DTCAndStatusRecord#2 [DTC High Byte] */
+        0x34, /* DTCAndStatusRecord#2 [DTC Middle Byte] */
+        0x57, /* DTCAndStatusRecord#2 [DTC Low Byte] */
+        0x02, /* DTCAndStatusRecord#2 [DTC Snapshot Record Number] */
+        0x78, /* DTCAndStatusRecord#3 [DTC High Byte] */
+        0x9A, /* DTCAndStatusRecord#3 [DTC Middle Byte] */
+        0xBC, /* DTCAndStatusRecord#3 [DTC Low Byte] */
+        0x01, /* DTCAndStatusRecord#3 [DTC Snapshot Record Number] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x19_sub_0x03_no_snapshots(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    Test0x19FnData_t fn_data = {.data = NULL, .len = 0};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x03, /* reportDTCSnapshotIdentification */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x03, /* SubFunction */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// ISO14229-1 2020 12.3.5.6 Example #5 - ReadDTCInformation, SubFunction =
+// reportDTCSnapshotRecordByDTCNumber
+void test_0x19_sub_0x04(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {
+        0x12, 0x34, 0x56, 0x24, 0x02, 0x01, 0x47, 0x11, 0xA6, 0x66, 0x07, 0x50, 0x20,
+    };
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 354 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x04, /* reportDTCSnapshotRecordByDTCNumber */
+        0x12, /* DTCMaskRecord [DTC High Byte] */
+        0x34, /* DTCMaskRecord [DTC Middle Byte] */
+        0x56, /* DTCMaskRecord [DTC Low Byte] */
+        0x02, /* DTCSnapshotRecordNumber */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Request per ISO14229-1 2020 Table 355 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x04, /* SubFunction */
+        0x12, /* DTCAndStatusRecord#1 [DTC High Byte] */
+        0x34, /* DTCAndStatusRecord#1 [DTC Middle Byte */
+        0x56, /* DTCAndStatusRecord#1 [DTC Low Byte] */
+        0x24, /* DTCAndStatusRecord#1 [status of DTC] */
+        0x02, /* DTCSnapshotRecordNumber */
+        0x01, /* DTCSnapshotRecordNumberOfIdentifiers */
+        0x47, /* DataIdentifier [High Byte] */
+        0x11, /* DataIdentifier [Low Byte] */
+        0xA6, /* DTCSnapshotRecordData#1 */
+        0x66, /* DTCSnapshotRecordData#2 */
+        0x07, /* DTCSnapshotRecordData#3 */
+        0x50, /* DTCSnapshotRecordData#4 */
+        0x20, /* DTCSnapshotRecordData#5 */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x19_sub_0x04_no_records(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {
+        0x12,
+        0x34,
+        0x56,
+        0x24,
+    };
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x04, /* reportDTCSnapshotRecordByDTCNumber */
+        0x12, /* DTCMaskRecord [DTC High Byte] */
+        0x34, /* DTCMaskRecord [DTC Middle Byte] */
+        0x56, /* DTCMaskRecord [DTC Low Byte] */
+        0x02, /* DTCSnapshotRecordNumber */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x04, /* SubFunction */
+        0x12, /* DTCAndStatusRecord#1 [DTC High Byte] */
+        0x34, /* DTCAndStatusRecord#1 [DTC Middle Byte */
+        0x56, /* DTCAndStatusRecord#1 [DTC Low Byte] */
+        0x24, /* DTCAndStatusRecord#1 [status of DTC] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// ISO14229-1 2020 12.3.5.7 Example #6 - ReadDTCInformation, SubFunction =
+// reportDTCStoredDataByRecordNumber
+void test_0x19_sub_0x05(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0x02, 0x12, 0x34, 0x56, 0x24, 0x01, 0x47,
+                              0x11, 0xA6, 0x66, 0x07, 0x50, 0x20};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 357 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x05, /* reportDTCStoredDataByRecordNumber */
+        0x02, /* DTCStoredDataRecordNumber */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 358 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x05, /* reportType = SubFunction */
+        0x02, /* DTCStoredDataRecordNumber */
+        0x12, /* DTCAndStatusRecord#1 [High Byte] */
+        0x34, /* DTCAndStatusRecord#1 [Middle Byte] */
+        0x56, /* DTCAndStatusRecord#1 [Low Byte] */
+        0x24, /* DTCAndStatusRecord#1 [DTC Status Byte] */
+        0x01, /* DTCStoredDataRecordNumberOfIdentifiers#1 */
+        0x47, /* DataIdentifier#1 [High Byte] */
+        0x11, /* DataIdentifier#1 [Low Byte] */
+        0xA6, /* DTCStoredDataRecordData#1-1 */
+        0x66, /* DTCStoredDataRecordData#1-2 */
+        0x07, /* DTCStoredDataRecordData#1-3 */
+        0x50, /* DTCStoredDataRecordData#1-4 */
+        0x20, /* DTCStoredDataRecordData#1-5 */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x19_sub_0x05_no_data(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {
+        0x02,
+    };
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x05, /* reportDTCStoredDataByRecordNumber */
+        0x02, /* DTCStoredDataRecordNumber */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x05, /* reportType = SubFunction */
+        0x02, /* DTCStoredDataRecordNumber */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// ISO14229-1 2020 12.3.5.8 Example #7 - ReadDTCInformation, SubFunction =
+// reportDTCExtDataRecordByDTCNumber
+void test_0x19_sub_0x06(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0x12, 0x34, 0x56, 0x24, 0x05, 0x17, 0x10, 0x79};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 361 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x06, /* reportDTCExtDataRecordByDTCNumber */
+        0x12, /* DTCAndStatusRecord [High Byte] */
+        0x34, /* DTCAndStatusRecord [Middle Byte] */
+        0x56, /* DTCAndStatusRecord [Low Byte] */
+        0xFF, /* DTCExtDataRecordNumber */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 362 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x06, /* reportType = SubFunction */
+        0x12, /* DTCAndStatusRecord [High Byte] */
+        0x34, /* DTCAndStatusRecord [Middle Byte] */
+        0x56, /* DTCAndStatusRecord [Low Byte] */
+        0x24, /* DTCAndStatusRecord [status of DTC] */
+        0x05, /* DTCExtDataRecordNumber#1 */
+        0x17, /* DTCExtDataRecord#1 [Byte 1] */
+        0x10, /* DTCExtDataRecordNumber#2 */
+        0x79, /* DTCExtDataRecord#2 [Byte 1] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x19_sub_0x06_no_data(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0x12, 0x34, 0x56, 0x24};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x06, /* reportDTCExtDataRecordByDTCNumber */
+        0x12, /* DTCAndStatusRecord [High Byte] */
+        0x34, /* DTCAndStatusRecord [Middle Byte] */
+        0x56, /* DTCAndStatusRecord [Low Byte] */
+        0xFF, /* DTCExtDataRecordNumber */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x06, /* reportType = SubFunction */
+        0x12, /* DTCAndStatusRecord [High Byte] */
+        0x34, /* DTCAndStatusRecord [Middle Byte] */
+        0x56, /* DTCAndStatusRecord [Low Byte] */
+        0x24, /* DTCAndStatusRecord [status of DTC] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+// ISO14229-1 2020 12.3.5.9 Example #8 - ReadDTCInformation, SubFunction =
+// reportNumberOfDTC-BySeverityMaskRecord
+void test_0x19_sub_0x07(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {
+        0x09,
+        0x01,
+        0x00,
+        0x01,
+    };
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 366 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x07, /* reportNumberOfDTCBySeverityMaskRecord */
+        0xC0, /* DTCSeverityMaskRecord [DTC Severity Mask] */
+        0x01, /* DTCSeverityMaskRecord [DTC Status Mask] */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 367 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x07, /* reportType = SubFunction */
+        0x09, /* DTCStatusAvailabilityMask */
+        0x01, /* DTCFormatIdentifier */
+        0x00, /* DTCCount [High Byte] */
+        0x01, /* DTCCount [Low Byte] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// ISO14229-1 2020 12.3.5.10Example #9 - ReadDTCInformation, SubFunction =
+// reportDTCBySeverityMaskRecord
+void test_0x19_sub_0x08(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0x7F, 0x40, 0x10, 0x08, 0x05, 0x11, 0x2F};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 368 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x08, /* reportNumberOfDTCBySeverityMaskRecord */
+        0xC0, /* DTCSeverityMaskRecord [Severity Mask] */
+        0x01, /* DTCSeverityMaskRecord [Status Mask] */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 369 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x08, /* reportType = SubFunction */
+        0x7F, /* DTCStatusAvailabilityMask */
+        0x40, /* DTCSeverityRecord#1 [Severity] */
+        0x10, /* DTCSeverityRecord#1 [Functional Unit] */
+        0x08, /* DTCSeverityRecord#1 [High Byte] */
+        0x05, /* DTCSeverityRecord#1 [Middle Byte] */
+        0x11, /* DTCSeverityRecord#1 [Low Byte] */
+        0x2F, /* DTCSeverityRecord#1 [Status] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x19_sub_0x08_no_dtc(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {
+        0x7F,
+    };
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x08, /* reportNumberOfDTCBySeverityMaskRecord */
+        0xC0, /* DTCSeverityMaskRecord [Severity Mask] */
+        0x01, /* DTCSeverityMaskRecord [Status Mask] */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x08, /* reportType = SubFunction */
+        0x7F, /* DTCStatusAvailabilityMask */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// ISO14229-1 2020 12.3.5.11Example #10 - ReadDTCInformation, SubFunction =
+// reportSeverityInformationOfDTC
+void test_0x19_sub_0x09(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0x7F, 0x40, 0x10, 0x08, 0x05, 0x11, 0x2F};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 370 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x09, /* reportSeverityInformationOfDTC */
+        0x08, /* DTC Mask record [High Byte] */
+        0x05, /* DTC Mask record [Middle Byte] */
+        0x11, /* DTC Mask record [Low Byte] */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 371 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x09, /* reportType = SubFunction */
+        0x7F, /* DTCStatusAvailabilityMask */
+        0x40, /* DTCSeverityRecord#1 [Severity] */
+        0x10, /* DTCSeverityRecord#1 [Functional Unit] */
+        0x08, /* DTCSeverityRecord#1 [High Byte] */
+        0x05, /* DTCSeverityRecord#1 [Middle Byte] */
+        0x11, /* DTCSeverityRecord#1 [Low Byte] */
+        0x2F, /* DTCSeverityRecord#1 [Status] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x19_sub_0x09_no_dtc(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {
+        0x7F,
+    };
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x09, /* reportSeverityInformationOfDTC */
+        0x08, /* DTC Mask record [High Byte] */
+        0x05, /* DTC Mask record [Middle Byte] */
+        0x11, /* DTC Mask record [Low Byte] */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x09, /* reportType = SubFunction */
+        0x7F, /* DTCStatusAvailabilityMask */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// ISO14229-1 2020 12.3.5.12 Example #11 – ReadDTCInformation - SubFunction =
+// reportSupportedDTCs
+void test_0x19_sub_0x0A(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0x7F, 0x12, 0x34, 0x56, 0x24, 0x23, 0x45,
+                              0x05, 0x00, 0xAB, 0xCD, 0x01, 0x2F};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 375 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x0A, /* reportSupportedDTC */
+
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 376 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x0A, /* reportType = SubFunction */
+        0x7F, /* DTCStatusAvailabilityMask */
+        0x12, /* DTCAndStatusRecord#1 [High Byte] */
+        0x34, /* DTCAndStatusRecord#1 [Middle Byte] */
+        0x56, /* DTCAndStatusRecord#1 [Low Byte] */
+        0x24, /* DTCAndStatusRecord#1 [Status] */
+        0x23, /* DTCAndStatusRecord#2 [High Byte] */
+        0x45, /* DTCAndStatusRecord#2 [Middle Byte] */
+        0x05, /* DTCAndStatusRecord#2 [Low Byte] */
+        0x00, /* DTCAndStatusRecord#2 [Status] */
+        0xAB, /* DTCAndStatusRecord#3 [High Byte] */
+        0xCD, /* DTCAndStatusRecord#3 [Middle Byte] */
+        0x01, /* DTCAndStatusRecord#3 [Low Byte] */
+        0x2F, /* DTCAndStatusRecord#3 [Status] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// ISO14229-1 2020 12.3.5.13Example #12 - ReadDTCInformation, SubFunction =
+// reportFirstTestFailedDTC, information available
+void test_0x19_sub_0x0B(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0xFF, 0x12, 0x34, 0x56, 0x26};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 378 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x0B, /* reportFirstTestFailedDTC */
+
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 376 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x0B, /* reportType = SubFunction */
+        0xFF, /* DTCStatusAvailabilityMask */
+        0x12, /* DTCAndStatusRecord [High Byte] */
+        0x34, /* DTCAndStatusRecord [Middle Byte] */
+        0x56, /* DTCAndStatusRecord [Low Byte] */
+        0x26, /* DTCAndStatusRecord [Status] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// ISO14229-1 2020 12.3.5.14Example #13 - ReadDTCInformation, SubFunction =
+// reportFirstTestFailedDTC, no information available
+void test_0x19_sub_0x0B_no_info(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0xFF};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 380 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x0B, /* reportFirstTestFailedDTC */
+
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 381 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x0B, /* reportType = SubFunction */
+        0xFF, /* DTCStatusAvailabilityMask */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// closely follows ISO14229-1 2020 12.3.5.13Example #12 but for SubFunction =
+// reportMostRecentTestFailedDTC
+void test_0x19_sub_0x0D(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0xFF, 0x12, 0x34, 0x56, 0x26};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 378 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x0D, /* reportMostRecentTestFailedDTC */
+
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 376 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x0D, /* reportType = SubFunction */
+        0xFF, /* DTCStatusAvailabilityMask */
+        0x12, /* DTCAndStatusRecord [High Byte] */
+        0x34, /* DTCAndStatusRecord [Middle Byte] */
+        0x56, /* DTCAndStatusRecord [Low Byte] */
+        0x26, /* DTCAndStatusRecord [Status] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// closely follows ISO14229-1 2020 12.3.5.14Example #13 but for SubFunction =
+// reportMostRecentTestFailedDTC
+void test_0x19_sub_0x0D_no_info(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0xFF};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 380 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x0D, /* reportMostRecentTestFailedDTC */
+
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 381 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x0D, /* reportType = SubFunction */
+        0xFF, /* DTCStatusAvailabilityMask */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// closely follows ISO14229-1 2020 12.3.5.13Example #12 but for SubFunction =
+// reportFirstConfirmedDTC
+void test_0x19_sub_0x0C(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0xFF, 0x12, 0x34, 0x56, 0x2E};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 378 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x0C, /* reportFirstConfirmedDTC */
+
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 376 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x0C, /* reportType = SubFunction */
+        0xFF, /* DTCStatusAvailabilityMask */
+        0x12, /* DTCAndStatusRecord [High Byte] */
+        0x34, /* DTCAndStatusRecord [Middle Byte] */
+        0x56, /* DTCAndStatusRecord [Low Byte] */
+        0x2E, /* DTCAndStatusRecord [Status] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// closely follows ISO14229-1 2020 12.3.5.14Example #13 but for SubFunction =
+// reportFirstConfirmedDTC
+void test_0x19_sub_0x0C_no_info(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0xFF};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 380 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x0C, /* reportFirstConfirmedDTC */
+
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 381 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x0C, /* reportType = SubFunction */
+        0xFF, /* DTCStatusAvailabilityMask */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// closely follows ISO14229-1 2020 12.3.5.13Example #12 but for SubFunction =
+// reportMostRecentConfirmedDTC
+void test_0x19_sub_0x0E(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0xFF, 0x12, 0x34, 0x56, 0x2E};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 378 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x0E, /* reportMostRecentConfirmedDTC */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 376 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x0E, /* reportType = SubFunction */
+        0xFF, /* DTCStatusAvailabilityMask */
+        0x12, /* DTCAndStatusRecord [High Byte] */
+        0x34, /* DTCAndStatusRecord [Middle Byte] */
+        0x56, /* DTCAndStatusRecord [Low Byte] */
+        0x2E, /* DTCAndStatusRecord [Status] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// closely follows ISO14229-1 2020 12.3.5.14Example #13 but for SubFunction =
+// reportMostRecentConfirmedDTC
+void test_0x19_sub_0x0E_no_info(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0xFF};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 380 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x0E, /* reportMostRecentConfirmedDTC */
+
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 381 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x0E, /* reportType = SubFunction */
+        0xFF, /* DTCStatusAvailabilityMask */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// ISO14229-1 2020 12.3.5.15Example #14 - ReadDTCInformation, SubFunction =
+// reportDTCFaultDetectionCounter
+// There is a descrepancy in the example and the definition in that the example
+// sends an additional StatusOfDTC byte before the DTCFaultDetectionCounter byte.
+// This is removed here
+void test_0x19_sub_0x14(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0x12, 0x34, 0x56, 0x60};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 382 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x14, /* reportDTCFaultDetectionCounter */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 383 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x14, /* reportType = SubFunction */
+        0x12, /* DTCAndStatusRecord [High Byte] */
+        0x34, /* DTCAndStatusRecord [Middle Byte] */
+        0x56, /* DTCAndStatusRecord [Low Byte] */
+        0x60, /* DTCFaultDetectionCounter */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// closely follows ISO14229-1 2020 12.3.5.13Example #12 but for SubFunction =
+// reportDTCWithPermanentStatus
+void test_0x19_sub_0x15(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0xFF, 0x12, 0x34, 0x56, 0x26};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 378 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x15, /* reportDTCWithPermanentStatus */
+
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 376 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x15, /* reportType = SubFunction */
+        0xFF, /* DTCStatusAvailabilityMask */
+        0x12, /* DTCAndStatusRecord [High Byte] */
+        0x34, /* DTCAndStatusRecord [Middle Byte] */
+        0x56, /* DTCAndStatusRecord [Low Byte] */
+        0x26, /* DTCAndStatusRecord [Status] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x19_sub_0x15_no_data(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0xFF};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x15, /* reportDTCWithPermanentStatus */
+
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x15, /* reportType = SubFunction */
+        0xFF, /* DTCStatusAvailabilityMask */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// ISO14229-1 2020 12.3.5.16Example #15 - ReadDTCInformation, SubFunction =
+// reportDTCExtDataRecordByRecordNumber
+void test_0x19_sub_0x16(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0x05, 0x12, 0x34, 0x56, 0x24, 0x17, 0x34, 0x56, 0x24,
+                              0x12, 0x34, 0x56, 0x24, 0x17, 0x34, 0x21, 0x24};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 378 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x16, /* reportDTCExtDataRecordByNumber */
+        0x05, /* DTCExtDataRecordNumber */
+
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 376 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x16, /* reportType = SubFunction */
+        0x05, /* DTCExtDataRecordNumber */
+        0x12, /* DTCAndStatusRecord#1 [High Byte] */
+        0x34, /* DTCAndStatusRecord#1 [Middle Byte] */
+        0x56, /* DTCAndStatusRecord#1 [Low Byte] */
+        0x24, /* DTCAndStatusRecord#1 [Status] */
+        0x17, /* DTCExtDataRecord#1 [Byte 1] */
+        0x34, /* DTCExtDataRecord#1 [Byte 2] */
+        0x56, /* DTCExtDataRecord#1 [Byte 3] */
+        0x24, /* DTCExtDataRecord#1 [Byte 4] */
+        0x12, /* DTCAndStatusRecord#2 [High Byte] */
+        0x34, /* DTCAndStatusRecord#2 [Middle Byte] */
+        0x56, /* DTCAndStatusRecord#2 [Low Byte] */
+        0x24, /* DTCAndStatusRecord#2 [Status] */
+        0x17, /* DTCExtDataRecord#2 [Byte 1] */
+        0x34, /* DTCExtDataRecord#2 [Byte 2] */
+        0x21, /* DTCExtDataRecord#2 [Byte 3] */
+        0x24, /* DTCExtDataRecord#2 [Byte 4] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x19_sub_0x16_no_record(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0x05};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x16, /* reportDTCExtDataRecordByNumber */
+        0x05, /* DTCExtDataRecordNumber */
+
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x16, /* reportType = SubFunction */
+        0x05, /* DTCExtDataRecordNumber */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// closely follows ISO14229-1 2020 12.3.5.3 Example #2 but for SubFunction =
+// reportUserDefMemoryDTCByStatusMask
+void test_0x19_sub_0x17(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {
+        0x18, 0x07F, 0x0A, 0x9B, 0x17, 0x24, 0x08, 0x05, 0x11, 0x2F,
+    };
+    Test0x19FnData_t fn_data = {
+        .data = ResponseData, .len = sizeof(ResponseData), .test_identifier = "test_0x19_Sub_0x17"};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 345 with an additional MemorySelection byte */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x17, /* reportUserDefMemoryDTCByStatusMask */
+        0x84, /* DTCStatusMask */
+        0x18, /* MemorySelection */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 346 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x17, /* SubFunction */
+        0x18, /* MemorySelection */
+        0x7F, /* DTCStatusAvailabilityMask */
+        0x0A, /* DTCAndStatusRecord#1 [High Byte] */
+        0x9B, /* DTCAndStatusRecord#1 [Middle Byte] */
+        0x17, /* DTCAndStatusRecord#1 [Low Byte] */
+        0x24, /* DTCAndStatusRecord#1 [Status Byte] */
+        0x08, /* DTCAndStatusRecord#2 [High Byte] */
+        0x05, /* DTCAndStatusRecord#2 [Middle Byte] */
+        0x11, /* DTCAndStatusRecord#2 [Low Byte] */
+        0x2F, /* DTCAndStatusRecord#2 [Status Byte] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// closely follows ISO14229-1 2020 12.3.5.4 Example #3 but for SubFunction =
+// reportUserDefMemoryDTCByStatusMask
+void test_0x19_sub_0x17_no_matching_dtc(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {
+        0x18,
+        0x07F,
+    };
+    Test0x19FnData_t fn_data = {.data = ResponseData,
+                                .len = sizeof(ResponseData),
+                                .test_identifier = "test_0x19_Sub_0x17_no_matching_dtc"};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 349 with an additional MemorySelection byte */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x17, /* reportUserDefMemoryDTCByStatusMask */
+        0x01, /* DTCStatusMask */
+        0x18, /* MemorySelection */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 350 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x17, /* SubFunction */
+        0x18, /* MemorySelection */
+        0x7F, /* DTCStatusAvailabilityMask */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x19_sub_0x18(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0x18, 0x12, 0x34, 0x56, 0x24, 0x03, 0x02, 0x01, 0xBC, 0x01,
+                              0x0B, 0x23, 0x45, 0x67, 0x24, 0x08, 0x01, 0x01, 0xCD, 0xEE};
+    Test0x19FnData_t fn_data = {
+        .data = ResponseData,
+        .len = sizeof(ResponseData),
+    };
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x18, /* reportUserDefMemoryDTCSnapshotRecordByDTCNumber */
+        0x12, /* DTCAndStatusRecord#1 [High Byte] */
+        0x34, /* DTCAndStatusRecord#1 [Middle Byte] */
+        0x56, /* DTCAndStatusRecord#1 [Low Byte] */
+        0x06, /* UserDefDTCSnapshotRecordNumber */
+        0x18, /* MemorySelection */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x18, /* reportType = SubFunction  */
+        0x18, /* MemorySelection */
+        0x12, /* DTCAndStatusRecord#1 [High Byte] */
+        0x34, /* DTCAndStatusRecord#1 [Middle Byte] */
+        0x56, /* DTCAndStatusRecord#1 [Low Byte] */
+        0x24, /* DTCAndStatusRecord#1 [Status Byte] */
+        0x03, /* UserDefDTCSnapshotRecordNumber#1 */
+        0x02, /* DTCSnaphotRecordNumberOfIdentifiers#1 */
+        0x01, /* DataIdentifier#1 [High Byte] */
+        0xBC, /* DataIdentifier#1 [Low Byte] */
+        0x01, /* SnapshotData#1 [Byte 1] */
+        0x0B, /* SnapshotData#1 [Byte 2] */
+        0x23, /* DTCAndStatusRecord#1 [High Byte] */
+        0x45, /* DTCAndStatusRecord#1 [Middle Byte] */
+        0x67, /* DTCAndStatusRecord#1 [Low Byte] */
+        0x24, /* DTCAndStatusRecord#1 [Status Byte] */
+        0x08, /* UserDefDTCSnapshotRecordNumber#2 */
+        0x01, /* DTCSnaphotRecordNumberOfIdentifiers#2 */
+        0x01, /* DataIdentifier#2 [High Byte] */
+        0xCD, /* DataIdentifier#2 [Low Byte] */
+        0xEE, /* SnapshotData#2 [Byte 1] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x19_sub_0x18_no_record(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0x18, 0x12, 0x34, 0x56, 0x24};
+    Test0x19FnData_t fn_data = {
+        .data = ResponseData,
+        .len = sizeof(ResponseData),
+    };
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x18, /* reportUserDefMemoryDTCSnapshotRecordByDTCNumber */
+        0x12, /* DTCAndStatusRecord#1 [High Byte] */
+        0x34, /* DTCAndStatusRecord#1 [Middle Byte] */
+        0x56, /* DTCAndStatusRecord#1 [Low Byte] */
+        0x06, /* UserDefDTCSnapshotRecordNumber */
+        0x18, /* MemorySelection */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x18, /* reportType = SubFunction  */
+        0x18, /* MemorySelection */
+        0x12, /* DTCAndStatusRecord#1 [High Byte] */
+        0x34, /* DTCAndStatusRecord#1 [Middle Byte] */
+        0x56, /* DTCAndStatusRecord#1 [Low Byte] */
+        0x24, /* DTCAndStatusRecord#1 [Status Byte] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// closely follows ISO14229-1 2020 12.3.5.8 Example #7 but for SubFunction =
+// reportUserDefMemoryDTCExtDataRecordByDTCNumber
+void test_0x19_sub_0x19(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0x18, 0x12, 0x34, 0x56, 0x24, 0x05, 0x17, 0x10, 0x79};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 361 with memory selection byte added*/
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x19, /* reportUserDefMemoryDTCExtDataRecordByDTCNumber */
+        0x12, /* DTCAndStatusRecord [High Byte] */
+        0x34, /* DTCAndStatusRecord [Middle Byte] */
+        0x56, /* DTCAndStatusRecord [Low Byte] */
+        0xFF, /* DTCExtDataRecordNumber */
+        0x18, /* MemorySelection */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 362 with memory selection byte added */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x19, /* reportType = SubFunction */
+        0x18, /* MemorySelection */
+        0x12, /* DTCAndStatusRecord [High Byte] */
+        0x34, /* DTCAndStatusRecord [Middle Byte] */
+        0x56, /* DTCAndStatusRecord [Low Byte] */
+        0x24, /* DTCAndStatusRecord [status of DTC] */
+        0x05, /* DTCExtDataRecordNumber#1 */
+        0x17, /* DTCExtDataRecord#1 [Byte 1] */
+        0x10, /* DTCExtDataRecordNumber#2 */
+        0x79, /* DTCExtDataRecord#2 [Byte 1] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x19_sub_0x19_no_data(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0x18, 0x12, 0x34, 0x56, 0x24};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x19, /* reportUserDefMemoryDTCExtDataRecordByDTCNumber */
+        0x12, /* DTCAndStatusRecord [High Byte] */
+        0x34, /* DTCAndStatusRecord [Middle Byte] */
+        0x56, /* DTCAndStatusRecord [Low Byte] */
+        0xFF, /* DTCExtDataRecordNumber */
+        0x18, /* MemorySelection */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x19, /* reportType = SubFunction */
+        0x18, /* MemorySelection */
+        0x12, /* DTCAndStatusRecord [High Byte] */
+        0x34, /* DTCAndStatusRecord [Middle Byte] */
+        0x56, /* DTCAndStatusRecord [Low Byte] */
+        0x24, /* DTCAndStatusRecord [status of DTC] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// ISO14229-1 2020 12.3.5.17Example #16 – ReadDTCInformation - SubFunction =
+// reportDTCExtendedDataRecordIdentification
+void test_0x19_sub_0x1A(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0x7F, 0x91, 0x12, 0x34, 0x56, 0x24, 0x23,
+                              0x45, 0x05, 0x00, 0xAB, 0xCD, 0x01, 0x2F};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 388 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x1A, /* reportDTCExtendedDataRecordIdentification */
+        0x91, /* DTCExtDataRecordNumber */
+
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 389 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x1A, /* reportType = SubFunction */
+        0x7F, /* DTCStatusAvailabilityMask */
+        0x91, /* DTCExtendedRecordNumber */
+        0x12, /* DTCAndStatusRecord#1 [High Byte] */
+        0x34, /* DTCAndStatusRecord#1 [Middle Byte] */
+        0x56, /* DTCAndStatusRecord#1 [Low Byte] */
+        0x24, /* DTCAndStatusRecord#1 [Status] */
+        0x23, /* DTCAndStatusRecord#2 [High Byte] */
+        0x45, /* DTCAndStatusRecord#2 [Middle Byte] */
+        0x05, /* DTCAndStatusRecord#2 [Low Byte] */
+        0x00, /* DTCAndStatusRecord#2 [Status] */
+        0xAB, /* DTCAndStatusRecord#3 [High Byte] */
+        0xCD, /* DTCAndStatusRecord#3 [Middle Byte] */
+        0x01, /* DTCAndStatusRecord#3 [Low Byte] */
+        0x2F, /* DTCAndStatusRecord#3 [Status] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x19_sub_0x1A_no_data(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {
+        0x7F,
+    };
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x1A, /* reportDTCExtendedDataRecordIdentification */
+        0x91, /* DTCExtDataRecordNumber */
+
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x1A, /* reportType = SubFunction */
+        0x7F, /* DTCStatusAvailabilityMask */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// ISO14229-1 2020 12.3.5.18Example #17 - ReadDTCInformation, SubFunction =
+// reportWWHOBDDTCByMaskRecord
+void test_0x19_sub_0x42(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0x33, 0xFF, 0xFF, 0x04, 0x20, 0x25, 0x22, 0x1F, 0x2F};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 390 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x42, /* reportWWHOBDDTCByMaskRecord */
+        0x33, /* FunctionalGroupIdentifier */
+        0x08, /* DTCSeverityMaskRecord [Status] */
+        0xFF, /* DTCSeverityMaskRecord [Severity] */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 391 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x42, /* reportType = SubFunction */
+        0x33, /* FunctionalGroupIdentifier */
+        0xFF, /* DTCStatusMaskAvailability */
+        0xFF, /* DTCSeverityMaskAvailability */
+        0x04, /* DTCFormatIdentifier */
+        0x20, /* DTCAndSeverityRecord [Severity] */
+        0x25, /* DTCAndSeverityRecord [High Byte] */
+        0x22, /* DTCAndSeverityRecord [Middle Byte] */
+        0x1F, /* DTCAndSeverityRecord [Low Byte] */
+        0x2F, /* DTCAndSeverityRecord [Status] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x19_sub_0x42_no_record(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0x33, 0xFF, 0xFF, 0x04};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x42, /* reportWWHOBDDTCByMaskRecord */
+        0x33, /* FunctionalGroupIdentifier */
+        0x08, /* DTCSeverityMaskRecord [Status] */
+        0xFF, /* DTCSeverityMaskRecord [Severity] */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x42, /* reportType = SubFunction */
+        0x33, /* FunctionalGroupIdentifier */
+        0xFF, /* DTCStatusMaskAvailability */
+        0xFF, /* DTCSeverityMaskAvailability */
+        0x04, /* DTCFormatIdentifier */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// ISO14229-1 2020 12.3.5.19Example #18 - ReadDTCInformation, SubFunction =
+// reportOBDDTCWithPermanentStatus, matching DTCs returned
+void test_0x19_sub_0x55(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0x33, 0xFF, 0x04, 0x08, 0x05, 0x11, 0x2F};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 394 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x55, /* reportWWHOBDDTCWithPermanentStatus */
+        0x33, /* FunctionalGroupIdentifier */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 395 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x55, /* reportType = SubFunction */
+        0x33, /* FunctionalGroupIdentifier */
+        0xFF, /* DTCStatusAvailabilityMask */
+        0x04, /* DTCFormatIdentifier */
+        0x08, /* DTCAndStatusRecord#1 [High Byte] */
+        0x05, /* DTCAndStatusRecord#1 [Middle Byte] */
+        0x11, /* DTCAndStatusRecord#1 [Low Byte] */
+        0x2F, /* DTCAndStatusRecord#1 [Status] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x19_sub_0x55_no_record(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0x33, 0xFF, 0x04};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x55, /* reportWWHOBDDTCWithPermanentStatus */
+        0x33, /* FunctionalGroupIdentifier */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x55, /* reportType = SubFunction */
+        0x33, /* FunctionalGroupIdentifier */
+        0xFF, /* DTCStatusAvailabilityMask */
+        0x04, /* DTCFormatIdentifier */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// ISO14229-1 2020 12.3.5.20Example #19 – ReadDTCInformation - SubFunction =
+// reportDTCByReadinessGroupIdentifier
+void test_0x19_sub_0x56(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0x33, 0xFF, 0x04, 0x01, 0x12, 0x34, 0x56, 0x24,
+                              0x23, 0x45, 0x05, 0x00, 0xAB, 0xCD, 0x01, 0x2F};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    /* Request per ISO14229-1 2020 Table 396 */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x56, /* reportDTCInformationByDTCReadinessGroupIdentifier */
+        0x33, /* FunctionalGroupIdentifier */
+        0x01, /* DTCReadinessGroupIdentifier */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 397 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x56, /* reportType = SubFunction */
+        0x33, /* FunctionalGroupIdentifier */
+        0xFF, /* DTCStatusAvailabilityMask */
+        0x04, /* DTCFormatIdentifier */
+        0x01, /* DTCReadinessGroupIdentifier */
+        0x12, /* DTCAndStatusRecord#1 [High Byte] */
+        0x34, /* DTCAndStatusRecord#1 [Middle Byte] */
+        0x56, /* DTCAndStatusRecord#1 [Low Byte] */
+        0x24, /* DTCAndStatusRecord#1 [Status] */
+        0x23, /* DTCAndStatusRecord#2 [High Byte] */
+        0x45, /* DTCAndStatusRecord#2 [Middle Byte] */
+        0x05, /* DTCAndStatusRecord#2 [Low Byte] */
+        0x00, /* DTCAndStatusRecord#2 [Status] */
+        0xAB, /* DTCAndStatusRecord#3 [High Byte] */
+        0xCD, /* DTCAndStatusRecord#3 [Middle Byte] */
+        0x01, /* DTCAndStatusRecord#3 [Low Byte] */
+        0x2F, /* DTCAndStatusRecord#3 [Status] */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x19_sub_0x56_no_record(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    uint8_t ResponseData[] = {0x33, 0xFF, 0x04, 0x01};
+    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x56, /* reportDTCInformationByDTCReadinessGroupIdentifier */
+        0x33, /* FunctionalGroupIdentifier */
+        0x01, /* DTCReadinessGroupIdentifier */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x59, /* Response SID */
+        0x56, /* reportType = SubFunction */
+        0x33, /* FunctionalGroupIdentifier */
+        0xFF, /* DTCStatusAvailabilityMask */
+        0x04, /* DTCFormatIdentifier */
+        0x01, /* DTCReadinessGroupIdentifier */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+int fn_test_0x19_subfunc_not_suported(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+    /* This function should never be called */
+    TEST_INT_EQUAL(1, 2);
+    return UDS_PositiveResponse;
+}
+
+void test_0x19_subfunc_not_suported(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    /* We should not reach this function */
+    e->server->fn = fn_test_0x19_subfunc_not_suported;
+    e->server->fn_data = NULL;
+
+    /* Request with unknown subfunc */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x57, /* Unknown SubFunc */
+        0x33,
+        0x01,
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x7F, /* Response SID */
+        0x19, /* Unknown SubFunc */
+        0x12, /* NRC: SubFunctionNotSupported */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+int fn_test_0x19_invalid_req_len(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+    /* This function should never be called */
+    TEST_INT_EQUAL(1, 2);
+    return UDS_PositiveResponse;
+}
+
+void test_0x19_invalid_req_len(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    Test0x19FnData_t fn_data = {.data = NULL, .len = 0};
+
+    e->server->fn = fn_test_0x19_invalid_req_len;
+    e->server->fn_data = &fn_data;
+
+    /* Invalid Request: Missing DTCStatusMask field */
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x01, /* reportNumberOfDTCByStatusMask */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x7F, /* Response SID */
+        0x19, /* reportType = SubFunction */
+        0x13, /* NRC: IncorrectMessageLengthOrInvalidFormat */
+    };
+
+    /* the client transport should receive a positive response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x19_invalid_subFunction(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    Test0x19FnData_t fn_data = {.data = NULL, .len = 0};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0xFF, /* Invalid Subfunction */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x7F, /* Response SID */
+        0x19, /* reportType = SubFunction */
+        0x12, /* NRC: SubFunctionNotSupported */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x19_shrink_default_response_len(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    Test0x19FnData_t fn_data = {.test_identifier = "shrink_default_response_len"};
+
+    e->server->fn = fn_test_0x19;
+    e->server->fn_data = &fn_data;
+
+    const uint8_t REQ[] = {
+        0x19, /* SID */
+        0x01, /* reportNumberOfDTCByStatusMask */
+        0x08, /* DTCStatusMask */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x7F, /* Negative Response SID */
+        0x19, /* Original SID */
+        0x10, /* NRC: GeneralReject */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// Container to hold request and responses for malformed response tests
+typedef struct {
+    uint8_t request[10];
+    size_t request_len;
+    uint8_t response[20];
+    size_t response_len;
+} Test0x19FnMalformedResponseData_t;
+
+/* List of requests with malformed responses */
+/* SubFunc ID is the second byte (index 1) in the request */
+const Test0x19FnMalformedResponseData_t test_0x19_malformed_response_data[] = {
+    {
+        .request = {0x19, 0x01, 0x08},
+        .request_len = 3,
+        .response = {0x2F, 0x01, 0x00},
+        .response_len = 3,
+    },
+    {
+        .request = {0x19, 0x02, 0x84},
+        .request_len = 3,
+        .response = {0x7F, 0x0A},
+        .response_len = 2,
+    },
+    {
+        .request = {0x19, 0x03},
+        .request_len = 2,
+        .response = {0x12, 0x34, 0x56, 0x01, 0x12, 0x34, 0x57, 0x02, 0x78, 0x9A, 0xBC},
+        .response_len = 11,
+    },
+    {
+        .request = {0x19, 0x04, 0x12, 0x34, 0x56, 0x02},
+        .request_len = 6,
+        .response = {0x12, 0x34, 0x56},
+        .response_len = 3,
+    },
+    {
+        .request = {0x19, 0x05, 0x02},
+        .request_len = 3,
+        .response = {},
+        .response_len = 0,
+    },
+    {
+        .request = {0x19, 0x06, 0x12, 0x34, 0x56, 0xFF},
+        .request_len = 6,
+        .response = {0x12, 0x34, 0x56},
+        .response_len = 3,
+    },
+    {
+        .request = {0x19, 0x07, 0xC0, 0x01},
+        .request_len = 4,
+        .response = {0x09, 0x01, 0x00},
+        .response_len = 3,
+    },
+    {
+        .request = {0x19, 0x08, 0xC0, 0x01},
+        .request_len = 4,
+        .response = {0x7F, 0x40},
+        .response_len = 2,
+    },
+    {
+        .request = {0x19, 0x09, 0x08, 0x05, 0x11},
+        .request_len = 5,
+        .response = {0x59, 0x09},
+        .response_len = 2,
+    },
+    {
+        .request = {0x19, 0x0A},
+        .request_len = 2,
+        .response = {0x7F, 0x12, 0x34, 0x56, 0x24, 0x23, 0x45, 0x05, 0x00, 0xAB, 0xCD, 0x2F},
+        .response_len = 12,
+    },
+    {
+        .request = {0x19, 0x0B},
+        .request_len = 2,
+        .response = {0xFF, 0x12, 0x34, 0x56},
+        .response_len = 4,
+    },
+    {
+        .request = {0x19, 0x0C},
+        .request_len = 2,
+        .response = {0xFF, 0x12, 0x34, 0x56},
+        .response_len = 4,
+    },
+    {
+        .request = {0x19, 0x0D},
+        .request_len = 2,
+        .response = {0xFF, 0x12, 0x34, 0x56},
+        .response_len = 4,
+    },
+    {
+        .request = {0x19, 0x0E},
+        .request_len = 2,
+        .response = {0xFF, 0x12, 0x34, 0x56},
+        .response_len = 4,
+    },
+    {
+        .request = {0x19, 0x14},
+        .request_len = 2,
+        .response = {0x12, 0x34, 0x56},
+        .response_len = 3,
+    },
+    {
+        .request = {0x19, 0x15},
+        .request_len = 2,
+        .response = {0xFF, 0x12, 0x34, 0x56},
+        .response_len = 4,
+    },
+    {
+        .request = {0x19, 0x16, 0x05},
+        .request_len = 3,
+        .response = {},
+        .response_len = 0,
+    },
+    {
+        .request = {0x19, 0x17, 0x84, 0x18},
+        .request_len = 4,
+        .response = {0x07F},
+        .response_len = 1,
+    },
+    {
+        .request = {0x19, 0x18, 0x12, 0x34, 0x56, 0x06, 0x18},
+        .request_len = 7,
+        .response = {0x18, 0x12, 0x34, 0x56},
+        .response_len = 4,
+    },
+    {
+        .request = {0x19, 0x19, 0x12, 0x34, 0x56, 0xFF, 0x18},
+        .request_len = 7,
+        .response = {0x18, 0x12, 0x34, 0x56},
+        .response_len = 4,
+    },
+    {
+        .request = {0x19, 0x1A, 0x91},
+        .request_len = 3,
+        .response = {0x7F, 0x91},
+        .response_len = 2,
+    },
+    {
+        .request = {0x19, 0x42, 0x33, 0x08, 0xFF},
+        .request_len = 5,
+        .response = {0x33, 0xFF, 0xFF, 0x04, 0x20},
+        .response_len = 5,
+    },
+    {
+        .request = {0x19, 0x55, 0x33},
+        .request_len = 3,
+        .response = {0x33, 0xFF, 0x04, 0x08},
+        .response_len = 4,
+    },
+    {
+        .request = {0x19, 0x56, 0x33, 0x01},
+        .request_len = 4,
+        .response = {},
+        .response_len = 0,
+    },
+};
+
+void test_0x19_malformed_responses(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[512] = {0};
+
+    size_t num_tests =
+        sizeof(test_0x19_malformed_response_data) / sizeof(test_0x19_malformed_response_data[0]);
+
+    for (size_t i = 0; i < num_tests; i++) {
+
+        printf("\t\tTesting subfunction: 0x%02X\n",
+               test_0x19_malformed_response_data[i].request[1]);
+        memset(buf, 0, sizeof(buf));
+
+        Test0x19FnData_t fn_data = {
+            .data = (void *)(test_0x19_malformed_response_data[i].response_len != 0
+                                 ? test_0x19_malformed_response_data[i].response
+                                 : NULL),
+            .len = test_0x19_malformed_response_data[i].response_len,
+            .test_identifier = "malformed_response"};
+
+        e->server->fn = fn_test_0x19;
+        e->server->fn_data = &fn_data;
+
+        UDSTpSend(e->client_tp, test_0x19_malformed_response_data[i].request,
+                  test_0x19_malformed_response_data[i].request_len, NULL);
+
+        // the server should respond with a General Reject negative response within p2 ms
+        const uint8_t EXPECTED_RESP[] = {
+            0x7F, /* Negative Response SID */
+            0x19, /* Original SID */
+            0x10, /* NRC: GeneralReject */
+        };
+
+        EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                         UDS_CLIENT_DEFAULT_P2_MS);
+        TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+    }
+}
+
 int fn_test_0x22(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     TEST_INT_EQUAL(UDS_EVT_ReadDataByIdent, ev);
 
@@ -1112,6 +3300,55 @@ int main(int ac, char **av) {
         cmocka_unit_test_setup_teardown(test_0x14_positive_response, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x14_incorrect_request_length, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x14_negative_response, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x01, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x02, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x02_no_matching_dtc, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x03, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x03_no_snapshots, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x04, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x04_no_records, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x05, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x05_no_data, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x06, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x06_no_data, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x07, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x08, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x08_no_dtc, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x09, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x09_no_dtc, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x0A, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x0B, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x0B_no_info, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x0C, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x0C_no_info, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x0D, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x0D_no_info, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x0E, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x0E_no_info, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x14, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x15, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x15_no_data, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x16, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x16_no_record, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x17, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x17_no_matching_dtc, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x18, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x18_no_record, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x19, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x19_no_data, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x1A, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x1A_no_data, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x42, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x42_no_record, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x55, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x55_no_record, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x56, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_sub_0x56_no_record, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_subfunc_not_suported, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_invalid_req_len, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_invalid_subFunction, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_shrink_default_response_len, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x19_malformed_responses, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22_nonexistent, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x22_misuse, Setup, Teardown),
