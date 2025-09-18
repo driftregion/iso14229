@@ -1510,7 +1510,15 @@ static UDSErr_t Handle_0x28_CommunicationControl(UDSServer_t *srv, UDSReq_t *r) 
     UDSCommCtrlArgs_t args = {
         .ctrlType = controlType,
         .commType = communicationType,
+        .nodeId = 0,
     };
+
+    if (args.ctrlType == 0x04 || args.ctrlType == 0x05) {
+        if (r->recv_len < UDS_0X28_REQ_BASE_LEN + 2) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+        args.nodeId = (uint16_t)((uint16_t)(r->recv_buf[3] << 8) | (uint16_t)r->recv_buf[4]);
+    }
 
     UDSErr_t err = EmitEvent(srv, UDS_EVT_CommCtrl, &args);
     if (UDS_PositiveResponse != err) {

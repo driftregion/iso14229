@@ -2885,6 +2885,144 @@ void test_0x27_brute_force_prevention_2(void **state) {
     TEST_MEMORY_EQUAL(buf, DENIED, sizeof(DENIED));
 }
 
+UDSErr_t fn_test_0x28_comm_ctrl(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+    TEST_INT_EQUAL(ev, UDS_EVT_CommCtrl);
+
+    UDSCommCtrlArgs_t *args = arg;
+
+    switch (args->ctrlType) {
+    case 0x01:
+        TEST_INT_EQUAL(args->commType, 0x02);
+        TEST_INT_EQUAL(args->nodeId, 0x00); /* Default NodeID should be 0 */
+        return UDS_PositiveResponse;
+    case 0x02:
+        srv->r.send_len = 1; /* Force malformed response length */
+        return UDS_PositiveResponse;
+
+    case 0x04:
+        TEST_INT_EQUAL(args->commType, 0x01);
+        TEST_INT_EQUAL(args->nodeId, 0x000A);
+        return UDS_PositiveResponse;
+    }
+
+    return UDS_NRC_GeneralProgrammingFailure;
+}
+
+// ISO14229-1 2020 10.5.5 Message flow example CommunicationControl (disable transmission of network
+// management messages)
+void test_0x28_comm_ctrl_example1(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x28_comm_ctrl;
+    e->server->fn_data = NULL;
+
+    /* Request per ISO14229-1 2020 Table 59 */
+    const uint8_t REQ[] = {
+        0x28, /* SID */
+        0x01, /* ControlType */
+        0x02, /* CommunicationType */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 60 */
+    const uint8_t EXPECTED_RESP1[] = {
+        0x68, /* Response SID */
+        0x01, /* ControlType */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP1, sizeof(EXPECTED_RESP1));
+}
+
+// ISO14229-1 2020 10.5.6 Message flow example CommunicationControl (switch a remote network into
+// the diagnostic-only scheduling mode where the node with address 000A16 is connected to)
+void test_0x28_comm_ctrl_example2(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x28_comm_ctrl;
+    e->server->fn_data = NULL;
+
+    /* Request per ISO14229-1 2020 Table 61 */
+    const uint8_t REQ[] = {
+        0x28, /* SID */
+        0x04, /* ControlType */
+        0x01, /* CommunicationType */
+        0x00, /* NodeIdentificationNumber [High Byte] */
+        0x0A, /* NodeIdentificationNumber [Low Byte] */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 62 */
+    const uint8_t EXPECTED_RESP1[] = {
+        0x68, /* Response SID */
+        0x04, /* ControlType */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP1, sizeof(EXPECTED_RESP1));
+}
+
+void test_0x28_comm_ctrl_invalid_request(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x28_comm_ctrl;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x28, /* SID */
+        0x04, /* ControlType */
+        /* MISSING required CommunicationType */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP1[] = {
+        0x7F, /* Response SID */
+        0x28, /* Original Request SID */
+        0x13, /* NRC: IncorrectMessageLengthOrInvalidFormat*/
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP1, sizeof(EXPECTED_RESP1));
+}
+
+void test_0x28_comm_ctrl_forced_malformed_response_in_event_handler(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x28_comm_ctrl;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x28, /* SID */
+        0x02, /* ControlType */
+        0x02, /* CommunicationType */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP1[] = {
+        0x68, /* Response SID */
+        0x02, /* Original Request SID */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP1, sizeof(EXPECTED_RESP1));
+}
+
 int fn_test_0x2F(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     UDSIOCtrlArgs_t *args = arg;
 
@@ -3357,6 +3495,11 @@ int main(int ac, char **av) {
         cmocka_unit_test_setup_teardown(test_0x27_unlock, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x27_brute_force_prevention_1, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x27_brute_force_prevention_2, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x28_comm_ctrl_example1, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x28_comm_ctrl_example2, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x28_comm_ctrl_invalid_request, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(
+            test_0x28_comm_ctrl_forced_malformed_response_in_event_handler, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2F_example, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2F_incorrect_request_length, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2F_negative_response, Setup, Teardown),

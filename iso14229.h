@@ -967,8 +967,9 @@ typedef struct {
 } UDSReadMemByAddrArgs_t;
 
 typedef struct {
-    uint8_t ctrlType; /* uint8_t */
-    uint8_t commType; /* uint8_t */
+    uint8_t ctrlType; /*! ControlType */
+    uint8_t commType; /*! CommunicationType */
+    uint16_t nodeId;  /*! NodeIdentificationNumber (only used when ctrlType is 0x04 or 0x05) */
 } UDSCommCtrlArgs_t;
 
 typedef struct {
