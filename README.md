@@ -389,6 +389,14 @@ bazel build //:release
 
 - [`isotp-c`](https://github.com/SimonCahill/isotp-c) which this project embeds
 
+# Development
+
+You will need bazel and linux. 
+
+```sh
+git config core.hooksPath .githooks
+```
+
 # Changelog
 
 ## 0.9.0
