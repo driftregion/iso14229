@@ -7,18 +7,8 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build-linux-lint:
-    runs-on: ubuntu-latest
 
-    steps:
-    - name: checkout
-      uses: actions/checkout@v3
-
-    - name: lint
-      run: CHECK_FORMAT=1 ./tools/run_clang_format.sh
-
-
-  build-linux-unit-tests:
+  linux:
     runs-on: ubuntu-latest
 
     steps:
@@ -28,7 +18,7 @@ jobs:
     - name: run unit tests
       run: bazel test //test:all --test_tag_filters=-vcan
     
-  build-linux-ultra_strict:
+  linux-ultra-strict:
     runs-on: ubuntu-22.04
 
     steps:
@@ -39,7 +29,7 @@ jobs:
       run: |
         bazel build --repo_env=CC=clang --repo_env=CXX=clang++ //test:ultra_strict
   
-  fuzz-replay-linux-clang:
+  linux-fuzz-coverage:
     runs-on: ubuntu-22.04
 
     steps:
@@ -83,7 +73,7 @@ jobs:
         chmod +x codecov
         ./codecov --verbose upload-process --fail-on-error -t $CODECOV_TOKEN -F fuzz --file coverage.lcov --name "GitHub Actions Fuzz Coverage" --commit-sha $(git rev-parse HEAD) --report-code fuzz-report 
     
-  unittest-windows:
+  windows:
     runs-on: windows-latest
 
     steps:
@@ -94,7 +84,7 @@ jobs:
       run: bazel test //test:all --verbose_failures --test_output=all 
 
 
-  build-arduino:
+  arduino:
     runs-on: ubuntu-latest
 
     steps:
@@ -111,7 +101,7 @@ jobs:
         arduino-cli -b arduino:samd:mkrwifi1010 compile examples/arduino_server/main 
 
 
-  build-esp32:
+  esp32:
     runs-on: ubuntu-latest
 
     steps:

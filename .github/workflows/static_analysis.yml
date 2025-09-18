@@ -1,6 +1,8 @@
 name: static analysis
 
 on:
+  push:
+    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
 
@@ -10,6 +12,16 @@ permissions:
   checks: write
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v3
+
+    - name: lint
+      run: CHECK_FORMAT=1 ./tools/run_clang_format.sh
+
   static-analysis:
     runs-on: ubuntu-latest
 
