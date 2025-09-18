@@ -209,7 +209,7 @@ UDSErr_t UDSTpIsoTpSockInitServer(UDSTpIsoTpSock_t *tp, const char *ifname, uint
     tp->func_fd = LinuxSockBind(ifname, source_addr_func, 0, true);
     if (tp->phys_fd < 0 || tp->func_fd < 0) {
         UDS_LOGI(__FILE__, "foo\n");
-        fflush(stdout);
+        (void)fflush(stdout);
         return UDS_FAIL;
     }
     const char *tag = "server";

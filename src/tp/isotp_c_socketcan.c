@@ -39,7 +39,7 @@ done:
 
 uint32_t isotp_user_get_us(void) { return UDSMillis() * 1000; }
 
-void isotp_user_debug(const char *message, ...) {
+__attribute__((format(printf, 1, 2))) void isotp_user_debug(const char *message, ...) {
     va_list args;
     va_start(args, message);
     vprintf(message, args);
@@ -51,7 +51,7 @@ void isotp_user_debug(const char *message, ...) {
 #endif
 int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t *data, const uint8_t size,
                         void *user_data) {
-    fflush(stdout);
+    (void)fflush(stdout);
     UDS_ASSERT(user_data);
     int sockfd = *(int *)user_data;
     struct can_frame frame = {0};

@@ -4,7 +4,7 @@ MISRA_RULES_TXT = tools/cppcheck/misra_c_2023__headlines_for_cppcheck.txt
 
 $(MISRA_RULES_TXT):
 	mkdir -p tools/cppcheck
-	wget -O $(MISRA_RULES_TXT) https://gitlab.com/MISRA/MISRA-C/MISRA-C-2012/tools/-/raw/main/misra_c_2023__headlines_for_cppcheck.txt
+	wget -O $(MISRA_RULES_TXT) https://gitlab.com/MISRA/MISRA-C/MISRA-C-2012/tools/-/blob/main/misra_c_2012__headlines_for_cppcheck%20-%20AMD1+AMD2.txt
 
 compile_commands.json:
 	bazel build //:iso14229 && bazel run //:lib_compile_commands

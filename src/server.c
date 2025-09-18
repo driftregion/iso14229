@@ -1165,53 +1165,53 @@ typedef UDSErr_t (*UDSService)(UDSServer_t *srv, UDSReq_t *r);
 static UDSService getServiceForSID(uint8_t sid) {
     switch (sid) {
     case kSID_DIAGNOSTIC_SESSION_CONTROL:
-        return Handle_0x10_DiagnosticSessionControl;
+        return &Handle_0x10_DiagnosticSessionControl;
     case kSID_ECU_RESET:
-        return Handle_0x11_ECUReset;
+        return &Handle_0x11_ECUReset;
     case kSID_CLEAR_DIAGNOSTIC_INFORMATION:
-        return Handle_0x14_ClearDiagnosticInformation;
+        return &Handle_0x14_ClearDiagnosticInformation;
     case kSID_READ_DTC_INFORMATION:
         return Handle_0x19_ReadDTCInformation;
     case kSID_READ_DATA_BY_IDENTIFIER:
-        return Handle_0x22_ReadDataByIdentifier;
+        return &Handle_0x22_ReadDataByIdentifier;
     case kSID_READ_MEMORY_BY_ADDRESS:
-        return Handle_0x23_ReadMemoryByAddress;
+        return &Handle_0x23_ReadMemoryByAddress;
     case kSID_READ_SCALING_DATA_BY_IDENTIFIER:
         return NULL;
     case kSID_SECURITY_ACCESS:
-        return Handle_0x27_SecurityAccess;
+        return &Handle_0x27_SecurityAccess;
     case kSID_COMMUNICATION_CONTROL:
-        return Handle_0x28_CommunicationControl;
+        return &Handle_0x28_CommunicationControl;
     case kSID_READ_PERIODIC_DATA_BY_IDENTIFIER:
         return NULL;
     case kSID_DYNAMICALLY_DEFINE_DATA_IDENTIFIER:
         return NULL;
     case kSID_WRITE_DATA_BY_IDENTIFIER:
-        return Handle_0x2E_WriteDataByIdentifier;
+        return &Handle_0x2E_WriteDataByIdentifier;
     case kSID_IO_CONTROL_BY_IDENTIFIER:
-        return Handle_0x2F_IOControlByIdentifier;
+        return &Handle_0x2F_IOControlByIdentifier;
     case kSID_ROUTINE_CONTROL:
-        return Handle_0x31_RoutineControl;
+        return &Handle_0x31_RoutineControl;
     case kSID_REQUEST_DOWNLOAD:
-        return Handle_0x34_RequestDownload;
+        return &Handle_0x34_RequestDownload;
     case kSID_REQUEST_UPLOAD:
-        return Handle_0x35_RequestUpload;
+        return &Handle_0x35_RequestUpload;
     case kSID_TRANSFER_DATA:
-        return Handle_0x36_TransferData;
+        return &Handle_0x36_TransferData;
     case kSID_REQUEST_TRANSFER_EXIT:
-        return Handle_0x37_RequestTransferExit;
+        return &Handle_0x37_RequestTransferExit;
     case kSID_REQUEST_FILE_TRANSFER:
-        return Handle_0x38_RequestFileTransfer;
+        return &Handle_0x38_RequestFileTransfer;
     case kSID_WRITE_MEMORY_BY_ADDRESS:
-        return Handle_0x3D_WriteMemoryByAddress;
+        return &Handle_0x3D_WriteMemoryByAddress;
     case kSID_TESTER_PRESENT:
-        return Handle_0x3E_TesterPresent;
+        return &Handle_0x3E_TesterPresent;
     case kSID_ACCESS_TIMING_PARAMETER:
         return NULL;
     case kSID_SECURED_DATA_TRANSMISSION:
         return NULL;
     case kSID_CONTROL_DTC_SETTING:
-        return Handle_0x85_ControlDTCSetting;
+        return &Handle_0x85_ControlDTCSetting;
     case kSID_RESPONSE_ON_EVENT:
         return NULL;
     default:
@@ -1253,10 +1253,10 @@ static UDSErr_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
         bool suppressPosRspMsgIndicationBit = r->recv_buf[1] & 0x80;
 
         /* test if positive response is required and if responseCode is positive 0x00 */
-        if ((suppressPosRspMsgIndicationBit) && (response == UDS_PositiveResponse) &&
-            (
-                // TODO: *not yet a NRC 0x78 response sent*
-                true)) {
+        if (suppressPosRspMsgIndicationBit && (response == UDS_PositiveResponse) &&
+
+            // TODO: *not yet a NRC 0x78 response sent*
+            true) {
             suppressResponse = true;
         } else {
             suppressResponse = false;
@@ -1318,9 +1318,9 @@ static UDSErr_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
          (UDS_NRC_ServiceNotSupportedInActiveSession == response) ||
          (UDS_NRC_SubFunctionNotSupportedInActiveSession == response) ||
          (UDS_NRC_RequestOutOfRange == response)) &&
-        (
-            // TODO: *not yet a NRC 0x78 response sent*
-            true)) {
+
+        // TODO: *not yet a NRC 0x78 response sent*
+        true) {
         /* Suppress negative response message */
         suppressResponse = true;
     }
@@ -1328,7 +1328,6 @@ static UDSErr_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
     if (suppressResponse) {
         NoResponse(r);
     } else { /* send negative or positive response */
-        ;
     }
 
     return response;

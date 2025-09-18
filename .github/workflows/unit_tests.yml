@@ -7,44 +7,26 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build-linux-lint:
+
+  linux:
     runs-on: ubuntu-latest
 
     steps:
     - name: checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
-    - name: lint
-      run: CHECK_FORMAT=1 ./tools/run_clang_format.sh
-
-
-  build-linux-unit-tests:
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: checkout
-      uses: actions/checkout@v3
+    - name: Setup Bazel Cache
+      uses: ./.github/actions/setup-bazel-cache
 
     - name: run unit tests
       run: bazel test //test:all --test_tag_filters=-vcan
     
-  build-linux-ultra_strict:
+  linux-fuzz-coverage:
     runs-on: ubuntu-22.04
 
     steps:
     - name: checkout
-      uses: actions/checkout@v3
-
-    - name: run ultra_strict
-      run: |
-        bazel build --repo_env=CC=clang --repo_env=CXX=clang++ //test:ultra_strict
-  
-  fuzz-replay-linux-clang:
-    runs-on: ubuntu-22.04
-
-    steps:
-    - name: checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
@@ -54,15 +36,9 @@ jobs:
         echo "Current HEAD: $(git rev-parse HEAD)"
         echo "PR head SHA: ${{ github.event.pull_request.head.sha }}"
         echo "GitHub SHA: ${{ github.sha }}"
-        
-    - name: Cache Bazel
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cache/bazel
-        key: ${{ runner.os }}-bazel-${{ hashFiles('**/MODULE.bazel', '**/*.bzl', '**/BUILD*') }}
-        restore-keys: |
-          ${{ runner.os }}-bazel-
+
+    - name: Setup Bazel Cache
+      uses: ./.github/actions/setup-bazel-cache
 
     - name: run coverage
       run: |
@@ -83,23 +59,26 @@ jobs:
         chmod +x codecov
         ./codecov --verbose upload-process --fail-on-error -t $CODECOV_TOKEN -F fuzz --file coverage.lcov --name "GitHub Actions Fuzz Coverage" --commit-sha $(git rev-parse HEAD) --report-code fuzz-report 
     
-  unittest-windows:
+  windows:
     runs-on: windows-latest
 
     steps:
     - name: checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
+
+    - name: Setup Bazel Cache
+      uses: ./.github/actions/setup-bazel-cache
 
     - name: run unit tests
       run: bazel test //test:all --verbose_failures --test_output=all 
 
 
-  build-arduino:
+  arduino:
     runs-on: ubuntu-latest
 
     steps:
     - name: checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Install Arduino CLI
       uses: arduino/setup-arduino-cli@v2
@@ -111,12 +90,12 @@ jobs:
         arduino-cli -b arduino:samd:mkrwifi1010 compile examples/arduino_server/main 
 
 
-  build-esp32:
+  esp32:
     runs-on: ubuntu-latest
 
     steps:
     - name: checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: esp-idf build
       uses: espressif/esp-idf-ci-action@v1

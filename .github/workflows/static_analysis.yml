@@ -1,25 +1,80 @@
 name: static analysis
 
 on:
+  push:
+    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
 
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
 
 jobs:
-  build:
+  lint:
     runs-on: ubuntu-latest
 
     steps:
     - name: checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
-    - name: Install dependencies
+    - name: Setup Bazel Cache
+      uses: ./.github/actions/setup-bazel-cache
+
+    - name: lint
+      run: CHECK_FORMAT=1 ./tools/run_clang_format.sh
+
+  ultra-strict-build:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Bazel Cache
+      uses: ./.github/actions/setup-bazel-cache
+
+    - name: run ultra_strict
       run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential cmake python3-pip jq cppcheck
+        bazel build --repo_env=CC=clang --repo_env=CXX=clang++ //test:ultra_strict
+
+  CodeChecker:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v4
+
+    - name: Cache pip packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-codechecker-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-codechecker-
+          ${{ runner.os }}-pip-
+
+    - name: Cache apt packages
+      uses: awalsh128/cache-apt-pkgs-action@latest
+      with:
+        packages: build-essential cmake jq cppcheck
+        version: 1.0
+
+    - name: Install Python dependencies
+      run: |
         pip3 install codechecker requests
 
+    - name: Verify analyzers
+      run: |
         CodeChecker analyzers --details
+
+    - name: Setup Bazel Cache
+      uses: ./.github/actions/setup-bazel-cache
+
+    - name: Build compile commands
+      run: |
+        make compile_commands.json
 
     - name: Analyze with CodeChecker
       run: |
@@ -27,16 +82,25 @@ jobs:
 
     - name: Print report summary
       run: |
-        CodeChecker parse reports || true
+        CodeChecker parse reports --print-steps || echo "No issues found"
 
-    - name: Generate json report
+    - name: Generate SARIF report
       run: |
-        CodeChecker parse reports --export json -o report.json || true
+        CodeChecker parse reports --export sarif -o results.sarif
 
-    - name: Create Check Run with Annotations
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        GITHUB_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        GITHUB_REPOSITORY: ${{ github.repository }}
-      run: |
-        python3 tools/CodeChecker/post_to_github.py report.json
+    - name: Upload SARIF results to GitHub Code Scanning
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: results.sarif
+        category: "CodeChecker Static Analysis"
+
+    - name: Upload analysis reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: static-analysis-reports
+        path: |
+          reports/
+          results.sarif
+        retention-days: 30
