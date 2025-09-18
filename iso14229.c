@@ -569,7 +569,7 @@ UDSErr_t UDSSendTransferDataStream(UDSClient_t *client, uint8_t blockSequenceCou
     client->send_buf[0] = kSID_TRANSFER_DATA;
     client->send_buf[1] = blockSequenceCounter;
 
-    unsigned long _size = fread(&client->send_buf[2], 1, blockLength - 2, fd);
+    size_t _size = fread(&client->send_buf[2], 1, blockLength - 2, fd);
     UDS_ASSERT(_size < UINT16_MAX);
     uint16_t size = (uint16_t)_size;
     UDS_LOGI(__FILE__, "size: %d, blocklength: %d", size, blockLength);
@@ -1057,7 +1057,7 @@ static UDSErr_t Handle_0x22_ReadDataByIdentifier(UDSServer_t *srv, UDSReq_t *r) 
             .copy = safe_copy,
         };
 
-        unsigned send_len_before = r->send_len;
+        size_t send_len_before = r->send_len;
         ret = EmitEvent(srv, UDS_EVT_ReadDataByIdent, &args);
         if (ret == UDS_PositiveResponse && send_len_before == r->send_len) {
             UDS_LOGE(__FILE__, "RDBI response positive but no data sent\n");
@@ -1153,10 +1153,8 @@ static UDSErr_t Handle_0x23_ReadMemoryByAddress(UDSServer_t *srv, UDSReq_t *r) {
         return NegativeResponse(r, ret);
     }
     if (r->send_len != UDS_0X23_RESP_BASE_LEN + length) {
-        UDS_LOGE(__FILE__,
-                 "response positive but not all data sent: expected %zu, sent %zu", 
-                 length,
-                 r->send_len - UDS_0X23_RESP_BASE_LEN);
+        UDS_LOGE(__FILE__, "response positive but not all data sent: expected %zu, sent %zu",
+                 length, r->send_len - UDS_0X23_RESP_BASE_LEN);
         return NegativeResponse(r, UDS_NRC_GeneralReject);
     }
     return UDS_PositiveResponse;
@@ -1256,7 +1254,15 @@ static UDSErr_t Handle_0x28_CommunicationControl(UDSServer_t *srv, UDSReq_t *r) 
     UDSCommCtrlArgs_t args = {
         .ctrlType = controlType,
         .commType = communicationType,
+        .nodeId = 0,
     };
+
+    if (args.ctrlType == 0x04 || args.ctrlType == 0x05) {
+        if (r->recv_len < UDS_0X28_REQ_BASE_LEN + 2) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+        args.nodeId = (uint16_t)((uint16_t)(r->recv_buf[3] << 8) | (uint16_t)r->recv_buf[4]);
+    }
 
     UDSErr_t err = EmitEvent(srv, UDS_EVT_CommCtrl, &args);
     if (UDS_PositiveResponse != err) {
@@ -1417,7 +1423,7 @@ static UDSErr_t Handle_0x34_RequestDownload(UDSServer_t *srv, UDSReq_t *r) {
     srv->xferBlockLength = args.maxNumberOfBlockLength;
 
     // ISO-14229-1:2013 Table 401:
-    uint8_t lengthFormatIdentifier = sizeof(args.maxNumberOfBlockLength) << 4;
+    uint8_t lengthFormatIdentifier = (uint8_t)(sizeof(args.maxNumberOfBlockLength) << 4);
 
     /* ISO-14229-1:2013 Table 396: maxNumberOfBlockLength
     This parameter is used by the requestDownload positive response message to
@@ -1433,11 +1439,11 @@ static UDSErr_t Handle_0x34_RequestDownload(UDSServer_t *srv, UDSReq_t *r) {
     r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_REQUEST_DOWNLOAD);
     r->send_buf[1] = lengthFormatIdentifier;
     for (uint8_t idx = 0; idx < (uint8_t)sizeof(args.maxNumberOfBlockLength); idx++) {
-        uint8_t shiftBytes = sizeof(args.maxNumberOfBlockLength) - 1 - idx;
+        uint8_t shiftBytes = (uint8_t)(sizeof(args.maxNumberOfBlockLength) - 1 - idx);
         uint8_t byte = (args.maxNumberOfBlockLength >> (shiftBytes * 8)) & 0xFF;
         r->send_buf[UDS_0X34_RESP_BASE_LEN + idx] = byte;
     }
-    r->send_len = UDS_0X34_RESP_BASE_LEN + sizeof(args.maxNumberOfBlockLength);
+    r->send_len = UDS_0X34_RESP_BASE_LEN + (size_t)sizeof(args.maxNumberOfBlockLength);
     return UDS_PositiveResponse;
 }
 
@@ -1482,7 +1488,7 @@ static UDSErr_t Handle_0x35_RequestUpload(UDSServer_t *srv, UDSReq_t *r) {
     srv->xferTotalBytes = memorySize;
     srv->xferBlockLength = args.maxNumberOfBlockLength;
 
-    uint8_t lengthFormatIdentifier = sizeof(args.maxNumberOfBlockLength) << 4;
+    uint8_t lengthFormatIdentifier = (uint8_t)(sizeof(args.maxNumberOfBlockLength) << 4);
 
     r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_REQUEST_UPLOAD);
     r->send_buf[1] = lengthFormatIdentifier;
@@ -1491,7 +1497,7 @@ static UDSErr_t Handle_0x35_RequestUpload(UDSServer_t *srv, UDSReq_t *r) {
         uint8_t byte = (args.maxNumberOfBlockLength >> (shiftBytes * 8)) & 0xFF;
         r->send_buf[UDS_0X35_RESP_BASE_LEN + idx] = byte;
     }
-    r->send_len = UDS_0X35_RESP_BASE_LEN + sizeof(args.maxNumberOfBlockLength);
+    r->send_len = UDS_0X35_RESP_BASE_LEN + (size_t)sizeof(args.maxNumberOfBlockLength);
     return UDS_PositiveResponse;
 }
 
@@ -1641,13 +1647,13 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
         }
         for (size_t i = 0; i < file_size_parameter_length; i++) {
             uint8_t data_byte = r->recv_buf[byte_idx];
-            uint8_t shift_by_bytes = file_size_parameter_length - i - 1;
+            uint8_t shift_by_bytes = (uint8_t)(file_size_parameter_length - i - 1);
             file_size_uncompressed |= (size_t)data_byte << (8 * shift_by_bytes);
             byte_idx++;
         }
         for (size_t i = 0; i < file_size_parameter_length; i++) {
             uint8_t data_byte = r->recv_buf[byte_idx];
-            uint8_t shift_by_bytes = file_size_parameter_length - i - 1;
+            uint8_t shift_by_bytes = (uint8_t)(file_size_parameter_length - i - 1);
             file_size_compressed |= (size_t)data_byte << (8 * shift_by_bytes);
             byte_idx++;
         }
@@ -1679,16 +1685,16 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
 
     r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_REQUEST_FILE_TRANSFER);
     r->send_buf[1] = args.modeOfOperation;
-    r->send_buf[2] = sizeof(args.maxNumberOfBlockLength);
+    r->send_buf[2] = (uint8_t)sizeof(args.maxNumberOfBlockLength);
     for (uint8_t idx = 0; idx < (uint8_t)sizeof(args.maxNumberOfBlockLength); idx++) {
-        uint8_t shiftBytes = sizeof(args.maxNumberOfBlockLength) - 1 - idx;
+        uint8_t shiftBytes = (uint8_t)(sizeof(args.maxNumberOfBlockLength) - 1 - idx);
         uint8_t byte = (uint8_t)(args.maxNumberOfBlockLength >> (shiftBytes * 8));
         r->send_buf[UDS_0X38_RESP_BASE_LEN + idx] = byte;
     }
-    r->send_buf[UDS_0X38_RESP_BASE_LEN + sizeof(args.maxNumberOfBlockLength)] =
+    r->send_buf[UDS_0X38_RESP_BASE_LEN + (size_t)sizeof(args.maxNumberOfBlockLength)] =
         args.dataFormatIdentifier;
 
-    r->send_len = UDS_0X38_RESP_BASE_LEN + sizeof(args.maxNumberOfBlockLength) + 1;
+    r->send_len = UDS_0X38_RESP_BASE_LEN + (size_t)sizeof(args.maxNumberOfBlockLength) + 1;
     return UDS_PositiveResponse;
 }
 
@@ -2087,12 +2093,12 @@ uint32_t UDSMillis(void) {
     struct timeval te;
     gettimeofday(&te, NULL); // cppcheck-suppress misra-c2012-21.6
     long long milliseconds = (te.tv_sec * 1000LL) + (te.tv_usec / 1000);
-    return milliseconds;
+    return (uint32_t)milliseconds;
 #elif UDS_SYS == UDS_SYS_WINDOWS
     struct timespec ts;
     timespec_get(&ts, TIME_UTC);
     long long milliseconds = ts.tv_sec * 1000LL + ts.tv_nsec / 1000000;
-    return milliseconds;
+    return (uint32_t)milliseconds;
 #elif UDS_SYS == UDS_SYS_ARDUINO
     return millis();
 #elif UDS_SYS == UDS_SYS_ESP32
@@ -2404,6 +2410,7 @@ bool UDSErrIsNRC(UDSErr_t err) {
 #include <stdio.h>
 #include <stdarg.h>
 
+#if UDS_LOG_LEVEL > UDS_LOG_NONE
 void UDS_LogWrite(UDS_LogLevel_t level, const char *tag, const char *format, ...) {
     va_list list;
     (void)level;
@@ -2421,6 +2428,7 @@ void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *bu
     }
     UDS_LogWrite(level, tag, "\n");
 }
+#endif
 
 
 #ifdef UDS_LINES
@@ -3106,7 +3114,8 @@ static ssize_t mock_tp_send(struct UDSTp *hdl, uint8_t *buf, size_t len, UDSSDU_
         return -1;
     }
     struct Msg *m = &msgs[MsgCount++];
-    UDSTpAddr_t ta_type = info == NULL ? UDS_A_TA_TYPE_PHYSICAL : info->A_TA_Type;
+    UDSTpAddr_t ta_type =
+        info == NULL ? (UDSTpAddr_t)UDS_A_TA_TYPE_PHYSICAL : (UDSTpAddr_t)info->A_TA_Type;
     m->len = len;
     m->info.A_AE = info == NULL ? 0 : info->A_AE;
     if (UDS_A_TA_TYPE_PHYSICAL == ta_type) {
@@ -3148,7 +3157,7 @@ static ssize_t mock_tp_recv(struct UDSTp *hdl, uint8_t *buf, size_t bufsize, UDS
         UDS_LOGW(__FILE__, "mock_tp_recv: buffer too small: %ld < %ld", bufsize, tp->recv_len);
         return -1;
     }
-    int len = tp->recv_len;
+    ssize_t len = (ssize_t)tp->recv_len;
     memmove(buf, tp->recv_buf, tp->recv_len);
     if (info) {
         *info = tp->recv_info;
@@ -3158,6 +3167,7 @@ static ssize_t mock_tp_recv(struct UDSTp *hdl, uint8_t *buf, size_t bufsize, UDS
 }
 
 static UDSTpStatus_t mock_tp_poll(struct UDSTp *hdl) {
+    (void)hdl; // unused parameter
     NetworkPoll();
     // todo: make this status reflect TX time
     return UDS_TP_IDLE;
