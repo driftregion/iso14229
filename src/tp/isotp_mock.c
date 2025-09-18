@@ -171,7 +171,9 @@ UDSTp_t *ISOTPMockNew(const char *name, ISOTPMockArgs_t *args) {
     ISOTPMock_t *tp = malloc(sizeof(ISOTPMock_t));
     memset(tp, 0, sizeof(ISOTPMock_t));
     if (name) {
-        strncpy(tp->name, name, sizeof(tp->name));
+        if (snprintf(tp->name, sizeof(tp->name), "%s", name) >= (int)sizeof(tp->name)) {
+            UDS_LOGE(__FILE__, "Transport name too long, truncated");
+        }
     } else {
         (void)snprintf(tp->name, sizeof(tp->name), "TPMock%u", TPCount);
     }

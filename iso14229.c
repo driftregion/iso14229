@@ -601,9 +601,17 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, uint8_t mode, const cha
     if (err) {
         return err;
     }
-    uint16_t filePathLen = (uint16_t)strlen(filePath);
-    if (filePathLen < 1)
-        return UDS_FAIL;
+    if (filePath == NULL) {
+        return UDS_ERR_INVALID_ARG;
+    }
+    size_t filePathLenSize = strnlen(filePath, UINT16_MAX + 1);
+    if (filePathLenSize == 0) {
+        return UDS_ERR_INVALID_ARG;
+    }
+    if (filePathLenSize > UINT16_MAX) {
+        return UDS_ERR_INVALID_ARG;
+    }
+    uint16_t filePathLen = (uint16_t)filePathLenSize;
 
     uint8_t fileSizeBytes = 0;
     if ((mode == UDS_MOOP_ADDFILE) || (mode == UDS_MOOP_REPLFILE)) {
@@ -620,6 +628,8 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, uint8_t mode, const cha
     client->send_buf[1] = mode;
     client->send_buf[2] = (filePathLen >> 8) & 0xFF;
     client->send_buf[3] = filePathLen & 0xFF;
+    if (filePathLen > sizeof(client->send_buf) - 4)
+        return UDS_ERR_BUFSIZ;
     memcpy(&client->send_buf[4], filePath, filePathLen);
     if ((mode == UDS_MOOP_ADDFILE) || (mode == UDS_MOOP_REPLFILE) || (mode == UDS_MOOP_RDFILE)) {
         client->send_buf[4 + filePathLen] = dataFormatIdentifier;
@@ -2821,8 +2831,8 @@ UDSErr_t UDSISOTpCInit(UDSISOTpC_t *tp, const UDSISOTpCConfig_t *cfg) {
 #include <stdarg.h>
 
 static int SetupSocketCAN(const char *ifname) {
-    struct sockaddr_can addr;
-    struct ifreq ifr;
+    struct sockaddr_can addr = {0};
+    struct ifreq ifr = {0};
     int sockfd = -1;
 
     if ((sockfd = socket(PF_CAN, SOCK_RAW | SOCK_NONBLOCK, CAN_RAW)) < 0) {
@@ -2830,7 +2840,13 @@ static int SetupSocketCAN(const char *ifname) {
         goto done;
     }
 
-    strcpy(ifr.ifr_name, ifname);
+    memset(&ifr, 0, sizeof(ifr));
+    if (snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", ifname) >= (int)sizeof(ifr.ifr_name)) {
+        UDS_LOGE(__FILE__, "Interface name too long");
+        close(sockfd);
+        sockfd = -1;
+        goto done;
+    }
     ioctl(sockfd, SIOCGIFINDEX, &ifr);
     memset(&addr, 0, sizeof(addr));
     addr.can_family = AF_CAN;
@@ -3210,7 +3226,11 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool
 
     struct ifreq ifr;
     memset(&ifr, 0, sizeof(ifr));
-    strncpy(ifr.ifr_name, if_name, sizeof(ifr.ifr_name));
+    if (snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", if_name) >= (int)sizeof(ifr.ifr_name)) {
+        UDS_LOGE(__FILE__, "Interface name too long");
+        close(fd);
+        return -1;
+    }
     ioctl(fd, SIOCGIFINDEX, &ifr);
 
     struct sockaddr_can addr;
@@ -3469,7 +3489,9 @@ UDSTp_t *ISOTPMockNew(const char *name, ISOTPMockArgs_t *args) {
     ISOTPMock_t *tp = malloc(sizeof(ISOTPMock_t));
     memset(tp, 0, sizeof(ISOTPMock_t));
     if (name) {
-        strncpy(tp->name, name, sizeof(tp->name));
+        if (snprintf(tp->name, sizeof(tp->name), "%s", name) >= (int)sizeof(tp->name)) {
+            UDS_LOGE(__FILE__, "Transport name too long, truncated");
+        }
     } else {
         (void)snprintf(tp->name, sizeof(tp->name), "TPMock%u", TPCount);
     }

@@ -596,9 +596,17 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, uint8_t mode, const cha
     if (err) {
         return err;
     }
-    uint16_t filePathLen = (uint16_t)strlen(filePath);
-    if (filePathLen < 1)
-        return UDS_FAIL;
+    if (filePath == NULL) {
+        return UDS_ERR_INVALID_ARG;
+    }
+    size_t filePathLenSize = strnlen(filePath, UINT16_MAX + 1);
+    if (filePathLenSize == 0) {
+        return UDS_ERR_INVALID_ARG;
+    }
+    if (filePathLenSize > UINT16_MAX) {
+        return UDS_ERR_INVALID_ARG;
+    }
+    uint16_t filePathLen = (uint16_t)filePathLenSize;
 
     uint8_t fileSizeBytes = 0;
     if ((mode == UDS_MOOP_ADDFILE) || (mode == UDS_MOOP_REPLFILE)) {
@@ -615,6 +623,8 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, uint8_t mode, const cha
     client->send_buf[1] = mode;
     client->send_buf[2] = (filePathLen >> 8) & 0xFF;
     client->send_buf[3] = filePathLen & 0xFF;
+    if (filePathLen > sizeof(client->send_buf) - 4)
+        return UDS_ERR_BUFSIZ;
     memcpy(&client->send_buf[4], filePath, filePathLen);
     if ((mode == UDS_MOOP_ADDFILE) || (mode == UDS_MOOP_REPLFILE) || (mode == UDS_MOOP_RDFILE)) {
         client->send_buf[4 + filePathLen] = dataFormatIdentifier;
