@@ -1023,6 +1023,262 @@ static uint8_t safe_copy(UDSServer_t *srv, const void *src, uint16_t count) {
     return UDS_NRC_ResponseTooLong;
 }
 
+static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
+    UDSErr_t ret = UDS_PositiveResponse;
+    uint8_t type = r->recv_buf[1];
+
+    if (r->recv_len < UDS_0X19_REQ_MIN_LEN) {
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+    }
+
+    /* Shared by all SubFunc */
+    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_READ_DTC_INFORMATION);
+    r->send_buf[1] = type;
+    r->send_len = UDS_0X19_RESP_BASE_LEN;
+
+    UDSRDTCIArgs_t args = {
+        .type = type,
+        .copy = safe_copy,
+    };
+
+    /* Before checks and emitting Request */
+    switch (type) {
+    case 0x01: /* reportNumberOfDTCByStatusMask */
+        if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 1) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.subFuncArgs.numOfDTCByStatusMaskArgs.mask = r->recv_buf[2];
+        break;
+    case 0x02: /* reportDTCByStatusMask */
+        if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 1) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.subFuncArgs.dtcStatusByMaskArgs.mask = r->recv_buf[2];
+        break;
+    case 0x03: /* reportDTCSnapshotIdentification */
+    case 0x0A: /* reportSupportedDTC */
+    case 0x0B: /* reportFirstTestFailedDTC */
+    case 0x0C: /* reportFirstConfirmedDTC */
+    case 0x0D: /* reportMostRecentTestFailedDTC */
+    case 0x0E: /* reportMostRecentConfirmedDTC */
+    case 0x14: /* reportDTCFaultDetectionCounter */
+    case 0x15: /* reportDTCWithPermanentStatus */
+        /* has no subfunction specific args */
+        break;
+    case 0x04: /* reportDTCSnapshotRecordByDTCNumber */
+        if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 4) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.subFuncArgs.dtcSnapshotRecordbyDTCNumArgs.dtc =
+            (r->recv_buf[2] << 16 | r->recv_buf[3] << 8 | r->recv_buf[4]) & 0x00FFFFFF;
+        args.subFuncArgs.dtcSnapshotRecordbyDTCNumArgs.snapshotNum = r->recv_buf[5];
+        break;
+    case 0x05: /* reportDTCStoredDataByRecordNumber */
+    case 0x16: /* reportDTCExtDataRecordByNumber */
+    case 0x1A: /* reportDTCExtendedDataRecordIdentification */
+        if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 1) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.subFuncArgs.dtcStoredDataByRecordNumArgs.recordNum = r->recv_buf[2];
+        break;
+    case 0x06: /* reportDTCExtDataRecordByDTCNumber */
+        if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 4) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.subFuncArgs.dtcExtDtaRecordByDTCNumArgs.dtc =
+            (r->recv_buf[2] << 16 | r->recv_buf[3] << 8 | r->recv_buf[4]) & 0x00FFFFFF;
+        args.subFuncArgs.dtcExtDtaRecordByDTCNumArgs.extDataRecNum = r->recv_buf[5];
+        break;
+    case 0x07: /* reportNumberOfDTCBySeverityMaskRecord */
+    case 0x08: /* reportDTCBySeverityMaskRecord */
+        if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 2) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.subFuncArgs.numOfDTCBySeverityMaskArgs.severityMask = r->recv_buf[2];
+        args.subFuncArgs.numOfDTCBySeverityMaskArgs.statusMask = r->recv_buf[3];
+        break;
+    case 0x09: /* reportSeverityInformationOfDTC */
+        if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 1) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.subFuncArgs.severityInfoOfDTCArgs.dtc =
+            (r->recv_buf[2] << 16 | r->recv_buf[3] << 8 | r->recv_buf[4]) & 0x00FFFFFF;
+        break;
+    case 0x17: /* reportUserDefMemoryDTCByStatusMask */
+        if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 2) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.subFuncArgs.userDefMemoryDTCByStatusMaskArgs.mask = r->recv_buf[2];
+        args.subFuncArgs.userDefMemoryDTCByStatusMaskArgs.memory = r->recv_buf[3];
+        break;
+    case 0x18: /* reportUserDefMemoryDTCSnapshotRecordByDTCNumber */
+        if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 5) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.subFuncArgs.userDefMemDTCSnapshotRecordByDTCNumArgs.dtc =
+            (r->recv_buf[2] << 16 | r->recv_buf[3] << 8 | r->recv_buf[4]) & 0x00FFFFFF;
+        args.subFuncArgs.userDefMemDTCSnapshotRecordByDTCNumArgs.snapshotNum = r->recv_buf[5];
+        args.subFuncArgs.userDefMemDTCSnapshotRecordByDTCNumArgs.memory = r->recv_buf[6];
+        break;
+    case 0x19: /* reportUserDefMemoryDTCExtDataRecordByDTCNumber */
+        if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 5) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.subFuncArgs.userDefMemDTCExtDataRecordByDTCNumArgs.dtc =
+            (r->recv_buf[2] << 16 | r->recv_buf[3] << 8 | r->recv_buf[4]) & 0x00FFFFFF;
+        args.subFuncArgs.userDefMemDTCExtDataRecordByDTCNumArgs.extDataRecNum = r->recv_buf[5];
+        args.subFuncArgs.userDefMemDTCExtDataRecordByDTCNumArgs.memory = r->recv_buf[6];
+        break;
+    case 0x42: /* reportWWHOBDDTCByMaskRecord */
+        if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 3) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.subFuncArgs.wwhobdDTCByMaskArgs.functionalGroup = r->recv_buf[2];
+        args.subFuncArgs.wwhobdDTCByMaskArgs.statusMask = r->recv_buf[3];
+        args.subFuncArgs.wwhobdDTCByMaskArgs.severityMask = r->recv_buf[4];
+        break;
+    case 0x55: /* reportWWHOBDDTCWithPermanentStatus */
+        if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 1) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.subFuncArgs.wwhobdDTCWithPermStatusArgs.functionalGroup = r->recv_buf[2];
+        break;
+    case 0x56: /* reportDTCInformationByDTCReadinessGroupIdentifier */
+        if (r->recv_len < UDS_0X19_REQ_MIN_LEN + 2) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.subFuncArgs.dtcInfoByDTCReadinessGroupIdArgs.functionalGroup = r->recv_buf[2];
+        args.subFuncArgs.dtcInfoByDTCReadinessGroupIdArgs.readinessGroup = r->recv_buf[3];
+        break;
+    default:
+        return NegativeResponse(r, UDS_NRC_SubFunctionNotSupported);
+    }
+
+    ret = EmitEvent(srv, UDS_EVT_ReadDTCInformation, &args);
+
+    if (UDS_PositiveResponse != ret) {
+        return NegativeResponse(r, ret);
+    }
+
+    if (r->send_len < UDS_0X19_RESP_BASE_LEN) {
+        goto respond_to_0x19_malformed_response;
+    }
+
+    /* subfunc specific reply len checks */
+    switch (type) {
+    case 0x01: /* reportNumberOfDTCByStatusMask */
+    case 0x07: /* reportNumberOfDTCBySeverityMaskRecord */
+        if (r->send_len != UDS_0X19_RESP_BASE_LEN + 4) {
+            goto respond_to_0x19_malformed_response;
+        }
+        break;
+    case 0x02: /* reportDTCByStatusMask */
+    case 0x0A: /* reportSupportedDTC */
+    case 0x0B: /* reportFirstTestFailedDTC */
+    case 0x0C: /* reportFirstConfirmedDTC */
+    case 0x0D: /* reportMostRecentTestFailedDTC */
+    case 0x0E: /* reportMostRecentConfirmedDTC */
+    case 0x15: /* reportDTCWithPermanentStatus */
+        if (r->send_len < UDS_0X19_RESP_BASE_LEN + 1 ||
+            ((r->send_len > UDS_0X19_RESP_BASE_LEN + 1) &&
+             (r->send_len - (UDS_0X19_RESP_BASE_LEN + 1)) % 4 != 0)) {
+            goto respond_to_0x19_malformed_response;
+        }
+        break;
+    case 0x03: /* reportDTCSnapshotIdentification */
+    case 0x14: /* reportDTCFaultDetectionCounter */
+        if ((r->send_len - UDS_0X19_RESP_BASE_LEN) % 4 != 0) {
+            goto respond_to_0x19_malformed_response;
+        }
+        break;
+    case 0x04: /* reportDTCSnapshotRecordByDTCNumber */
+    case 0x06: /* reportDTCExtDataRecordByDTCNumber */
+        if (r->send_len < UDS_0X19_RESP_BASE_LEN + 4) {
+            goto respond_to_0x19_malformed_response;
+        }
+        break;
+    case 0x05: /* reportDTCStoredDataByRecordNumber */
+    case 0x16: /* reportDTCExtDataRecordByNumber */
+        if (r->send_len < UDS_0X19_RESP_BASE_LEN + 1) {
+            goto respond_to_0x19_malformed_response;
+        }
+        break;
+    case 0x08: /* reportDTCBySeverityMaskRecord */
+    case 0x09: /* reportSeverityInformationOfDTC */
+        if (r->send_len < UDS_0X19_RESP_BASE_LEN + 1 ||
+            ((r->send_len > UDS_0X19_RESP_BASE_LEN + 1) &&
+             (r->send_len - (UDS_0X19_RESP_BASE_LEN + 1)) % 6 != 0)) {
+            goto respond_to_0x19_malformed_response;
+        }
+        break;
+    case 0x17: /* reportUserDefMemoryDTCByStatusMask */
+        if (r->send_len < UDS_0X19_RESP_BASE_LEN + 2 ||
+            ((r->send_len > UDS_0X19_RESP_BASE_LEN + 2) &&
+             (r->send_len - (UDS_0X19_RESP_BASE_LEN + 2)) % 4 != 0)) {
+            goto respond_to_0x19_malformed_response;
+        }
+        break;
+    case 0x18: /* reportUserDefMemoryDTCSnapshotRecordByDTCNumber */
+    case 0x19: /* reportUserDefMemoryDTCExtDataRecordByDTCNumber */
+        if (r->send_len < UDS_0X19_RESP_BASE_LEN + 5) {
+            goto respond_to_0x19_malformed_response;
+        }
+        break;
+    case 0x1A: /* reportDTCExtendedDataRecordIdentification */
+        if (r->send_len < UDS_0X19_RESP_BASE_LEN + 1 ||
+            ((r->send_len != UDS_0X19_RESP_BASE_LEN + 6) &&
+             (r->send_len > UDS_0X19_RESP_BASE_LEN + 1) &&
+             (r->send_len < UDS_0X19_RESP_BASE_LEN + 4)) ||
+            ((r->send_len > UDS_0X19_RESP_BASE_LEN + 6) &&
+             (r->send_len - UDS_0X19_RESP_BASE_LEN + 6) % 4 != 0)) {
+            goto respond_to_0x19_malformed_response;
+        }
+        break;
+    case 0x42: /* reportWWHOBDDTCByMaskRecord */
+        if (r->send_len < UDS_0X19_RESP_BASE_LEN + 4 ||
+            ((r->send_len > UDS_0X19_RESP_BASE_LEN + 4) &&
+             (r->send_len - (UDS_0X19_RESP_BASE_LEN + 4)) % 5 != 0)) {
+            goto respond_to_0x19_malformed_response;
+        }
+        break;
+    case 0x55: /* reportWWHOBDDTCWithPermanentStatus */
+        if (r->send_len < UDS_0X19_RESP_BASE_LEN + 3 ||
+            ((r->send_len > UDS_0X19_RESP_BASE_LEN + 3) &&
+             (r->send_len - (UDS_0X19_RESP_BASE_LEN + 3)) % 4 != 0)) {
+            goto respond_to_0x19_malformed_response;
+        }
+        break;
+    case 0x56: /* reportDTCInformationByDTCReadinessGroupIdentifier */
+        if (r->send_len < UDS_0X19_RESP_BASE_LEN + 4 ||
+            ((r->send_len > UDS_0X19_RESP_BASE_LEN + 4) &&
+             (r->send_len - (UDS_0X19_RESP_BASE_LEN + 4)) % 4 != 0)) {
+            goto respond_to_0x19_malformed_response;
+        }
+        break;
+    default:
+        UDS_LOGW(__FILE__, "RDTCI subFunc 0x%02X is not supported.\n", type);
+        return NegativeResponse(r, UDS_NRC_SubFunctionNotSupported);
+    }
+
+    return UDS_PositiveResponse;
+respond_to_0x19_malformed_response:
+    UDS_LOGE(__FILE__, "RDTCI subFunc 0x%02X is malformed. Length: %d\n", type, r->send_len);
+    return NegativeResponse(r, UDS_NRC_GeneralReject);
+}
+
 static UDSErr_t Handle_0x22_ReadDataByIdentifier(UDSServer_t *srv, UDSReq_t *r) {
     uint8_t numDIDs;
     uint16_t dataId = 0;
@@ -1780,7 +2036,7 @@ static UDSService getServiceForSID(uint8_t sid) {
     case kSID_CLEAR_DIAGNOSTIC_INFORMATION:
         return &Handle_0x14_ClearDiagnosticInformation;
     case kSID_READ_DTC_INFORMATION:
-        return NULL;
+        return Handle_0x19_ReadDTCInformation;
     case kSID_READ_DATA_BY_IDENTIFIER:
         return &Handle_0x22_ReadDataByIdentifier;
     case kSID_READ_MEMORY_BY_ADDRESS:
