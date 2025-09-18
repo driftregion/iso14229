@@ -13,7 +13,10 @@ jobs:
 
     steps:
     - name: checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
+
+    - name: Setup Bazel Cache
+      uses: ./.github/actions/setup-bazel-cache
 
     - name: run unit tests
       run: bazel test //test:all --test_tag_filters=-vcan
@@ -23,7 +26,7 @@ jobs:
 
     steps:
     - name: checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
@@ -33,15 +36,9 @@ jobs:
         echo "Current HEAD: $(git rev-parse HEAD)"
         echo "PR head SHA: ${{ github.event.pull_request.head.sha }}"
         echo "GitHub SHA: ${{ github.sha }}"
-        
-    - name: Cache Bazel
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cache/bazel
-        key: ${{ runner.os }}-bazel-${{ hashFiles('**/MODULE.bazel', '**/*.bzl', '**/BUILD*') }}
-        restore-keys: |
-          ${{ runner.os }}-bazel-
+
+    - name: Setup Bazel Cache
+      uses: ./.github/actions/setup-bazel-cache
 
     - name: run coverage
       run: |
@@ -67,7 +64,10 @@ jobs:
 
     steps:
     - name: checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
+
+    - name: Setup Bazel Cache
+      uses: ./.github/actions/setup-bazel-cache
 
     - name: run unit tests
       run: bazel test //test:all --verbose_failures --test_output=all 
@@ -78,7 +78,7 @@ jobs:
 
     steps:
     - name: checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Install Arduino CLI
       uses: arduino/setup-arduino-cli@v2
@@ -95,7 +95,7 @@ jobs:
 
     steps:
     - name: checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: esp-idf build
       uses: espressif/esp-idf-ci-action@v1

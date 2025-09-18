@@ -17,7 +17,10 @@ jobs:
 
     steps:
     - name: checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
+
+    - name: Setup Bazel Cache
+      uses: ./.github/actions/setup-bazel-cache
 
     - name: lint
       run: CHECK_FORMAT=1 ./tools/run_clang_format.sh
@@ -27,7 +30,10 @@ jobs:
 
     steps:
     - name: checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
+
+    - name: Setup Bazel Cache
+      uses: ./.github/actions/setup-bazel-cache
 
     - name: run ultra_strict
       run: |
@@ -62,6 +68,9 @@ jobs:
     - name: Verify analyzers
       run: |
         CodeChecker analyzers --details
+
+    - name: Setup Bazel Cache
+      uses: ./.github/actions/setup-bazel-cache
 
     - name: Build compile commands
       run: |
