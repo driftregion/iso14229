@@ -15,8 +15,8 @@
 #include <stdarg.h>
 
 static int SetupSocketCAN(const char *ifname) {
-    struct sockaddr_can addr;
-    struct ifreq ifr;
+    struct sockaddr_can addr = {0};
+    struct ifreq ifr = {0};
     int sockfd = -1;
 
     if ((sockfd = socket(PF_CAN, SOCK_RAW | SOCK_NONBLOCK, CAN_RAW)) < 0) {
@@ -24,7 +24,13 @@ static int SetupSocketCAN(const char *ifname) {
         goto done;
     }
 
-    strcpy(ifr.ifr_name, ifname);
+    strncpy(ifr.ifr_name, ifname, IFNAMSIZ - 1);
+    if (ifr.ifr_name[IFNAMSIZ - 1] != 0) {
+        UDS_LOGE(__FILE__, "Interface name too long");
+        close(sockfd);
+        sockfd = -1;
+        goto done;
+    }
     ioctl(sockfd, SIOCGIFINDEX, &ifr);
     memset(&addr, 0, sizeof(addr));
     addr.can_family = AF_CAN;

@@ -172,6 +172,9 @@ UDSTp_t *ISOTPMockNew(const char *name, ISOTPMockArgs_t *args) {
     memset(tp, 0, sizeof(ISOTPMock_t));
     if (name) {
         strncpy(tp->name, name, sizeof(tp->name));
+        if (tp->name[sizeof(tp->name) - 1] != 0) {
+            tp->name[sizeof(tp->name) - 1] = 0;
+        }
     } else {
         (void)snprintf(tp->name, sizeof(tp->name), "TPMock%u", TPCount);
     }
