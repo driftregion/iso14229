@@ -998,9 +998,9 @@ static UDSErr_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
 
         /* test if positive response is required and if responseCode is positive 0x00 */
         if (suppressPosRspMsgIndicationBit && (response == UDS_PositiveResponse) &&
-            
-                // TODO: *not yet a NRC 0x78 response sent*
-                true) {
+
+            // TODO: *not yet a NRC 0x78 response sent*
+            true) {
             suppressResponse = true;
         } else {
             suppressResponse = false;
@@ -1062,9 +1062,9 @@ static UDSErr_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
          (UDS_NRC_ServiceNotSupportedInActiveSession == response) ||
          (UDS_NRC_SubFunctionNotSupportedInActiveSession == response) ||
          (UDS_NRC_RequestOutOfRange == response)) &&
-        
-            // TODO: *not yet a NRC 0x78 response sent*
-            true) {
+
+        // TODO: *not yet a NRC 0x78 response sent*
+        true) {
         /* Suppress negative response message */
         suppressResponse = true;
     }
