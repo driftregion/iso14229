@@ -25,8 +25,7 @@ static int SetupSocketCAN(const char *ifname) {
     }
 
     memset(&ifr, 0, sizeof(ifr));
-    strncpy(ifr.ifr_name, ifname, IFNAMSIZ - 1);
-    if (ifr.ifr_name[IFNAMSIZ - 1] != 0) {
+    if (snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", ifname) >= (int)sizeof(ifr.ifr_name)) {
         UDS_LOGE(__FILE__, "Interface name too long");
         close(sockfd);
         sockfd = -1;

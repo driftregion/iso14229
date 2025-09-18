@@ -2841,8 +2841,7 @@ static int SetupSocketCAN(const char *ifname) {
     }
 
     memset(&ifr, 0, sizeof(ifr));
-    strncpy(ifr.ifr_name, ifname, IFNAMSIZ - 1);
-    if (ifr.ifr_name[IFNAMSIZ - 1] != 0) {
+    if (snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", ifname) >= (int)sizeof(ifr.ifr_name)) {
         UDS_LOGE(__FILE__, "Interface name too long");
         close(sockfd);
         sockfd = -1;
@@ -3227,8 +3226,7 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool
 
     struct ifreq ifr;
     memset(&ifr, 0, sizeof(ifr));
-    strncpy(ifr.ifr_name, if_name, sizeof(ifr.ifr_name));
-    if (ifr.ifr_name[sizeof(ifr.ifr_name) - 1] != 0) {
+    if (snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", if_name) >= (int)sizeof(ifr.ifr_name)) {
         UDS_LOGE(__FILE__, "Interface name too long");
         close(fd);
         return -1;
@@ -3491,9 +3489,8 @@ UDSTp_t *ISOTPMockNew(const char *name, ISOTPMockArgs_t *args) {
     ISOTPMock_t *tp = malloc(sizeof(ISOTPMock_t));
     memset(tp, 0, sizeof(ISOTPMock_t));
     if (name) {
-        strncpy(tp->name, name, sizeof(tp->name));
-        if (tp->name[sizeof(tp->name) - 1] != 0) {
-            tp->name[sizeof(tp->name) - 1] = 0;
+        if (snprintf(tp->name, sizeof(tp->name), "%s", name) >= (int)sizeof(tp->name)) {
+            UDS_LOGE(__FILE__, "Transport name too long, truncated");
         }
     } else {
         (void)snprintf(tp->name, sizeof(tp->name), "TPMock%u", TPCount);
