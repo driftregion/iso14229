@@ -370,6 +370,11 @@ UDSErr_t fn_test_0x19(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
         return UDS_NRC_ConditionsNotCorrect;
     }
 
+    if (fnData->len == 0) {
+        // No data to copy, just return positive response
+        return UDS_PositiveResponse;
+    }
+
     return r->copy(srv, fnData->data, fnData->len);
 }
 
@@ -410,8 +415,8 @@ void test_0x19_sub_0x01(void **state) {
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
-// ISO14229-1 2020 12.3.5.3 Example #2 - ReadDTCInformation, SubFunction = reportDTCByStatusMask,
-// matching DTCs returned
+// ISO14229-1 2020 12.3.5.3 Example #2 - ReadDTCInformation, SubFunction =
+// reportDTCByStatusMask, matching DTCs returned
 void test_0x19_sub_0x02(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
@@ -455,8 +460,8 @@ void test_0x19_sub_0x02(void **state) {
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
-// ISO14229-1 2020 12.3.5.4 Example #3 - ReadDTCInformation, SubFunction = reportDTCByStatusMask, no
-// matching DTCs returned
+// ISO14229-1 2020 12.3.5.4 Example #3 - ReadDTCInformation, SubFunction =
+// reportDTCByStatusMask, no matching DTCs returned
 void test_0x19_sub_0x02_no_matching_dtc(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
@@ -543,8 +548,7 @@ void test_0x19_sub_0x03_no_snapshots(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
-    uint8_t ResponseData[] = {};
-    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+    Test0x19FnData_t fn_data = {.data = NULL, .len = 0};
 
     e->server->fn = fn_test_0x19;
     e->server->fn_data = &fn_data;
@@ -1010,7 +1014,8 @@ void test_0x19_sub_0x09_no_dtc(void **state) {
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
-// ISO14229-1 2020 12.3.5.12 Example #11 – ReadDTCInformation - SubFunction = reportSupportedDTCs
+// ISO14229-1 2020 12.3.5.12 Example #11 – ReadDTCInformation - SubFunction =
+// reportSupportedDTCs
 void test_0x19_sub_0x0A(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
@@ -2167,8 +2172,7 @@ void test_0x19_invalid_req_len(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
-    uint8_t ResponseData[] = {};
-    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+    Test0x19FnData_t fn_data = {.data = NULL, .len = 0};
 
     e->server->fn = fn_test_0x19_invalid_req_len;
     e->server->fn_data = &fn_data;
@@ -2197,8 +2201,7 @@ void test_0x19_invalid_subFunction(void **state) {
     Env_t *e = *state;
     uint8_t buf[512] = {0};
 
-    uint8_t ResponseData[] = {};
-    Test0x19FnData_t fn_data = {.data = ResponseData, .len = sizeof(ResponseData)};
+    Test0x19FnData_t fn_data = {.data = NULL, .len = 0};
 
     e->server->fn = fn_test_0x19;
     e->server->fn_data = &fn_data;
@@ -2421,9 +2424,12 @@ void test_0x19_malformed_responses(void **state) {
                test_0x19_malformed_response_data[i].request[1]);
         memset(buf, 0, sizeof(buf));
 
-        Test0x19FnData_t fn_data = {.data = (void *)test_0x19_malformed_response_data[i].response,
-                                    .len = test_0x19_malformed_response_data[i].response_len,
-                                    .test_identifier = "malformed_response"};
+        Test0x19FnData_t fn_data = {
+            .data = (void *)(test_0x19_malformed_response_data[i].response_len != 0
+                                 ? test_0x19_malformed_response_data[i].response
+                                 : NULL),
+            .len = test_0x19_malformed_response_data[i].response_len,
+            .test_identifier = "malformed_response"};
 
         e->server->fn = fn_test_0x19;
         e->server->fn_data = &fn_data;
