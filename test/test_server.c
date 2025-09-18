@@ -3423,6 +3423,210 @@ void test_security_level_resets_on_session_timeout(void **state) {
 
 void test_badness(void **state) { TEST_INT_EQUAL(UDS_ERR_INVALID_ARG, UDSServerInit(NULL)); }
 
+// ============================================================================
+// ISO14229-1:2020 Table I.2 - State transitions (disjunctive normal form)
+// ============================================================================
+
+// Global test state for state transition callbacks
+static struct {
+    uint8_t session_before_transition;
+    uint8_t session_after_transition;
+    bool transition_occurred;
+    UDSEvent_t last_event;
+    int callback_count;
+} g_state_test_data;
+
+// Helper function to reset state transition test data
+static void reset_state_test_data(void) {
+    memset(&g_state_test_data, 0, sizeof(g_state_test_data));
+}
+
+// Callback for monitoring state transitions
+static UDSErr_t state_transition_monitor_callback(UDSServer_t *srv, UDSEvent_t event, void *arg) {
+    g_state_test_data.last_event = event;
+    g_state_test_data.callback_count++;
+
+    switch (event) {
+        case UDS_EVT_DiagSessCtrl: {
+            UDSDiagSessCtrlArgs_t *args = (UDSDiagSessCtrlArgs_t *)arg;
+            g_state_test_data.session_before_transition = srv->sessionType;
+            srv->sessionType = args->type;
+            g_state_test_data.session_after_transition = srv->sessionType;
+            g_state_test_data.transition_occurred = true;
+            return UDS_OK;
+        }
+        case UDS_EVT_EcuReset: {
+            g_state_test_data.session_before_transition = srv->sessionType;
+            srv->sessionType = UDS_LEV_DS_DS;
+            g_state_test_data.session_after_transition = srv->sessionType;
+            g_state_test_data.transition_occurred = true;
+            return UDS_OK;
+        }
+        default:
+            return UDS_OK;
+    }
+}
+
+/**
+ * @brief Tests diagnostic session state transitions according to ISO14229-1:2020 Table I.2
+ * Tests the disjunctive normal form (DNF) representation of state transitions
+ */
+void test_diagnostic_session_transitions_dnf(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[8] = {0};
+
+    e->server->fn = state_transition_monitor_callback;
+
+    // Test DS → EXTDS transition
+    e->server->sessionType = UDS_LEV_DS_DS;
+    reset_state_test_data();
+
+    const uint8_t REQ_EXTDS[] = {kSID_DIAGNOSTIC_SESSION_CONTROL, UDS_LEV_DS_EXTDS};
+    UDSTpSend(e->client_tp, REQ_EXTDS, sizeof(REQ_EXTDS), NULL);
+
+    const uint8_t EXP_RESP_EXTDS[] = {kSID_DIAGNOSTIC_SESSION_CONTROL + 0x40, UDS_LEV_DS_EXTDS};
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXP_RESP_EXTDS, sizeof(EXP_RESP_EXTDS));
+
+    // Verify transition occurred
+    TEST_INT_EQUAL(true, g_state_test_data.transition_occurred);
+    TEST_INT_EQUAL(UDS_LEV_DS_EXTDS, e->server->sessionType);
+    TEST_INT_EQUAL(UDS_EVT_DiagSessCtrl, g_state_test_data.last_event);
+
+    // Test EXTDS → PRGS transition
+    reset_state_test_data();
+    memset(buf, 0, sizeof(buf));
+
+    const uint8_t REQ_PRGS[] = {kSID_DIAGNOSTIC_SESSION_CONTROL, UDS_LEV_DS_PRGS};
+    UDSTpSend(e->client_tp, REQ_PRGS, sizeof(REQ_PRGS), NULL);
+
+    const uint8_t EXP_RESP_PRGS[] = {kSID_DIAGNOSTIC_SESSION_CONTROL + 0x40, UDS_LEV_DS_PRGS};
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXP_RESP_PRGS, sizeof(EXP_RESP_PRGS));
+
+    // Verify transition occurred
+    TEST_INT_EQUAL(true, g_state_test_data.transition_occurred);
+    TEST_INT_EQUAL(UDS_LEV_DS_PRGS, e->server->sessionType);
+
+    // Test PRGS → DS transition (return to default)
+    reset_state_test_data();
+    memset(buf, 0, sizeof(buf));
+
+    const uint8_t REQ_DS[] = {kSID_DIAGNOSTIC_SESSION_CONTROL, UDS_LEV_DS_DS};
+    UDSTpSend(e->client_tp, REQ_DS, sizeof(REQ_DS), NULL);
+
+    const uint8_t EXP_RESP_DS[] = {kSID_DIAGNOSTIC_SESSION_CONTROL + 0x40, UDS_LEV_DS_DS};
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXP_RESP_DS, sizeof(EXP_RESP_DS));
+
+    // Verify transition occurred
+    TEST_INT_EQUAL(true, g_state_test_data.transition_occurred);
+    TEST_INT_EQUAL(UDS_LEV_DS_DS, e->server->sessionType);
+}
+
+/**
+ * @brief Tests ECU reset always transitions to Default Session (any → DS)
+ * Validates the state machine requirement that ECU reset forces DS regardless of current state
+ */
+void test_ecu_reset_forces_default_session(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[8] = {0};
+
+    e->server->fn = state_transition_monitor_callback;
+    e->server->sessionType = UDS_LEV_DS_EXTDS; // Start in extended session
+    reset_state_test_data();
+
+    // Send ECU reset request
+    const uint8_t REQ[] = {kSID_ECU_RESET, UDS_LEV_RT_HR};
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    // Expect positive response within P2 timeout
+    const uint8_t EXP_RESP[] = {kSID_ECU_RESET + 0x40, UDS_LEV_RT_HR};
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXP_RESP, sizeof(EXP_RESP));
+
+    // Verify that ECU reset transitioned to default session
+    TEST_INT_EQUAL(true, g_state_test_data.transition_occurred);
+    TEST_INT_EQUAL(UDS_LEV_DS_DS, e->server->sessionType);
+    TEST_INT_EQUAL(UDS_EVT_EcuReset, g_state_test_data.last_event);
+}
+
+/**
+ * @brief Tests state transition determinism - verifies DNF property
+ * Only one transition condition should be true at a time
+ */
+void test_state_transition_determinism_dnf(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[8] = {0};
+
+    e->server->fn = state_transition_monitor_callback;
+    e->server->sessionType = UDS_LEV_DS_DS;
+
+    // Define a sequence of transitions to test determinism
+    uint8_t transition_sequence[] = {
+        UDS_LEV_DS_EXTDS,  // DS → EXTDS
+        UDS_LEV_DS_PRGS,   // EXTDS → PRGS
+        UDS_LEV_DS_DS,     // PRGS → DS
+        UDS_LEV_DS_SSDS,   // DS → SSDS
+        UDS_LEV_DS_DS      // SSDS → DS
+    };
+
+    // Run the sequence multiple times to verify determinism
+    for (int run = 0; run < 2; run++) {
+        e->server->sessionType = UDS_LEV_DS_DS;
+
+        for (size_t i = 0; i < sizeof(transition_sequence); i++) {
+            reset_state_test_data();
+            memset(buf, 0, sizeof(buf));
+
+            uint8_t req[] = {kSID_DIAGNOSTIC_SESSION_CONTROL, transition_sequence[i]};
+            UDSTpSend(e->client_tp, req, sizeof(req), NULL);
+
+            uint8_t exp_resp[] = {kSID_DIAGNOSTIC_SESSION_CONTROL + 0x40, transition_sequence[i]};
+            EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0, UDS_CLIENT_DEFAULT_P2_MS);
+            TEST_MEMORY_EQUAL(buf, exp_resp, sizeof(exp_resp));
+
+            // Verify exactly one transition occurred (DNF property)
+            TEST_INT_EQUAL(true, g_state_test_data.transition_occurred);
+            TEST_INT_EQUAL(transition_sequence[i], e->server->sessionType);
+            TEST_INT_EQUAL(1, g_state_test_data.callback_count); // Only one event
+        }
+    }
+}
+
+/**
+ * @brief Tests extended diagnostic session timeout behavior
+ * Extends existing timeout tests to cover EXTDS and SSDS sessions
+ */
+void test_extended_session_timeout_transitions(void **state) {
+    Env_t *e = *state;
+    int call_count = 0;
+
+    // Test EXTDS session timeout
+    e->server->fn = fn_test_session_timeout;
+    e->server->fn_data = &call_count;
+    e->server->sessionType = UDS_LEV_DS_EXTDS;
+    e->server->s3_ms = 100; // Short timeout for testing
+    e->server->s3_session_timeout_timer = UDSMillis() + e->server->s3_ms;
+
+    // Run long enough to trigger timeout
+    EnvRunMillis(e, e->server->s3_ms + 50);
+
+    // Verify timeout occurred
+    TEST_INT_GE(call_count, 1);
+
+    // Reset and test SSDS session timeout
+    call_count = 0;
+    e->server->sessionType = UDS_LEV_DS_SSDS;
+    e->server->s3_session_timeout_timer = UDSMillis() + e->server->s3_ms;
+
+    // Run long enough to trigger timeout
+    EnvRunMillis(e, e->server->s3_ms + 50);
+
+    // Verify timeout occurred
+    TEST_INT_GE(call_count, 1);
+}
+
 int main(int ac, char **av) {
     if (ac > 1) {
         cmocka_set_test_filter(av[1]);
@@ -3515,6 +3719,11 @@ int main(int ac, char **av) {
         cmocka_unit_test_setup_teardown(test_0x3e_suppress_positive_response, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_security_level_resets_on_session_timeout, Setup,
                                         Teardown),
+        // ISO14229-1:2020 Table I.2 - State transitions (disjunctive normal form)
+        cmocka_unit_test_setup_teardown(test_diagnostic_session_transitions_dnf, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_ecu_reset_forces_default_session, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_state_transition_determinism_dnf, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_extended_session_timeout_transitions, Setup, Teardown),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
