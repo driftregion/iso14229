@@ -69,8 +69,7 @@ jobs:
           # Convert absolute file URIs to relative paths for GitHub Code Scanning
           sed -i "s|file://$PWD/||g" results.sarif
           # Fix 0-based column numbers to 1-based (SARIF requires columns >= 1)
-          sed -i 's/"startColumn": 0/"startColumn": 1/g' results.sarif
-          sed -i 's/"endColumn": 0/"endColumn": 1/g' results.sarif
+          python3 tools/fix_sarif_columns.py results.sarif
         else
           echo "No reports found, creating empty SARIF file"
           echo '{"version":"2.1.0","$schema":"https://json.schemastore.org/sarif-2.1.0.json","runs":[{"tool":{"driver":{"name":"CodeChecker","version":"unknown"}},"results":[]}]}' > results.sarif
