@@ -2004,7 +2004,6 @@ static UDSErr_t Handle_0x3E_TesterPresent(UDSServer_t *srv, UDSReq_t *r) {
     default:
         return NegativeResponse(r, UDS_NRC_SubFunctionNotSupported);
     }
-    int a = 3;
 }
 
 static UDSErr_t Handle_0x85_ControlDTCSetting(UDSServer_t *srv, UDSReq_t *r) {

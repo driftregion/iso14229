@@ -357,7 +357,17 @@ See the examples directory
 
 # Contributing
 
-contributions are welcome
+Contributions are welcome.
+
+## Development
+
+You will need bazel and linux. 
+
+Use the pre-commit hook in .githooks to automate formatting the sources and updating the amalagamation.
+
+```sh
+git config core.hooksPath .githooks
+```
 
 ## Reporting Issues
 
@@ -389,13 +399,6 @@ bazel build //:release
 
 - [`isotp-c`](https://github.com/SimonCahill/isotp-c) which this project embeds
 
-# Development
-
-You will need bazel and linux. 
-
-```sh
-git config core.hooksPath .githooks
-```
 
 # Changelog
 
