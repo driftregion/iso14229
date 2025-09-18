@@ -599,7 +599,7 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, uint8_t mode, const cha
     if (filePath == NULL) {
         return UDS_ERR_INVALID_ARG;
     }
-    size_t filePathLenSize = strlen(filePath);
+    size_t filePathLenSize = strnlen(filePath, UINT16_MAX + 1);
     if (filePathLenSize == 0) {
         return UDS_ERR_INVALID_ARG;
     }

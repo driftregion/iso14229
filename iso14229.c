@@ -604,7 +604,7 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, uint8_t mode, const cha
     if (filePath == NULL) {
         return UDS_ERR_INVALID_ARG;
     }
-    size_t filePathLenSize = strlen(filePath);
+    size_t filePathLenSize = strnlen(filePath, UINT16_MAX + 1);
     if (filePathLenSize == 0) {
         return UDS_ERR_INVALID_ARG;
     }
@@ -2840,6 +2840,7 @@ static int SetupSocketCAN(const char *ifname) {
         goto done;
     }
 
+    memset(&ifr, 0, sizeof(ifr));
     strncpy(ifr.ifr_name, ifname, IFNAMSIZ - 1);
     if (ifr.ifr_name[IFNAMSIZ - 1] != 0) {
         UDS_LOGE(__FILE__, "Interface name too long");
