@@ -3023,6 +3023,176 @@ void test_0x28_comm_ctrl_forced_malformed_response_in_event_handler(void **state
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP1, sizeof(EXPECTED_RESP1));
 }
 
+UDSErr_t fn_test_0x2C(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+    TEST_INT_EQUAL(ev, UDS_EVT_DynamicDefineDataId);
+    UDSDDDIArgs_t *args = arg;
+
+    if (!args->allDataId && args->dynamicDataId == 0xFFFF) {
+        return UDS_NRC_ConditionsNotCorrect;
+    }
+
+    switch (args->type) {
+    case 0x01: { // defineByIdentifier
+        TEST_INT_EQUAL(args->allDataId, 0);
+        TEST_INT_EQUAL(args->subFuncArgs.defineById.len, 3);
+        TEST_INT_EQUAL(args->dynamicDataId, 0xF301);
+
+        UDSDDDI_DBIArgs_t *dbi = args->subFuncArgs.defineById.sources;
+
+        TEST_INT_EQUAL(dbi[0].sourceDataId, 0x1234);
+        TEST_INT_EQUAL(dbi[0].position, 1);
+        TEST_INT_EQUAL(dbi[0].size, 2);
+
+        TEST_INT_EQUAL(dbi[1].sourceDataId, 0x5678);
+        TEST_INT_EQUAL(dbi[1].position, 1);
+        TEST_INT_EQUAL(dbi[1].size, 1);
+
+        TEST_INT_EQUAL(dbi[2].sourceDataId, 0x9ABC);
+        TEST_INT_EQUAL(dbi[2].position, 1);
+        TEST_INT_EQUAL(dbi[2].size, 4);
+
+        return UDS_PositiveResponse;
+    }
+    }
+
+    return UDS_NRC_RequestOutOfRange;
+}
+
+void test_0x2C_request_too_short(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x2C;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x2C, /* SID */
+        /* Missing required SubFunction */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x7F, /* Response SID */
+        0x2C, /* Original Request SID */
+        0x13, /* NRC: IncorrectMessageLengthOrInvalidFormat */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// ISO14229-1 2020 11.6.5.2 Example #1: DynamicallyDefineDataIdentifier, SubFunction =
+// defineByIdentifier
+void test_0x2C_sub_0x01(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x2C;
+    e->server->fn_data = NULL;
+
+    /* Request per ISO14229-1 2020 Table 247 */
+    const uint8_t REQ[] = {
+        0x2C, /* SID */
+        0x01, /* SubFunction */
+        0xF3, /* DynamicallyDefinedDataIdentifier [High Byte] */
+        0x01, /* DynamicallyDefinedDataIdentifier [Low Byte] */
+        0x12, /* SourceDataIdentifier#1 [High Byte] */
+        0x34, /* SourceDataIdentifier#1 [Low Byte] */
+        0x01, /* PositionInSourceDataRecord#1 */
+        0x02, /* MemorySize#1 */
+        0x56, /* SourceDataIdentifier#2 [High Byte] */
+        0x78, /* SourceDataIdentifier#2 [Low Byte] */
+        0x01, /* PositionInSourceDataRecord#2 */
+        0x01, /* MemorySize#2 */
+        0x9A, /* SourceDataIdentifier#3 [High Byte] */
+        0xBC, /* SourceDataIdentifier#3 [Low Byte] */
+        0x01, /* PositionInSourceDataRecord#3 */
+        0x04, /* MemorySize#3 */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 248 */
+    const uint8_t EXPECTED_RESP[] = {
+        0x6C, /* Response SID */
+        0x01, /* SubFunction */
+        0xF3, /* DynamicallyDefinedDataIdentifier [High Byte] */
+        0x01, /* DynamicallyDefinedDataIdentifier [Low Byte] */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x2C_sub_0x01_request_too_short(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x2C;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x2C, /* SID */
+        0x01, /* SubFunction */
+        0xF3, /* DynamicallyDefinedDataIdentifier [High Byte] */
+        0x01, /* DynamicallyDefinedDataIdentifier [Low Byte] */
+        0x12, /* SourceDataIdentifier#1 [High Byte] */
+        0x34, /* SourceDataIdentifier#1 [Low Byte] */
+        0x01, /* PositionInSourceDataRecord#1 */
+              /* Missing required MemorySize#1 */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x7F, /* Response SID */
+        0x2C, /* Original Request SID */
+        0x13, /* NRC: IncorrectMessageLengthOrInvalidFormat */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x2C_sub_0x01_negative_response(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x2C;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x2C, /* SID */
+        0x01, /* SubFunction */
+        0xFF, /* DynamicallyDefinedDataIdentifier [High Byte] */
+        0xFF, /* DynamicallyDefinedDataIdentifier [Low Byte] */
+        0x01, /* SourceDataIdentifier#1 [High Byte] */
+        0x23, /* SourceDataIdentifier#1 [Low Byte] */
+        0x01, /* PositionInSourceDataRecord#1 */
+        0x01  /* Missing required MemorySize#1 */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x7F, /* Response SID */
+        0x2C, /* Original Request SID */
+        0x22, /* NRC: ConditionsNotCorrect */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
 int fn_test_0x2F(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     UDSIOCtrlArgs_t *args = arg;
 
@@ -3500,6 +3670,10 @@ int main(int ac, char **av) {
         cmocka_unit_test_setup_teardown(test_0x28_comm_ctrl_invalid_request, Setup, Teardown),
         cmocka_unit_test_setup_teardown(
             test_0x28_comm_ctrl_forced_malformed_response_in_event_handler, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x2C_request_too_short, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x2C_sub_0x01, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x2C_sub_0x01_request_too_short, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x2C_sub_0x01_negative_response, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2F_example, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2F_incorrect_request_length, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2F_negative_response, Setup, Teardown),

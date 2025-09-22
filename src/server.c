@@ -667,6 +667,92 @@ static UDSErr_t Handle_0x28_CommunicationControl(UDSServer_t *srv, UDSReq_t *r) 
     return UDS_PositiveResponse;
 }
 
+static UDSErr_t Handle_0x2C_DynamicDefineDataIdentifier(UDSServer_t *srv, UDSReq_t *r) {
+    UDSErr_t ret = UDS_PositiveResponse;
+    uint8_t type = r->recv_buf[1];
+
+    if (r->recv_len < UDS_0X2C_REQ_MIN_LEN) {
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+    }
+
+    /* Shared by all SubFunc */
+    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_DYNAMICALLY_DEFINE_DATA_IDENTIFIER);
+    r->send_buf[1] = type;
+    r->send_len = UDS_0X2C_RESP_BASE_LEN;
+
+    UDSDDDIArgs_t args = {
+        .type = type,
+        .allDataId = false,
+        .dynamicDataId =
+            (uint16_t)((uint16_t)r->recv_buf[2] << 8 | (uint16_t)r->recv_buf[3]) & 0xFFFF,
+    };
+
+    switch (type) {
+    case 0x01: /* defineByIdentifier */
+    {
+        if (r->recv_len < UDS_0X2C_REQ_MIN_LEN + 2 + 4 ||
+            (r->recv_len - (UDS_0X2C_REQ_MIN_LEN + 2)) % 4 != 0) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        size_t numDIDs = (r->recv_len - 4) / 4;
+        args.subFuncArgs.defineById.len = numDIDs;
+        UDSDDDI_DBIArgs_t dbiArgs[numDIDs];
+
+        for (size_t i = 0; i < numDIDs; i++) {
+            dbiArgs[i].sourceDataId =
+                ((uint16_t)r->recv_buf[4 + i * 4] << 8 | (uint16_t)r->recv_buf[5 + i * 4]) & 0xFFFF;
+            dbiArgs[i].position = r->recv_buf[6 + i * 4];
+            dbiArgs[i].size = r->recv_buf[7 + i * 4];
+        }
+
+        args.subFuncArgs.defineById.sources = dbiArgs;
+
+        ret = EmitEvent(srv, UDS_EVT_DynamicDefineDataId, &args);
+        if (UDS_PositiveResponse != ret) {
+            return NegativeResponse(r, ret);
+        }
+
+        r->send_buf[2] = r->recv_buf[2];
+        r->send_buf[3] = r->recv_buf[3];
+        r->send_len = UDS_0X2C_RESP_BASE_LEN + 2;
+
+        return UDS_PositiveResponse;
+    }
+    }
+
+    // uint16_t dataLen = 0;
+    // uint16_t dataId = 0;
+    // UDSErr_t err = UDS_PositiveResponse;
+
+    // /* UDS-1 2013 Figure 21 Key 1 */
+    // if (r->recv_len < UDS_0X2E_REQ_MIN_LEN) {
+    //     return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+    // }
+
+    // dataId = (uint16_t)((uint16_t)(r->recv_buf[1] << 8) | (uint16_t)r->recv_buf[2]);
+    // dataLen = (uint16_t)(r->recv_len - UDS_0X2E_REQ_BASE_LEN);
+
+    // UDSWDBIArgs_t args = {
+    //     .dataId = dataId,
+    //     .data = &r->recv_buf[UDS_0X2E_REQ_BASE_LEN],
+    //     .len = dataLen,
+    // };
+
+    // err = EmitEvent(srv, UDS_EVT_WriteDataByIdent, &args);
+    // if (UDS_PositiveResponse != err) {
+    //     return NegativeResponse(r, err);
+    // }
+
+    // r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_WRITE_DATA_BY_IDENTIFIER);
+    // r->send_buf[1] = dataId >> 8;
+    // r->send_buf[2] = dataId & 0xFF;
+    // r->send_len = UDS_0X2E_RESP_LEN;
+    // return UDS_PositiveResponse;
+
+    return NegativeResponse(r, UDS_NRC_SubFunctionNotSupported);
+}
+
 static UDSErr_t Handle_0x2E_WriteDataByIdentifier(UDSServer_t *srv, UDSReq_t *r) {
     uint16_t dataLen = 0;
     uint16_t dataId = 0;
@@ -1193,7 +1279,7 @@ static UDSService getServiceForSID(uint8_t sid) {
     case kSID_READ_PERIODIC_DATA_BY_IDENTIFIER:
         return NULL;
     case kSID_DYNAMICALLY_DEFINE_DATA_IDENTIFIER:
-        return NULL;
+        return &Handle_0x2C_DynamicDefineDataIdentifier;
     case kSID_WRITE_DATA_BY_IDENTIFIER:
         return &Handle_0x2E_WriteDataByIdentifier;
     case kSID_IO_CONTROL_BY_IDENTIFIER:
