@@ -464,17 +464,21 @@ static UDSErr_t Handle_0x22_ReadDataByIdentifier(UDSServer_t *srv, UDSReq_t *r) 
 }
 
 /**
- * @brief decode the addressAndLengthFormatIdentifier that appears in ReadMemoryByAddress (0x23),
- * DynamicallyDefineDataIdentifier (0x2C), RequestDownload (0X34)
+ * @brief decode the addressAndLengthFormatIdentifier that appears in
+ * DynamicallyDefineDataIdentifier (0x2C). This must be handled specially because the
+ * format identifier is not directly above the memory address and length. The format identifier
+ * is only defined once for every memory address and length pair.
  *
  * @param srv
  * @param buf pointer to addressAndDataLengthFormatIdentifier in recv_buf
  * @param memoryAddress the decoded memory address
  * @param memorySize the decoded memory size
+ * @param offset how many elements (addres and size pairs) away from the format identifier
  * @return uint8_t
  */
-static UDSErr_t decodeAddressAndLength(UDSReq_t *r, uint8_t *const buf, void **memoryAddress,
-                                       size_t *memorySize) {
+static UDSErr_t decodeAddressAndLengthWithOffset(UDSReq_t *r, uint8_t *const buf,
+                                                 void **memoryAddress, size_t *memorySize,
+                                                 size_t offset) {
     UDS_ASSERT(r);
     UDS_ASSERT(memoryAddress);
     UDS_ASSERT(memorySize);
@@ -490,6 +494,7 @@ static UDSErr_t decodeAddressAndLength(UDSReq_t *r, uint8_t *const buf, void **m
 
     uint8_t memorySizeLength = (buf[0] & 0xF0) >> 4;
     uint8_t memoryAddressLength = buf[0] & 0x0F;
+    size_t offsetBytes = offset * (memoryAddressLength + memorySizeLength);
 
     if (memorySizeLength == 0 || memorySizeLength > sizeof(size_t)) {
         return NegativeResponse(r, UDS_NRC_RequestOutOfRange);
@@ -499,23 +504,39 @@ static UDSErr_t decodeAddressAndLength(UDSReq_t *r, uint8_t *const buf, void **m
         return NegativeResponse(r, UDS_NRC_RequestOutOfRange);
     }
 
-    if (buf + memorySizeLength + memoryAddressLength > r->recv_buf + r->recv_len) {
+    if (buf + 1 + offsetBytes + memorySizeLength + memoryAddressLength >
+        r->recv_buf + r->recv_len) {
         return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
     for (int byteIdx = 0; byteIdx < memoryAddressLength; byteIdx++) {
-        long long unsigned int byte = buf[1 + byteIdx];
+        long long unsigned int byte = buf[1 + offsetBytes + byteIdx];
         uint8_t shiftBytes = (uint8_t)(memoryAddressLength - 1 - byteIdx);
         tmp |= byte << (8 * shiftBytes);
     }
     *memoryAddress = (void *)tmp;
 
     for (int byteIdx = 0; byteIdx < memorySizeLength; byteIdx++) {
-        uint8_t byte = buf[1 + memoryAddressLength + byteIdx];
+        uint8_t byte = buf[1 + offsetBytes + memoryAddressLength + byteIdx];
         uint8_t shiftBytes = (uint8_t)(memorySizeLength - 1 - byteIdx);
         *memorySize |= (size_t)byte << (8 * shiftBytes);
     }
     return UDS_PositiveResponse;
+}
+
+/**
+ * @brief decode the addressAndLengthFormatIdentifier that appears in ReadMemoryByAddress (0x23)
+ * and RequestDownload (0X34)
+ *
+ * @param srv
+ * @param buf pointer to addressAndDataLengthFormatIdentifier in recv_buf
+ * @param memoryAddress the decoded memory address
+ * @param memorySize the decoded memory size
+ * @return uint8_t
+ */
+static UDSErr_t decodeAddressAndLength(UDSReq_t *r, uint8_t *const buf, void **memoryAddress,
+                                       size_t *memorySize) {
+    return decodeAddressAndLengthWithOffset(r, buf, memoryAddress, memorySize, 0);
 }
 
 static UDSErr_t Handle_0x23_ReadMemoryByAddress(UDSServer_t *srv, UDSReq_t *r) {
@@ -719,37 +740,45 @@ static UDSErr_t Handle_0x2C_DynamicDefineDataIdentifier(UDSServer_t *srv, UDSReq
 
         return UDS_PositiveResponse;
     }
+    case 0x02: /* defineByMemoryAddress */
+    {
+        /* 2 bytes dynamic data id
+         * 1 byte address and length format identifier
+         * min 1 byte address
+         * min 1 byte length
+         */
+        if (r->recv_len < UDS_0X2C_REQ_MIN_LEN + 5) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        size_t numAddrs = (r->recv_len - 5) / 4;
+        args.subFuncArgs.defineByMemAddress.len = numAddrs;
+        UDSDDDI_DBMArgs_t dbmArgs[numAddrs];
+
+        for (size_t i = 0; i < numAddrs; i++) {
+            ret = decodeAddressAndLengthWithOffset(r, &r->recv_buf[4], &dbmArgs[i].memAddr,
+                                                   &dbmArgs[i].memSize, i);
+            if (UDS_PositiveResponse != ret) {
+                return NegativeResponse(r, ret);
+            }
+        }
+
+        args.subFuncArgs.defineByMemAddress.sources = dbmArgs;
+
+        ret = EmitEvent(srv, UDS_EVT_DynamicDefineDataId, &args);
+        if (UDS_PositiveResponse != ret) {
+            return NegativeResponse(r, ret);
+        }
+
+        r->send_buf[2] = r->recv_buf[2];
+        r->send_buf[3] = r->recv_buf[3];
+        r->send_len = UDS_0X2C_RESP_BASE_LEN + 2;
+
+        return UDS_PositiveResponse;
+    }
     }
 
-    // uint16_t dataLen = 0;
-    // uint16_t dataId = 0;
-    // UDSErr_t err = UDS_PositiveResponse;
-
-    // /* UDS-1 2013 Figure 21 Key 1 */
-    // if (r->recv_len < UDS_0X2E_REQ_MIN_LEN) {
-    //     return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
-    // }
-
-    // dataId = (uint16_t)((uint16_t)(r->recv_buf[1] << 8) | (uint16_t)r->recv_buf[2]);
-    // dataLen = (uint16_t)(r->recv_len - UDS_0X2E_REQ_BASE_LEN);
-
-    // UDSWDBIArgs_t args = {
-    //     .dataId = dataId,
-    //     .data = &r->recv_buf[UDS_0X2E_REQ_BASE_LEN],
-    //     .len = dataLen,
-    // };
-
-    // err = EmitEvent(srv, UDS_EVT_WriteDataByIdent, &args);
-    // if (UDS_PositiveResponse != err) {
-    //     return NegativeResponse(r, err);
-    // }
-
-    // r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_WRITE_DATA_BY_IDENTIFIER);
-    // r->send_buf[1] = dataId >> 8;
-    // r->send_buf[2] = dataId & 0xFF;
-    // r->send_len = UDS_0X2E_RESP_LEN;
-    // return UDS_PositiveResponse;
-
+    UDS_LOGW(__FILE__, "Unsupported DDDI subFunc 0x%02X\n", type);
     return NegativeResponse(r, UDS_NRC_SubFunctionNotSupported);
 }
 

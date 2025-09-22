@@ -186,6 +186,11 @@ typedef struct {
 } UDSDDDI_DBIArgs_t;
 
 typedef struct {
+    void *memAddr;
+    size_t memSize;
+} UDSDDDI_DBMArgs_t;
+
+typedef struct {
     const uint8_t type;     /*! invoked subfunction */
     bool allDataId;         /*! is true when request is for all data identifiers (only relevant for
                                 subFunc 0x03) */
@@ -199,6 +204,10 @@ typedef struct {
             size_t len;                 /*! number of source data identifier */
             UDSDDDI_DBIArgs_t *sources; /*! array of sources */
         } defineById;
+        struct {
+            size_t len;                 /*! number of source memory addresses */
+            UDSDDDI_DBMArgs_t *sources; /*! array of sources */
+        } defineByMemAddress;
     } subFuncArgs;
 } UDSDDDIArgs_t;
 
