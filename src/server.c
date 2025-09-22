@@ -465,9 +465,8 @@ static UDSErr_t Handle_0x22_ReadDataByIdentifier(UDSServer_t *srv, UDSReq_t *r) 
 
 /**
  * @brief decode the addressAndLengthFormatIdentifier that appears in
- * DynamicallyDefineDataIdentifier (0x2C). This must be handled specially because the
- * format identifier is not directly above the memory address and length. The format identifier
- * is only defined once for every memory address and length pair.
+ * DynamicallyDefineDataIdentifier (0x2C). This must be handled separatedly because the
+ * format identifier is not directly above the memory address and length.
  *
  * @param srv
  * @param buf pointer to addressAndDataLengthFormatIdentifier in recv_buf
@@ -696,18 +695,23 @@ static UDSErr_t Handle_0x2C_DynamicDefineDataIdentifier(UDSServer_t *srv, UDSReq
         return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
-    /* Shared by all SubFunc */
     r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_DYNAMICALLY_DEFINE_DATA_IDENTIFIER);
     r->send_buf[1] = type;
-    r->send_len = UDS_0X2C_RESP_BASE_LEN;
+    /* Set dynamicDataId. If response does not require it, the length will be adjusted later */
+    r->send_buf[2] = r->recv_buf[2];
+    r->send_buf[3] = r->recv_buf[3];
+    r->send_len = UDS_0X2C_RESP_BASE_LEN + 2;
 
     UDSDDDIArgs_t args = {
         .type = type,
-        .allDataId = false,
+        .allDataIds = false,
         .dynamicDataId =
             (uint16_t)((uint16_t)r->recv_buf[2] << 8 | (uint16_t)r->recv_buf[3]) & 0xFFFF,
     };
 
+    /* Since the paramter for subFunc 0x01 and 0x02 are dynamic and should not be handled by
+     * separate events, we need to emit the event for every subfunction separatedly
+     */
     switch (type) {
     case 0x01: /* defineByIdentifier */
     {
@@ -733,10 +737,6 @@ static UDSErr_t Handle_0x2C_DynamicDefineDataIdentifier(UDSServer_t *srv, UDSReq
         if (UDS_PositiveResponse != ret) {
             return NegativeResponse(r, ret);
         }
-
-        r->send_buf[2] = r->recv_buf[2];
-        r->send_buf[3] = r->recv_buf[3];
-        r->send_len = UDS_0X2C_RESP_BASE_LEN + 2;
 
         return UDS_PositiveResponse;
     }
@@ -770,16 +770,27 @@ static UDSErr_t Handle_0x2C_DynamicDefineDataIdentifier(UDSServer_t *srv, UDSReq
             return NegativeResponse(r, ret);
         }
 
-        r->send_buf[2] = r->recv_buf[2];
-        r->send_buf[3] = r->recv_buf[3];
-        r->send_len = UDS_0X2C_RESP_BASE_LEN + 2;
+        return UDS_PositiveResponse;
+    }
+
+    case 0x03: /* clearDynamicallyDefined */
+    {
+        if (r->recv_len == UDS_0X2C_REQ_MIN_LEN) {
+            args.allDataIds = true;
+            r->send_len = UDS_0X2C_RESP_BASE_LEN;
+        }
+
+        ret = EmitEvent(srv, UDS_EVT_DynamicDefineDataId, &args);
+        if (UDS_PositiveResponse != ret) {
+            return NegativeResponse(r, ret);
+        }
 
         return UDS_PositiveResponse;
     }
+    default:
+        UDS_LOGW(__FILE__, "Unsupported DDDI subFunc 0x%02X\n", type);
+        return NegativeResponse(r, UDS_NRC_SubFunctionNotSupported);
     }
-
-    UDS_LOGW(__FILE__, "Unsupported DDDI subFunc 0x%02X\n", type);
-    return NegativeResponse(r, UDS_NRC_SubFunctionNotSupported);
 }
 
 static UDSErr_t Handle_0x2E_WriteDataByIdentifier(UDSServer_t *srv, UDSReq_t *r) {

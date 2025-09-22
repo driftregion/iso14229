@@ -192,12 +192,9 @@ typedef struct {
 
 typedef struct {
     const uint8_t type;     /*! invoked subfunction */
-    bool allDataId;         /*! is true when request is for all data identifiers (only relevant for
-                                subFunc 0x03) */
+    bool allDataIds;        /*! is true when request is for all data identifiers (only relevant for
+                               subFunc 0x03) */
     uint16_t dynamicDataId; /*! dynamicallyDefinedDataIdentifier */
-
-    // uint8_t (*copy)(UDSServer_t *srv, const void *src,
-    //                 uint16_t count); /*! function for copying data */
 
     union {
         struct {
