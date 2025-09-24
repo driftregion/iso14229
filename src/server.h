@@ -241,6 +241,12 @@ typedef struct {
 } UDSRequestFileTransferArgs_t;
 
 typedef struct {
+    uint8_t type; /*! invoked subfunction */
+    size_t len;   /*! length of data */
+    void *data;   /*! DTCSettingControlOptionRecord */
+} UDSControlDTCSettingArgs_t;
+
+typedef struct {
     const uint16_t sid;          /*! serviceIdentifier */
     const uint8_t *optionRecord; /*! optional data */
     const uint16_t len;          /*! length of optional data */
