@@ -4,6 +4,7 @@
 #include "util.h"
 #include "log.h"
 #include <stdint.h>
+#include <stdlib.h>
 
 static inline UDSErr_t NegativeResponse(UDSReq_t *r, UDSErr_t nrc) {
     if (nrc < 0 || nrc > 0xFF) {
@@ -722,14 +723,14 @@ static UDSErr_t Handle_0x2C_DynamicDefineDataIdentifier(UDSServer_t *srv, UDSReq
 
         size_t numDIDs = (r->recv_len - 4) / 4;
 
-        /* This should never happen because we check for request size, but windows compiler errors
-         * because array might be of size 0 */
-        if (numDIDs <= 0) {
-            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
-        }
-
         args.subFuncArgs.defineById.len = numDIDs;
-        UDSDDDI_DBIArgs_t dbiArgs[numDIDs];
+
+        /* Use dynamic allocation instead of VLA for MSVC compatibility */
+        UDSDDDI_DBIArgs_t *dbiArgs =
+            (UDSDDDI_DBIArgs_t *)malloc(numDIDs * sizeof(UDSDDDI_DBIArgs_t));
+        if (dbiArgs == NULL) {
+            return NegativeResponse(r, UDS_NRC_GeneralReject);
+        }
 
         for (size_t i = 0; i < numDIDs; i++) {
             dbiArgs[i].sourceDataId =
@@ -741,6 +742,9 @@ static UDSErr_t Handle_0x2C_DynamicDefineDataIdentifier(UDSServer_t *srv, UDSReq
         args.subFuncArgs.defineById.sources = dbiArgs;
 
         ret = EmitEvent(srv, UDS_EVT_DynamicDefineDataId, &args);
+
+        free(dbiArgs);
+
         if (UDS_PositiveResponse != ret) {
             return NegativeResponse(r, ret);
         }
@@ -760,19 +764,20 @@ static UDSErr_t Handle_0x2C_DynamicDefineDataIdentifier(UDSServer_t *srv, UDSReq
 
         size_t numAddrs = (r->recv_len - 5) / 4;
 
-        /* This should never happen because we check for request size, but windows compiler errors
-         * because array might be of size 0 */
-        if (numAddrs <= 0) {
-            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
-        }
-
         args.subFuncArgs.defineByMemAddress.len = numAddrs;
-        UDSDDDI_DBMArgs_t dbmArgs[numAddrs];
+
+        /* Use dynamic allocation instead of VLA for MSVC compatibility */
+        UDSDDDI_DBMArgs_t *dbmArgs =
+            (UDSDDDI_DBMArgs_t *)malloc(numAddrs * sizeof(UDSDDDI_DBMArgs_t));
+        if (dbmArgs == NULL) {
+            return NegativeResponse(r, UDS_NRC_GeneralReject);
+        }
 
         for (size_t i = 0; i < numAddrs; i++) {
             ret = decodeAddressAndLengthWithOffset(r, &r->recv_buf[4], &dbmArgs[i].memAddr,
                                                    &dbmArgs[i].memSize, i);
             if (UDS_PositiveResponse != ret) {
+                free(dbmArgs);
                 return NegativeResponse(r, ret);
             }
         }
@@ -780,6 +785,9 @@ static UDSErr_t Handle_0x2C_DynamicDefineDataIdentifier(UDSServer_t *srv, UDSReq
         args.subFuncArgs.defineByMemAddress.sources = dbmArgs;
 
         ret = EmitEvent(srv, UDS_EVT_DynamicDefineDataId, &args);
+
+        free(dbmArgs);
+
         if (UDS_PositiveResponse != ret) {
             return NegativeResponse(r, ret);
         }
