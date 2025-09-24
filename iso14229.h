@@ -5,11 +5,7 @@
 extern "C" {
 #endif
 
-
 #define UDS_VERSION "0.9.0"
-
-
-
 
 #define UDS_SYS_CUSTOM 0
 #define UDS_SYS_UNIX 1
@@ -33,14 +29,6 @@ extern "C" {
 
 #endif
 
-
-
-
-
-
-
-
-
 #if UDS_SYS == UDS_SYS_ARDUINO
 
 #include <assert.h>
@@ -57,9 +45,6 @@ extern "C" {
 
 #endif
 
-
-
-
 #if UDS_SYS == UDS_SYS_UNIX
 
 #include <assert.h>
@@ -74,9 +59,6 @@ extern "C" {
 #include <time.h>
 
 #endif
-
-
-
 
 #if UDS_SYS == UDS_SYS_WINDOWS
 
@@ -97,9 +79,6 @@ typedef SSIZE_T ssize_t;
 
 #endif
 
-
-
-
 #if UDS_SYS == UDS_SYS_ESP32
 
 #include <string.h>
@@ -109,9 +88,6 @@ typedef SSIZE_T ssize_t;
 #define UDS_TP_ISOTP_C 1
 
 #endif
-
-
-
 
 /** ISO-TP Maximum Transmissiable Unit (ISO-15764-2-2004 section 5.3.3) */
 #define UDS_ISOTP_MTU (4095)
@@ -203,11 +179,6 @@ TransferData request message from the client. */
 #define UDS_CUSTOM_MILLIS 0
 #endif
 
-
-
-
-
-
 #if defined UDS_TP_ISOTP_C_SOCKETCAN
 #ifndef UDS_TP_ISOTP_C
 #define UDS_TP_ISOTP_C
@@ -291,9 +262,6 @@ ssize_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, ssize_t len, UDSSDU_t *info)
 ssize_t UDSTpRecv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info);
 UDSTpStatus_t UDSTpPoll(UDSTp_t *hdl);
 
-
-
-
 typedef enum UDSEvent {
     // Common Event ----------------- Argument Type
     UDS_EVT_Err, // UDSErr_t *
@@ -320,6 +288,7 @@ typedef enum UDSEvent {
     UDS_EVT_SessionTimeout,       // NULL
     UDS_EVT_DoScheduledReset,     // uint8_t *
     UDS_EVT_RequestFileTransfer,  // UDSRequestFileTransferArgs_t *
+    UDS_EVT_ControlDTCSetting,    // UDSControlDTCSettingArgs_t *
     UDS_EVT_LinkControl,          // UDSLinkCtrlArgs_t *
     UDS_EVT_Custom,               // UDSCustomArgs_t *
 
@@ -576,13 +545,6 @@ enum UDSDiagnosticServiceId {
     kSID_LINK_CONTROL = 0x87,
 };
 
-
-
-
-
-
-
-
 #ifndef UDS_ASSERT
 #include <assert.h>
 #define UDS_ASSERT(x) assert(x)
@@ -603,18 +565,10 @@ bool UDSErrIsNRC(UDSErr_t err);
 const char *UDSErrToStr(UDSErr_t err);
 const char *UDSEventToStr(UDSEvent_t evt);
 
-
-
-
 /**
  * @brief logging for bring-up and unit tests.
  * This interface was copied from ESP-IDF.
  */
-
-
-
-
-
 
 typedef enum {
     UDS_LOG_NONE,    // No log output
@@ -726,14 +680,6 @@ static inline void UDS_LogSDUDummy(const char *tag, const uint8_t *buffer, size_
 }
 #endif
 
-
-
-
-
-
-
-
-
 #define UDS_SUPPRESS_POS_RESP 0x1  // set the suppress positive response bit
 #define UDS_FUNCTIONAL 0x2         // send the request as a functional request
 #define UDS_IGNORE_SRV_TIMINGS 0x8 // ignore the server-provided p2 and p2_star
@@ -830,14 +776,6 @@ UDSErr_t UDSUnpackRoutineControlResponse(const UDSClient_t *client,
 UDSErr_t UDSConfigDownload(UDSClient_t *client, uint8_t dataFormatIdentifier,
                            uint8_t addressAndLengthFormatIdentifier, size_t memoryAddress,
                            size_t memorySize, FILE *fd);
-
-
-
-
-
-
-
-
 
 /**
  * @brief Server request context
@@ -1094,6 +1032,12 @@ typedef struct {
 } UDSRequestFileTransferArgs_t;
 
 typedef struct {
+    uint8_t type; /*! invoked subfunction */
+    size_t len;   /*! length of data */
+    void *data;   /*! DTCSettingControlOptionRecord */
+} UDSControlDTCSettingArgs_t;
+
+typedef struct {
     const uint8_t type; /*! invoked subfunction */
     /* purposefully left generic to allow vehicle- and supplier specific data of different sizes */
     const size_t len; /*! length of data */
@@ -1117,20 +1061,20 @@ void UDSServerPoll(UDSServer_t *srv);
 #ifndef ISOTPC_CONFIG_H
 #define ISOTPC_CONFIG_H
 
-/* Max number of messages the receiver can receive at one time, this value 
+/* Max number of messages the receiver can receive at one time, this value
  * is affected by can driver queue length
  */
-#define ISO_TP_DEFAULT_BLOCK_SIZE   8
+#define ISO_TP_DEFAULT_BLOCK_SIZE 8
 
-/* The STmin parameter value specifies the minimum time gap allowed between 
+/* The STmin parameter value specifies the minimum time gap allowed between
  * the transmission of consecutive frame network protocol data units
  */
-#define ISO_TP_DEFAULT_ST_MIN_US    0
+#define ISO_TP_DEFAULT_ST_MIN_US 0
 
-/* This parameter indicate how many FC N_PDU WTs can be transmitted by the 
+/* This parameter indicate how many FC N_PDU WTs can be transmitted by the
  * receiver in a row.
  */
-#define ISO_TP_MAX_WFT_NUMBER       1
+#define ISO_TP_MAX_WFT_NUMBER 1
 
 /* Private: The default timeout to use when waiting for a response during a
  * multi-frame send or receive.
@@ -1139,7 +1083,7 @@ void UDSServerPoll(UDSServer_t *srv);
 
 /* Private: Determines if by default, padding is added to ISO-TP message frames.
  */
-//#define ISO_TP_FRAME_PADDING
+// #define ISO_TP_FRAME_PADDING
 
 /* Private: Value to use when padding frames if enabled by ISO_TP_FRAME_PADDING
  */
@@ -1148,9 +1092,9 @@ void UDSServerPoll(UDSServer_t *srv);
 #endif
 
 /* Private: Determines if by default, an additional argument is present in the
- * definition of isotp_user_send_can. 
+ * definition of isotp_user_send_can.
  */
-//#define ISO_TP_USER_SEND_CAN_ARG
+// #define ISO_TP_USER_SEND_CAN_ARG
 
 #endif // ISOTPC_CONFIG_H
 
@@ -1181,7 +1125,7 @@ void UDSServerPoll(UDSServer_t *srv);
 #ifdef _WIN32
 #include <windows.h>
 #define ISOTP_BYTE_ORDER_LITTLE_ENDIAN
-#define __builtin_bswap8  _byteswap_uint8
+#define __builtin_bswap8 _byteswap_uint8
 #define __builtin_bswap16 _byteswap_uint16
 #define __builtin_bswap32 _byteswap_uint32
 #define __builtin_bswap64 _byteswap_uint64
@@ -1190,21 +1134,21 @@ void UDSServerPoll(UDSServer_t *srv);
 /**************************************************************
  * internal used defines
  *************************************************************/
-#define ISOTP_RET_OK           0
-#define ISOTP_RET_ERROR        -1
-#define ISOTP_RET_INPROGRESS   -2
-#define ISOTP_RET_OVERFLOW     -3
-#define ISOTP_RET_WRONG_SN     -4
-#define ISOTP_RET_NO_DATA      -5
-#define ISOTP_RET_TIMEOUT      -6
-#define ISOTP_RET_LENGTH       -7
-#define ISOTP_RET_NOSPACE      -8
+#define ISOTP_RET_OK 0
+#define ISOTP_RET_ERROR -1
+#define ISOTP_RET_INPROGRESS -2
+#define ISOTP_RET_OVERFLOW -3
+#define ISOTP_RET_WRONG_SN -4
+#define ISOTP_RET_NO_DATA -5
+#define ISOTP_RET_TIMEOUT -6
+#define ISOTP_RET_LENGTH -7
+#define ISOTP_RET_NOSPACE -8
 
 /* return logic true if 'a' is after 'b' */
-#define IsoTpTimeAfter(a,b) ((int32_t)((int32_t)(b) - (int32_t)(a)) < 0)
+#define IsoTpTimeAfter(a, b) ((int32_t)((int32_t)(b) - (int32_t)(a)) < 0)
 
 /*  invalid bs */
-#define ISOTP_INVALID_BS       0xFFFF
+#define ISOTP_INVALID_BS 0xFFFF
 
 /* ISOTP sender status */
 typedef enum {
@@ -1223,33 +1167,33 @@ typedef enum {
 /* can fram defination */
 #if defined(ISOTP_BYTE_ORDER_LITTLE_ENDIAN)
 typedef struct {
-    uint8_t reserve_1:4;
-    uint8_t type:4;
+    uint8_t reserve_1 : 4;
+    uint8_t type : 4;
     uint8_t reserve_2[7];
 } IsoTpPciType;
 
 typedef struct {
-    uint8_t SF_DL:4;
-    uint8_t type:4;
+    uint8_t SF_DL : 4;
+    uint8_t type : 4;
     uint8_t data[7];
 } IsoTpSingleFrame;
 
 typedef struct {
-    uint8_t FF_DL_high:4;
-    uint8_t type:4;
+    uint8_t FF_DL_high : 4;
+    uint8_t type : 4;
     uint8_t FF_DL_low;
     uint8_t data[6];
 } IsoTpFirstFrame;
 
 typedef struct {
-    uint8_t SN:4;
-    uint8_t type:4;
+    uint8_t SN : 4;
+    uint8_t type : 4;
     uint8_t data[7];
 } IsoTpConsecutiveFrame;
 
 typedef struct {
-    uint8_t FS:4;
-    uint8_t type:4;
+    uint8_t FS : 4;
+    uint8_t type : 4;
     uint8_t BS;
     uint8_t STmin;
     uint8_t reserve[5];
@@ -1258,73 +1202,73 @@ typedef struct {
 #else
 
 typedef struct {
-    uint8_t type:4;
-    uint8_t reserve_1:4;
+    uint8_t type : 4;
+    uint8_t reserve_1 : 4;
     uint8_t reserve_2[7];
 } IsoTpPciType;
 
 /*
-* single frame
-* +-------------------------+-----+
-* | byte #0                 | ... |
-* +-------------------------+-----+
-* | nibble #0   | nibble #1 | ... |
-* +-------------+-----------+ ... +
-* | PCIType = 0 | SF_DL     | ... |
-* +-------------+-----------+-----+
-*/
+ * single frame
+ * +-------------------------+-----+
+ * | byte #0                 | ... |
+ * +-------------------------+-----+
+ * | nibble #0   | nibble #1 | ... |
+ * +-------------+-----------+ ... +
+ * | PCIType = 0 | SF_DL     | ... |
+ * +-------------+-----------+-----+
+ */
 typedef struct {
-    uint8_t type:4;
-    uint8_t SF_DL:4;
+    uint8_t type : 4;
+    uint8_t SF_DL : 4;
     uint8_t data[7];
 } IsoTpSingleFrame;
 
 /*
-* first frame
-* +-------------------------+-----------------------+-----+
-* | byte #0                 | byte #1               | ... |
-* +-------------------------+-----------+-----------+-----+
-* | nibble #0   | nibble #1 | nibble #2 | nibble #3 | ... |
-* +-------------+-----------+-----------+-----------+-----+
-* | PCIType = 1 | FF_DL                             | ... |
-* +-------------+-----------+-----------------------+-----+
-*/
+ * first frame
+ * +-------------------------+-----------------------+-----+
+ * | byte #0                 | byte #1               | ... |
+ * +-------------------------+-----------+-----------+-----+
+ * | nibble #0   | nibble #1 | nibble #2 | nibble #3 | ... |
+ * +-------------+-----------+-----------+-----------+-----+
+ * | PCIType = 1 | FF_DL                             | ... |
+ * +-------------+-----------+-----------------------+-----+
+ */
 typedef struct {
-    uint8_t type:4;
-    uint8_t FF_DL_high:4;
+    uint8_t type : 4;
+    uint8_t FF_DL_high : 4;
     uint8_t FF_DL_low;
     uint8_t data[6];
 } IsoTpFirstFrame;
 
 /*
-* consecutive frame
-* +-------------------------+-----+
-* | byte #0                 | ... |
-* +-------------------------+-----+
-* | nibble #0   | nibble #1 | ... |
-* +-------------+-----------+ ... +
-* | PCIType = 0 | SN        | ... |
-* +-------------+-----------+-----+
-*/
+ * consecutive frame
+ * +-------------------------+-----+
+ * | byte #0                 | ... |
+ * +-------------------------+-----+
+ * | nibble #0   | nibble #1 | ... |
+ * +-------------+-----------+ ... +
+ * | PCIType = 0 | SN        | ... |
+ * +-------------+-----------+-----+
+ */
 typedef struct {
-    uint8_t type:4;
-    uint8_t SN:4;
+    uint8_t type : 4;
+    uint8_t SN : 4;
     uint8_t data[7];
 } IsoTpConsecutiveFrame;
 
 /*
-* flow control frame
-* +-------------------------+-----------------------+-----------------------+-----+
-* | byte #0                 | byte #1               | byte #2               | ... |
-* +-------------------------+-----------+-----------+-----------+-----------+-----+
-* | nibble #0   | nibble #1 | nibble #2 | nibble #3 | nibble #4 | nibble #5 | ... |
-* +-------------+-----------+-----------+-----------+-----------+-----------+-----+
-* | PCIType = 1 | FS        | BS                    | STmin                 | ... |
-* +-------------+-----------+-----------------------+-----------------------+-----+
-*/
+ * flow control frame
+ * +-------------------------+-----------------------+-----------------------+-----+
+ * | byte #0                 | byte #1               | byte #2               | ... |
+ * +-------------------------+-----------+-----------+-----------+-----------+-----+
+ * | nibble #0   | nibble #1 | nibble #2 | nibble #3 | nibble #4 | nibble #5 | ... |
+ * +-------------+-----------+-----------+-----------+-----------+-----------+-----+
+ * | PCIType = 1 | FS        | BS                    | STmin                 | ... |
+ * +-------------+-----------+-----------------------+-----------------------+-----+
+ */
 typedef struct {
-    uint8_t type:4;
-    uint8_t FS:4;
+    uint8_t type : 4;
+    uint8_t FS : 4;
     uint8_t BS;
     uint8_t STmin;
     uint8_t reserve[5];
@@ -1338,12 +1282,12 @@ typedef struct {
 
 typedef struct {
     union {
-        IsoTpPciType          common;
-        IsoTpSingleFrame      single_frame;
-        IsoTpFirstFrame       first_frame;
+        IsoTpPciType common;
+        IsoTpSingleFrame single_frame;
+        IsoTpFirstFrame first_frame;
         IsoTpConsecutiveFrame consecutive_frame;
-        IsoTpFlowControl      flow_control;
-        IsoTpDataArray        data_array;
+        IsoTpFlowControl flow_control;
+        IsoTpDataArray data_array;
     } as;
 } IsoTpCanMessage;
 
@@ -1351,12 +1295,13 @@ typedef struct {
  * protocol specific defines
  *************************************************************/
 
-/* Private: Protocol Control Information (PCI) types, for identifying each frame of an ISO-TP message.
+/* Private: Protocol Control Information (PCI) types, for identifying each frame of an ISO-TP
+ * message.
  */
 typedef enum {
-    ISOTP_PCI_TYPE_SINGLE             = 0x0,
-    ISOTP_PCI_TYPE_FIRST_FRAME        = 0x1,
-    TSOTP_PCI_TYPE_CONSECUTIVE_FRAME  = 0x2,
+    ISOTP_PCI_TYPE_SINGLE = 0x0,
+    ISOTP_PCI_TYPE_FIRST_FRAME = 0x1,
+    TSOTP_PCI_TYPE_CONSECUTIVE_FRAME = 0x2,
     ISOTP_PCI_TYPE_FLOW_CONTROL_FRAME = 0x3
 } IsoTpProtocolControlInformation;
 
@@ -1364,22 +1309,22 @@ typedef enum {
  */
 typedef enum {
     PCI_FLOW_STATUS_CONTINUE = 0x0,
-    PCI_FLOW_STATUS_WAIT     = 0x1,
+    PCI_FLOW_STATUS_WAIT = 0x1,
     PCI_FLOW_STATUS_OVERFLOW = 0x2
 } IsoTpFlowStatus;
 
 /* Private: network layer resault code.
  */
-#define ISOTP_PROTOCOL_RESULT_OK            0
-#define ISOTP_PROTOCOL_RESULT_TIMEOUT_A    -1
-#define ISOTP_PROTOCOL_RESULT_TIMEOUT_BS   -2
-#define ISOTP_PROTOCOL_RESULT_TIMEOUT_CR   -3
-#define ISOTP_PROTOCOL_RESULT_WRONG_SN     -4
-#define ISOTP_PROTOCOL_RESULT_INVALID_FS   -5
-#define ISOTP_PROTOCOL_RESULT_UNEXP_PDU    -6
-#define ISOTP_PROTOCOL_RESULT_WFT_OVRN     -7
+#define ISOTP_PROTOCOL_RESULT_OK 0
+#define ISOTP_PROTOCOL_RESULT_TIMEOUT_A -1
+#define ISOTP_PROTOCOL_RESULT_TIMEOUT_BS -2
+#define ISOTP_PROTOCOL_RESULT_TIMEOUT_CR -3
+#define ISOTP_PROTOCOL_RESULT_WRONG_SN -4
+#define ISOTP_PROTOCOL_RESULT_INVALID_FS -5
+#define ISOTP_PROTOCOL_RESULT_UNEXP_PDU -6
+#define ISOTP_PROTOCOL_RESULT_WFT_OVRN -7
 #define ISOTP_PROTOCOL_RESULT_BUFFER_OVFLW -8
-#define ISOTP_PROTOCOL_RESULT_ERROR        -9
+#define ISOTP_PROTOCOL_RESULT_ERROR -9
 
 #endif // ISOTPC_USER_DEFINITIONS_H
 #ifndef ISOTPC_USER_H
@@ -1392,20 +1337,20 @@ extern "C" {
 #endif
 
 /** @brief user implemented, print debug message */
-void isotp_user_debug(const char* message, ...);
+void isotp_user_debug(const char *message, ...);
 
 /**
  * @brief user implemented, send can message. should return ISOTP_RET_OK when success.
- * 
+ *
  * @return may return ISOTP_RET_NOSPACE if the CAN transfer should be retried later
  * or ISOTP_RET_ERROR if transmission couldn't be completed
  */
-int  isotp_user_send_can(const uint32_t arbitration_id,
-                         const uint8_t* data, const uint8_t size
+int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t *data, const uint8_t size
 #if ISO_TP_USER_SEND_CAN_ARG
-,void *arg
-#endif                         
-                         );
+                        ,
+                        void *arg
+#endif
+);
 
 /**
  * @brief user implemented, gets the amount of time passed since the last call in microseconds
@@ -1417,7 +1362,6 @@ uint32_t isotp_user_get_us(void);
 #endif
 
 #endif // ISOTPC_USER_H
-
 
 #ifndef ISOTPC_H
 #define ISOTPC_H
@@ -1431,10 +1375,6 @@ uint32_t isotp_user_get_us(void);
 extern "C" {
 #endif
 
-
-
-
-
 /**
  * @brief Struct containing the data for linking an application to a CAN instance.
  * The data stored in this struct is used internally and may be used by software programs
@@ -1442,41 +1382,41 @@ extern "C" {
  */
 typedef struct IsoTpLink {
     /* sender paramters */
-    uint32_t                    send_arbitration_id; /* used to reply consecutive frame */
+    uint32_t send_arbitration_id; /* used to reply consecutive frame */
     /* message buffer */
-    uint8_t*                    send_buffer;
-    uint16_t                    send_buf_size;
-    uint16_t                    send_size;
-    uint16_t                    send_offset;
+    uint8_t *send_buffer;
+    uint16_t send_buf_size;
+    uint16_t send_size;
+    uint16_t send_offset;
     /* multi-frame flags */
-    uint8_t                     send_sn;
-    uint16_t                    send_bs_remain; /* Remaining block size */
-    uint32_t                    send_st_min_us; /* Separation Time between consecutive frames */
-    uint8_t                     send_wtf_count; /* Maximum number of FC.Wait frame transmissions  */
-    uint32_t                    send_timer_st;  /* Last time send consecutive frame */    
-    uint32_t                    send_timer_bs;  /* Time until reception of the next FlowControl N_PDU
-                                                   start at sending FF, CF, receive FC
-                                                   end at receive FC */
-    int                         send_protocol_result;
-    uint8_t                     send_status;
+    uint8_t send_sn;
+    uint16_t send_bs_remain; /* Remaining block size */
+    uint32_t send_st_min_us; /* Separation Time between consecutive frames */
+    uint8_t send_wtf_count;  /* Maximum number of FC.Wait frame transmissions  */
+    uint32_t send_timer_st;  /* Last time send consecutive frame */
+    uint32_t send_timer_bs;  /* Time until reception of the next FlowControl N_PDU
+                                start at sending FF, CF, receive FC
+                                end at receive FC */
+    int send_protocol_result;
+    uint8_t send_status;
     /* receiver paramters */
-    uint32_t                    receive_arbitration_id;
+    uint32_t receive_arbitration_id;
     /* message buffer */
-    uint8_t*                    receive_buffer;
-    uint16_t                    receive_buf_size;
-    uint16_t                    receive_size;
-    uint16_t                    receive_offset;
+    uint8_t *receive_buffer;
+    uint16_t receive_buf_size;
+    uint16_t receive_size;
+    uint16_t receive_offset;
     /* multi-frame control */
-    uint8_t                     receive_sn;
-    uint8_t                     receive_bs_count; /* Maximum number of FC.Wait frame transmissions  */
-    uint32_t                    receive_timer_cr; /* Time until transmission of the next ConsecutiveFrame N_PDU
-                                                     start at sending FC, receive CF 
-                                                     end at receive FC */
-    int                         receive_protocol_result;
-    uint8_t                     receive_status;                                                     
+    uint8_t receive_sn;
+    uint8_t receive_bs_count;  /* Maximum number of FC.Wait frame transmissions  */
+    uint32_t receive_timer_cr; /* Time until transmission of the next ConsecutiveFrame N_PDU
+                                  start at sending FC, receive CF
+                                  end at receive FC */
+    int receive_protocol_result;
+    uint8_t receive_status;
 
 #if defined(ISO_TP_USER_SEND_CAN_ARG)
-    void*                       user_send_can_arg;
+    void *user_send_can_arg;
 #endif
 } IsoTpLink;
 
@@ -1487,15 +1427,16 @@ typedef struct IsoTpLink {
  * @param sendid The ID used to send data to other CAN nodes.
  * @param sendbuf A pointer to an area in memory which can be used as a buffer for data to be sent.
  * @param sendbufsize The size of the buffer area.
- * @param recvbuf A pointer to an area in memory which can be used as a buffer for data to be received.
+ * @param recvbuf A pointer to an area in memory which can be used as a buffer for data to be
+ * received.
  * @param recvbufsize The size of the buffer area.
  */
-void isotp_init_link(IsoTpLink *link, uint32_t sendid, 
-                     uint8_t *sendbuf, uint16_t sendbufsize,
+void isotp_init_link(IsoTpLink *link, uint32_t sendid, uint8_t *sendbuf, uint16_t sendbufsize,
                      uint8_t *recvbuf, uint16_t recvbufsize);
 
 /**
- * @brief Polling function; call this function periodically to handle timeouts, send consecutive frames, etc.
+ * @brief Polling function; call this function periodically to handle timeouts, send consecutive
+ * frames, etc.
  *
  * @param link The @code IsoTpLink @endcode instance used.
  */
@@ -1530,22 +1471,26 @@ void isotp_on_can_message(IsoTpLink *link, const uint8_t *data, uint8_t len);
 int isotp_send(IsoTpLink *link, const uint8_t payload[], uint16_t size);
 
 /**
- * @brief See @link isotp_send @endlink, with the exception that this function is used only for functional addressing.
+ * @brief See @link isotp_send @endlink, with the exception that this function is used only for
+ * functional addressing.
  */
 int isotp_send_with_id(IsoTpLink *link, uint32_t id, const uint8_t payload[], uint16_t size);
 
 /**
- * @brief Receives and parses the received data and copies the parsed data in to the internal buffer.
+ * @brief Receives and parses the received data and copies the parsed data in to the internal
+ * buffer.
  * @param link The @link IsoTpLink @endlink instance used to transceive data.
  * @param payload A pointer to an area in memory where the raw data is copied from.
  * @param payload_size The size of the received (raw) CAN data.
- * @param out_size A reference to a variable which will contain the size of the actual (parsed) data.
+ * @param out_size A reference to a variable which will contain the size of the actual (parsed)
+ * data.
  *
  * @return Possible return values:
  *      - @link ISOTP_RET_OK @endlink
  *      - @link ISOTP_RET_NO_DATA @endlink
  */
-int isotp_receive(IsoTpLink *link, uint8_t *payload, const uint16_t payload_size, uint16_t *out_size);
+int isotp_receive(IsoTpLink *link, uint8_t *payload, const uint16_t payload_size,
+                  uint16_t *out_size);
 
 #ifdef __cplusplus
 }
@@ -1555,14 +1500,7 @@ int isotp_receive(IsoTpLink *link, uint8_t *payload, const uint16_t payload_size
 
 #endif
 
-
 #if defined(UDS_TP_ISOTP_C)
-
-
-
-
-
-
 
 typedef struct {
     UDSTp_t hdl;
@@ -1587,13 +1525,7 @@ void UDSISOTpCDeinit(UDSISOTpC_t *tp);
 
 #endif
 
-
-
-
 #if defined(UDS_TP_ISOTP_C_SOCKETCAN)
-
-
-
 
 typedef struct {
     UDSTp_t hdl;
@@ -1614,12 +1546,7 @@ void UDSTpISOTpCDeinit(UDSTpISOTpC_t *tp);
 
 #endif
 
-
 #if defined(UDS_TP_ISOTP_SOCK)
-
-
-
-
 
 typedef struct {
     UDSTp_t hdl;
@@ -1642,7 +1569,6 @@ void UDSTpIsoTpSockDeinit(UDSTpIsoTpSock_t *tp);
 
 #endif
 
-
 /**
  * @file isotp_mock.h
  * @brief in-memory ISO15765 (ISO-TP) transport layer implementation for testing
@@ -1650,10 +1576,6 @@ void UDSTpIsoTpSockDeinit(UDSTpIsoTpSock_t *tp);
  *
  */
 #if defined(UDS_TP_ISOTP_MOCK)
-
-
-
-
 
 typedef struct ISOTPMock {
     UDSTp_t hdl;
@@ -1700,7 +1622,6 @@ void ISOTPMockLogToStdout(void);
 void ISOTPMockReset(void);
 
 #endif
-
 
 #ifdef __cplusplus
 }
