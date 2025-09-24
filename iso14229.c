@@ -1595,6 +1595,13 @@ static UDSErr_t Handle_0x2C_DynamicDefineDataIdentifier(UDSServer_t *srv, UDSReq
         }
 
         size_t numDIDs = (r->recv_len - 4) / 4;
+
+        /* This should never happen because we check for request size, but windows compiler errors
+         * because array might be of size 0 */
+        if (numDIDs <= 0) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
         args.subFuncArgs.defineById.len = numDIDs;
         UDSDDDI_DBIArgs_t dbiArgs[numDIDs];
 
@@ -1626,6 +1633,13 @@ static UDSErr_t Handle_0x2C_DynamicDefineDataIdentifier(UDSServer_t *srv, UDSReq
         }
 
         size_t numAddrs = (r->recv_len - 5) / 4;
+
+        /* This should never happen because we check for request size, but windows compiler errors
+         * because array might be of size 0 */
+        if (numAddrs <= 0) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
         args.subFuncArgs.defineByMemAddress.len = numAddrs;
         UDSDDDI_DBMArgs_t dbmArgs[numAddrs];
 
