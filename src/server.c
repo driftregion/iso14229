@@ -1293,10 +1293,22 @@ static UDSErr_t Handle_0x85_ControlDTCSetting(UDSServer_t *srv, UDSReq_t *r) {
     if (r->recv_len < UDS_0X85_REQ_BASE_LEN) {
         return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
-    uint8_t dtcSettingType = r->recv_buf[1] & 0x3F;
+
+    uint8_t type = r->recv_buf[1] & 0x7F;
+
+    UDSControlDTCSettingArgs_t args = {
+        .type = type,
+        .data = r->recv_len > UDS_0X85_REQ_BASE_LEN ? &r->recv_buf[UDS_0X85_REQ_BASE_LEN] : NULL,
+        .len = r->recv_len > UDS_0X85_REQ_BASE_LEN ? r->recv_len - UDS_0X85_REQ_BASE_LEN : 0,
+    };
+
+    int ret = EmitEvent(srv, UDS_EVT_ControlDTCSetting, &args);
+    if (UDS_PositiveResponse != ret) {
+        return NegativeResponse(r, ret);
+    }
 
     r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_CONTROL_DTC_SETTING);
-    r->send_buf[1] = dtcSettingType;
+    r->send_buf[1] = type;
     r->send_len = UDS_0X85_RESP_LEN;
     return UDS_PositiveResponse;
 }

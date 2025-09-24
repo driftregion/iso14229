@@ -26,6 +26,7 @@ typedef enum UDSEvent {
     UDS_EVT_SessionTimeout,       // NULL
     UDS_EVT_DoScheduledReset,     // uint8_t *
     UDS_EVT_RequestFileTransfer,  // UDSRequestFileTransferArgs_t *
+    UDS_EVT_ControlDTCSetting,    // UDSControlDTCSettingArgs_t *
     UDS_EVT_LinkControl,          // UDSLinkCtrlArgs_t *
     UDS_EVT_Custom,               // UDSCustomArgs_t *
 
