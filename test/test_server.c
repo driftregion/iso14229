@@ -3031,44 +3031,59 @@ UDSErr_t fn_test_0x2C(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
         return UDS_NRC_ConditionsNotCorrect;
     }
 
+    uint32_t *event_counter = ((uint32_t *)srv->fn_data);
+
     switch (args->type) {
-    case 0x01: { // defineByIdentifier
+    case 0x01: // defineByIdentifier
         TEST_INT_EQUAL(args->allDataIds, 0);
-        TEST_INT_EQUAL(args->subFuncArgs.defineById.len, 3);
         TEST_INT_EQUAL(args->dynamicDataId, 0xF301);
 
-        UDSDDDI_DBIArgs_t *dbi = args->subFuncArgs.defineById.sources;
+        switch (*event_counter) {
+        case 0:
+            TEST_INT_EQUAL(args->subFuncArgs.defineById.sourceDataId, 0x1234);
+            TEST_INT_EQUAL(args->subFuncArgs.defineById.position, 1);
+            TEST_INT_EQUAL(args->subFuncArgs.defineById.size, 2);
+            break;
+        case 1:
+            TEST_INT_EQUAL(args->subFuncArgs.defineById.sourceDataId, 0x5678);
+            TEST_INT_EQUAL(args->subFuncArgs.defineById.position, 1);
+            TEST_INT_EQUAL(args->subFuncArgs.defineById.size, 1);
+            break;
+        case 2:
+            TEST_INT_EQUAL(args->subFuncArgs.defineById.sourceDataId, 0x9ABC);
+            TEST_INT_EQUAL(args->subFuncArgs.defineById.position, 1);
+            TEST_INT_EQUAL(args->subFuncArgs.defineById.size, 4);
+            break;
+        default:
+            break;
+        }
 
-        TEST_INT_EQUAL(dbi[0].sourceDataId, 0x1234);
-        TEST_INT_EQUAL(dbi[0].position, 1);
-        TEST_INT_EQUAL(dbi[0].size, 2);
-
-        TEST_INT_EQUAL(dbi[1].sourceDataId, 0x5678);
-        TEST_INT_EQUAL(dbi[1].position, 1);
-        TEST_INT_EQUAL(dbi[1].size, 1);
-
-        TEST_INT_EQUAL(dbi[2].sourceDataId, 0x9ABC);
-        TEST_INT_EQUAL(dbi[2].position, 1);
-        TEST_INT_EQUAL(dbi[2].size, 4);
+        *event_counter += 1;
 
         return UDS_PositiveResponse;
-    }
     case 0x02: { // defineByMemoryAddress
         TEST_INT_EQUAL(args->allDataIds, 0);
-        TEST_INT_EQUAL(args->subFuncArgs.defineByMemAddress.len, 3);
         TEST_INT_EQUAL(args->dynamicDataId, 0xF302);
 
-        UDSDDDI_DBMArgs_t *dbm = args->subFuncArgs.defineByMemAddress.sources;
+        switch (*event_counter) {
 
-        TEST_INT_EQUAL((uintptr_t)dbm[0].memAddr, 0x21091969);
-        TEST_INT_EQUAL(dbm[0].memSize, 0x01);
+        case 0:
+            TEST_INT_EQUAL((uintptr_t)args->subFuncArgs.defineByMemAddress.memAddr, 0x21091969);
+            TEST_INT_EQUAL(args->subFuncArgs.defineByMemAddress.memSize, 0x01);
+            break;
 
-        TEST_INT_EQUAL((uintptr_t)dbm[1].memAddr, 0x2109196B);
-        TEST_INT_EQUAL(dbm[1].memSize, 0x02);
+        case 1:
+            TEST_INT_EQUAL((uintptr_t)args->subFuncArgs.defineByMemAddress.memAddr, 0x2109196B);
+            TEST_INT_EQUAL(args->subFuncArgs.defineByMemAddress.memSize, 0x02);
+            break;
 
-        TEST_INT_EQUAL((uintptr_t)dbm[2].memAddr, 0x13101995);
-        TEST_INT_EQUAL(dbm[2].memSize, 0x01);
+        case 2:
+            TEST_INT_EQUAL((uintptr_t)args->subFuncArgs.defineByMemAddress.memAddr, 0x13101995);
+            TEST_INT_EQUAL(args->subFuncArgs.defineByMemAddress.memSize, 0x01);
+            break;
+        }
 
+        *event_counter += 1;
         return UDS_PositiveResponse;
     }
     case 0x03: // clearDynamicDataId
@@ -3117,8 +3132,9 @@ void test_0x2C_sub_0x01(void **state) {
     Env_t *e = *state;
     uint8_t buf[20] = {0};
 
+    uint32_t event_counter = 0;
     e->server->fn = fn_test_0x2C;
-    e->server->fn_data = NULL;
+    e->server->fn_data = &event_counter;
 
     /* Request per ISO14229-1 2020 Table 247 */
     const uint8_t REQ[] = {
@@ -3226,8 +3242,9 @@ void test_0x2C_sub_0x02(void **state) {
     Env_t *e = *state;
     uint8_t buf[20] = {0};
 
+    uint32_t counter = 0;
     e->server->fn = fn_test_0x2C;
-    e->server->fn_data = NULL;
+    e->server->fn_data = &counter;
 
     /* Request per ISO14229-1 2020 Table 255 */
     const uint8_t REQ[] = {
