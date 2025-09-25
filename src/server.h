@@ -246,7 +246,6 @@ typedef struct {
     const size_t len; /*! length of data */
     const void *data; /*! data used in the subfunction. E.g. on SubFunction 0x01 this is the
                          linkControlModelIdentifier, on SubFunction 0x02 this is the linkRecord */
-
 } UDSLinkCtrlArgs_t;
 
 typedef struct {
