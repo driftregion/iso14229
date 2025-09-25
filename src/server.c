@@ -1163,6 +1163,36 @@ static UDSErr_t Handle_0x85_ControlDTCSetting(UDSServer_t *srv, UDSReq_t *r) {
     return UDS_PositiveResponse;
 }
 
+static UDSErr_t Handle_0x87_LinkControl(UDSServer_t *srv, UDSReq_t *r) {
+    if (r->recv_len < UDS_0X85_REQ_BASE_LEN) {
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+    }
+
+    uint8_t type = r->recv_buf[1] & 0x7F;
+
+    if (type == 0x03 && (r->recv_buf[1] & 0x80) == 0) {
+        UDS_LOGW(__FILE__, "0x87 LinkControl: Transitioning mode without suppressing response!");
+    }
+
+    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_LINK_CONTROL);
+    r->send_buf[1] = r->recv_buf[1]; /* do not use `type` because we want to preserve the suppress
+                                        response bit */
+    r->send_len = UDS_0X87_RESP_LEN;
+
+    UDSLinkCtrlArgs_t args = {
+        .type = type,
+        .len = (r->recv_len - UDS_0X87_REQ_BASE_LEN),
+        .data = &r->recv_buf[UDS_0X87_REQ_BASE_LEN],
+    };
+
+    int ret = EmitEvent(srv, UDS_EVT_LinkControl, &args);
+    if (ret != UDS_PositiveResponse) {
+        return NegativeResponse(r, ret);
+    }
+
+    return UDS_PositiveResponse;
+}
+
 typedef UDSErr_t (*UDSService)(UDSServer_t *srv, UDSReq_t *r);
 
 /**
@@ -1222,6 +1252,8 @@ static UDSService getServiceForSID(uint8_t sid) {
         return &Handle_0x85_ControlDTCSetting;
     case kSID_RESPONSE_ON_EVENT:
         return NULL;
+    case kSID_LINK_CONTROL:
+        return &Handle_0x87_LinkControl;
     default:
         UDS_LOGI(__FILE__, "no handler for request SID %x", sid);
         return NULL;
@@ -1254,7 +1286,8 @@ static UDSErr_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
     case kSID_COMMUNICATION_CONTROL:
     case kSID_ROUTINE_CONTROL:
     case kSID_TESTER_PRESENT:
-    case kSID_CONTROL_DTC_SETTING: {
+    case kSID_CONTROL_DTC_SETTING:
+    case kSID_LINK_CONTROL: {
         assert(service);
         response = service(srv, r);
 
