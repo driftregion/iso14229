@@ -1597,30 +1597,19 @@ static UDSErr_t Handle_0x2C_DynamicDefineDataIdentifier(UDSServer_t *srv, UDSReq
 
         size_t numDIDs = (r->recv_len - 4) / 4;
 
-        args.subFuncArgs.defineById.len = numDIDs;
-
-        /* Use dynamic allocation instead of VLA for MSVC compatibility */
-        UDSDDDI_DBIArgs_t *dbiArgs =
-            (UDSDDDI_DBIArgs_t *)malloc(numDIDs * sizeof(UDSDDDI_DBIArgs_t));
-        if (dbiArgs == NULL) {
-            return NegativeResponse(r, UDS_NRC_GeneralReject);
-        }
-
         for (size_t i = 0; i < numDIDs; i++) {
-            dbiArgs[i].sourceDataId =
-                ((uint16_t)r->recv_buf[4 + i * 4] << 8 | (uint16_t)r->recv_buf[5 + i * 4]) & 0xFFFF;
-            dbiArgs[i].position = r->recv_buf[6 + i * 4];
-            dbiArgs[i].size = r->recv_buf[7 + i * 4];
-        }
+            args.subFuncArgs.defineById.sourceDataId =
+                (uint16_t)((uint16_t)r->recv_buf[4 + i * 4] << 8 |
+                           (uint16_t)r->recv_buf[5 + i * 4]) &
+                0xFFFF;
+            args.subFuncArgs.defineById.position = r->recv_buf[6 + i * 4];
+            args.subFuncArgs.defineById.size = r->recv_buf[7 + i * 4];
 
-        args.subFuncArgs.defineById.sources = dbiArgs;
+            ret = EmitEvent(srv, UDS_EVT_DynamicDefineDataId, &args);
 
-        ret = EmitEvent(srv, UDS_EVT_DynamicDefineDataId, &args);
-
-        free(dbiArgs);
-
-        if (UDS_PositiveResponse != ret) {
-            return NegativeResponse(r, ret);
+            if (UDS_PositiveResponse != ret) {
+                return NegativeResponse(r, ret);
+            }
         }
 
         return UDS_PositiveResponse;
@@ -1636,34 +1625,28 @@ static UDSErr_t Handle_0x2C_DynamicDefineDataIdentifier(UDSServer_t *srv, UDSReq
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        size_t numAddrs = (r->recv_len - 5) / 4;
+        size_t bytesPerAddrAndSize = ((r->recv_buf[4] & 0xF0) >> 4) + (r->recv_buf[4] & 0x0F);
 
-        args.subFuncArgs.defineByMemAddress.len = numAddrs;
-
-        /* Use dynamic allocation instead of VLA for MSVC compatibility */
-        UDSDDDI_DBMArgs_t *dbmArgs =
-            (UDSDDDI_DBMArgs_t *)malloc(numAddrs * sizeof(UDSDDDI_DBMArgs_t));
-        if (dbmArgs == NULL) {
-            return NegativeResponse(r, UDS_NRC_GeneralReject);
+        if ((r->recv_len - 5) % bytesPerAddrAndSize != 0) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
+
+        size_t numAddrs = (r->recv_len - 5) / bytesPerAddrAndSize;
 
         for (size_t i = 0; i < numAddrs; i++) {
-            ret = decodeAddressAndLengthWithOffset(r, &r->recv_buf[4], &dbmArgs[i].memAddr,
-                                                   &dbmArgs[i].memSize, i);
+            ret = decodeAddressAndLengthWithOffset(r, &r->recv_buf[4],
+                                                   &args.subFuncArgs.defineByMemAddress.memAddr,
+                                                   &args.subFuncArgs.defineByMemAddress.memSize, i);
+
             if (UDS_PositiveResponse != ret) {
-                free(dbmArgs);
                 return NegativeResponse(r, ret);
             }
-        }
 
-        args.subFuncArgs.defineByMemAddress.sources = dbmArgs;
+            ret = EmitEvent(srv, UDS_EVT_DynamicDefineDataId, &args);
 
-        ret = EmitEvent(srv, UDS_EVT_DynamicDefineDataId, &args);
-
-        free(dbmArgs);
-
-        if (UDS_PositiveResponse != ret) {
-            return NegativeResponse(r, ret);
+            if (UDS_PositiveResponse != ret) {
+                return NegativeResponse(r, ret);
+            }
         }
 
         return UDS_PositiveResponse;
