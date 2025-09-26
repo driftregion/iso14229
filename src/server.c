@@ -4,7 +4,6 @@
 #include "util.h"
 #include "log.h"
 #include <stdint.h>
-#include <stdlib.h>
 
 static inline UDSErr_t NegativeResponse(UDSReq_t *r, UDSErr_t nrc) {
     if (nrc < 0 || nrc > 0xFF) {
