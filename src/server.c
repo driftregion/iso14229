@@ -1170,7 +1170,8 @@ static UDSErr_t Handle_0x87_LinkControl(UDSServer_t *srv, UDSReq_t *r) {
 
     uint8_t type = r->recv_buf[1] & 0x7F;
 
-    if (type == 0x03 && (r->recv_buf[1] & 0x80) == 0) {
+    if (type == 0x03 && (r->recv_buf[1] & 0x80) == 0 &&
+        r->info.A_TA_Type == UDS_A_TA_TYPE_FUNCTIONAL) {
         UDS_LOGW(__FILE__, "0x87 LinkControl: Transitioning mode without suppressing response!");
     }
 
