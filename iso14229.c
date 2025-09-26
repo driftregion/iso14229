@@ -878,7 +878,6 @@ UDSErr_t UDSUnpackRDBIResponse(UDSClient_t *client, UDSRDBIVar_t *vars, uint16_t
 
 
 #include <stdint.h>
-#include <stdlib.h>
 
 static inline UDSErr_t NegativeResponse(UDSReq_t *r, UDSErr_t nrc) {
     if (nrc < 0 || nrc > 0xFF) {
@@ -1626,6 +1625,14 @@ static UDSErr_t Handle_0x2C_DynamicDefineDataIdentifier(UDSServer_t *srv, UDSReq
         }
 
         size_t bytesPerAddrAndSize = ((r->recv_buf[4] & 0xF0) >> 4) + (r->recv_buf[4] & 0x0F);
+
+        if (bytesPerAddrAndSize == 0) {
+            UDS_LOGW(__FILE__,
+                     "DDDI: define By Memory Address request with invalid "
+                     "AddressAndLengthFormatIdentifier: 0x%02X\n",
+                     r->recv_buf[4]);
+            return NegativeResponse(r, UDS_NRC_RequestOutOfRange);
+        }
 
         if ((r->recv_len - 5) % bytesPerAddrAndSize != 0) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
