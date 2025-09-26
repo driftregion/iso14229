@@ -3382,6 +3382,52 @@ void test_0x2C_sub_0x02_negative_response(void **state) {
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
+void test_0x2C_sub_0x02_zero_address_and_length_format_identifier(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    uint32_t counter = 0;
+    e->server->fn = fn_test_0x2C;
+    e->server->fn_data = &counter;
+
+    /* Valid request with 0 as AddressAndLengthFormatIdentifier */
+    const uint8_t REQ[] = {
+        0x2C, /* SID */
+        0x02, /* SubFunction */
+        0xF3, /* DynamicallyDefinedDataIdentifier [High Byte] */
+        0x02, /* DynamicallyDefinedDataIdentifier [Low Byte] */
+        0x00, /* **Force 0 here** AddressAndLengthFormatIdentifier */
+        0x21, /* memoryAddres#1 [High Byte] */
+        0x09, /* memoryAddres#1 [Middle Byte] */
+        0x19, /* memoryAddres#1 [Middle Byte] */
+        0x69, /* memoryAddres#1 [Low Byte] */
+        0x01, /* memorySize#1 */
+        0x21, /* memoryAddres#2 [High Byte] */
+        0x09, /* memoryAddres#2 [Middle Byte] */
+        0x19, /* memoryAddres#2 [Middle Byte] */
+        0x6B, /* memoryAddres#2 [Low Byte] */
+        0x02, /* memorySize#2 */
+        0x13, /* memoryAddres#3 [High Byte] */
+        0x10, /* memoryAddres#3 [Middle Byte] */
+        0x19, /* memoryAddres#3 [Middle Byte] */
+        0x95, /* memoryAddres#3 [Low Byte] */
+        0x01  /* memorySize#3 */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x7F, /* Response SID */
+        0x2C, /* Original Request SID */
+        0x31, /* NRC: RequestOutOfRange */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
 // ISO14229-1 2020 11.6.5.6 Example #5: DynamicallyDefineDataIdentifier, SubFunction =
 // clearDynamicallyDefined-DataIdentifier
 void test_0x2C_sub_0x03(void **state) {
@@ -3952,6 +3998,8 @@ int main(int ac, char **av) {
         cmocka_unit_test_setup_teardown(test_0x2C_sub_0x02_request_malformed, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_sub_0x02_request_too_short, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_sub_0x02_negative_response, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(
+            test_0x2C_sub_0x02_zero_address_and_length_format_identifier, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_sub_0x03, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_sub_0x03_clear_all, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_sub_0x03_negative_response, Setup, Teardown),
