@@ -3379,7 +3379,7 @@ UDSErr_t fn_test_0x87_link_ctrl(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
         return UDS_NRC_ConditionsNotCorrect;
     }
 
-    return UDS_NRC_GeneralProgrammingFailure;
+    return UDS_NRC_SubFunctionNotSupported;
 }
 
 // ISO14229-1 2020 10.10.5.1 Example #1 - Transition baudrate to fixed baudrate
