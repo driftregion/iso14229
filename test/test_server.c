@@ -3364,18 +3364,18 @@ UDSErr_t fn_test_0x87_link_ctrl(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     UDSLinkCtrlArgs_t *args = arg;
 
     switch (args->type) {
-    case 0x01:
+    case LEV_LCTP_VMTWFP:
         TEST_INT_EQUAL(args->len, 0x01);
         TEST_INT_EQUAL(*(uint8_t *)args->data, 0x05);
         return UDS_PositiveResponse;
-    case 0x02:
+    case LEV_LCTP_VMTWSP:
         TEST_INT_EQUAL(args->len, 0x03);
         uint8_t expected_data[] = {0x02, 0x49, 0xF0};
         TEST_MEMORY_EQUAL(args->data, expected_data, sizeof(expected_data));
         return UDS_PositiveResponse;
-    case 0x03:
+    case LEV_LCTP_TM:
         return UDS_PositiveResponse;
-    case 0x40:
+    case 0x40: /* Custom vehicle manufacturer specific */
         return UDS_NRC_ConditionsNotCorrect;
     }
 
