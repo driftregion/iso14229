@@ -487,6 +487,14 @@ typedef enum {
 #define LEV_DTCSTP_ON 1
 #define LEV_DTCSTP_OFF 2
 
+/**
+ * @brief 0x87 LinkControl SubFunction = [linkControlType]
+ * ISO14229-1:2020 Table 171
+ */
+#define LEV_LCTP_VMTWFP 1 // VerifyModeTransitionWithFixedParameter
+#define LEV_LCTP_VMTWSP 2 // VerifyModeTransitionWithSpecificParameter
+#define LEV_LCTP_TM 3     // TransitionMode
+
 // ISO-14229-1:2013 Table 2
 #define UDS_MAX_DIAGNOSTIC_SERVICES 0x7F
 
