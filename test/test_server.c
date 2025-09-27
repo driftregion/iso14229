@@ -3848,6 +3848,150 @@ void test_0x3e_suppress_positive_response(void **state) {
     TEST_INT_EQUAL(UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL), 0);
 }
 
+UDSErr_t fn_test_0x87_link_ctrl(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+    TEST_INT_EQUAL(ev, UDS_EVT_LinkControl);
+
+    UDSLinkCtrlArgs_t *args = arg;
+
+    switch (args->type) {
+    case LEV_LCTP_VMTWFP:
+        TEST_INT_EQUAL(args->len, 0x01);
+        TEST_INT_EQUAL(*(uint8_t *)args->data, 0x05);
+        return UDS_PositiveResponse;
+    case LEV_LCTP_VMTWSP:
+        TEST_INT_EQUAL(args->len, 0x03);
+        uint8_t expected_data[] = {0x02, 0x49, 0xF0};
+        TEST_MEMORY_EQUAL(args->data, expected_data, sizeof(expected_data));
+        return UDS_PositiveResponse;
+    case LEV_LCTP_TM:
+        return UDS_PositiveResponse;
+    case 0x40: /* Custom vehicle manufacturer specific */
+        return UDS_NRC_ConditionsNotCorrect;
+    }
+
+    return UDS_NRC_SubFunctionNotSupported;
+}
+
+// ISO14229-1 2020 10.10.5.1 Example #1 - Transition baudrate to fixed baudrate
+// (PC baudrate 115,2 kBit/s)
+void test_0x87_link_ctrl_sub_0x01(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x87_link_ctrl;
+    e->server->fn_data = NULL;
+
+    /* Request per ISO14229-1 2020 Table 176 */
+    const uint8_t REQ[] = {
+        0x87, /* SID */
+        0x01, /* LinkControlType */
+        0x05, /* LinkControlModeIdentifier */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 177 */
+    const uint8_t EXPECTED_RESP[] = {
+        0xC7, /* Response SID */
+        0x01, /* LinkControlType */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+
+    /* Request per ISO14229-1 2020 Table 178 - Without the suppress response bit */
+    const uint8_t REQ_TRANSITION[] = {
+        0x87, /* SID */
+        0x03, /* LinkControlType */
+    };
+
+    UDSTpSend(e->client_tp, REQ_TRANSITION, sizeof(REQ_TRANSITION), NULL);
+
+    const uint8_t EXPECTED_RESP_TRANSITION[] = {
+        0xC7, /* Response SID */
+        0x03, /* LinkControlType */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP_TRANSITION, sizeof(EXPECTED_RESP_TRANSITION));
+}
+
+// ISO14229-1 2020 10.10.5.2 Example #2 - Transition baudrate to specific baudrate (150 kBit/s)
+void test_0x87_link_ctrl_sub_0x02(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x87_link_ctrl;
+    e->server->fn_data = NULL;
+
+    /* Request per ISO14229-1 2020 Table 179 */
+    const uint8_t REQ[] = {
+        0x87, /* SID */
+        0x02, /* LinkControlType */
+        0x02, /* LinkRecord#1 */
+        0x49, /* LinkRecord#2 */
+        0xF0, /* LinkRecord#3 */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 180 */
+    const uint8_t EXPECTED_RESP[] = {
+        0xC7, /* Response SID */
+        0x02, /* LinkControlType */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+
+    /* Request per ISO14229-1 2020 Table 181 - Supressing response */
+    const uint8_t REQ_TRANSITION[] = {
+        0x87, /* SID */
+        0x83, /* LinkControlType */
+    };
+
+    UDSTpSend(e->client_tp, REQ_TRANSITION, sizeof(REQ_TRANSITION), NULL);
+
+    /* even after running for a long time, but not long enough to timeout */
+    EnvRunMillis(e, 1000);
+
+    /* there should be no response from the server */
+    int len = UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL);
+    TEST_INT_EQUAL(len, 0);
+}
+
+void test_0x87_link_ctrl_negative_response(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x87_link_ctrl;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x87, /* SID */
+        0x40, /* custom type to provoke error */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x7F, /* Negative Response SID */
+        0x87, /* Original SID */
+        0x22, /* NRC: ConditionsNotCorrect */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
 int fn_0x27_noop(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     switch (ev) {
     case UDS_EVT_SecAccessRequestSeed: {
@@ -4016,6 +4160,10 @@ int main(int ac, char **av) {
         cmocka_unit_test_setup_teardown(test_0x3D_example_2, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x3D_example_3, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x3e_suppress_positive_response, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x87_link_ctrl_sub_0x01, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x87_link_ctrl_sub_0x02, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x87_link_ctrl_negative_response, Setup, Teardown),
+
         cmocka_unit_test_setup_teardown(test_security_level_resets_on_session_timeout, Setup,
                                         Teardown),
     };
