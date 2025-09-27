@@ -180,6 +180,25 @@ typedef struct {
 } UDSWriteMemByAddrArgs_t;
 
 typedef struct {
+    const uint8_t type;     /*! invoked subfunction */
+    bool allDataIds;        /*! is true when request is for all data identifiers (only relevant for
+                              subFunc 0x03) */
+    uint16_t dynamicDataId; /*! dynamicallyDefinedDataIdentifier */
+
+    union {
+        struct {
+            uint16_t sourceDataId; /*! source DataIdentifier */
+            uint8_t position;      /*! position in source data record */
+            uint8_t size;          /*! number of bytes to be copied */
+        } defineById;
+        struct {
+            void *memAddr;
+            size_t memSize;
+        } defineByMemAddress;
+    } subFuncArgs;
+} UDSDDDIArgs_t;
+
+typedef struct {
     const uint16_t dataId;              /*! Data Identifier */
     const uint8_t ioCtrlParam;          /*! inputOutputControlParameter */
     const void *const ctrlStateAndMask; /*! controlState bytes and controlMask (optional) */

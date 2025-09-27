@@ -1338,17 +1338,20 @@ static UDSErr_t Handle_0x22_ReadDataByIdentifier(UDSServer_t *srv, UDSReq_t *r) 
 }
 
 /**
- * @brief decode the addressAndLengthFormatIdentifier that appears in ReadMemoryByAddress (0x23),
- * DynamicallyDefineDataIdentifier (0x2C), RequestDownload (0X34)
+ * @brief decode the addressAndLengthFormatIdentifier that appears in
+ * DynamicallyDefineDataIdentifier (0x2C). This must be handled separatedly because the
+ * format identifier is not directly above the memory address and length.
  *
  * @param srv
  * @param buf pointer to addressAndDataLengthFormatIdentifier in recv_buf
  * @param memoryAddress the decoded memory address
  * @param memorySize the decoded memory size
+ * @param offset how many elements (addres and size pairs) away from the format identifier
  * @return uint8_t
  */
-static UDSErr_t decodeAddressAndLength(UDSReq_t *r, uint8_t *const buf, void **memoryAddress,
-                                       size_t *memorySize) {
+static UDSErr_t decodeAddressAndLengthWithOffset(UDSReq_t *r, uint8_t *const buf,
+                                                 void **memoryAddress, size_t *memorySize,
+                                                 size_t offset) {
     UDS_ASSERT(r);
     UDS_ASSERT(memoryAddress);
     UDS_ASSERT(memorySize);
@@ -1364,6 +1367,7 @@ static UDSErr_t decodeAddressAndLength(UDSReq_t *r, uint8_t *const buf, void **m
 
     uint8_t memorySizeLength = (buf[0] & 0xF0) >> 4;
     uint8_t memoryAddressLength = buf[0] & 0x0F;
+    size_t offsetBytes = offset * (memoryAddressLength + memorySizeLength);
 
     if (memorySizeLength == 0 || memorySizeLength > sizeof(size_t)) {
         return NegativeResponse(r, UDS_NRC_RequestOutOfRange);
@@ -1373,23 +1377,39 @@ static UDSErr_t decodeAddressAndLength(UDSReq_t *r, uint8_t *const buf, void **m
         return NegativeResponse(r, UDS_NRC_RequestOutOfRange);
     }
 
-    if (buf + memorySizeLength + memoryAddressLength > r->recv_buf + r->recv_len) {
+    if (buf + 1 + offsetBytes + memorySizeLength + memoryAddressLength >
+        r->recv_buf + r->recv_len) {
         return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
     for (int byteIdx = 0; byteIdx < memoryAddressLength; byteIdx++) {
-        long long unsigned int byte = buf[1 + byteIdx];
+        long long unsigned int byte = buf[1 + offsetBytes + byteIdx];
         uint8_t shiftBytes = (uint8_t)(memoryAddressLength - 1 - byteIdx);
         tmp |= byte << (8 * shiftBytes);
     }
     *memoryAddress = (void *)tmp;
 
     for (int byteIdx = 0; byteIdx < memorySizeLength; byteIdx++) {
-        uint8_t byte = buf[1 + memoryAddressLength + byteIdx];
+        uint8_t byte = buf[1 + offsetBytes + memoryAddressLength + byteIdx];
         uint8_t shiftBytes = (uint8_t)(memorySizeLength - 1 - byteIdx);
         *memorySize |= (size_t)byte << (8 * shiftBytes);
     }
     return UDS_PositiveResponse;
+}
+
+/**
+ * @brief decode the addressAndLengthFormatIdentifier that appears in ReadMemoryByAddress (0x23)
+ * and RequestDownload (0X34)
+ *
+ * @param srv
+ * @param buf pointer to addressAndDataLengthFormatIdentifier in recv_buf
+ * @param memoryAddress the decoded memory address
+ * @param memorySize the decoded memory size
+ * @return uint8_t
+ */
+static UDSErr_t decodeAddressAndLength(UDSReq_t *r, uint8_t *const buf, void **memoryAddress,
+                                       size_t *memorySize) {
+    return decodeAddressAndLengthWithOffset(r, buf, memoryAddress, memorySize, 0);
 }
 
 static UDSErr_t Handle_0x23_ReadMemoryByAddress(UDSServer_t *srv, UDSReq_t *r) {
@@ -1539,6 +1559,124 @@ static UDSErr_t Handle_0x28_CommunicationControl(UDSServer_t *srv, UDSReq_t *r) 
     r->send_buf[1] = controlType;
     r->send_len = UDS_0X28_RESP_LEN;
     return UDS_PositiveResponse;
+}
+
+static UDSErr_t Handle_0x2C_DynamicDefineDataIdentifier(UDSServer_t *srv, UDSReq_t *r) {
+    UDSErr_t ret = UDS_PositiveResponse;
+    uint8_t type = r->recv_buf[1];
+
+    if (r->recv_len < UDS_0X2C_REQ_MIN_LEN) {
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+    }
+
+    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_DYNAMICALLY_DEFINE_DATA_IDENTIFIER);
+    r->send_buf[1] = type;
+    /* Set dynamicDataId. If response does not require it, the length will be adjusted later */
+    r->send_buf[2] = r->recv_buf[2];
+    r->send_buf[3] = r->recv_buf[3];
+    r->send_len = UDS_0X2C_RESP_BASE_LEN + 2;
+
+    UDSDDDIArgs_t args = {
+        .type = type,
+        .allDataIds = false,
+        .dynamicDataId =
+            (uint16_t)((uint16_t)r->recv_buf[2] << 8 | (uint16_t)r->recv_buf[3]) & 0xFFFF,
+    };
+
+    /* Since the paramter for subFunc 0x01 and 0x02 are dynamic and should not be handled by
+     * separate events, we need to emit the event for every subfunction separatedly
+     */
+    switch (type) {
+    case 0x01: /* defineByIdentifier */
+    {
+        if (r->recv_len < UDS_0X2C_REQ_MIN_LEN + 2 + 4 ||
+            (r->recv_len - (UDS_0X2C_REQ_MIN_LEN + 2)) % 4 != 0) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        size_t numDIDs = (r->recv_len - 4) / 4;
+
+        for (size_t i = 0; i < numDIDs; i++) {
+            args.subFuncArgs.defineById.sourceDataId =
+                (uint16_t)((uint16_t)r->recv_buf[4 + i * 4] << 8 |
+                           (uint16_t)r->recv_buf[5 + i * 4]) &
+                0xFFFF;
+            args.subFuncArgs.defineById.position = r->recv_buf[6 + i * 4];
+            args.subFuncArgs.defineById.size = r->recv_buf[7 + i * 4];
+
+            ret = EmitEvent(srv, UDS_EVT_DynamicDefineDataId, &args);
+
+            if (UDS_PositiveResponse != ret) {
+                return NegativeResponse(r, ret);
+            }
+        }
+
+        return UDS_PositiveResponse;
+    }
+    case 0x02: /* defineByMemoryAddress */
+    {
+        /* 2 bytes dynamic data id
+         * 1 byte address and length format identifier
+         * min 1 byte address
+         * min 1 byte length
+         */
+        if (r->recv_len < UDS_0X2C_REQ_MIN_LEN + 5) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        size_t bytesPerAddrAndSize = ((r->recv_buf[4] & 0xF0) >> 4) + (r->recv_buf[4] & 0x0F);
+
+        if (bytesPerAddrAndSize == 0) {
+            UDS_LOGW(__FILE__,
+                     "DDDI: define By Memory Address request with invalid "
+                     "AddressAndLengthFormatIdentifier: 0x%02X\n",
+                     r->recv_buf[4]);
+            return NegativeResponse(r, UDS_NRC_RequestOutOfRange);
+        }
+
+        if ((r->recv_len - 5) % bytesPerAddrAndSize != 0) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        size_t numAddrs = (r->recv_len - 5) / bytesPerAddrAndSize;
+
+        for (size_t i = 0; i < numAddrs; i++) {
+            ret = decodeAddressAndLengthWithOffset(r, &r->recv_buf[4],
+                                                   &args.subFuncArgs.defineByMemAddress.memAddr,
+                                                   &args.subFuncArgs.defineByMemAddress.memSize, i);
+
+            if (UDS_PositiveResponse != ret) {
+                return NegativeResponse(r, ret);
+            }
+
+            ret = EmitEvent(srv, UDS_EVT_DynamicDefineDataId, &args);
+
+            if (UDS_PositiveResponse != ret) {
+                return NegativeResponse(r, ret);
+            }
+        }
+
+        return UDS_PositiveResponse;
+    }
+
+    case 0x03: /* clearDynamicallyDefined */
+    {
+        if (r->recv_len == UDS_0X2C_REQ_MIN_LEN) {
+            args.allDataIds = true;
+            r->send_len = UDS_0X2C_RESP_BASE_LEN;
+        }
+
+        ret = EmitEvent(srv, UDS_EVT_DynamicDefineDataId, &args);
+        if (UDS_PositiveResponse != ret) {
+            return NegativeResponse(r, ret);
+        }
+
+        return UDS_PositiveResponse;
+    }
+    default:
+        UDS_LOGW(__FILE__, "Unsupported DDDI subFunc 0x%02X\n", type);
+        return NegativeResponse(r, UDS_NRC_SubFunctionNotSupported);
+    }
 }
 
 static UDSErr_t Handle_0x2E_WriteDataByIdentifier(UDSServer_t *srv, UDSReq_t *r) {
@@ -2110,7 +2248,7 @@ static UDSService getServiceForSID(uint8_t sid) {
     case kSID_READ_PERIODIC_DATA_BY_IDENTIFIER:
         return NULL;
     case kSID_DYNAMICALLY_DEFINE_DATA_IDENTIFIER:
-        return NULL;
+        return &Handle_0x2C_DynamicDefineDataIdentifier;
     case kSID_WRITE_DATA_BY_IDENTIFIER:
         return &Handle_0x2E_WriteDataByIdentifier;
     case kSID_IO_CONTROL_BY_IDENTIFIER:
