@@ -16,6 +16,7 @@ typedef enum UDSEvent {
     UDS_EVT_SecAccessValidateKey, // UDSSecAccessValidateKeyArgs_t *
     UDS_EVT_WriteDataByIdent,     // UDSWDBIArgs_t *
     UDS_EVT_WriteMemByAddr,       // UDSWriteMemByAddrArgs_t *
+    UDS_EVT_DynamicDefineDataId,  // UDSDDDIArgs_t *
     UDS_EVT_IOControl,            // UDSIOCtrlArgs_t*
     UDS_EVT_RoutineCtrl,          // UDSRoutineCtrlArgs_t*
     UDS_EVT_RequestDownload,      // UDSRequestDownloadArgs_t*
@@ -214,6 +215,8 @@ typedef enum {
 #define UDS_0X27_RESP_BASE_LEN 2U
 #define UDS_0X28_REQ_BASE_LEN 3U
 #define UDS_0X28_RESP_LEN 2U
+#define UDS_0X2C_REQ_MIN_LEN 2U
+#define UDS_0X2C_RESP_BASE_LEN 2U
 #define UDS_0X2E_REQ_BASE_LEN 3U
 #define UDS_0X2E_REQ_MIN_LEN 4U
 #define UDS_0X2E_RESP_LEN 3U

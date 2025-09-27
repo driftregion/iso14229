@@ -310,6 +310,7 @@ typedef enum UDSEvent {
     UDS_EVT_SecAccessValidateKey, // UDSSecAccessValidateKeyArgs_t *
     UDS_EVT_WriteDataByIdent,     // UDSWDBIArgs_t *
     UDS_EVT_WriteMemByAddr,       // UDSWriteMemByAddrArgs_t *
+    UDS_EVT_DynamicDefineDataId,  // UDSDDDIArgs_t *
     UDS_EVT_IOControl,            // UDSIOCtrlArgs_t*
     UDS_EVT_RoutineCtrl,          // UDSRoutineCtrlArgs_t*
     UDS_EVT_RequestDownload,      // UDSRequestDownloadArgs_t*
@@ -508,6 +509,8 @@ typedef enum {
 #define UDS_0X27_RESP_BASE_LEN 2U
 #define UDS_0X28_REQ_BASE_LEN 3U
 #define UDS_0X28_RESP_LEN 2U
+#define UDS_0X2C_REQ_MIN_LEN 2U
+#define UDS_0X2C_RESP_BASE_LEN 2U
 #define UDS_0X2E_REQ_BASE_LEN 3U
 #define UDS_0X2E_REQ_MIN_LEN 4U
 #define UDS_0X2E_RESP_LEN 3U
@@ -997,6 +1000,25 @@ typedef struct {
     const size_t memSize;      /*! size of memory */
     const uint8_t *const data; /*! pointer to data */
 } UDSWriteMemByAddrArgs_t;
+
+typedef struct {
+    const uint8_t type;     /*! invoked subfunction */
+    bool allDataIds;        /*! is true when request is for all data identifiers (only relevant for
+                              subFunc 0x03) */
+    uint16_t dynamicDataId; /*! dynamicallyDefinedDataIdentifier */
+
+    union {
+        struct {
+            uint16_t sourceDataId; /*! source DataIdentifier */
+            uint8_t position;      /*! position in source data record */
+            uint8_t size;          /*! number of bytes to be copied */
+        } defineById;
+        struct {
+            void *memAddr;
+            size_t memSize;
+        } defineByMemAddress;
+    } subFuncArgs;
+} UDSDDDIArgs_t;
 
 typedef struct {
     const uint16_t dataId;              /*! Data Identifier */
