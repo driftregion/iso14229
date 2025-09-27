@@ -26,6 +26,7 @@ typedef enum UDSEvent {
     UDS_EVT_DoScheduledReset,     // uint8_t *
     UDS_EVT_RequestFileTransfer,  // UDSRequestFileTransferArgs_t *
     UDS_EVT_ControlDTCSetting,    // UDSControlDTCSettingArgs_t *
+    UDS_EVT_LinkControl,          // UDSLinkCtrlArgs_t *
     UDS_EVT_Custom,               // UDSCustomArgs_t *
 
     // Client Event
@@ -193,6 +194,14 @@ typedef enum {
 #define LEV_DTCSTP_ON 1
 #define LEV_DTCSTP_OFF 2
 
+/**
+ * @brief 0x87 LinkControl SubFunction = [linkControlType]
+ * ISO14229-1:2020 Table 171
+ */
+#define LEV_LCTP_VMTWFP 1 // VerifyModeTransitionWithFixedParameter
+#define LEV_LCTP_VMTWSP 2 // VerifyModeTransitionWithSpecificParameter
+#define LEV_LCTP_TM 3     // TransitionMode
+
 // ISO-14229-1:2013 Table 2
 #define UDS_MAX_DIAGNOSTIC_SERVICES 0x7F
 
@@ -239,6 +248,8 @@ typedef enum {
 #define UDS_0X3E_RESP_LEN 2U
 #define UDS_0X85_REQ_BASE_LEN 2U
 #define UDS_0X85_RESP_LEN 2U
+#define UDS_0X87_REQ_BASE_LEN 2U
+#define UDS_0X87_RESP_LEN 2U
 
 enum UDSDiagnosticServiceId {
     kSID_DIAGNOSTIC_SESSION_CONTROL = 0x10,
@@ -266,4 +277,5 @@ enum UDSDiagnosticServiceId {
     kSID_SECURED_DATA_TRANSMISSION = 0x84,
     kSID_CONTROL_DTC_SETTING = 0x85,
     kSID_RESPONSE_ON_EVENT = 0x86,
+    kSID_LINK_CONTROL = 0x87,
 };

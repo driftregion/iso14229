@@ -241,6 +241,14 @@ typedef struct {
 } UDSRequestFileTransferArgs_t;
 
 typedef struct {
+    const uint8_t type; /*! invoked subfunction */
+    /* purposefully left generic to allow vehicle- and supplier specific data of different sizes */
+    const size_t len; /*! length of data */
+    const void *data; /*! data used in the subfunction. E.g. on SubFunction 0x01 this is the
+                         linkControlModelIdentifier, on SubFunction 0x02 this is the linkRecord */
+} UDSLinkCtrlArgs_t;
+
+typedef struct {
     uint8_t type; /*! invoked subfunction */
     size_t len;   /*! length of data */
     void *data;   /*! DTCSettingControlOptionRecord */
