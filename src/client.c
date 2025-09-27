@@ -201,7 +201,7 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
             UDS_LOGI(__FILE__, "tport err: %zd", ret);
         } else if (0 == ret) {
             UDS_LOGI(__FILE__, "send in progress...");
-            ; // 等待发送成功
+            ; // Waiting for send completion
         } else if (client->send_size == ret) {
             changeState(client, STATE_AWAIT_SEND_COMPLETE);
         } else {
