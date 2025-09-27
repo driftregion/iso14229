@@ -206,7 +206,7 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
             UDS_LOGI(__FILE__, "tport err: %zd", ret);
         } else if (0 == ret) {
             UDS_LOGI(__FILE__, "send in progress...");
-            ; // 等待发送成功
+            ; // Waiting for send completion
         } else if (client->send_size == ret) {
             changeState(client, STATE_AWAIT_SEND_COMPLETE);
         } else {
@@ -2167,10 +2167,22 @@ static UDSErr_t Handle_0x85_ControlDTCSetting(UDSServer_t *srv, UDSReq_t *r) {
     if (r->recv_len < UDS_0X85_REQ_BASE_LEN) {
         return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
-    uint8_t dtcSettingType = r->recv_buf[1] & 0x3F;
+
+    uint8_t type = r->recv_buf[1] & 0x7F;
+
+    UDSControlDTCSettingArgs_t args = {
+        .type = type,
+        .data = r->recv_len > UDS_0X85_REQ_BASE_LEN ? &r->recv_buf[UDS_0X85_REQ_BASE_LEN] : NULL,
+        .len = r->recv_len > UDS_0X85_REQ_BASE_LEN ? r->recv_len - UDS_0X85_REQ_BASE_LEN : 0,
+    };
+
+    int ret = EmitEvent(srv, UDS_EVT_ControlDTCSetting, &args);
+    if (UDS_PositiveResponse != ret) {
+        return NegativeResponse(r, ret);
+    }
 
     r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_CONTROL_DTC_SETTING);
-    r->send_buf[1] = dtcSettingType;
+    r->send_buf[1] = type;
     r->send_len = UDS_0X85_RESP_LEN;
     return UDS_PositiveResponse;
 }
@@ -2301,7 +2313,7 @@ static UDSErr_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
     case kSID_TESTER_PRESENT:
     case kSID_CONTROL_DTC_SETTING:
     case kSID_LINK_CONTROL: {
-        assert(service);
+        UDS_ASSERT(service);
         response = service(srv, r);
 
         bool suppressPosRspMsgIndicationBit = r->recv_buf[1] & 0x80;
@@ -2328,7 +2340,7 @@ static UDSErr_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
     case kSID_TRANSFER_DATA:
     case kSID_REQUEST_FILE_TRANSFER:
     case kSID_REQUEST_TRANSFER_EXIT: {
-        assert(service);
+        UDS_ASSERT(service);
         response = service(srv, r);
         break;
     }
@@ -3554,7 +3566,7 @@ static void NetworkPoll(void) {
 }
 
 static ssize_t mock_tp_send(struct UDSTp *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
-    assert(hdl);
+    UDS_ASSERT(hdl);
     ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
     if (MsgCount >= NUM_MSGS) {
         UDS_LOGW(__FILE__, "mock_tp_send: too many messages in the queue");
@@ -3595,7 +3607,7 @@ static ssize_t mock_tp_send(struct UDSTp *hdl, uint8_t *buf, size_t len, UDSSDU_
 }
 
 static ssize_t mock_tp_recv(struct UDSTp *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
-    assert(hdl);
+    UDS_ASSERT(hdl);
     ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
     if (tp->recv_len == 0) {
         return 0;
@@ -3623,9 +3635,9 @@ static UDSTpStatus_t mock_tp_poll(struct UDSTp *hdl) {
 static_assert(offsetof(ISOTPMock_t, hdl) == 0, "ISOTPMock_t must not have any members before hdl");
 
 static void ISOTPMockAttach(ISOTPMock_t *tp, ISOTPMockArgs_t *args) {
-    assert(tp);
-    assert(args);
-    assert(TPCount < MAX_NUM_TP);
+    UDS_ASSERT(tp);
+    UDS_ASSERT(args);
+    UDS_ASSERT(TPCount < MAX_NUM_TP);
     TPs[TPCount++] = tp;
     tp->hdl.send = mock_tp_send;
     tp->hdl.recv = mock_tp_recv;
@@ -3639,7 +3651,7 @@ static void ISOTPMockAttach(ISOTPMock_t *tp, ISOTPMockArgs_t *args) {
 }
 
 static void ISOTPMockDetach(ISOTPMock_t *tp) {
-    assert(tp);
+    UDS_ASSERT(tp);
     for (unsigned i = 0; i < TPCount; i++) {
         if (TPs[i] == tp) {
             for (unsigned j = i + 1; j < TPCount; j++) {
@@ -3650,7 +3662,7 @@ static void ISOTPMockDetach(ISOTPMock_t *tp) {
             return;
         }
     }
-    assert(false);
+    UDS_ASSERT(false);
 }
 
 UDSTp_t *ISOTPMockNew(const char *name, ISOTPMockArgs_t *args) {

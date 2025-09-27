@@ -320,6 +320,7 @@ typedef enum UDSEvent {
     UDS_EVT_SessionTimeout,       // NULL
     UDS_EVT_DoScheduledReset,     // uint8_t *
     UDS_EVT_RequestFileTransfer,  // UDSRequestFileTransferArgs_t *
+    UDS_EVT_ControlDTCSetting,    // UDSControlDTCSettingArgs_t *
     UDS_EVT_LinkControl,          // UDSLinkCtrlArgs_t *
     UDS_EVT_Custom,               // UDSCustomArgs_t *
 
@@ -333,8 +334,8 @@ typedef enum UDSEvent {
 } UDSEvent_t;
 
 typedef enum {
-    UDS_FAIL = -1, // 通用错误
-    UDS_OK = 0,    // 成功
+    UDS_FAIL = -1, // General error
+    UDS_OK = 0,    // Success
 
     // Negative Response Codes (NRCs) as defined in ISO14229-1:2020 Table A.1 - Negative Response
     // Code (NRC) definition and values
@@ -428,21 +429,21 @@ typedef enum {
 
 // ISO14229-1:2020 Table 25
 // UDS Level Diagnostic Session
-#define UDS_LEV_DS_DS 01    // Default Session
-#define UDS_LEV_DS_PRGS 02  // Programming Session
-#define UDS_LEV_DS_EXTDS 03 // Extended Diagnostic Session
-#define UDS_LEV_DS_SSDS 04  // Safety System Diagnostic Session
+#define UDS_LEV_DS_DS 1    // Default Session
+#define UDS_LEV_DS_PRGS 2  // Programming Session
+#define UDS_LEV_DS_EXTDS 3 // Extended Diagnostic Session
+#define UDS_LEV_DS_SSDS 4  // Safety System Diagnostic Session
 
 /**
  * @brief 0x11 ECU Reset SubFunction = [resetType]
  * ISO14229-1:2020 Table 34
  * UDS Level Reset Type
  */
-#define UDS_LEV_RT_HR 01      // Hard Reset
-#define UDS_LEV_RT_KOFFONR 02 // Key Off On Reset
-#define UDS_LEV_RT_SR 03      // Soft Reset
-#define UDS_LEV_RT_ERPSD 04   // Enable Rapid Power Shut Down
-#define UDS_LEV_RT_DRPSD 05   // Disable Rapid Power Shut Down
+#define UDS_LEV_RT_HR 1      // Hard Reset
+#define UDS_LEV_RT_KOFFONR 2 // Key Off On Reset
+#define UDS_LEV_RT_SR 3      // Soft Reset
+#define UDS_LEV_RT_ERPSD 4   // Enable Rapid Power Shut Down
+#define UDS_LEV_RT_DRPSD 5   // Disable Rapid Power Shut Down
 
 /**
  * @brief 0x28 Communication Control SubFunction = [controlType]
@@ -485,16 +486,16 @@ typedef enum {
  * @brief 0x85 ControlDTCSetting SubFunction = [dtcSettingType]
  * ISO14229-1:2020 Table 128
  */
-#define LEV_DTCSTP_ON 1
-#define LEV_DTCSTP_OFF 2
+#define UDS_LEV_DTCSTP_ON 1
+#define UDS_LEV_DTCSTP_OFF 2
 
 /**
  * @brief 0x87 LinkControl SubFunction = [linkControlType]
  * ISO14229-1:2020 Table 171
  */
-#define LEV_LCTP_VMTWFP 1 // VerifyModeTransitionWithFixedParameter
-#define LEV_LCTP_VMTWSP 2 // VerifyModeTransitionWithSpecificParameter
-#define LEV_LCTP_TM 3     // TransitionMode
+#define UDS_LEV_LCTP_VMTWFP 1 // VerifyModeTransitionWithFixedParameter
+#define UDS_LEV_LCTP_VMTWSP 2 // VerifyModeTransitionWithSpecificParameter
+#define UDS_LEV_LCTP_TM 3     // TransitionMode
 
 // ISO-14229-1:2013 Table 2
 #define UDS_MAX_DIAGNOSTIC_SERVICES 0x7F
@@ -739,8 +740,8 @@ static inline void UDS_LogSDUDummy(const char *tag, const uint8_t *buffer, size_
 #define UDS_IGNORE_SRV_TIMINGS 0x8 // ignore the server-provided p2 and p2_star
 
 typedef struct UDSClient {
-    uint16_t p2_ms;      // p2 超时时间
-    uint32_t p2_star_ms; // 0x78 p2* 超时时间
+    uint16_t p2_ms;      // p2 timeout
+    uint32_t p2_star_ms; // 0x78 p2* timeout
     UDSTp_t *tp;
 
     uint32_t p2_timer;
@@ -1100,6 +1101,12 @@ typedef struct {
     const void *data; /*! data used in the subfunction. E.g. on SubFunction 0x01 this is the
                          linkControlModelIdentifier, on SubFunction 0x02 this is the linkRecord */
 } UDSLinkCtrlArgs_t;
+
+typedef struct {
+    uint8_t type; /*! invoked subfunction */
+    size_t len;   /*! length of data */
+    void *data;   /*! DTCSettingControlOptionRecord */
+} UDSControlDTCSettingArgs_t;
 
 typedef struct {
     const uint16_t sid;          /*! serviceIdentifier */

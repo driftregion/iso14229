@@ -10,8 +10,8 @@
 #define UDS_IGNORE_SRV_TIMINGS 0x8 // ignore the server-provided p2 and p2_star
 
 typedef struct UDSClient {
-    uint16_t p2_ms;      // p2 超时时间
-    uint32_t p2_star_ms; // 0x78 p2* 超时时间
+    uint16_t p2_ms;      // p2 timeout
+    uint32_t p2_star_ms; // 0x78 p2* timeout
     UDSTp_t *tp;
 
     uint32_t p2_timer;

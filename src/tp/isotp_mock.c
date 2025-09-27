@@ -64,7 +64,7 @@ static void NetworkPoll(void) {
 }
 
 static ssize_t mock_tp_send(struct UDSTp *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
-    assert(hdl);
+    UDS_ASSERT(hdl);
     ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
     if (MsgCount >= NUM_MSGS) {
         UDS_LOGW(__FILE__, "mock_tp_send: too many messages in the queue");
@@ -105,7 +105,7 @@ static ssize_t mock_tp_send(struct UDSTp *hdl, uint8_t *buf, size_t len, UDSSDU_
 }
 
 static ssize_t mock_tp_recv(struct UDSTp *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
-    assert(hdl);
+    UDS_ASSERT(hdl);
     ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
     if (tp->recv_len == 0) {
         return 0;
@@ -133,9 +133,9 @@ static UDSTpStatus_t mock_tp_poll(struct UDSTp *hdl) {
 static_assert(offsetof(ISOTPMock_t, hdl) == 0, "ISOTPMock_t must not have any members before hdl");
 
 static void ISOTPMockAttach(ISOTPMock_t *tp, ISOTPMockArgs_t *args) {
-    assert(tp);
-    assert(args);
-    assert(TPCount < MAX_NUM_TP);
+    UDS_ASSERT(tp);
+    UDS_ASSERT(args);
+    UDS_ASSERT(TPCount < MAX_NUM_TP);
     TPs[TPCount++] = tp;
     tp->hdl.send = mock_tp_send;
     tp->hdl.recv = mock_tp_recv;
@@ -149,7 +149,7 @@ static void ISOTPMockAttach(ISOTPMock_t *tp, ISOTPMockArgs_t *args) {
 }
 
 static void ISOTPMockDetach(ISOTPMock_t *tp) {
-    assert(tp);
+    UDS_ASSERT(tp);
     for (unsigned i = 0; i < TPCount; i++) {
         if (TPs[i] == tp) {
             for (unsigned j = i + 1; j < TPCount; j++) {
@@ -160,7 +160,7 @@ static void ISOTPMockDetach(ISOTPMock_t *tp) {
             return;
         }
     }
-    assert(false);
+    UDS_ASSERT(false);
 }
 
 UDSTp_t *ISOTPMockNew(const char *name, ISOTPMockArgs_t *args) {

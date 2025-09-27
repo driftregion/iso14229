@@ -1,5 +1,10 @@
 #!/bin/bash
 
-bazel run -c opt --config=hermetic-fuzz //fuzz:fuzz_server_run -- \
---timeout_secs=10 \
---fuzzing_output_root=$(bazel info workspace)/fuzz/outputs
+# Get workspace path
+WORKSPACE=$(bazel info workspace)
+
+bazel run -c opt --config=hermetic-fuzz //fuzz:fuzz_server_bin -- \
+-max_total_time=600 \
+-artifact_prefix=${WORKSPACE}/fuzz/outputs/ \
+-jobs=64 \
+${WORKSPACE}/fuzz/outputs/corpus
