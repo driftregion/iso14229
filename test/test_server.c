@@ -3868,6 +3868,7 @@ UDSErr_t fn_test_0x85_control_dtc_setting(UDSServer_t *srv, UDSEvent_t ev, void 
     return UDS_NRC_GeneralProgrammingFailure;
 }
 
+// ISO14229-1 2020 10.8.5.2 Example #2 - ControlDTCSetting ( DTCSettingType = on)
 void test_0x85_control_dtc_setting(void **state) {
     Env_t *e = *state;
     uint8_t buf[20] = {0};
@@ -3875,6 +3876,7 @@ void test_0x85_control_dtc_setting(void **state) {
     e->server->fn = fn_test_0x85_control_dtc_setting;
     e->server->fn_data = NULL;
 
+    /* Request per ISO14229-1 2020 Table 135 */
     const uint8_t REQ[] = {
         0x85, /* SID */
         0x01, /* SubFunction */
@@ -3882,6 +3884,7 @@ void test_0x85_control_dtc_setting(void **state) {
 
     UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
 
+    /* Response per ISO14229-1 2020 Table 136 */
     const uint8_t EXPECTED_RESP[] = {
         0xC5, /* Response SID */
         0x01, /* SubFunction */
@@ -3893,6 +3896,9 @@ void test_0x85_control_dtc_setting(void **state) {
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
+// ISO14229-1 2020 10.8.5.1 Example #1 - ControlDTCSetting (DTCSettingType = off)
+// Here additional DTCSettingControlOptionRecord are added to the sample to test
+// the correct propagation of them
 void test_0x85_control_dtc_setting_with_control_data(void **state) {
     Env_t *e = *state;
     uint8_t buf[20] = {0};
@@ -3903,6 +3909,7 @@ void test_0x85_control_dtc_setting_with_control_data(void **state) {
     const uint8_t REQ[] = {
         0x85, /* SID */
         0x02, /* SubFunction */
+        /* Custom Record not present in the sample */
         0xF1, /* DTCSettingControlOptionRecord#1 */
         0xF2, /* DTCSettingControlOptionRecord#2 */
     };
