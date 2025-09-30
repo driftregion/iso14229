@@ -3848,6 +3848,137 @@ void test_0x3e_suppress_positive_response(void **state) {
     TEST_INT_EQUAL(UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL), 0);
 }
 
+UDSErr_t fn_test_0x85_control_dtc_setting(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+    TEST_INT_EQUAL(ev, UDS_EVT_ControlDTCSetting);
+
+    UDSControlDTCSettingArgs_t *args = arg;
+
+    switch (args->type) {
+    case 0x01:
+        return UDS_PositiveResponse;
+    case 0x02:
+        TEST_INT_EQUAL(args->len, 2)
+        uint8_t expected_data[] = {0xF1, 0xF2};
+        TEST_MEMORY_EQUAL(args->data, expected_data, sizeof(expected_data))
+        return UDS_PositiveResponse;
+    case 0x40:
+        return UDS_NRC_ConditionsNotCorrect;
+    }
+
+    return UDS_NRC_GeneralProgrammingFailure;
+}
+
+// ISO14229-1 2020 10.8.5.2 Example #2 - ControlDTCSetting ( DTCSettingType = on)
+void test_0x85_control_dtc_setting(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x85_control_dtc_setting;
+    e->server->fn_data = NULL;
+
+    /* Request per ISO14229-1 2020 Table 135 */
+    const uint8_t REQ[] = {
+        0x85, /* SID */
+        0x01, /* SubFunction */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 136 */
+    const uint8_t EXPECTED_RESP[] = {
+        0xC5, /* Response SID */
+        0x01, /* SubFunction */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+// ISO14229-1 2020 10.8.5.1 Example #1 - ControlDTCSetting (DTCSettingType = off)
+// Here additional DTCSettingControlOptionRecord are added to the sample to test
+// the correct propagation of them
+void test_0x85_control_dtc_setting_with_control_data(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x85_control_dtc_setting;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x85, /* SID */
+        0x02, /* SubFunction */
+        /* Custom Record not present in the sample */
+        0xF1, /* DTCSettingControlOptionRecord#1 */
+        0xF2, /* DTCSettingControlOptionRecord#2 */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0xC5, /* Response SID */
+        0x02, /* SubFunction */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x85_control_dtc_setting_request_too_short(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x85_control_dtc_setting;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x85, /* SID */
+              /* Missing required SubFunction */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x7F, /* Response SID */
+        0x85, /* Original Request SID */
+        0x13, /* NRC: IncorrectMessageLengthOrInvalidFormat */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x85_control_dtc_setting_request_returns_negative_response(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x85_control_dtc_setting;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x85, /* SID */
+        0x40, /* SubFunction */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x7F, /* Response SID */
+        0x85, /* Original Request SID */
+        0x22, /* NRC: ConditionsNotCorrect */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
 UDSErr_t fn_test_0x87_link_ctrl(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     TEST_INT_EQUAL(ev, UDS_EVT_LinkControl);
 
@@ -4160,10 +4291,16 @@ int main(int ac, char **av) {
         cmocka_unit_test_setup_teardown(test_0x3D_example_2, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x3D_example_3, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x3e_suppress_positive_response, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x85_control_dtc_setting, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x85_control_dtc_setting_with_control_data, Setup,
+                                        Teardown),
+        cmocka_unit_test_setup_teardown(test_0x85_control_dtc_setting_request_too_short, Setup,
+                                        Teardown),
+        cmocka_unit_test_setup_teardown(
+            test_0x85_control_dtc_setting_request_returns_negative_response, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x87_link_ctrl_sub_0x01, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x87_link_ctrl_sub_0x02, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x87_link_ctrl_negative_response, Setup, Teardown),
-
         cmocka_unit_test_setup_teardown(test_security_level_resets_on_session_timeout, Setup,
                                         Teardown),
     };
