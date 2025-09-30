@@ -817,6 +817,33 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
         break;
     }
 
+    case UDS_LEV_AT_TC: {
+        /**
+         * + 1 byte for evaluation ID
+         * + 2 bytes length of certificate
+         */
+        size_t min_recv_len = UDS_0X29_REQ_MIN_LEN + 1 + 2;
+
+        if (r->recv_len < min_recv_len) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.subFuncArgs.transCertArgs.evalId = r->recv_buf[2];
+        args.subFuncArgs.transCertArgs.len =
+            (uint16_t)((uint16_t)(r->recv_buf[3] << 8) | (uint16_t)r->recv_buf[4]);
+        args.subFuncArgs.transCertArgs.cert = &r->recv_buf[5];
+        if (args.subFuncArgs.transCertArgs.len == 0) {
+            UDS_LOGW(__FILE__, "Auth: TC with zero certificate length\n");
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+        if (r->recv_len != min_recv_len + args.subFuncArgs.transCertArgs.len) {
+            UDS_LOGW(__FILE__, "Auth: TC request malformed length. req len: %u, cert len: %u\n",
+                     r->recv_len, args.subFuncArgs.transCertArgs.len);
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        break;
+    }
     default:
         return NegativeResponse(r, UDS_NRC_SubFunctionNotSupported);
     }
@@ -833,7 +860,10 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
 
     switch (type) {
     case UDS_LEV_AT_DA:
-        /* No custom check necessary */
+    case UDS_LEV_AT_TC:
+        if (r->send_len < UDS_0X29_RESP_BASE_LEN) {
+            goto respond_to_0x29_malformed_response;
+        }
         break;
     case UDS_LEV_AT_VCU: {
         /**

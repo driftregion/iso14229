@@ -3030,9 +3030,7 @@ UDSErr_t fn_test_0x29_auth(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
 
     switch (args->type) {
     case UDS_LEV_AT_DA:
-        args->set_auth_state(srv, UDS_AT_DAS);
-        return UDS_PositiveResponse;
-        break;
+        return args->set_auth_state(srv, UDS_AT_DAS);
     case UDS_LEV_AT_VCU: {
         TEST_INT_EQUAL(args->subFuncArgs.verifyCertArgs.commConf, 0x02);
         TEST_INT_EQUAL(args->subFuncArgs.verifyCertArgs.certLen, 0x01);
@@ -3044,7 +3042,6 @@ UDSErr_t fn_test_0x29_auth(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
         args->set_auth_state(srv, UDS_AT_CVOVN);
         const uint8_t data[] = {0x00, 0x01, 0xDD, 0x00, 0x00};
         return args->copy(srv, data, sizeof(data));
-        break;
     }
     case UDS_LEV_AT_VCB: {
         TEST_INT_EQUAL(args->subFuncArgs.verifyCertArgs.commConf, 0x02);
@@ -3061,7 +3058,6 @@ UDSErr_t fn_test_0x29_auth(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
         const uint8_t data[] = {0x00, 0x01, 0xEE, 0x00, 0x02, 0x12, 0x34,
                                 0x00, 0x01, 0xAB, 0x00, 0x01, 0xFE};
         return args->copy(srv, data, sizeof(data));
-        break;
     }
     case UDS_LEV_AT_POWN: {
         TEST_INT_EQUAL(args->subFuncArgs.pownArgs.pownLen, 0x01);
@@ -3074,7 +3070,14 @@ UDSErr_t fn_test_0x29_auth(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
         args->set_auth_state(srv, UDS_AT_OVAC);
         const uint8_t data[] = {0x00, 0x02, 0xBC, 0xDE};
         return args->copy(srv, data, sizeof(data));
-        break;
+    }
+    case UDS_LEV_AT_TC: {
+        TEST_INT_EQUAL(args->subFuncArgs.transCertArgs.evalId, 0x1A);
+        TEST_INT_EQUAL(args->subFuncArgs.transCertArgs.len, 0x02);
+        uint8_t expected_cert[] = {0x43, 0x21};
+        TEST_MEMORY_EQUAL(args->subFuncArgs.pownArgs.pown, expected_cert, sizeof(expected_cert));
+
+        return args->set_auth_state(srv, UDS_AT_CV);
     }
     }
 
@@ -3248,6 +3251,37 @@ void test_0x29_auth_proof_of_ownership(void **state) {
         0x02,            /* lengthOfSessionKeyInfo [Low Byte]  */
         0xBC,            /* sessionKey[0] */
         0xDE,            /* sessionKey[1] */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x29_auth_transmit_cert(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x29_auth;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x29,          /* SID */
+        UDS_LEV_AT_TC, /* AuthenticationTask */
+        0x1A,          /* certificateEvaluationId */
+        0x00,          /* lengthOfCert [High Byte]  */
+        0x02,          /* lengthOfCert [Low Byte]  */
+        0x43,          /* Cert[0] */
+        0x21,          /* Cert[1] */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x69,          /* Response SID */
+        UDS_LEV_AT_TC, /* AuthenticationTask */
+        UDS_AT_CV,     /* authenticationReturnParameter */
     };
 
     /* the client transport should receive a response within client_p2 ms */
@@ -4374,6 +4408,7 @@ int main(int ac, char **av) {
         cmocka_unit_test_setup_teardown(test_0x29_auth_verify_certificate_bidirectional, Setup,
                                         Teardown),
         cmocka_unit_test_setup_teardown(test_0x29_auth_proof_of_ownership, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_auth_transmit_cert, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_request_too_short, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_sub_0x01, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_sub_0x01_request_too_short, Setup, Teardown),
