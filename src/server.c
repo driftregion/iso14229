@@ -688,8 +688,6 @@ static UDSErr_t Handle_0x28_CommunicationControl(UDSServer_t *srv, UDSReq_t *r) 
 }
 
 static uint8_t set_auth_state(UDSServer_t *srv, uint8_t state) {
-    UDSErr_t ret = UDS_PositiveResponse;
-
     if (srv == NULL) {
         return UDS_NRC_GeneralReject;
     }
@@ -723,49 +721,58 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
         /* No custom check necessary */
         break;
     case UDS_LEV_AT_VCU:
+    case UDS_LEV_AT_VCB:
         /**
-         * + 1 byte for communication configuration
          * + 2 bytes length of certificate
-         * + 1 byte (at least) certificate
+         * + 0 bytes certificate
          * + 2 bytes length of challenge
-         * + 0 bytes (at least) challenge
+         * + 0 bytes challenge
          */
-        size_t min_recv_len = UDS_0X29_REQ_MIN_LEN + 1 + 2 + 1 + 2;
+        size_t min_recv_len = UDS_0X29_REQ_MIN_LEN + 2 + 2;
 
         if (r->recv_len < min_recv_len) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        args.subFuncArgs.verifyCertArgs.commConfig = r->recv_buf[2];
-        args.subFuncArgs.verifyCertArgs.certLength =
+        args.subFuncArgs.verifyCertArgs.commConf = r->recv_buf[2];
+        args.subFuncArgs.verifyCertArgs.certLen =
             (uint16_t)((uint16_t)(r->recv_buf[3] << 8) | (uint16_t)r->recv_buf[4]);
-        args.subFuncArgs.cert = &r->recv_buf[5];
+        args.subFuncArgs.verifyCertArgs.cert = &r->recv_buf[5];
 
-        if (args.subFuncArgs.verifyCertArgs.certLength == 0) {
-            USD_LOGW(__FILE__, "Authentication: VCU verify certificate with zero length\n");
+        if (args.subFuncArgs.verifyCertArgs.certLen == 0) {
+            UDS_LOGW(__FILE__, "Auth: VCU/B verify certificate with zero length\n");
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        if (args.subFuncArgs.verifyCertArgs.certLength > r->recv_len - (min_recv_len - 1)) {
-            USD_LOGW(__FILE__, "Authentication: VCU verify certificate too large: %u",
-                     args.subFuncArgs.verifyCertArgs.certLength);
+        if (args.subFuncArgs.verifyCertArgs.certLen > r->recv_len - min_recv_len) {
+            UDS_LOGW(__FILE__, "Auth: VCU/B verify certificate too large: %u",
+                     args.subFuncArgs.verifyCertArgs.certLen);
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        args.subFuncArgs.verifyCertArgs.challengeLength =
-            (uint16_t)((uint16_t)(r->recv_buf[5 + args.subFuncArgs.verifyCertArgs.certLength]
-                                  << 8) |
-                       (uint16_t)r->recv_buf[6 + args.subFuncArgs.verifyCertArgs.certLength]);
-        args.subFuncArgs.challenge = &r->recv_buf[7 + args.subFuncArgs.verifyCertArgs.certLength];
+        args.subFuncArgs.verifyCertArgs.challengeLen =
+            (uint16_t)((uint16_t)(r->recv_buf[5 + args.subFuncArgs.verifyCertArgs.certLen] << 8) |
+                       (uint16_t)r->recv_buf[6 + args.subFuncArgs.verifyCertArgs.certLen]);
+        args.subFuncArgs.verifyCertArgs.challenge =
+            &r->recv_buf[7 + args.subFuncArgs.verifyCertArgs.certLen];
 
-        if (args.subFuncArgs.verifyCertArgs.challengeLength >
-            r->recv_len - (min_recv_len - 1) - args.subFuncArgs.verifyCertArgs.certLength) {
-            USD_LOGW(__FILE__, "Authentication: VCU verify challenge too large: %u",
-                     args.subFuncArgs.verifyCertArgs.challengeLength);
+        if (type == UDS_LEV_AT_VCB && args.subFuncArgs.verifyCertArgs.challengeLen == 0) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        if (r->recv_len != min_recv_len + args.subFuncArgs.verifyCertArgs.certLen +
+                               args.subFuncArgs.verifyCertArgs.challengeLen) {
+            UDS_LOGW(__FILE__,
+                     "Auth: VCU/B request malformed length. req len: %u, cert len: %u, "
+                     "challenge len: %u\n",
+                     r->recv_len, args.subFuncArgs.verifyCertArgs.certLen,
+                     args.subFuncArgs.verifyCertArgs.challengeLen);
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
         break;
+    default:
+        return NegativeResponse(r, UDS_NRC_SubFunctionNotSupported);
     }
 
     ret = EmitEvent(srv, UDS_EVT_Auth, &args);
@@ -775,7 +782,7 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
     }
 
     if (r->send_len < UDS_0X29_RESP_BASE_LEN) {
-        // goto respond_to_0x29_malformed_response;
+        goto respond_to_0x29_malformed_response;
     }
 
     switch (type) {
@@ -788,7 +795,7 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
          * + 2 bytes for length of ephemeral public key
          */
         if (r->send_len < UDS_0X29_RESP_BASE_LEN + 4) {
-            // goto respond_to_0x29_malformed_response;
+            goto respond_to_0x29_malformed_response;
         }
 
         uint16_t challengeLength =
@@ -797,17 +804,24 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
                                            (uint16_t)r->send_buf[6 + challengeLength]);
 
         if (challengeLength == 0) {
-            USD_LOGW(__FILE__, "Authentication: VCU response with zero challenge length\n");
-            // goto respond_to_0x29_malformed_response;
+            UDS_LOGW(__FILE__, "Auth: VCU response with zero challenge length\n");
+            goto respond_to_0x29_malformed_response;
         }
 
         if (challengeLength + pubKeyLength + UDS_0X29_RESP_BASE_LEN + 4 != r->send_len) {
-            UDS_LOGW(__FILE__, "Authentication: VCU response with malformed length\n");
-            // goto respond_to_0x29_malformed_response;
+            UDS_LOGW(__FILE__, "Auth: VCU response with malformed length\n");
+            goto respond_to_0x29_malformed_response;
         }
 
         break;
+    default:
+        UDS_LOGW(__FILE__, "Auth: subFunc 0x%02X is not supported.\n", type);
+        return NegativeResponse(r, UDS_NRC_SubFunctionNotSupported);
     }
+    return UDS_PositiveResponse;
+respond_to_0x29_malformed_response:
+    UDS_LOGE(__FILE__, "Auth: subFunc 0x%02X is malformed. Length: %d\n", type, r->send_len);
+    return NegativeResponse(r, UDS_NRC_GeneralReject);
 }
 
 static UDSErr_t Handle_0x2C_DynamicDefineDataIdentifier(UDSServer_t *srv, UDSReq_t *r) {
@@ -882,7 +896,6 @@ static UDSErr_t Handle_0x2C_DynamicDefineDataIdentifier(UDSServer_t *srv, UDSReq
                      r->recv_buf[4]);
             return NegativeResponse(r, UDS_NRC_RequestOutOfRange);
         }
-
         if ((r->recv_len - 5) % bytesPerAddrAndSize != 0) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }

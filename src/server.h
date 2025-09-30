@@ -56,7 +56,6 @@ typedef struct UDSServer {
 
     uint8_t sessionType;   // diagnostic session type (0x10)
     uint8_t securityLevel; // SecurityAccess (0x27) level
-    void *authContext;     // user defined context for authentication data
 
     bool RCRRP;             // set to true when user fn returns 0x78 and false otherwise
     bool requestInProgress; // set to true when a request has been processed but the response has

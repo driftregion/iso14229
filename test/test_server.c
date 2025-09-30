@@ -3023,6 +3023,118 @@ void test_0x28_comm_ctrl_forced_malformed_response_in_event_handler(void **state
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP1, sizeof(EXPECTED_RESP1));
 }
 
+UDSErr_t fn_test_0x29_auth(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+    TEST_INT_EQUAL(ev, UDS_EVT_Auth);
+
+    UDSAuthArgs_t *args = arg;
+
+    switch (args->type) {
+    case UDS_LEV_AT_DA:
+        args->set_auth_state(srv, UDS_AT_DAS);
+        return UDS_PositiveResponse;
+        break;
+    case UDS_LEV_AT_VCU: {
+        args->set_auth_state(srv, UDS_AT_CVOVN);
+        args->subFuncArgs.verifyCertificate.communicationConfiguration = 0x02;
+
+        const uint8_t data[] = {0x00, 0x01, 0xDD, 0x00, 0x00};
+        return args->copyChallenge(srv, data, sizeof(data));
+        break;
+    }
+    }
+
+    return UDS_NRC_GeneralProgrammingFailure;
+}
+
+void test_0x29_auth_de_auth(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x29_auth;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x29,          /* SID */
+        UDS_LEV_AT_DA, /* AuthenticationTask */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x69,          /* Response SID */
+        UDS_LEV_AT_DA, /* AuthenticationTask */
+        UDS_AT_DAS,    /* Authentication Return Parameter */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP1, sizeof(EXPECTED_RESP1));
+}
+
+void test_0x29_req_too_short(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x29_auth;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x29, /* SID */
+              /* Missing required SubFunc */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x7F, /* Response SID */
+        0x29, /* Original Request SID */
+        0x13, /* NRC: IncorrectMessageLengthOrInvalidFormat */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x29_auth_verify_certificate_unidirectional(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x29_auth;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x29,           /* SID */
+        UDS_LEV_AT_VCU, /* AuthenticationTask */
+        0x02,           /* communicationConfiguration */
+        0x00,           /* lengthOfCertificate [High Byte]  */
+        0x01,           /* lengthOfCertificate [Low Byte]  */
+        0xFE,           /* certificate[0] */
+        0x00,           /* lengthOfChallenge [High Byte] */
+        0x00,           /* lengthOfChallenge [Low Byte] */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x69,           /* Response SID */
+        UDS_LEV_AT_VCU, /* AuthenticationTask */
+        UDS_AT_CVOVN,   /* authenticationReturnParameter */
+        0x00,           /* lengthOfChallenge [High Byte]  */
+        0x01,           /* lengthOfChallenge [Low Byte]  */
+        0xDD,           /* challenge[0] */
+        0x00,           /* lengthOfEphemeralPublicKey [High Byte] */
+        0x00,           /* lengthOfEphemeralPublicKey [Low Byte] */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP1, sizeof(EXPECTED_RESP1));
+}
+
 UDSErr_t fn_test_0x2C(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     TEST_INT_EQUAL(ev, UDS_EVT_DynamicDefineDataId);
     UDSDDDIArgs_t *args = arg;
@@ -4134,6 +4246,8 @@ int main(int ac, char **av) {
         cmocka_unit_test_setup_teardown(test_0x28_comm_ctrl_invalid_request, Setup, Teardown),
         cmocka_unit_test_setup_teardown(
             test_0x28_comm_ctrl_forced_malformed_response_in_event_handler, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_auth_de_auth, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_req_too_short, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_request_too_short, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_sub_0x01, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_sub_0x01_request_too_short, Setup, Teardown),
