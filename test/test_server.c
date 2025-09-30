@@ -3963,6 +3963,23 @@ UDSErr_t fn_test_0x29_example_4(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     switch (args->type) {
     case UDS_LEV_AT_AC:
         return args->set_auth_state(srv, UDS_AT_ACACRAC);
+
+    case UDS_LEV_AT_RCFA:
+        uint8_t challengeLength[] = {0x00, 0x40};
+        args->copy(srv, challengeLength, sizeof(challengeLength));
+
+        uint8_t challenge[] = {0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF, 0xB0, 0xB1, 0xB2, 0xB3, 0xB4,
+                               0xB5, 0xB6, 0xB7, 0xB8, 0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF,
+                               0xC0, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7, 0xC8, 0xC9, 0xCA,
+                               0xCB, 0xCC, 0xCD, 0xCE, 0xCF, 0xD0, 0xD1, 0xD2, 0xD3, 0xD4, 0xD5,
+                               0xD6, 0xD7, 0xD8, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDE, 0xDF, 0xE0,
+                               0xE1, 0xE2, 0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0x44};
+
+        args->copy(srv, challenge, sizeof(challenge));
+
+        uint8_t paramLength[] = {0x00, 0x00};
+        args->copy(srv, paramLength, sizeof(paramLength));
+        return args->set_auth_state(srv, UDS_AT_RA);
     }
 
     return UDS_NRC_GeneralReject;
@@ -3998,39 +4015,73 @@ void test_0x29_auth_example_4(void **state) {
                      UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP1, sizeof(EXPECTED_RESP1));
 
-    // /* Request per ISO14229-1 2020 Table 103 */
-    // const uint8_t REQ2[] = {
-    //     0x29, /* Authentication Request SID (ARS) */
-    //     0x05, /* authenticationTask = requestChallengeForAuthentication (LEV_AT_RCFA) */
-    //     0x00, /* communicationConfiguration = no secure communication (COCO) */
+    /* Request per ISO14229-1 2020 Table 103 */
+    const uint8_t REQ2[] = {
+        0x29, /* Authentication Request SID (ARS) */
+        0x05, /* authenticationTask = requestChallengeForAuthentication (LEV_AT_RCFA) */
+        0x00, /* communicationConfiguration = no secure communication (COCO) */
 
-    //     0x06, /* algorithmIndicator[0] */
-    //     0x07, /* algorithmIndicator[1] */
-    //     0x08, /* algorithmIndicator[2] */
-    //     0x09, /* algorithmIndicator[3] */
-    //     0x0A, /* algorithmIndicator[4] */
-    //     0x0B, /* algorithmIndicator[5] */
-    //     0x0C, /* algorithmIndicator[6] */
-    //     0x0D, /* algorithmIndicator[7] */
-    //     0x0E, /* algorithmIndicator[8] */
-    //     0x0F, /* algorithmIndicator[9] */
-    //     0x10, /* algorithmIndicator[10] */
-    //     0x0A, /* algorithmIndicator[11] */
-    //     0x11, /* algorithmIndicator[12] */
-    //     0x12, /* algorithmIndicator[13] */
-    //     0x13, /* algorithmIndicator[14] */
-    //     0x00, /* algorithmIndicator[15] */
-    // };
+        0x06, /* algorithmIndicator[0] */
+        0x07, /* algorithmIndicator[1] */
+        0x08, /* algorithmIndicator[2] */
+        0x09, /* algorithmIndicator[3] */
+        0x0A, /* algorithmIndicator[4] */
+        0x0B, /* algorithmIndicator[5] */
+        0x0C, /* algorithmIndicator[6] */
+        0x0D, /* algorithmIndicator[7] */
+        0x0E, /* algorithmIndicator[8] */
+        0x0F, /* algorithmIndicator[9] */
+        0x10, /* algorithmIndicator[10] */
+        0x0A, /* algorithmIndicator[11] */
+        0x11, /* algorithmIndicator[12] */
+        0x12, /* algorithmIndicator[13] */
+        0x13, /* algorithmIndicator[14] */
+        0x00, /* algorithmIndicator[15] */
+    };
 
-    // UDSTpSend(e->client_tp, REQ2, sizeof(REQ2), NULL);
+    UDSTpSend(e->client_tp, REQ2, sizeof(REQ2), NULL);
 
-    // /* Response per ISO14229-1 2020 Table 104 */
-    // const uint8_t EXPECTED_RESP2[] = {};
+    /* Response per ISO14229-1 2020 Table 104 */
+    const uint8_t EXPECTED_RESP2[] = {
+        0x69,            /* Authentication Response SID (ARS) */
+        UDS_LEV_AT_RCFA, /* authenticationTask = requestChallengeForAuthentication (LEV_AT_RCFA) */
+        UDS_AT_RA,       /* returnValue = Request accepted (RV_RA) */
 
-    // /* the client transport should receive a response within client_p2 ms */
-    // EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-    //                  UDS_CLIENT_DEFAULT_P2_MS);
-    // TEST_MEMORY_EQUAL(buf, EXPECTED_RESP2, sizeof(EXPECTED_RESP2));
+        0x06, /* algorithmIndicator[0] */
+        0x07, /* algorithmIndicator[1] */
+        0x08, /* algorithmIndicator[2] */
+        0x09, /* algorithmIndicator[3] */
+        0x0A, /* algorithmIndicator[4] */
+        0x0B, /* algorithmIndicator[5] */
+        0x0C, /* algorithmIndicator[6] */
+        0x0D, /* algorithmIndicator[7] */
+        0x0E, /* algorithmIndicator[8] */
+        0x0F, /* algorithmIndicator[9] */
+        0x10, /* algorithmIndicator[10] */
+        0x0A, /* algorithmIndicator[11] */
+        0x11, /* algorithmIndicator[12] */
+        0x12, /* algorithmIndicator[13] */
+        0x13, /* algorithmIndicator[14] */
+        0x00, /* algorithmIndicator[15] */
+
+        0x00, /* lengthOfChallengeServer[0] */
+        0x40, /* lengthOfChallengeServer[1] */
+
+        /* challengeServer [0-63] */
+        0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF, 0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0xB5, 0xB6, 0xB7, 0xB8,
+        0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF, 0xC0, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7,
+        0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF, 0xD0, 0xD1, 0xD2, 0xD3, 0xD4, 0xD5, 0xD6,
+        0xD7, 0xD8, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDE, 0xDF, 0xE0, 0xE1, 0xE2, 0xE3, 0xE4, 0xE5,
+        0xE6, 0xE7, 0xE8, 0x44,
+
+        0x00, /* lengthOfNeededAdditionalParameter[0] */
+        0x00, /* lengthOfNeededAdditionalParameter[1] */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP2, sizeof(EXPECTED_RESP2));
 
     // /* Request per ISO14229-1 2020 Table 105 */
     // const uint8_t REQ3[] = {};
