@@ -722,7 +722,7 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
         /* No custom check necessary */
         break;
     case UDS_LEV_AT_VCU:
-    case UDS_LEV_AT_VCB:
+    case UDS_LEV_AT_VCB: {
         /**
          * + 1 byte communication configuration
          * + 2 bytes length of certificate
@@ -773,6 +773,7 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
         }
 
         break;
+    }
     case UDS_LEV_AT_POWN: {
         /**
          * + 2 bytes length of pown
