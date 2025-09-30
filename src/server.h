@@ -56,6 +56,7 @@ typedef struct UDSServer {
 
     uint8_t sessionType;   // diagnostic session type (0x10)
     uint8_t securityLevel; // SecurityAccess (0x27) level
+    void *authContext;     // user defined context for authentication data
 
     bool RCRRP;             // set to true when user fn returns 0x78 and false otherwise
     bool requestInProgress; // set to true when a request has been processed but the response has
@@ -152,6 +153,53 @@ typedef struct {
     uint8_t commType; /*! CommunicationType */
     uint16_t nodeId;  /*! NodeIdentificationNumber (only used when ctrlType is 0x04 or 0x05) */
 } UDSCommCtrlArgs_t;
+
+typedef struct {
+    uint8_t type; /*! requested subfunction */
+
+    uint8_t (*set_auth_state)(UDSServer_t *srv,
+                              uint8_t state); /*! set the authentication state as lined out in
+                                                 ISO14229-1:2020 Table B.5 */
+
+    uint8_t (*copy)(UDSServer_t *srv, const void *src,
+                    uint16_t count); /*! function for copying data */
+
+    union {
+        struct {
+            uint8_t commConf;      /*! CommunicationConfiguration */
+            uint16_t certLen;      /*! lengthOfCertificateClient */
+            void *cert;            /*! pointer to certificateClient */
+            uint16_t challengeLen; /*! lengthOfChallengeClient (may be 0 for unidirectional
+                                      verification) */
+            void *challenge;       /*! pointer to challengeClient  */
+        } verifyCertArgs;          /*! Arguments for unidirectional or bidirectional verification */
+        struct {
+            uint16_t pownLen;      /*! lengthOfProofOfOwnership */
+            void *pown;            /*! pointer to proofOfOwnership */
+            uint16_t publicKeyLen; /*! lengthOfPublicKey (may be 0)*/
+            void *publicKey;       /*! pointer to publicKey */
+        } pownArgs;                /*! ProofOfOwnership*/
+        struct {
+            uint8_t evalId; /*! certificateEvaluationID */
+            uint16_t len;   /*! lengthOfCertificateData */
+            void *cert;     /*! pointer to certificateData */
+        } transCertArgs;    /*! TransmitCertificate */
+        struct {
+            uint8_t commConf; /*! CommunicationConfiguration */
+            void *algoInd;    /*! pointer to algorithmIndicator (always 16 bytes) */
+        } reqChallengeArgs;   /*! RequestChallengeForAuthentication*/
+        struct {
+            void *algoInd;         /*! pointer to algorithmIndicator (always 16 bytes) */
+            uint16_t pownLen;      /*! lengthOfProofOfOwnership */
+            void *pown;            /*! pointer to proofOfOwnership */
+            uint16_t challengeLen; /*! lengthOfChallengeClient (may be 0 when unidirectional) */
+            void *challenge;       /*! pointer to challengeClient */
+            uint16_t addParamLen;  /*! lengthOfAdditionalParameter (may be 0) */
+            void *addParam;        /*! pointer to additionalParameter */
+        } verifyPownUniArgs; /*! Arguments for unidirectional or bidirectional verification for
+                                proof of ownership */
+    } subFuncArgs;
+} UDSAuthArgs_t;
 
 typedef struct {
     const uint8_t level;             /*! requested security level */

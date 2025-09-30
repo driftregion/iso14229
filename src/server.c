@@ -687,6 +687,129 @@ static UDSErr_t Handle_0x28_CommunicationControl(UDSServer_t *srv, UDSReq_t *r) 
     return UDS_PositiveResponse;
 }
 
+static uint8_t set_auth_state(UDSServer_t *srv, uint8_t state) {
+    UDSErr_t ret = UDS_PositiveResponse;
+
+    if (srv == NULL) {
+        return UDS_NRC_GeneralReject;
+    }
+    UDSReq_t *r = (UDSReq_t *)&srv->r;
+    r->send_buf[2] = state;
+
+    return UDS_PositiveResponse;
+}
+
+static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
+    UDSErr_t ret = UDS_PositiveResponse;
+    uint8_t type = r->recv_buf[1];
+
+    if (r->recv_len < UDS_0X29_REQ_MIN_LEN) {
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+    }
+
+    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_AUTHENTICATION);
+    r->send_buf[1] = type;
+    r->send_buf[2] = UDS_AT_GR; /* Expect this to be overridden by the user event handler */
+    r->send_len = UDS_0X29_RESP_BASE_LEN;
+
+    UDSAuthArgs_t args = {
+        .type = type,
+        .set_auth_state = set_auth_state,
+        .copy = safe_copy,
+    };
+
+    switch (type) {
+    case UDS_LEV_AT_DA:
+        /* No custom check necessary */
+        break;
+    case UDS_LEV_AT_VCU:
+        /**
+         * + 1 byte for communication configuration
+         * + 2 bytes length of certificate
+         * + 1 byte (at least) certificate
+         * + 2 bytes length of challenge
+         * + 0 bytes (at least) challenge
+         */
+        size_t min_recv_len = UDS_0X29_REQ_MIN_LEN + 1 + 2 + 1 + 2;
+
+        if (r->recv_len < min_recv_len) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.subFuncArgs.verifyCertArgs.commConfig = r->recv_buf[2];
+        args.subFuncArgs.verifyCertArgs.certLength =
+            (uint16_t)((uint16_t)(r->recv_buf[3] << 8) | (uint16_t)r->recv_buf[4]);
+        args.subFuncArgs.cert = &r->recv_buf[5];
+
+        if (args.subFuncArgs.verifyCertArgs.certLength == 0) {
+            USD_LOGW(__FILE__, "Authentication: VCU verify certificate with zero length\n");
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        if (args.subFuncArgs.verifyCertArgs.certLength > r->recv_len - (min_recv_len - 1)) {
+            USD_LOGW(__FILE__, "Authentication: VCU verify certificate too large: %u",
+                     args.subFuncArgs.verifyCertArgs.certLength);
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.subFuncArgs.verifyCertArgs.challengeLength =
+            (uint16_t)((uint16_t)(r->recv_buf[5 + args.subFuncArgs.verifyCertArgs.certLength]
+                                  << 8) |
+                       (uint16_t)r->recv_buf[6 + args.subFuncArgs.verifyCertArgs.certLength]);
+        args.subFuncArgs.challenge = &r->recv_buf[7 + args.subFuncArgs.verifyCertArgs.certLength];
+
+        if (args.subFuncArgs.verifyCertArgs.challengeLength >
+            r->recv_len - (min_recv_len - 1) - args.subFuncArgs.verifyCertArgs.certLength) {
+            USD_LOGW(__FILE__, "Authentication: VCU verify challenge too large: %u",
+                     args.subFuncArgs.verifyCertArgs.challengeLength);
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        break;
+    }
+
+    ret = EmitEvent(srv, UDS_EVT_Auth, &args);
+
+    if (UDS_PositiveResponse != ret) {
+        return NegativeResponse(r, ret);
+    }
+
+    if (r->send_len < UDS_0X29_RESP_BASE_LEN) {
+        // goto respond_to_0x29_malformed_response;
+    }
+
+    switch (type) {
+    case UDS_LEV_AT_DA:
+        /* No custom check necessary */
+        break;
+    case UDS_LEV_AT_VCU:
+        /**
+         * + 2 bytes for length of challenge
+         * + 2 bytes for length of ephemeral public key
+         */
+        if (r->send_len < UDS_0X29_RESP_BASE_LEN + 4) {
+            // goto respond_to_0x29_malformed_response;
+        }
+
+        uint16_t challengeLength =
+            (uint16_t)((uint16_t)(r->send_buf[3] << 8) | (uint16_t)r->send_buf[4]);
+        uint16_t pubKeyLength = (uint16_t)((uint16_t)(r->send_buf[5 + challengeLength] << 8) |
+                                           (uint16_t)r->send_buf[6 + challengeLength]);
+
+        if (challengeLength == 0) {
+            USD_LOGW(__FILE__, "Authentication: VCU response with zero challenge length\n");
+            // goto respond_to_0x29_malformed_response;
+        }
+
+        if (challengeLength + pubKeyLength + UDS_0X29_RESP_BASE_LEN + 4 != r->send_len) {
+            UDS_LOGW(__FILE__, "Authentication: VCU response with malformed length\n");
+            // goto respond_to_0x29_malformed_response;
+        }
+
+        break;
+    }
+}
+
 static UDSErr_t Handle_0x2C_DynamicDefineDataIdentifier(UDSServer_t *srv, UDSReq_t *r) {
     UDSErr_t ret = UDS_PositiveResponse;
     uint8_t type = r->recv_buf[1];
@@ -1157,12 +1280,12 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
         (mode_of_operation == UDS_MOOP_RDDIR)) {
         // ISO14229:2020 Table 481:
         // If the modeOfOperation parameter equals to 0x02 (DeleteFile), 0x04 (ReadFile) or 0x05
-        // (ReadDir) this parameter [fileSizeParameterLength] shall not be included in the request
-        // message. If the modeOfOperation parameter equals to 0x02 (DeleteFile), 0x04 (ReadFile) or
-        // 0x05 (ReadDir) this parameter [fileSizeUncompressed] shall not be included in the request
-        // message. If the modeOfOperation parameter equals to 0x02 (DeleteFile), 0x04 (ReadFile) or
-        // 0x05 (ReadDir) this parameter [fileSizeCompressed] shall not be included in the request
-        // message.
+        // (ReadDir) this parameter [fileSizeParameterLength] shall not be included in the
+        // request message. If the modeOfOperation parameter equals to 0x02 (DeleteFile), 0x04
+        // (ReadFile) or 0x05 (ReadDir) this parameter [fileSizeUncompressed] shall not be
+        // included in the request message. If the modeOfOperation parameter equals to 0x02
+        // (DeleteFile), 0x04 (ReadFile) or 0x05 (ReadDir) this parameter [fileSizeCompressed]
+        // shall not be included in the request message.
     } else {
         file_size_parameter_length = r->recv_buf[byte_idx];
         byte_idx++;
@@ -1314,8 +1437,8 @@ static UDSErr_t Handle_0x87_LinkControl(UDSServer_t *srv, UDSReq_t *r) {
     }
 
     r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_LINK_CONTROL);
-    r->send_buf[1] = r->recv_buf[1]; /* do not use `type` because we want to preserve the suppress
-                                        response bit */
+    r->send_buf[1] = r->recv_buf[1]; /* do not use `type` because we want to preserve the
+                                        suppress response bit */
     r->send_len = UDS_0X87_RESP_LEN;
 
     UDSLinkCtrlArgs_t args = {
@@ -1359,6 +1482,8 @@ static UDSService getServiceForSID(uint8_t sid) {
         return &Handle_0x27_SecurityAccess;
     case kSID_COMMUNICATION_CONTROL:
         return &Handle_0x28_CommunicationControl;
+    case kSID_AUTHENTICATION:
+        return &Handle_0x29_Authentication;
     case kSID_READ_PERIODIC_DATA_BY_IDENTIFIER:
         return NULL;
     case kSID_DYNAMICALLY_DEFINE_DATA_IDENTIFIER:
