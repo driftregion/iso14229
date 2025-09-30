@@ -801,11 +801,6 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
                        (uint16_t)r->recv_buf[5 + args.subFuncArgs.pownArgs.pownLen]);
         args.subFuncArgs.pownArgs.publicKey = &r->recv_buf[6 + args.subFuncArgs.pownArgs.pownLen];
 
-        if (args.subFuncArgs.pownArgs.publicKeyLen == 0) {
-            UDS_LOGW(__FILE__, "Auth: POWN with zero public key length\n");
-            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
-        }
-
         if (r->recv_len != min_recv_len + args.subFuncArgs.pownArgs.pownLen +
                                args.subFuncArgs.pownArgs.publicKeyLen) {
             UDS_LOGW(__FILE__,
@@ -1012,11 +1007,6 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
 
         uint16_t sessionKeyInfoLength =
             (uint16_t)((uint16_t)(r->send_buf[3] << 8) | (uint16_t)r->send_buf[4]);
-
-        if (sessionKeyInfoLength == 0) {
-            UDS_LOGW(__FILE__, "Auth: POWN response with zero session key info length\n");
-            goto respond_to_0x29_malformed_response;
-        }
 
         if (sessionKeyInfoLength + UDS_0X29_RESP_BASE_LEN + 2 != r->send_len) {
             UDS_LOGW(__FILE__, "Auth: POWN response with malformed length\n");
