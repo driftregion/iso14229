@@ -860,6 +860,7 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
         r->send_len += 16;
         break;
     case UDS_LEV_AT_VPOWNU:
+    case UDS_LEV_AT_VPOWNB:
         /**
          * + 16 bytes for algorithm ID
          * + 2 bytes for length of pown
@@ -877,7 +878,7 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
         args.subFuncArgs.verifyPownArgs.pown = &r->recv_buf[20];
 
         if (args.subFuncArgs.verifyPownArgs.pownLen == 0) {
-            UDS_LOGW(__FILE__, "Auth: VPOWNU with zero pown length\n");
+            UDS_LOGW(__FILE__, "Auth: VPOWNU/B with zero pown length\n");
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
@@ -1056,7 +1057,6 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
         /**
          * + 16 bytes for algorithm ID
          * + 2 bytes for length of session key
-
          */
         if (r->send_len < UDS_0X29_RESP_BASE_LEN + 16 + 2) {
             goto respond_to_0x29_malformed_response;
@@ -1064,8 +1064,35 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
 
         uint16_t sessionKeyLength =
             (uint16_t)((uint16_t)(r->send_buf[3 + 16] << 8) | (uint16_t)r->send_buf[4 + 16]);
-        if (sessionKeyLength == 0) {
-            UDS_LOGW(__FILE__, "Auth: VPOWNU response with zero session key length\n");
+
+        if (UDS_0X29_RESP_BASE_LEN + 16 + 2 + sessionKeyLength != r->send_len) {
+            UDS_LOGW(__FILE__, "Auth: VPOWNU response with malformed length\n");
+            goto respond_to_0x29_malformed_response;
+        }
+
+        break;
+    }
+    case UDS_LEV_AT_VPOWNB: {
+        /**
+         * + 16 bytes for algorithm ID
+         * + 2 bytes for length of pown
+         * + 2 bytes for length of session key
+         */
+        if (r->send_len < UDS_0X29_RESP_BASE_LEN + 16 + 2 + 2) {
+            goto respond_to_0x29_malformed_response;
+        }
+
+        uint16_t pownLength =
+            (uint16_t)((uint16_t)(r->send_buf[3 + 16] << 8) | (uint16_t)r->send_buf[4 + 16]);
+        if (pownLength == 0) {
+            UDS_LOGW(__FILE__, "Auth: VPOWNB response with zero pown length\n");
+            goto respond_to_0x29_malformed_response;
+        }
+
+        uint16_t sessionKeyLength = (uint16_t)((uint16_t)(r->send_buf[5 + 16 + pownLength] << 8) |
+                                               (uint16_t)r->send_buf[6 + 16 + pownLength]);
+        if (UDS_0X29_RESP_BASE_LEN + 16 + 2 + pownLength + 2 + sessionKeyLength != r->send_len) {
+            UDS_LOGW(__FILE__, "Auth: VPOWNB response with malformed length\n");
             goto respond_to_0x29_malformed_response;
         }
 
