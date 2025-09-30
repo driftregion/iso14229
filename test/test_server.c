@@ -3079,6 +3079,16 @@ UDSErr_t fn_test_0x29_auth(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
 
         return args->set_auth_state(srv, UDS_AT_CV);
     }
+    case UDS_LEV_AT_RCFA: {
+        TEST_INT_EQUAL(args->subFuncArgs.reqChallengeArgs.commConf, 0x1A);
+        uint8_t expected_algo[] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+                                   0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10};
+        TEST_MEMORY_EQUAL(args->subFuncArgs.pownArgs.pown, expected_algo, sizeof(expected_algo));
+
+        args->set_auth_state(srv, UDS_AT_RA);
+        const uint8_t data[] = {0x00, 0x02, 0x0B, 0xB0, 0x00, 0x01, 0x99};
+        return args->copy(srv, data, sizeof(data));
+    }
     }
 
     return UDS_NRC_GeneralProgrammingFailure;
@@ -3282,6 +3292,73 @@ void test_0x29_auth_transmit_cert(void **state) {
         0x69,          /* Response SID */
         UDS_LEV_AT_TC, /* AuthenticationTask */
         UDS_AT_CV,     /* authenticationReturnParameter */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x29_auth_req_challenge_for_auth(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[30] = {0};
+
+    e->server->fn = fn_test_0x29_auth;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x29,            /* SID */
+        UDS_LEV_AT_RCFA, /* AuthenticationTask */
+        0x1A,            /* communicationConfiguration */
+        0x00,            /* AlgorithmIndicator[0]  */
+        0x01,            /* AlgorithmIndicator[1]  */
+        0x02,            /* AlgortihmIndicator[2] */
+        0x03,            /* AlgortihmIndicator[3] */
+        0x04,            /* AlgortihmIndicator[4] */
+        0x05,            /* AlgortihmIndicator[5] */
+        0x06,            /* AlgortihmIndicator[6] */
+        0x07,            /* AlgortihmIndicator[7] */
+        0x08,            /* AlgortihmIndicator[8] */
+        0x09,            /* AlgortihmIndicator[9] */
+        0x0A,            /* AlgortihmIndicator[10] */
+        0x0B,            /* AlgortihmIndicator[11] */
+        0x0C,            /* AlgortihmIndicator[12] */
+        0x0D,            /* AlgortihmIndicator[13] */
+        0x0E,            /* AlgortihmIndicator[14] */
+        0x0F,            /* AlgortihmIndicator[15] */
+        0x10,            /* AlgortihmIndicator[16] */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x69,            /* Response SID */
+        UDS_LEV_AT_RCFA, /* AuthenticationTask */
+        UDS_AT_RA,       /* authenticationReturnParameter */
+        0x00,            /* AlgorithmIndicator[0]  */
+        0x01,            /* AlgorithmIndicator[1]  */
+        0x02,            /* AlgortihmIndicator[2] */
+        0x03,            /* AlgortihmIndicator[3] */
+        0x04,            /* AlgortihmIndicator[4] */
+        0x05,            /* AlgortihmIndicator[5] */
+        0x06,            /* AlgortihmIndicator[6] */
+        0x07,            /* AlgortihmIndicator[7] */
+        0x08,            /* AlgortihmIndicator[8] */
+        0x09,            /* AlgortihmIndicator[9] */
+        0x0A,            /* AlgortihmIndicator[10] */
+        0x0B,            /* AlgortihmIndicator[11] */
+        0x0C,            /* AlgortihmIndicator[12] */
+        0x0D,            /* AlgortihmIndicator[13] */
+        0x0E,            /* AlgortihmIndicator[14] */
+        0x0F,            /* AlgortihmIndicator[15] */
+        0x00,            /* lengthOfChallenge [High Byte] */
+        0x02,            /* lengthOfChallenge [Low Byte] */
+        0x0B,            /* challenge[0] */
+        0xB0,            /* challenge[1] */
+        0x00,            /* lengthOfAdditionalParam [High Byte] */
+        0x01,            /* lengthOfAdditionalParam [Low Byte] */
+        0x99,            /* additionalParam[0] */
     };
 
     /* the client transport should receive a response within client_p2 ms */
@@ -4409,6 +4486,7 @@ int main(int ac, char **av) {
                                         Teardown),
         cmocka_unit_test_setup_teardown(test_0x29_auth_proof_of_ownership, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x29_auth_transmit_cert, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_auth_req_challenge_for_auth, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_request_too_short, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_sub_0x01, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_sub_0x01_request_too_short, Setup, Teardown),

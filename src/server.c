@@ -844,6 +844,21 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
 
         break;
     }
+    case UDS_LEV_AT_RCFA:
+        /**
+         * + 1 byte for communication configuration
+         * + 16 bytes for algorithm ID
+         */
+        if (r->recv_len < UDS_0X29_REQ_MIN_LEN + 1 + 16) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.subFuncArgs.reqChallengeArgs.commConf = r->recv_buf[2];
+        args.subFuncArgs.reqChallengeArgs.algoInd = &r->recv_buf[3];
+
+        memcpy(&r->send_buf[3], args.subFuncArgs.reqChallengeArgs.algoInd, 16);
+        r->send_len += 16;
+        break;
     default:
         return NegativeResponse(r, UDS_NRC_SubFunctionNotSupported);
     }
@@ -962,6 +977,37 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
             UDS_LOGW(__FILE__, "Auth: POWN response with malformed length\n");
             goto respond_to_0x29_malformed_response;
         }
+        break;
+    }
+    case UDS_LEV_AT_RCFA: {
+        /**
+         * + 16 bytes for algorithm ID
+         * + 2 bytes for length of challenge
+         * + 0 bytes for challenge
+         * + 2 bytes for length of additional parameters
+         * + 0 bytes for additional parameters
+         */
+        if (r->send_len < UDS_0X29_RESP_BASE_LEN + 16 + 2 + 2) {
+            goto respond_to_0x29_malformed_response;
+        }
+
+        uint16_t challengeLength =
+            (uint16_t)((uint16_t)(r->send_buf[3 + 16] << 8) | (uint16_t)r->send_buf[4 + 16]);
+        if (challengeLength == 0) {
+            UDS_LOGW(__FILE__, "Auth: RCFA response with zero challenge length\n");
+            goto respond_to_0x29_malformed_response;
+        }
+
+        uint16_t additionalParamLength =
+            (uint16_t)((uint16_t)(r->send_buf[5 + 16 + challengeLength] << 8) |
+                       (uint16_t)r->send_buf[6 + 16 + challengeLength]);
+
+        if (r->send_len !=
+            UDS_0X29_RESP_BASE_LEN + 16 + 2 + challengeLength + 2 + additionalParamLength) {
+            UDS_LOGW(__FILE__, "Auth: RCFA response with malformed length\n");
+            goto respond_to_0x29_malformed_response;
+        }
+
         break;
     }
     default:
