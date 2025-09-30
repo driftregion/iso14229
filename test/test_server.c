@@ -3034,11 +3034,33 @@ UDSErr_t fn_test_0x29_auth(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
         return UDS_PositiveResponse;
         break;
     case UDS_LEV_AT_VCU: {
-        args->set_auth_state(srv, UDS_AT_CVOVN);
-        args->subFuncArgs.verifyCertificate.communicationConfiguration = 0x02;
+        TEST_INT_EQUAL(args->subFuncArgs.verifyCertArgs.commConf, 0x02);
+        TEST_INT_EQUAL(args->subFuncArgs.verifyCertArgs.certLen, 0x01);
+        uint8_t expected_cert[] = {0xFE};
+        TEST_MEMORY_EQUAL(args->subFuncArgs.verifyCertArgs.cert, expected_cert,
+                          sizeof(expected_cert));
+        TEST_INT_EQUAL(args->subFuncArgs.verifyCertArgs.challengeLen, 0x00);
 
+        args->set_auth_state(srv, UDS_AT_CVOVN);
         const uint8_t data[] = {0x00, 0x01, 0xDD, 0x00, 0x00};
-        return args->copyChallenge(srv, data, sizeof(data));
+        return args->copy(srv, data, sizeof(data));
+        break;
+    }
+    case UDS_LEV_AT_VCB: {
+        TEST_INT_EQUAL(args->subFuncArgs.verifyCertArgs.commConf, 0x02);
+        TEST_INT_EQUAL(args->subFuncArgs.verifyCertArgs.certLen, 0x01);
+        uint8_t expected_cert[] = {0xFE};
+        TEST_MEMORY_EQUAL(args->subFuncArgs.verifyCertArgs.cert, expected_cert,
+                          sizeof(expected_cert));
+        TEST_INT_EQUAL(args->subFuncArgs.verifyCertArgs.challengeLen, 0x03);
+        uint8_t expected_challenge[] = {0x11, 0x22, 0x33};
+        TEST_MEMORY_EQUAL(args->subFuncArgs.verifyCertArgs.challenge, expected_challenge,
+                          sizeof(expected_challenge));
+
+        args->set_auth_state(srv, UDS_AT_ACACRAC);
+        const uint8_t data[] = {0x00, 0x01, 0xEE, 0x00, 0x02, 0x12, 0x34,
+                                0x00, 0x01, 0xAB, 0x00, 0x01, 0xFE};
+        return args->copy(srv, data, sizeof(data));
         break;
     }
     }
@@ -3069,7 +3091,7 @@ void test_0x29_auth_de_auth(void **state) {
     /* the client transport should receive a response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
                      UDS_CLIENT_DEFAULT_P2_MS);
-    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP1, sizeof(EXPECTED_RESP1));
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
 void test_0x29_req_too_short(void **state) {
@@ -3132,7 +3154,55 @@ void test_0x29_auth_verify_certificate_unidirectional(void **state) {
     /* the client transport should receive a response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
                      UDS_CLIENT_DEFAULT_P2_MS);
-    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP1, sizeof(EXPECTED_RESP1));
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x29_auth_verify_certificate_bidirectional(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x29_auth;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x29,           /* SID */
+        UDS_LEV_AT_VCB, /* AuthenticationTask */
+        0x02,           /* communicationConfiguration */
+        0x00,           /* lengthOfCertificate [High Byte]  */
+        0x01,           /* lengthOfCertificate [Low Byte]  */
+        0xFE,           /* certificate[0] */
+        0x00,           /* lengthOfChallenge [High Byte] */
+        0x03,           /* lengthOfChallenge [Low Byte] */
+        0x11,           /* challenge[0] */
+        0x22,           /* challenge[1] */
+        0x33,           /* challenge[2] */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x69,           /* Response SID */
+        UDS_LEV_AT_VCB, /* AuthenticationTask */
+        UDS_AT_ACACRAC, /* authenticationReturnParameter */
+        0x00,           /* lengthOfChallenge [High Byte]  */
+        0x01,           /* lengthOfChallenge [Low Byte]  */
+        0xEE,           /* challenge[0] */
+        0x00,           /* lengthOfCertificate [High Byte] */
+        0x02,           /* lengthOfCertificate [Low Byte] */
+        0x12,           /* certificate[0] */
+        0x34,           /* certificate[1] */
+        0x00,           /* lengthOfProofOfOwnership [High Byte] */
+        0x01,           /* lengthOfProofOfOwnership [Low Byte] */
+        0xAB,           /* proofOfOwnership[0] */
+        0x00,           /* lengthOfEphemeralPublicKey [High Byte] */
+        0x01,           /* lengthOfEphemeralPublicKey [Low Byte] */
+        0xFE,           /* ephemeralPublicKey[0] */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
 UDSErr_t fn_test_0x2C(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
@@ -4248,6 +4318,10 @@ int main(int ac, char **av) {
             test_0x28_comm_ctrl_forced_malformed_response_in_event_handler, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x29_auth_de_auth, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x29_req_too_short, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_auth_verify_certificate_unidirectional, Setup,
+                                        Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_auth_verify_certificate_bidirectional, Setup,
+                                        Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_request_too_short, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_sub_0x01, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_sub_0x01_request_too_short, Setup, Teardown),

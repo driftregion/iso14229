@@ -723,12 +723,13 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
     case UDS_LEV_AT_VCU:
     case UDS_LEV_AT_VCB:
         /**
+         * + 1 byte communication configuration
          * + 2 bytes length of certificate
          * + 0 bytes certificate
          * + 2 bytes length of challenge
          * + 0 bytes challenge
          */
-        size_t min_recv_len = UDS_0X29_REQ_MIN_LEN + 2 + 2;
+        size_t min_recv_len = UDS_0X29_REQ_MIN_LEN + 1 + 2 + 2;
 
         if (r->recv_len < min_recv_len) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
@@ -789,7 +790,7 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
     case UDS_LEV_AT_DA:
         /* No custom check necessary */
         break;
-    case UDS_LEV_AT_VCU:
+    case UDS_LEV_AT_VCU: {
         /**
          * + 2 bytes for length of challenge
          * + 2 bytes for length of ephemeral public key
@@ -812,8 +813,59 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
             UDS_LOGW(__FILE__, "Auth: VCU response with malformed length\n");
             goto respond_to_0x29_malformed_response;
         }
+        break;
+    }
+    case UDS_LEV_AT_VCB: {
+        /**
+         * + 2 bytes for length of challenge
+         * + 2 bytes for length of certificate
+         * + 2 bytes for length of pown
+         * + 2 bytes for length of ephemeral public key
+         */
+        if (r->send_len < UDS_0X29_RESP_BASE_LEN + 8) {
+            goto respond_to_0x29_malformed_response;
+        }
+
+        uint16_t challengeLength =
+            (uint16_t)((uint16_t)(r->send_buf[3] << 8) | (uint16_t)r->send_buf[4]);
+
+        if (challengeLength == 0) {
+            UDS_LOGW(__FILE__, "Auth: VCB response with zero challenge length\n");
+            goto respond_to_0x29_malformed_response;
+        }
+
+        uint16_t certLength = (uint16_t)((uint16_t)(r->send_buf[5 + challengeLength] << 8) |
+                                         (uint16_t)r->send_buf[6 + challengeLength]);
+
+        if (certLength == 0) {
+            UDS_LOGW(__FILE__, "Auth: VCB response with zero certificate length\n");
+            goto respond_to_0x29_malformed_response;
+        }
+
+        uint16_t pownLength =
+            (uint16_t)((uint16_t)(r->send_buf[7 + challengeLength + certLength] << 8) |
+                       (uint16_t)r->send_buf[8 + challengeLength + certLength]);
+        if (pownLength == 0) {
+            UDS_LOGW(__FILE__, "Auth: VCB response with zero pown length\n");
+            goto respond_to_0x29_malformed_response;
+        }
+
+        uint16_t pubKeyLength =
+            (uint16_t)((uint16_t)(r->send_buf[9 + challengeLength + certLength + pownLength] << 8) |
+                       (uint16_t)r->send_buf[10 + challengeLength + certLength + pownLength]);
+        if (pubKeyLength == 0) {
+            UDS_LOGW(__FILE__, "Auth: VCB response with zero pubkey length\n");
+            goto respond_to_0x29_malformed_response;
+        }
+
+        if (challengeLength + certLength + pownLength + pubKeyLength + UDS_0X29_RESP_BASE_LEN + 8 !=
+            r->send_len) {
+            UDS_LOGW(__FILE__, "Auth: VCB response with malformed length\n");
+            goto respond_to_0x29_malformed_response;
+        }
 
         break;
+    }
     default:
         UDS_LOGW(__FILE__, "Auth: subFunc 0x%02X is not supported.\n", type);
         return NegativeResponse(r, UDS_NRC_SubFunctionNotSupported);
