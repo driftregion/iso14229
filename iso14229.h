@@ -1095,6 +1095,12 @@ typedef struct {
 } UDSRequestFileTransferArgs_t;
 
 typedef struct {
+    uint8_t type; /*! invoked subfunction */
+    size_t len;   /*! length of data */
+    void *data;   /*! DTCSettingControlOptionRecord */
+} UDSControlDTCSettingArgs_t;
+
+typedef struct {
     const uint8_t type; /*! invoked subfunction */
     /* purposefully left generic to allow vehicle- and supplier specific data of different sizes */
     const size_t len; /*! length of data */
