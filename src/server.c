@@ -718,6 +718,7 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
 
     switch (type) {
     case UDS_LEV_AT_DA:
+    case UDS_LEV_AT_AC:
         /* No custom check necessary */
         break;
     case UDS_LEV_AT_VCU:
@@ -918,6 +919,7 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
     switch (type) {
     case UDS_LEV_AT_DA:
     case UDS_LEV_AT_TC:
+    case UDS_LEV_AT_AC:
         if (r->send_len < UDS_0X29_RESP_BASE_LEN) {
             goto respond_to_0x29_malformed_response;
         }

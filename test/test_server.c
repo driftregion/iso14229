@@ -3120,6 +3120,8 @@ UDSErr_t fn_test_0x29_auth(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
             return args->copy(srv, data, sizeof(data));
         }
     }
+    case UDS_LEV_AT_AC:
+        return args->set_auth_state(srv, UDS_AT_ACACRSC);
     }
 
     return UDS_NRC_GeneralProgrammingFailure;
@@ -3544,6 +3546,33 @@ void test_0x29_auth_verify_pown_bidirectional(void **state) {
         0x02,              /* lengthOfSessionKey [Low Byte] */
         0x0B,              /* sessionKey[0] */
         0xB0,              /* sessionKey[1] */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x29_auth_config(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x29_auth;
+    e->server->fn_data = NULL;
+
+    /* Request ist the same as for unidirectional variant */
+    const uint8_t REQ[] = {
+        0x29,          /* SID */
+        UDS_LEV_AT_AC, /* AuthenticationTask */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x69,           /* Response SID */
+        UDS_LEV_AT_AC,  /* AuthenticationTask */
+        UDS_AT_ACACRSC, /* AuthenticationConfiguration */
     };
 
     /* the client transport should receive a response within client_p2 ms */
@@ -4674,6 +4703,7 @@ int main(int ac, char **av) {
         cmocka_unit_test_setup_teardown(test_0x29_auth_req_challenge_for_auth, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x29_auth_verify_pown_unidirectional, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x29_auth_verify_pown_bidirectional, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_auth_config, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_request_too_short, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_sub_0x01, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_sub_0x01_request_too_short, Setup, Teardown),
