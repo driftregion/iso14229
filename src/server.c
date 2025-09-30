@@ -859,6 +859,48 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
         memcpy(&r->send_buf[3], args.subFuncArgs.reqChallengeArgs.algoInd, 16);
         r->send_len += 16;
         break;
+    case UDS_LEV_AT_VPOWNU:
+        /**
+         * + 16 bytes for algorithm ID
+         * + 2 bytes for length of pown
+         * + 2 bytes for length of challenge
+         * + 2 bytes for length of additional parameters
+         */
+        if (r->recv_len < UDS_0X29_REQ_MIN_LEN + 16 + 2 + 2 + 2) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.subFuncArgs.verifyPownUniArgs.algoInd = &r->recv_buf[2];
+
+        args.subFuncArgs.verifyPownUniArgs.pownLen =
+            (uint16_t)((uint16_t)(r->recv_buf[18] << 8) | (uint16_t)r->recv_buf[19]);
+        args.subFuncArgs.verifyPownUniArgs.pown = &r->recv_buf[20];
+
+        if (args.subFuncArgs.verifyPownUniArgs.pownLen == 0) {
+            UDS_LOGW(__FILE__, "Auth: VPOWNU with zero pown length\n");
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.subFuncArgs.verifyPownUniArgs.challengeLen =
+            (uint16_t)((uint16_t)(r->recv_buf[20 + args.subFuncArgs.verifyPownUniArgs.pownLen]
+                                  << 8) |
+                       (uint16_t)r->recv_buf[21 + args.subFuncArgs.verifyPownUniArgs.pownLen]);
+        args.subFuncArgs.verifyPownUniArgs.challenge =
+            &r->recv_buf[22 + args.subFuncArgs.verifyPownUniArgs.pownLen];
+
+        args.subFuncArgs.verifyPownUniArgs.addParamLen =
+            (uint16_t)((uint16_t)(r->recv_buf[22 + args.subFuncArgs.verifyPownUniArgs.pownLen +
+                                              args.subFuncArgs.verifyPownUniArgs.challengeLen]
+                                  << 8) |
+                       (uint16_t)r->recv_buf[23 + args.subFuncArgs.verifyPownUniArgs.pownLen +
+                                             args.subFuncArgs.verifyPownUniArgs.challengeLen]);
+        args.subFuncArgs.verifyPownUniArgs.addParam =
+            &r->recv_buf[24 + args.subFuncArgs.verifyPownUniArgs.pownLen +
+                         args.subFuncArgs.verifyPownUniArgs.challengeLen];
+
+        memcpy(&r->send_buf[3], args.subFuncArgs.verifyPownUniArgs.algoInd, 16);
+        r->send_len += 16;
+        break;
     default:
         return NegativeResponse(r, UDS_NRC_SubFunctionNotSupported);
     }
@@ -1005,6 +1047,26 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
         if (r->send_len !=
             UDS_0X29_RESP_BASE_LEN + 16 + 2 + challengeLength + 2 + additionalParamLength) {
             UDS_LOGW(__FILE__, "Auth: RCFA response with malformed length\n");
+            goto respond_to_0x29_malformed_response;
+        }
+
+        break;
+    }
+
+    case UDS_LEV_AT_VPOWNU: {
+        /**
+         * + 16 bytes for algorithm ID
+         * + 2 bytes for length of session key
+
+         */
+        if (r->send_len < UDS_0X29_RESP_BASE_LEN + 16 + 2) {
+            goto respond_to_0x29_malformed_response;
+        }
+
+        uint16_t sessionKeyLength =
+            (uint16_t)((uint16_t)(r->send_buf[3 + 16] << 8) | (uint16_t)r->send_buf[4 + 16]);
+        if (sessionKeyLength == 0) {
+            UDS_LOGW(__FILE__, "Auth: VPOWNU response with zero session key length\n");
             goto respond_to_0x29_malformed_response;
         }
 
