@@ -3961,8 +3961,8 @@ UDSErr_t fn_test_0x29_example_4(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     UDSAuthArgs_t *args = arg;
 
     switch (args->type) {
-    case UDS_LEV_AT_VCU:
-        return UDS_NRC_CertficateVerificationFailedInvalidTimePeriod;
+    case UDS_LEV_AT_AC:
+        return args->set_auth_state(srv, UDS_AT_ACACRAC);
     }
 
     return UDS_NRC_GeneralReject;
@@ -3977,57 +3977,73 @@ void test_0x29_auth_example_4(void **state) {
     e->server->fn = fn_test_0x29_example_4;
     e->server->fn_data = NULL;
 
-    /* Request per ISO14229-1 2020 Table 99 */
-    const uint8_t REQ1[] = {};
+    /* Request per ISO14229-1 2020 Table 101 */
+    const uint8_t REQ1[] = {
+        0x29,          /* Authentication Request SID (ARS) */
+        UDS_LEV_AT_AC, /* authenticationTask = authenticationConfiguration (LEV_AT_AC) */
+    };
 
     UDSTpSend(e->client_tp, REQ1, sizeof(REQ1), NULL);
 
-    /* Response per ISO14229-1 2020 Table 100 */
-    const uint8_t EXPECTED_RESP1[] = {};
+    /* Response per ISO14229-1 2020 Table 102 */
+    const uint8_t EXPECTED_RESP1[] = {
+        0x69,           /* Authentication Response SID (ARS) */
+        UDS_LEV_AT_AC,  /* authenticationTask = authenticationConfiguration (LEV_AT_AC) */
+        UDS_AT_ACACRAC, /* returnValue = AuthenticationConfiguration ACR with asymmetric
+                         cryptography (RV_ACACR) */
+    };
 
     /* the client transport should receive a response within client_p2 ms */
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
                      UDS_CLIENT_DEFAULT_P2_MS);
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP1, sizeof(EXPECTED_RESP1));
 
-    /* Request per ISO14229-1 2020 Table 101 */
-    const uint8_t REQ2[] = {};
+    // /* Request per ISO14229-1 2020 Table 103 */
+    // const uint8_t REQ2[] = {
+    //     0x29, /* Authentication Request SID (ARS) */
+    //     0x05, /* authenticationTask = requestChallengeForAuthentication (LEV_AT_RCFA) */
+    //     0x00, /* communicationConfiguration = no secure communication (COCO) */
 
-    UDSTpSend(e->client_tp, REQ2, sizeof(REQ2), NULL);
+    //     0x06, /* algorithmIndicator[0] */
+    //     0x07, /* algorithmIndicator[1] */
+    //     0x08, /* algorithmIndicator[2] */
+    //     0x09, /* algorithmIndicator[3] */
+    //     0x0A, /* algorithmIndicator[4] */
+    //     0x0B, /* algorithmIndicator[5] */
+    //     0x0C, /* algorithmIndicator[6] */
+    //     0x0D, /* algorithmIndicator[7] */
+    //     0x0E, /* algorithmIndicator[8] */
+    //     0x0F, /* algorithmIndicator[9] */
+    //     0x10, /* algorithmIndicator[10] */
+    //     0x0A, /* algorithmIndicator[11] */
+    //     0x11, /* algorithmIndicator[12] */
+    //     0x12, /* algorithmIndicator[13] */
+    //     0x13, /* algorithmIndicator[14] */
+    //     0x00, /* algorithmIndicator[15] */
+    // };
 
-    /* Response per ISO14229-1 2020 Table 102 */
-    const uint8_t EXPECTED_RESP2[] = {};
+    // UDSTpSend(e->client_tp, REQ2, sizeof(REQ2), NULL);
 
-    /* the client transport should receive a response within client_p2 ms */
-    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     UDS_CLIENT_DEFAULT_P2_MS);
-    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP2, sizeof(EXPECTED_RESP2));
+    // /* Response per ISO14229-1 2020 Table 104 */
+    // const uint8_t EXPECTED_RESP2[] = {};
 
-    /* Request per ISO14229-1 2020 Table 103 */
-    const uint8_t REQ3[] = {};
+    // /* the client transport should receive a response within client_p2 ms */
+    // EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+    //                  UDS_CLIENT_DEFAULT_P2_MS);
+    // TEST_MEMORY_EQUAL(buf, EXPECTED_RESP2, sizeof(EXPECTED_RESP2));
 
-    UDSTpSend(e->client_tp, REQ3, sizeof(REQ3), NULL);
+    // /* Request per ISO14229-1 2020 Table 105 */
+    // const uint8_t REQ3[] = {};
 
-    /* Response per ISO14229-1 2020 Table 104 */
-    const uint8_t EXPECTED_RESP3[] = {};
+    // UDSTpSend(e->client_tp, REQ3, sizeof(REQ3), NULL);
 
-    /* the client transport should receive a response within client_p2 ms */
-    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     UDS_CLIENT_DEFAULT_P2_MS);
-    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP3, sizeof(EXPECTED_RESP3));
+    // /* Response per ISO14229-1 2020 Table 106 */
+    // const uint8_t EXPECTED_RESP3[] = {};
 
-    /* Request per ISO14229-1 2020 Table 105 */
-    const uint8_t REQ4[] = {};
-
-    UDSTpSend(e->client_tp, REQ4, sizeof(REQ4), NULL);
-
-    /* Response per ISO14229-1 2020 Table 106 */
-    const uint8_t EXPECTED_RESP4[] = {};
-
-    /* the client transport should receive a response within client_p2 ms */
-    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
-                     UDS_CLIENT_DEFAULT_P2_MS);
-    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP4, sizeof(EXPECTED_RESP4));
+    // /* the client transport should receive a response within client_p2 ms */
+    // EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+    //                  UDS_CLIENT_DEFAULT_P2_MS);
+    // TEST_MEMORY_EQUAL(buf, EXPECTED_RESP3, sizeof(EXPECTED_RESP3));
 }
 
 UDSErr_t fn_test_0x29_example_5(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
@@ -5350,6 +5366,7 @@ int main(int ac, char **av) {
         cmocka_unit_test_setup_teardown(test_0x29_auth_example_1, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x29_auth_example_2, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x29_auth_example_3, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_auth_example_4, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x29_auth_example_5, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_request_too_short, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_sub_0x01, Setup, Teardown),
