@@ -176,7 +176,7 @@ typedef enum {
 #define UDS_LEV_AT_DA 0     // deAuthenticate
 #define UDS_LEV_AT_VCU 1    // verifyCertificateUnidirectional
 #define UDS_LEV_AT_VCB 2    // verifyCertificateBidirectional
-#define UDS_LEV_AT_PWON 3   // proofOfOwnership
+#define UDS_LEV_AT_POWN 3   // proofOfOwnership
 #define UDS_LEV_AT_TC 4     // transmitCertificate
 #define UDS_LEV_AT_RCFA 5   // requestChallengeForAuthentication
 #define UDS_LEV_AT_VPOWNU 6 //  verifyProofOfOwnershipUnidirectional

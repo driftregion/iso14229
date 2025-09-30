@@ -772,6 +772,51 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
         }
 
         break;
+    case UDS_LEV_AT_POWN: {
+        /**
+         * + 2 bytes length of pown
+         * + 0 bytes pown
+         * + 2 bytes length of ephemeral public key
+         * + 0 bytes ephemeral public key
+         */
+        size_t min_recv_len = UDS_0X29_REQ_MIN_LEN + 2 + 2;
+
+        if (r->recv_len < min_recv_len) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.subFuncArgs.pownArgs.pownLen =
+            (uint16_t)((uint16_t)(r->recv_buf[2] << 8) | (uint16_t)r->recv_buf[3]);
+        args.subFuncArgs.pownArgs.pown = &r->recv_buf[4];
+
+        if (args.subFuncArgs.pownArgs.pownLen == 0) {
+            UDS_LOGW(__FILE__, "Auth: POWN with zero length\n");
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.subFuncArgs.pownArgs.publicKeyLen =
+            (uint16_t)((uint16_t)(r->recv_buf[4 + args.subFuncArgs.pownArgs.pownLen] << 8) |
+                       (uint16_t)r->recv_buf[5 + args.subFuncArgs.pownArgs.pownLen]);
+        args.subFuncArgs.pownArgs.publicKey = &r->recv_buf[6 + args.subFuncArgs.pownArgs.pownLen];
+
+        if (args.subFuncArgs.pownArgs.publicKeyLen == 0) {
+            UDS_LOGW(__FILE__, "Auth: POWN with zero public key length\n");
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        if (r->recv_len != min_recv_len + args.subFuncArgs.pownArgs.pownLen +
+                               args.subFuncArgs.pownArgs.publicKeyLen) {
+            UDS_LOGW(__FILE__,
+                     "Auth: POWN request malformed length. req len: %u, pown len: %u, "
+                     "public key len: %u\n",
+                     r->recv_len, args.subFuncArgs.pownArgs.pownLen,
+                     args.subFuncArgs.pownArgs.publicKeyLen);
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        break;
+    }
+
     default:
         return NegativeResponse(r, UDS_NRC_SubFunctionNotSupported);
     }
@@ -866,11 +911,36 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
 
         break;
     }
+
+    case UDS_LEV_AT_POWN: {
+        /**
+         * + 2 bytes for length of session key info
+         */
+        if (r->send_len < UDS_0X29_RESP_BASE_LEN + 2) {
+            goto respond_to_0x29_malformed_response;
+        }
+
+        uint16_t sessionKeyInfoLength =
+            (uint16_t)((uint16_t)(r->send_buf[3] << 8) | (uint16_t)r->send_buf[4]);
+
+        if (sessionKeyInfoLength == 0) {
+            UDS_LOGW(__FILE__, "Auth: POWN response with zero session key info length\n");
+            goto respond_to_0x29_malformed_response;
+        }
+
+        if (sessionKeyInfoLength + UDS_0X29_RESP_BASE_LEN + 2 != r->send_len) {
+            UDS_LOGW(__FILE__, "Auth: POWN response with malformed length\n");
+            goto respond_to_0x29_malformed_response;
+        }
+        break;
+    }
     default:
         UDS_LOGW(__FILE__, "Auth: subFunc 0x%02X is not supported.\n", type);
         return NegativeResponse(r, UDS_NRC_SubFunctionNotSupported);
     }
+
     return UDS_PositiveResponse;
+
 respond_to_0x29_malformed_response:
     UDS_LOGE(__FILE__, "Auth: subFunc 0x%02X is malformed. Length: %d\n", type, r->send_len);
     return NegativeResponse(r, UDS_NRC_GeneralReject);

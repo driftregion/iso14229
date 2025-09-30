@@ -3057,9 +3057,22 @@ UDSErr_t fn_test_0x29_auth(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
         TEST_MEMORY_EQUAL(args->subFuncArgs.verifyCertArgs.challenge, expected_challenge,
                           sizeof(expected_challenge));
 
-        args->set_auth_state(srv, UDS_AT_ACACRAC);
+        args->set_auth_state(srv, UDS_AT_CVOVN);
         const uint8_t data[] = {0x00, 0x01, 0xEE, 0x00, 0x02, 0x12, 0x34,
                                 0x00, 0x01, 0xAB, 0x00, 0x01, 0xFE};
+        return args->copy(srv, data, sizeof(data));
+        break;
+    }
+    case UDS_LEV_AT_POWN: {
+        TEST_INT_EQUAL(args->subFuncArgs.pownArgs.pownLen, 0x01);
+        uint8_t expected_pown[] = {0xFE};
+        TEST_MEMORY_EQUAL(args->subFuncArgs.pownArgs.pown, expected_pown, sizeof(expected_pown));
+        TEST_INT_EQUAL(args->subFuncArgs.pownArgs.publicKeyLen, 0x03);
+        uint8_t expected_key[] = {0x11, 0x22, 0x33};
+        TEST_MEMORY_EQUAL(args->subFuncArgs.pownArgs.publicKey, expected_key, sizeof(expected_key));
+
+        args->set_auth_state(srv, UDS_AT_OVAC);
+        const uint8_t data[] = {0x00, 0x02, 0xBC, 0xDE};
         return args->copy(srv, data, sizeof(data));
         break;
     }
@@ -3183,7 +3196,7 @@ void test_0x29_auth_verify_certificate_bidirectional(void **state) {
     const uint8_t EXPECTED_RESP[] = {
         0x69,           /* Response SID */
         UDS_LEV_AT_VCB, /* AuthenticationTask */
-        UDS_AT_ACACRAC, /* authenticationReturnParameter */
+        UDS_AT_CVOVN,   /* authenticationReturnParameter */
         0x00,           /* lengthOfChallenge [High Byte]  */
         0x01,           /* lengthOfChallenge [Low Byte]  */
         0xEE,           /* challenge[0] */
@@ -3197,6 +3210,44 @@ void test_0x29_auth_verify_certificate_bidirectional(void **state) {
         0x00,           /* lengthOfEphemeralPublicKey [High Byte] */
         0x01,           /* lengthOfEphemeralPublicKey [Low Byte] */
         0xFE,           /* ephemeralPublicKey[0] */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x29_auth_proof_of_ownership(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x29_auth;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x29,            /* SID */
+        UDS_LEV_AT_POWN, /* AuthenticationTask */
+        0x00,            /* lengthOfPOWN [High Byte]  */
+        0x01,            /* lengthOfPOWN [Low Byte]  */
+        0xFE,            /* POWN[0] */
+        0x00,            /* lengthOfEphemeralPublicKey [High Byte] */
+        0x03,            /* lengthOfEphemeralPublicKey [Low Byte] */
+        0x11,            /* key[0] */
+        0x22,            /* key[1] */
+        0x33,            /* key[2] */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x69,            /* Response SID */
+        UDS_LEV_AT_POWN, /* AuthenticationTask */
+        UDS_AT_OVAC,     /* authenticationReturnParameter */
+        0x00,            /* lengthOfSessionKeyInfo [High Byte]  */
+        0x02,            /* lengthOfSessionKeyInfo [Low Byte]  */
+        0xBC,            /* sessionKey[0] */
+        0xDE,            /* sessionKey[1] */
     };
 
     /* the client transport should receive a response within client_p2 ms */
@@ -4322,6 +4373,7 @@ int main(int ac, char **av) {
                                         Teardown),
         cmocka_unit_test_setup_teardown(test_0x29_auth_verify_certificate_bidirectional, Setup,
                                         Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_auth_proof_of_ownership, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_request_too_short, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_sub_0x01, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_sub_0x01_request_too_short, Setup, Teardown),
