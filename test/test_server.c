@@ -3092,22 +3092,22 @@ UDSErr_t fn_test_0x29_auth(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     case UDS_LEV_AT_VPOWNU: {
         uint8_t expected_algo[] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
                                    0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F};
-        TEST_MEMORY_EQUAL(args->subFuncArgs.verifyPownUniArgs.algoInd, expected_algo,
+        TEST_MEMORY_EQUAL(args->subFuncArgs.verifyPownArgs.algoInd, expected_algo,
                           sizeof(expected_algo));
 
-        TEST_INT_EQUAL(args->subFuncArgs.verifyPownUniArgs.pownLen, 0x02);
+        TEST_INT_EQUAL(args->subFuncArgs.verifyPownArgs.pownLen, 0x02);
         uint8_t expected_pown[] = {0xFE, 0xDC};
-        TEST_MEMORY_EQUAL(args->subFuncArgs.verifyPownUniArgs.pown, expected_pown,
+        TEST_MEMORY_EQUAL(args->subFuncArgs.verifyPownArgs.pown, expected_pown,
                           sizeof(expected_pown));
 
-        TEST_INT_EQUAL(args->subFuncArgs.verifyPownUniArgs.challengeLen, 0x01);
+        TEST_INT_EQUAL(args->subFuncArgs.verifyPownArgs.challengeLen, 0x01);
         uint8_t expected_challenge[] = {0x11};
-        TEST_MEMORY_EQUAL(args->subFuncArgs.verifyPownUniArgs.challenge, expected_challenge,
+        TEST_MEMORY_EQUAL(args->subFuncArgs.verifyPownArgs.challenge, expected_challenge,
                           sizeof(expected_challenge));
 
-        TEST_INT_EQUAL(args->subFuncArgs.verifyPownUniArgs.addParamLen, 0x03);
+        TEST_INT_EQUAL(args->subFuncArgs.verifyPownArgs.addParamLen, 0x03);
         uint8_t expected_param[] = {0x22, 0x33, 0x44};
-        TEST_MEMORY_EQUAL(args->subFuncArgs.verifyPownUniArgs.addParam, expected_param,
+        TEST_MEMORY_EQUAL(args->subFuncArgs.verifyPownArgs.addParam, expected_param,
                           sizeof(expected_param));
 
         args->set_auth_state(srv, UDS_AT_OVAC);

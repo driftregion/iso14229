@@ -195,7 +195,7 @@ typedef struct {
             void *challenge;       /*! pointer to challengeClient */
             uint16_t addParamLen;  /*! lengthOfAdditionalParameter (may be 0) */
             void *addParam;        /*! pointer to additionalParameter */
-        } verifyPownUniArgs; /*! Arguments for unidirectional or bidirectional verification for
+        } verifyPownArgs; /*! Arguments for unidirectional or bidirectional verification for
                                 proof of ownership */
     } subFuncArgs;
 } UDSAuthArgs_t;

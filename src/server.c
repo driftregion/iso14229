@@ -870,35 +870,34 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        args.subFuncArgs.verifyPownUniArgs.algoInd = &r->recv_buf[2];
+        args.subFuncArgs.verifyPownArgs.algoInd = &r->recv_buf[2];
 
-        args.subFuncArgs.verifyPownUniArgs.pownLen =
+        args.subFuncArgs.verifyPownArgs.pownLen =
             (uint16_t)((uint16_t)(r->recv_buf[18] << 8) | (uint16_t)r->recv_buf[19]);
-        args.subFuncArgs.verifyPownUniArgs.pown = &r->recv_buf[20];
+        args.subFuncArgs.verifyPownArgs.pown = &r->recv_buf[20];
 
-        if (args.subFuncArgs.verifyPownUniArgs.pownLen == 0) {
+        if (args.subFuncArgs.verifyPownArgs.pownLen == 0) {
             UDS_LOGW(__FILE__, "Auth: VPOWNU with zero pown length\n");
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        args.subFuncArgs.verifyPownUniArgs.challengeLen =
-            (uint16_t)((uint16_t)(r->recv_buf[20 + args.subFuncArgs.verifyPownUniArgs.pownLen]
-                                  << 8) |
-                       (uint16_t)r->recv_buf[21 + args.subFuncArgs.verifyPownUniArgs.pownLen]);
-        args.subFuncArgs.verifyPownUniArgs.challenge =
-            &r->recv_buf[22 + args.subFuncArgs.verifyPownUniArgs.pownLen];
+        args.subFuncArgs.verifyPownArgs.challengeLen =
+            (uint16_t)((uint16_t)(r->recv_buf[20 + args.subFuncArgs.verifyPownArgs.pownLen] << 8) |
+                       (uint16_t)r->recv_buf[21 + args.subFuncArgs.verifyPownArgs.pownLen]);
+        args.subFuncArgs.verifyPownArgs.challenge =
+            &r->recv_buf[22 + args.subFuncArgs.verifyPownArgs.pownLen];
 
-        args.subFuncArgs.verifyPownUniArgs.addParamLen =
-            (uint16_t)((uint16_t)(r->recv_buf[22 + args.subFuncArgs.verifyPownUniArgs.pownLen +
-                                              args.subFuncArgs.verifyPownUniArgs.challengeLen]
+        args.subFuncArgs.verifyPownArgs.addParamLen =
+            (uint16_t)((uint16_t)(r->recv_buf[22 + args.subFuncArgs.verifyPownArgs.pownLen +
+                                              args.subFuncArgs.verifyPownArgs.challengeLen]
                                   << 8) |
-                       (uint16_t)r->recv_buf[23 + args.subFuncArgs.verifyPownUniArgs.pownLen +
-                                             args.subFuncArgs.verifyPownUniArgs.challengeLen]);
-        args.subFuncArgs.verifyPownUniArgs.addParam =
-            &r->recv_buf[24 + args.subFuncArgs.verifyPownUniArgs.pownLen +
-                         args.subFuncArgs.verifyPownUniArgs.challengeLen];
+                       (uint16_t)r->recv_buf[23 + args.subFuncArgs.verifyPownArgs.pownLen +
+                                             args.subFuncArgs.verifyPownArgs.challengeLen]);
+        args.subFuncArgs.verifyPownArgs.addParam =
+            &r->recv_buf[24 + args.subFuncArgs.verifyPownArgs.pownLen +
+                         args.subFuncArgs.verifyPownArgs.challengeLen];
 
-        memcpy(&r->send_buf[3], args.subFuncArgs.verifyPownUniArgs.algoInd, 16);
+        memcpy(&r->send_buf[3], args.subFuncArgs.verifyPownArgs.algoInd, 16);
         r->send_len += 16;
         break;
     default:
