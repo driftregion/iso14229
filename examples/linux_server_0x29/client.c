@@ -95,10 +95,6 @@ static UDSErr_t ClientEventHandler(UDSClient_t *client, UDSEvent_t evt, void *ev
         if (evt == UDS_EVT_ResponseReceived) {
             printf("Seed response received, extracting seed...\n");
 
-            // Get response data (first byte is SID, second is level, rest is seed)
-            uint8_t *resp_data = client->recv_buf + 2; // Skip SID and task
-            size_t seed_len = client->recv_size - 2;
-
             if (client->recv_size < 21) {
                 printf("Response too short: %zu bytes\n", client->recv_size);
                 ctx->done = true;
@@ -114,10 +110,12 @@ static UDSErr_t ClientEventHandler(UDSClient_t *client, UDSEvent_t evt, void *ev
                 return UDS_ERR_MISUSE;
             }
 
-            // Copy the seed
-            memcpy(ctx->seed, &resp_data[21], 16);
+            uint8_t *seed = &client->recv_buf[21];
 
-            printf("Received seed: ");
+            // Copy the seed
+            memcpy(ctx->seed, seed, 16);
+
+            printf("Received seed:\t\t");
             for (int i = 0; i < 16; i++) {
                 printf("%02X ", ctx->seed[i]);
             }
@@ -139,7 +137,7 @@ static UDSErr_t ClientEventHandler(UDSClient_t *client, UDSEvent_t evt, void *ev
             return UDS_ERR_INVALID_ARG;
         }
 
-        printf("Sending encrypted key: ");
+        printf("Sending encrypted key:\t");
         for (int i = 0; i < 16; i++) {
             printf("%02X ", encrypted_key[i]);
         }
@@ -163,7 +161,7 @@ static UDSErr_t ClientEventHandler(UDSClient_t *client, UDSEvent_t evt, void *ev
             0x00, 0x00, // length of additional parameters
         };
 
-        memcpy(&request_data[18], encrypted_key, 16);
+        memcpy(&request_data[20], encrypted_key, 16);
 
         UDSErr_t err = UDSSendBytes(client, request_data, sizeof(request_data));
         if (err) {
