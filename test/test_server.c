@@ -4562,6 +4562,159 @@ void test_0x29_auth_example_6(void **state) {
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP2, sizeof(EXPECTED_RESP2));
 }
 
+UDSErr_t fn_test_0x29_example_7(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+    TEST_INT_EQUAL(ev, UDS_EVT_Auth);
+
+    UDSAuthArgs_t *args = arg;
+
+    switch (args->type) {
+    case UDS_LEV_AT_RCFA: {
+        args->set_auth_state(srv, UDS_AT_RA);
+
+        uint8_t challengeLength[] = {0x00, 0x10};
+        args->copy(srv, challengeLength, sizeof(challengeLength));
+
+        uint8_t challengeServer[] = {0x32, 0x43, 0xF6, 0xA8, 0x88, 0x5A, 0x30, 0x8D,
+                                     0x31, 0x31, 0x98, 0xA2, 0xE0, 0x37, 0x07, 0x34};
+        args->copy(srv, challengeServer, sizeof(challengeServer));
+
+        uint8_t parameterLength[] = {0x00, 0x00};
+        return args->copy(srv, parameterLength, sizeof(parameterLength));
+    }
+    case UDS_LEV_AT_VPOWNU:
+        return UDS_NRC_OwnershipVerificationFailed;
+    }
+
+    return UDS_NRC_GeneralReject;
+}
+
+// ISO14229-1 2020 10.6.8.7 Example #7 Unidirectional Authentication using Challenge-Response (ACR)
+// with symmetric cryptography without session key establishment (failure path)
+void test_0x29_auth_example_7(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[100] = {0};
+
+    e->server->fn = fn_test_0x29_example_7;
+    e->server->fn_data = NULL;
+
+    /* Request per ISO14229-1 2020 Table 115 */
+    const uint8_t REQ1[] = {
+        0x29,            /* Authentication Request SID (ARS) */
+        UDS_LEV_AT_RCFA, /* authenticationTask = requestChallengeForAuthentication (LEV_AT_RCFA) */
+        0x00,            /* communicationConfiguration = no secure communication (COCO) */
+
+        0x06, /* algorithmIndicator[0] */
+        0x07, /* algorithmIndicator[1] */
+        0x08, /* algorithmIndicator[2] */
+        0x09, /* algorithmIndicator[3] */
+        0x0A, /* algorithmIndicator[4] */
+        0x0B, /* algorithmIndicator[5] */
+        0x0C, /* algorithmIndicator[6] */
+        0x0D, /* algorithmIndicator[7] */
+        0x0E, /* algorithmIndicator[8] */
+        0x0F, /* algorithmIndicator[9] */
+        0x02, /* algorithmIndicator[10] */
+        0x11, /* algorithmIndicator[11] */
+        0x12, /* algorithmIndicator[12] */
+        0x13, /* algorithmIndicator[13] */
+        0x14, /* algorithmIndicator[14] */
+        0x00, /* algorithmIndicator[15] */
+    };
+
+    UDSTpSend(e->client_tp, REQ1, sizeof(REQ1), NULL);
+
+    /* Response per ISO14229-1 2020 Table 116 */
+    const uint8_t EXPECTED_RESP1[] = {
+        0x69,            /* Authentication Response SID (ARS) */
+        UDS_LEV_AT_RCFA, /* authenticationTask = requestChallengeForAuthentication (LEV_AT_RCFA) */
+        UDS_AT_RA,       /* returnValue = Request accepted (RV_RA) */
+
+        0x06, /* algorithmIndicator[0] */
+        0x07, /* algorithmIndicator[1] */
+        0x08, /* algorithmIndicator[2] */
+        0x09, /* algorithmIndicator[3] */
+        0x0A, /* algorithmIndicator[4] */
+        0x0B, /* algorithmIndicator[5] */
+        0x0C, /* algorithmIndicator[6] */
+        0x0D, /* algorithmIndicator[7] */
+        0x0E, /* algorithmIndicator[8] */
+        0x0F, /* algorithmIndicator[9] */
+        0x02, /* algorithmIndicator[10] */
+        0x11, /* algorithmIndicator[11] */
+        0x12, /* algorithmIndicator[12] */
+        0x13, /* algorithmIndicator[13] */
+        0x14, /* algorithmIndicator[14] */
+        0x00, /* algorithmIndicator[15] */
+
+        0x00, /* lengthOfChallengeServer[0] (high byte) */
+        0x10, /* lengthOfChallengeServer[1] (low byte) */
+
+        /* challengeServer [0-15] */
+        0x32, 0x43, 0xF6, 0xA8, 0x88, 0x5A, 0x30, 0x8D, 0x31, 0x31, 0x98, 0xA2, 0xE0, 0x37, 0x07,
+        0x34,
+
+        0x00, /* lengthOfNeededAdditionalParameter[0] (high byte) */
+        0x00, /* lengthOfNeededAdditionalParameter[1] (low byte) */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP1, sizeof(EXPECTED_RESP1));
+
+    /* Request per ISO14229-1 2020 Table 117 */
+    const uint8_t REQ2[] = {
+        0x29,              /* Authentication Request SID (ARS) */
+        UDS_LEV_AT_VPOWNU, /* authenticationTask = verifyProofOfOwnershipUnidirectional
+                              (LEV_AT_VPOWNU) */
+
+        0x06, /* algorithmIndicator[0] */
+        0x07, /* algorithmIndicator[1] */
+        0x08, /* algorithmIndicator[2] */
+        0x09, /* algorithmIndicator[3] */
+        0x0A, /* algorithmIndicator[4] */
+        0x0B, /* algorithmIndicator[5] */
+        0x0C, /* algorithmIndicator[6] */
+        0x0D, /* algorithmIndicator[7] */
+        0x0E, /* algorithmIndicator[8] */
+        0x0F, /* algorithmIndicator[9] */
+        0x10, /* algorithmIndicator[10] */
+        0x02, /* algorithmIndicator[11] */
+        0x11, /* algorithmIndicator[12] */
+        0x12, /* algorithmIndicator[13] */
+        0x13, /* algorithmIndicator[14] */
+        0x00, /* algorithmIndicator[15] */
+
+        0x00, /* lengthOfProofOfOwnershipClient[0] (high byte) */
+        0x10, /* lengthOfProofOfOwnershipClient[1] (low byte) */
+
+        /* proofOfOwnershipClient [0-15] */
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+        0x11,
+
+        0x00, /* lengthOfChallengeClient[0] (LOCHCL) */
+        0x00, /* lengthOfChallengeClient[1] (LOCHCL) */
+
+        0x00, /* lengthOfAdditionalParameter[0] (high byte) */
+        0x00, /* lengthOfAdditionalParameter[1] (low byte) */
+    };
+
+    UDSTpSend(e->client_tp, REQ2, sizeof(REQ2), NULL);
+
+    /* Response per ISO14229-1 2020 Table 118 */
+    const uint8_t EXPECTED_RESP2[] = {
+        0x7F,                                /* Negative Response SID (SIDRSIDNRQ) */
+        0x29,                                /* Authentication Request SID (ARS) */
+        UDS_NRC_OwnershipVerificationFailed, /* responseCode = Ownership verification failed
+                                                (NRC_OVF) */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP2, sizeof(EXPECTED_RESP2));
+}
+
 UDSErr_t fn_test_0x2C(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     TEST_INT_EQUAL(ev, UDS_EVT_DynamicDefineDataId);
     UDSDDDIArgs_t *args = arg;
@@ -5691,6 +5844,7 @@ int main(int ac, char **av) {
         cmocka_unit_test_setup_teardown(test_0x29_auth_example_4, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x29_auth_example_5, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x29_auth_example_6, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_auth_example_7, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_request_too_short, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_sub_0x01, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_sub_0x01_request_too_short, Setup, Teardown),
