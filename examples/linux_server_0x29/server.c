@@ -37,6 +37,9 @@ static UDSErr_t fn(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     case UDS_EVT_SessionTimeout:
         printf("Session timeout occurred\n");
         return UDS_OK;
+    case UDS_EVT_AuthTimeout:
+        printf("Authentication timeout occurred\n");
+        return UDS_OK;
     case UDS_EVT_Auth: {
         UDSAuthArgs_t *r = (UDSAuthArgs_t *)arg;
 
