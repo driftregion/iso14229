@@ -93,6 +93,12 @@ static UDSErr_t ClientEventHandler(UDSClient_t *client, UDSEvent_t evt, void *ev
             ctx->state = STATE_REQUEST_SEED;
             return UDS_OK;
         }
+
+        if (evt == UDS_EVT_ResponseReceived) {
+            printf("Expected an error but received a positive response! Is the server "
+                   "already/still in an authenticated state?\n");
+            ctx->state = STATE_REQUEST_SEED;
+        }
         break;
     }
 
