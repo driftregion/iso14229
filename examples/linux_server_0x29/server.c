@@ -31,6 +31,12 @@ void sigint_handler(int signum) {
 
 static UDSErr_t fn(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     switch (ev) {
+    case UDS_EVT_DiagSessCtrl:
+        printf("Diagnostic Session Control request received\n");
+        return UDS_OK;
+    case UDS_EVT_SessionTimeout:
+        printf("Session timeout occurred\n");
+        return UDS_OK;
     case UDS_EVT_Auth: {
         UDSAuthArgs_t *r = (UDSAuthArgs_t *)arg;
 
@@ -51,7 +57,7 @@ static UDSErr_t fn(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
                 return UDS_NRC_GeneralReject;
             }
 
-            printf("Generated seed: ");
+            printf("Generated seed:\t\t\t");
             for (int i = 0; i < 16; i++) {
                 printf("%02X ", current_seed[i]);
             }
@@ -84,7 +90,7 @@ static UDSErr_t fn(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
             }
 
             uint8_t *encrypted_proof = (uint8_t *)r->subFuncArgs.verifyPownArgs.pown;
-            printf("Received encrypted proof: ");
+            printf("Received encrypted proof:\t");
             for (int i = 0; i < 16; i++) {
                 printf("%02X ", encrypted_proof[i]);
             }
@@ -97,13 +103,13 @@ static UDSErr_t fn(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
                 return UDS_NRC_GeneralReject;
             }
 
-            printf("Decrypted proof: ");
+            printf("Decrypted proof:\t\t");
             for (int i = 0; i < 16; i++) {
                 printf("%02X ", decrypted_proof[i]);
             }
             printf("\n");
 
-            printf("Expected seed: ");
+            printf("Expected seed:\t\t\t");
             for (int i = 0; i < 16; i++) {
                 printf("%02X ", current_seed[i]);
             }

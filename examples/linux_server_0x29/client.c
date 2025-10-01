@@ -13,10 +13,14 @@
 
 // State machine for client operations with authentication
 typedef enum {
-    STATE_REQUEST_SEED,       // Request authentication seed (0x27 0x29)
-    STATE_WAIT_SEED_RESPONSE, // Wait for seed response
-    STATE_SEND_KEY,           // Send encrypted key (0x27 0x30)
-    STATE_WAIT_KEY_RESPONSE,  // Wait for key validation response
+    STATE_SEND_CHANGE_SESSION_REQUEST,
+    STATE_WAIT_CHANGE_SESSION_RESPONSE,
+    STATE_SEND_ECU_SERIAL_FAIL_REQUEST,  // Send ECU Serial Number (0xF18C) request; expect failure
+    STATE_WAIT_ECU_SERIAL_FAIL_RESPONSE, // Wait for ECU serial failure response
+    STATE_REQUEST_SEED,                  // Request authentication seed (0x27 0x29)
+    STATE_WAIT_SEED_RESPONSE,            // Wait for seed response
+    STATE_SEND_KEY,                      // Send encrypted key (0x27 0x30)
+    STATE_WAIT_KEY_RESPONSE,             // Wait for key validation response
     STATE_SEND_ECU_SERIAL_REQUEST,
     STATE_WAIT_ECU_SERIAL_RESPONSE,
     STATE_SEND_VIN_REQUEST,
@@ -46,13 +50,51 @@ static int SleepMillis(uint32_t tms) {
 static UDSErr_t ClientEventHandler(UDSClient_t *client, UDSEvent_t evt, void *ev_data) {
     ClientContext_t *ctx = (ClientContext_t *)client->fn_data;
 
-    if (evt == UDS_EVT_Err) {
-        printf("Error occurred: %s\n", UDSErrToStr(*(UDSErr_t *)ev_data));
-        ctx->done = true;
-        return UDS_OK;
+    switch (ctx->state) {
+
+    case STATE_SEND_CHANGE_SESSION_REQUEST: {
+        printf("Sending Diagnostic Session Control request (Programming Session)...\n");
+        UDSErr_t err = UDSSendDiagSessCtrl(client, UDS_LEV_DS_PRGS);
+        if (err) {
+            printf("Failed to send session change request: %s\n", UDSErrToStr(err));
+            ctx->done = true;
+            return err;
+        }
+        ctx->state = STATE_WAIT_CHANGE_SESSION_RESPONSE;
+        break;
     }
 
-    switch (ctx->state) {
+    case STATE_WAIT_CHANGE_SESSION_RESPONSE: {
+        if (evt == UDS_EVT_ResponseReceived) {
+            printf("Session change response received - Now in Programming Session\n");
+            ctx->state = STATE_SEND_ECU_SERIAL_FAIL_REQUEST;
+        }
+        break;
+    }
+
+    case STATE_SEND_ECU_SERIAL_FAIL_REQUEST: {
+        printf("Sending ECU Serial Number (0xF18C) request (expecting failure due to "
+               "authentication)...\n");
+        const uint16_t dids[] = {0xF18C};
+        UDSErr_t err = UDSSendRDBI(client, dids, 1);
+        if (err) {
+            printf("Failed to send ECU serial request: %s\n", UDSErrToStr(err));
+            ctx->done = true;
+            return err;
+        }
+        ctx->state = STATE_WAIT_ECU_SERIAL_FAIL_RESPONSE;
+        break;
+    }
+
+    case STATE_WAIT_ECU_SERIAL_FAIL_RESPONSE: {
+
+        if (evt == UDS_EVT_Err) {
+            printf("Expected Error occurred: %s\n", UDSErrToStr(*(UDSErr_t *)ev_data));
+            ctx->state = STATE_REQUEST_SEED;
+            return UDS_OK;
+        }
+        break;
+    }
 
     case STATE_REQUEST_SEED: {
         printf("Requesting authentication seed (0x27 0x29)...\n");
@@ -96,7 +138,7 @@ static UDSErr_t ClientEventHandler(UDSClient_t *client, UDSEvent_t evt, void *ev
             printf("Seed response received, extracting seed...\n");
 
             if (client->recv_size < 21) {
-                printf("Response too short: %zu bytes\n", client->recv_size);
+                printf("Response too short: %u bytes\n", client->recv_size);
                 ctx->done = true;
                 return UDS_ERR_RESP_TOO_SHORT;
             }
@@ -260,6 +302,12 @@ static UDSErr_t ClientEventHandler(UDSClient_t *client, UDSEvent_t evt, void *ev
         break;
     }
 
+    if (evt == UDS_EVT_Err) {
+        printf("Error occurred: %s\n", UDSErrToStr(*(UDSErr_t *)ev_data));
+        ctx->done = true;
+        return UDS_OK;
+    }
+
     return UDS_OK;
 }
 
@@ -286,10 +334,10 @@ int main(int ac, char **av) {
     client.fn_data = &ctx;
 
     // Initialize client context
-    ctx.state = STATE_REQUEST_SEED; // Start with authentication
+    ctx.state = STATE_SEND_CHANGE_SESSION_REQUEST; // Start with session change
     ctx.done = false;
 
-    printf("Starting authentication and RDBI requests...\n");
+    printf("Starting session change, authentication and RDBI requests...\n");
 
     // Main loop
     while (!ctx.done) {
@@ -297,6 +345,6 @@ int main(int ac, char **av) {
         SleepMillis(1); // Small delay to prevent busy waiting
     }
 
-    printf("Authentication and RDBI demo completed.\n");
+    printf("Session change, authentication and RDBI demo completed.\n");
     return 0;
 }
