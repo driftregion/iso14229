@@ -29,10 +29,16 @@ int Teardown(void **state) {
 }
 
 int fn_test_session_timeout(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
-    int *call_count = (int *)srv->fn_data;
-    TEST_INT_EQUAL(UDS_EVT_SessionTimeout, ev);
-    (*call_count)++;
-    return UDS_OK;
+    if (ev == UDS_EVT_SessionTimeout) {
+        int *call_count = (int *)srv->fn_data;
+        TEST_INT_EQUAL(UDS_EVT_SessionTimeout, ev);
+        (*call_count)++;
+        return UDS_OK;
+    } else if (ev == UDS_EVT_AuthTimeout) {
+        return UDS_OK;
+    }
+
+    return UDS_NRC_SubFunctionNotSupported;
 }
 
 void test_default_session_does_not_timeout(void **state) {
@@ -3580,6 +3586,98 @@ void test_0x29_auth_config(void **state) {
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
+UDSErr_t fn_test_0x29_auth_timeout(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+    if (ev == UDS_EVT_DiagSessCtrl || ev == UDS_EVT_SessionTimeout) {
+        return UDS_OK;
+    }
+
+    if (ev == UDS_EVT_AuthTimeout) {
+        *(bool *)srv->fn_data = true;
+        return UDS_OK;
+    }
+
+    return UDS_NRC_SubFunctionNotSupported;
+}
+
+void test_0x29_auth_timeout_on_session_timeout(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    bool authTimeoutReceived = false;
+    e->server->fn = fn_test_0x29_auth_timeout;
+    e->server->fn_data = &authTimeoutReceived;
+
+    const uint8_t REQ[] = {
+        0x10,            /* SID */
+        UDS_LEV_DS_PRGS, /* Session */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x50,            /* Response SID */
+        UDS_LEV_DS_PRGS, /* Session */
+        /* Session parameter don't interest us here */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+    TEST_INT_EQUAL(authTimeoutReceived, false);
+
+    /* Provoke Timeout */
+    EnvRunMillis(e, 10000);
+    TEST_INT_EQUAL(authTimeoutReceived, true);
+}
+
+void test_0x29_auth_timeout_on_session_switch_to_default(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    bool authTimeoutReceived = false;
+    e->server->fn = fn_test_0x29_auth_timeout;
+    e->server->fn_data = &authTimeoutReceived;
+
+    const uint8_t REQ1[] = {
+        0x10,            /* SID */
+        UDS_LEV_DS_PRGS, /* Session */
+    };
+
+    UDSTpSend(e->client_tp, REQ1, sizeof(REQ1), NULL);
+
+    const uint8_t EXPECTED_RESP1[] = {
+        0x50,            /* Response SID */
+        UDS_LEV_DS_PRGS, /* Session */
+        /* Session parameter don't interest us here */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP1, sizeof(EXPECTED_RESP1));
+    TEST_INT_EQUAL(authTimeoutReceived, false);
+
+    const uint8_t REQ2[] = {
+        0x10,          /* SID */
+        UDS_LEV_DS_DS, /* Session */
+    };
+
+    UDSTpSend(e->client_tp, REQ2, sizeof(REQ2), NULL);
+
+    const uint8_t EXPECTED_RESP2[] = {
+        0x50,          /* Response SID */
+        UDS_LEV_DS_DS, /* Session */
+        /* Session parameter don't interest us here */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP2, sizeof(EXPECTED_RESP2));
+    TEST_INT_EQUAL(authTimeoutReceived, true);
+}
+
 UDSErr_t fn_test_0x29_example_1(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     TEST_INT_EQUAL(ev, UDS_EVT_Auth);
 
@@ -5838,6 +5936,9 @@ int main(int ac, char **av) {
         cmocka_unit_test_setup_teardown(test_0x29_auth_verify_pown_unidirectional, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x29_auth_verify_pown_bidirectional, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x29_auth_config, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_auth_timeout_on_session_timeout, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_auth_timeout_on_session_switch_to_default, Setup,
+                                        Teardown),
         cmocka_unit_test_setup_teardown(test_0x29_auth_example_1, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x29_auth_example_2, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x29_auth_example_3, Setup, Teardown),

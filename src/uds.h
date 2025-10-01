@@ -29,6 +29,7 @@ typedef enum UDSEvent {
     UDS_EVT_RequestFileTransfer,  // UDSRequestFileTransferArgs_t *
     UDS_EVT_LinkControl,          // UDSLinkCtrlArgs_t *
     UDS_EVT_Custom,               // UDSCustomArgs_t *
+    UDS_EVT_AuthTimeout,          // NULL
 
     // Client Event
     UDS_EVT_Poll,             // NULL
