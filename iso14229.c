@@ -922,7 +922,14 @@ static UDSErr_t Handle_0x10_DiagnosticSessionControl(UDSServer_t *srv, UDSReq_t 
         .p2_star_ms = UDS_CLIENT_DEFAULT_P2_STAR_MS,
     };
 
-    UDSErr_t err = EmitEvent(srv, UDS_EVT_DiagSessCtrl, &args);
+    UDSErr_t err = UDS_OK;
+
+    // when transitioning from a non-default session to a default session
+    if (srv->sessionType != UDS_LEV_DS_DS && args.type == UDS_LEV_DS_DS) {
+        EmitEvent(srv, UDS_EVT_AuthTimeout, NULL);
+    }
+
+    err = EmitEvent(srv, UDS_EVT_DiagSessCtrl, &args);
 
     if (UDS_PositiveResponse != err) {
         return NegativeResponse(r, err);
@@ -2829,6 +2836,7 @@ void UDSServerPoll(UDSServer_t *srv) {
     // UDS-1-2013 Figure 38: Session Timeout (S3)
     if (UDS_LEV_DS_DS != srv->sessionType &&
         UDSTimeAfter(UDSMillis(), srv->s3_session_timeout_timer)) {
+        EmitEvent(srv, UDS_EVT_AuthTimeout, NULL);
         EmitEvent(srv, UDS_EVT_SessionTimeout, NULL);
         srv->sessionType = UDS_LEV_DS_DS;
         srv->securityLevel = 0;

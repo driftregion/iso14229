@@ -52,6 +52,7 @@ static UDSErr_t Handle_0x10_DiagnosticSessionControl(UDSServer_t *srv, UDSReq_t 
 
     // when transitioning from a non-default session to a default session
     if (srv->sessionType != UDS_LEV_DS_DS && args.type == UDS_LEV_DS_DS) {
+        // ignore event returncode as we don't force user to handle this event
         EmitEvent(srv, UDS_EVT_AuthTimeout, NULL);
     }
 
