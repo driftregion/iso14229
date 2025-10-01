@@ -1,4 +1,6 @@
 #include "iso14229.h"
+#include "uds_aes_key.h"
+#include "aes_utils.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,7 +14,9 @@
 static UDSServer_t srv;
 static UDSTpIsoTpSock_t tp;
 static bool done = false;
-static uint8_t seed[32] = {0};
+static uint8_t current_seed[16] = {0};      // Current 16-byte seed for 0x29 Authentication
+static bool authentication_required = true; // Require authentication before RDBI
+static bool is_authenticated = false;       // Track authentication status
 
 // Sample data for RDBI demonstration
 static uint8_t sample_vin[18] = "1HGBH41JXMN109186"; // Sample VIN (Vehicle Identification Number)
@@ -25,19 +29,19 @@ void sigint_handler(int signum) {
 
 static UDSErr_t fn(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     switch (ev) {
-    case UDS_EVT_SecAccessRequestSeed: {
-        // TODO: Implement security access seed generation
-        printf("Security access seed request received\n");
-        return UDS_NRC_ServiceNotSupported;
-    }
-    case UDS_EVT_SecAccessValidateKey: {
-        // TODO: Implement security access key validation
-        printf("Security access key validation received\n");
-        return UDS_NRC_ServiceNotSupported;
+    case UDS_EVT_Auth: {
+        UDSAuthArgs_t *r = (UDSAuthArgs_t *)arg;
+        r->
     }
     case UDS_EVT_ReadDataByIdent: {
         UDSRDBIArgs_t *r = (UDSRDBIArgs_t *)arg;
         printf("RDBI request for data identifier: 0x%04X\n", r->dataId);
+
+        // Check if authentication is required and if client is authenticated
+        if (authentication_required && !is_authenticated) {
+            printf("Authentication required before RDBI access\n");
+            return UDS_NRC_SecurityAccessDenied;
+        }
 
         switch (r->dataId) {
         case 0xF190: // VIN (Vehicle Identification Number)

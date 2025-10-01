@@ -1,5 +1,5 @@
-SRCS += ../../iso14229.c
-HDRS += ../../iso14229.h
+SRCS += ../../iso14229.c aes_utils.c
+HDRS += ../../iso14229.h aes_utils.h
 TARGETS = server client
 
 # Libraries to pull flags from
@@ -17,10 +17,10 @@ KEY_HDR = uds_aes_key.h
 
 all: $(TARGETS) $(KEY_HDR)
 
-server: $(SRCS) $(HDRS) server.c Makefile
+server: $(SRCS) $(HDRS) $(KEY_HDR) server.c Makefile
 	$(CC) $(CFLAGS) $(SRCS) server.c $(LDLIBS) -o $@
 
-client: $(SRCS) $(HDRS) client.c Makefile
+client: $(SRCS) $(HDRS) $(KEY_HDR) client.c Makefile
 	$(CC) $(CFLAGS) $(SRCS) client.c $(LDLIBS) -o $@
 
 $(KEY_BIN):

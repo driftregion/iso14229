@@ -1,4 +1,6 @@
 #include "iso14229.h"
+#include "uds_aes_key.h"
+#include "aes_utils.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,8 +11,12 @@
 #include <stdbool.h>
 #include <unistd.h>
 
-// State machine for client operations
+// State machine for client operations with authentication
 typedef enum {
+    STATE_REQUEST_SEED,       // Request authentication seed (0x27 0x29)
+    STATE_WAIT_SEED_RESPONSE, // Wait for seed response
+    STATE_SEND_KEY,           // Send encrypted key (0x27 0x30)
+    STATE_WAIT_KEY_RESPONSE,  // Wait for key validation response
     STATE_SEND_ECU_SERIAL_REQUEST,
     STATE_WAIT_ECU_SERIAL_RESPONSE,
     STATE_SEND_VIN_REQUEST,
@@ -22,6 +28,7 @@ typedef struct {
     ClientState_t state;
     char vin_data[18];   // VIN data (17 chars + null terminator)
     uint16_t ecu_serial; // ECU serial number
+    uint8_t seed[16];    // Received seed from server
     bool done;
 } ClientContext_t;
 
@@ -46,6 +53,141 @@ static UDSErr_t ClientEventHandler(UDSClient_t *client, UDSEvent_t evt, void *ev
     }
 
     switch (ctx->state) {
+
+    case STATE_REQUEST_SEED: {
+        printf("Requesting authentication seed (0x27 0x29)...\n");
+
+        const uint8_t request_data[3 + 16] = {
+            kSID_AUTHENTICATION, // Service ID
+            UDS_LEV_AT_RCFA,     // requestChallengeForAuthentication
+            0x00,                // communication Configuration
+
+            /* Algorithm Indicator for AES-128-CBC */
+            0x06,
+            0x09,
+            0x60,
+            0x86,
+            0x48,
+            0x01,
+            0x65,
+            0x03,
+            0x04,
+            0x01,
+            0x02,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        };
+
+        UDSErr_t err = UDSSendBytes(client, request_data, sizeof(request_data));
+        if (err) {
+            printf("Failed to send seed request: %s\n", UDSErrToStr(err));
+            ctx->done = true;
+            return err;
+        }
+        ctx->state = STATE_WAIT_SEED_RESPONSE;
+        break;
+    }
+
+    case STATE_WAIT_SEED_RESPONSE: {
+        if (evt == UDS_EVT_ResponseReceived) {
+            printf("Seed response received, extracting seed...\n");
+
+            // Get response data (first byte is SID, second is level, rest is seed)
+            uint8_t *resp_data = client->recv_buf + 2; // Skip SID and task
+            size_t seed_len = client->recv_size - 2;
+
+            if (client->recv_size < 21) {
+                printf("Response too short: %zu bytes\n", client->recv_size);
+                ctx->done = true;
+                return UDS_ERR_RESP_TOO_SHORT;
+            }
+
+            uint16_t challenge_len =
+                (uint16_t)((uint16_t)client->recv_buf[19] << 8 | (uint16_t)client->recv_buf[20]);
+
+            if (challenge_len != 16) {
+                printf("Invalid challenge length: %u (expected 16)\n", challenge_len);
+                ctx->done = true;
+                return UDS_ERR_MISUSE;
+            }
+
+            // Copy the seed
+            memcpy(ctx->seed, &resp_data[21], 16);
+
+            printf("Received seed: ");
+            for (int i = 0; i < 16; i++) {
+                printf("%02X ", ctx->seed[i]);
+            }
+            printf("\n");
+
+            ctx->state = STATE_SEND_KEY;
+        }
+        break;
+    }
+
+    case STATE_SEND_KEY: {
+        printf("Encrypting seed and sending key (0x27 0x30)...\n");
+
+        // Encrypt the seed with our AES key
+        uint8_t encrypted_key[16];
+        if (aes_encrypt_ecb(uds_aes_key, ctx->seed, encrypted_key) != 0) {
+            printf("Failed to encrypt seed\n");
+            ctx->done = true;
+            return UDS_ERR_INVALID_ARG;
+        }
+
+        printf("Sending encrypted key: ");
+        for (int i = 0; i < 16; i++) {
+            printf("%02X ", encrypted_key[i]);
+        }
+        printf("\n");
+
+        uint8_t request_data[2 + 16 + 2 + 16 + 2 + 2] = {
+            kSID_AUTHENTICATION, // Service ID
+            UDS_LEV_AT_VPOWNU,   // requestVerifyPown
+
+            /* Algorithm Indicator for AES-128-CBC */
+            0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x01, 0x02, 0x00, 0x00, 0x00,
+            0x00, 0x00,
+
+            0x00, 0x10, // Length of pown
+
+            // We add the pown below
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00,
+
+            0x00, 0x00, // length of challenge client
+            0x00, 0x00, // length of additional parameters
+        };
+
+        memcpy(&request_data[18], encrypted_key, 16);
+
+        UDSErr_t err = UDSSendBytes(client, request_data, sizeof(request_data));
+        if (err) {
+            printf("Failed to send key: %s\n", UDSErrToStr(err));
+            ctx->done = true;
+            return err;
+        }
+        ctx->state = STATE_WAIT_KEY_RESPONSE;
+        break;
+    }
+
+    case STATE_WAIT_KEY_RESPONSE: {
+        if (evt == UDS_EVT_ResponseReceived) {
+            if (client->recv_size < 3 || client->recv_buf[2] != UDS_AT_OVAC) {
+                printf("Key validation failed or invalid response\n");
+                ctx->done = true;
+                return UDS_ERR_MISUSE;
+            }
+
+            printf("Key validation response received - Authentication successful!\n");
+            ctx->state = STATE_SEND_ECU_SERIAL_REQUEST;
+        }
+        break;
+    }
 
     case STATE_SEND_ECU_SERIAL_REQUEST: {
         printf("Sending ECU Serial Number (0xF18C) request...\n");
@@ -146,10 +288,10 @@ int main(int ac, char **av) {
     client.fn_data = &ctx;
 
     // Initialize client context
-    ctx.state = STATE_SEND_ECU_SERIAL_REQUEST;
+    ctx.state = STATE_REQUEST_SEED; // Start with authentication
     ctx.done = false;
 
-    printf("Starting RDBI requests...\n");
+    printf("Starting authentication and RDBI requests...\n");
 
     // Main loop
     while (!ctx.done) {
@@ -157,6 +299,6 @@ int main(int ac, char **av) {
         SleepMillis(1); // Small delay to prevent busy waiting
     }
 
-    printf("RDBI demo completed.\n");
+    printf("Authentication and RDBI demo completed.\n");
     return 0;
 }
