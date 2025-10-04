@@ -1439,7 +1439,7 @@ static UDSErr_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
     case kSID_TESTER_PRESENT:
     case kSID_CONTROL_DTC_SETTING:
     case kSID_LINK_CONTROL: {
-        assert(service);
+        UDS_ASSERT(service);
         response = service(srv, r);
 
         bool suppressPosRspMsgIndicationBit = r->recv_buf[1] & 0x80;
@@ -1466,7 +1466,7 @@ static UDSErr_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
     case kSID_TRANSFER_DATA:
     case kSID_REQUEST_FILE_TRANSFER:
     case kSID_REQUEST_TRANSFER_EXIT: {
-        assert(service);
+        UDS_ASSERT(service);
         response = service(srv, r);
         break;
     }
