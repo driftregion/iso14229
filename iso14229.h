@@ -617,14 +617,14 @@ const char *UDSEventToStr(UDSEvent_t evt);
 
 
 
-typedef enum {
-    UDS_LOG_NONE,    // No log output
-    UDS_LOG_ERROR,   // Log errors only
-    UDS_LOG_WARN,    // Log warnings and errors
-    UDS_LOG_INFO,    // Log info, warnings, and errors
-    UDS_LOG_DEBUG,   // Log debug, info, warnings, and errors
-    UDS_LOG_VERBOSE, // Log verbose, debug, info, warnings, and errors
-} UDS_LogLevel_t;
+#define UDS_LOG_NONE 0    // No log output
+#define UDS_LOG_ERROR 1   // Log errors only
+#define UDS_LOG_WARN 2    // Log warnings and errors
+#define UDS_LOG_INFO 3    // Log info, warnings, and errors
+#define UDS_LOG_DEBUG 4   // Log debug, info, warnings, and errors
+#define UDS_LOG_VERBOSE 5 // Log verbose, debug, info, warnings, and errors
+
+typedef int UDS_LogLevel_t;
 
 #ifndef UDS_LOG_LEVEL
 #define UDS_LOG_LEVEL UDS_LOG_NONE
@@ -658,7 +658,7 @@ typedef enum {
 #define UDS_LOG_FORMAT(letter, format)                                                             \
     UDS_LOG_COLOR_##letter #letter " (%" PRIu32 ") %s: " format UDS_LOG_RESET_COLOR "\n"
 
-#if UDS_LOG_LEVEL >= UDS_LOG_ERROR && UDS_LOG_LEVEL > UDS_LOG_NONE
+#if (UDS_LOG_LEVEL >= UDS_LOG_ERROR) && (UDS_LOG_LEVEL > UDS_LOG_NONE)
 #define UDS_LOGE(tag, format, ...)                                                                 \
     UDS_LogWrite(UDS_LOG_ERROR, tag, UDS_LOG_FORMAT(E, format), UDSMillis(), tag, ##__VA_ARGS__)
 #else
@@ -712,7 +712,8 @@ void UDS_LogWrite(UDS_LogLevel_t level, const char *tag, const char *format, ...
     UDS_PRINTF_FORMAT(3, 4);
 void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *buffer,
                         size_t buff_len, UDSSDU_t *info);
-#else
+#endif
+
 // Dummy function that consumes arguments but does nothing
 static inline void UDS_LogDummy(const char *tag, const char *format, ...) {
     (void)tag;
@@ -725,7 +726,6 @@ static inline void UDS_LogSDUDummy(const char *tag, const uint8_t *buffer, size_
     (void)buff_len;
     (void)info;
 }
-#endif
 
 
 

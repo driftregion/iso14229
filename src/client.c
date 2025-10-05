@@ -711,14 +711,15 @@ UDSErr_t UDSSendSecurityAccess(UDSClient_t *client, uint8_t level, uint8_t *data
     client->send_buf[0] = kSID_SECURITY_ACCESS;
     client->send_buf[1] = level;
 
-    if (NULL == data) {
-        return UDS_ERR_INVALID_ARG;
-    }
     if (size > sizeof(client->send_buf) - UDS_0X27_REQ_BASE_LEN) {
         return UDS_ERR_BUFSIZ;
     }
     if (size == 0 && NULL != data) {
         UDS_LOGE(__FILE__, "size == 0 and data is non-null");
+        return UDS_ERR_INVALID_ARG;
+    }
+    if (size > 0 && NULL == data) {
+        UDS_LOGE(__FILE__, "size > 0 but data is null");
         return UDS_ERR_INVALID_ARG;
     }
     if (size > 0) {
