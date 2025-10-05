@@ -13,10 +13,10 @@ cleanup() {
 
 trap cleanup EXIT
 
+make
+
 (sleep 5; echo "Test timed out after 5 seconds"; kill -TERM $$ 2>/dev/null) &
 TIMEOUT_PID=$!
-
-make
 
 ./server &
 SERVER_PID=$!
