@@ -4,6 +4,8 @@ set -e
 CHECK_FORMAT=${CHECK_FORMAT:-""}
 
 files=`find src -type f \( -name '*.c' -o -name '*.h' \) -not -path "src/tp/isotp-c/*"`
+files="$files `find test -type f -name '*.c'`"
+
 
 if [ -n "$CLANG_FORMAT" ] ; then
     echo "Using CLANG_FORMAT from environment: $CLANG_FORMAT"

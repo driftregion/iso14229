@@ -44,18 +44,19 @@ void MockServerAddBehavior(MockServer_t *srv, struct Behavior *b) {
     struct Behavior *new_b = &impl->behaviors[impl->num_behaviors++];
     memcpy(new_b, b, sizeof(struct Behavior));
     switch (b->tag) {
-        case ExactRequestResponse:
-            UDS_LOGI(__FILE__, "added behavior ExactRequestResponse with %d ms delay", b->exact_request_response.delay_ms);
-            break;
-        case TimedSend: {
-            struct ScheduledEvent *evt = &impl->events[impl->num_events++];
-            evt->b = b;
-            evt->time_ms = b->timed_send.when;
-            UDS_LOGI(__FILE__, "added behavior TimedSend");
-            break;
-        }
-        default:
-            break;
+    case ExactRequestResponse:
+        UDS_LOGI(__FILE__, "added behavior ExactRequestResponse with %d ms delay",
+                 b->exact_request_response.delay_ms);
+        break;
+    case TimedSend: {
+        struct ScheduledEvent *evt = &impl->events[impl->num_events++];
+        evt->b = b;
+        evt->time_ms = b->timed_send.when;
+        UDS_LOGI(__FILE__, "added behavior TimedSend");
+        break;
+    }
+    default:
+        break;
     }
 }
 
@@ -72,20 +73,19 @@ void MockServerPoll(MockServer_t *srv) {
         for (int i = 0; i < impl->num_behaviors; i++) {
             struct Behavior *b = &impl->behaviors[i];
             switch (b->tag) {
-                case ExactRequestResponse:
-                    {
-                        struct ExactRequestResponse *s = &b->exact_request_response;
-                        if (recv_len == s->req_len && memcmp(buf, s->req_data, recv_len) == 0) {
-                            struct ScheduledEvent *evt = &impl->events[impl->num_events++];
-                            evt->time_ms = UDSMillis() + s->delay_ms;
-                            evt->b = b;
-                            UDS_LOGI(__FILE__, "scheduled event in %d ms", s->delay_ms);
-                            break;
-                        }
-                        break;
-                    }
-                default:
+            case ExactRequestResponse: {
+                struct ExactRequestResponse *s = &b->exact_request_response;
+                if (recv_len == s->req_len && memcmp(buf, s->req_data, recv_len) == 0) {
+                    struct ScheduledEvent *evt = &impl->events[impl->num_events++];
+                    evt->time_ms = UDSMillis() + s->delay_ms;
+                    evt->b = b;
+                    UDS_LOGI(__FILE__, "scheduled event in %d ms", s->delay_ms);
                     break;
+                }
+                break;
+            }
+            default:
+                break;
             }
         }
     }
@@ -94,18 +94,18 @@ void MockServerPoll(MockServer_t *srv) {
         struct ScheduledEvent *evt = &impl->events[i];
         if (UDSMillis() >= evt->time_ms) {
             switch (evt->b->tag) {
-                case ExactRequestResponse: {
-                    struct ExactRequestResponse *s = &evt->b->exact_request_response;
-                    UDSTpSend(srv->tp, s->resp_data, s->resp_len, NULL);
-                    break;
-                }
-                case TimedSend: {
-                    struct TimedSend *s = &evt->b->timed_send;
-                    UDSTpSend(srv->tp, s->send_data, s->send_len, NULL);
-                    break;
-                }
-                default:
-                    break;
+            case ExactRequestResponse: {
+                struct ExactRequestResponse *s = &evt->b->exact_request_response;
+                UDSTpSend(srv->tp, s->resp_data, s->resp_len, NULL);
+                break;
+            }
+            case TimedSend: {
+                struct TimedSend *s = &evt->b->timed_send;
+                UDSTpSend(srv->tp, s->send_data, s->send_len, NULL);
+                break;
+            }
+            default:
+                break;
             }
 
             for (int j = i + 1; j < impl->num_events; j++) {
@@ -115,7 +115,6 @@ void MockServerPoll(MockServer_t *srv) {
             i--;
         }
     }
-
 }
 
 void EnvRunMillis(Env_t *env, uint32_t millis) {
@@ -126,17 +125,17 @@ void EnvRunMillis(Env_t *env, uint32_t millis) {
         } else {
             if (env->server) {
                 UDSServerPoll(env->server);
-            } 
+            }
             if (env->server_tp) {
                 UDSTpPoll(env->server_tp);
             }
             if (env->client) {
                 UDSClientPoll(env->client);
-            } 
+            }
             if (env->client_tp) {
                 UDSTpPoll(env->client_tp);
             }
-            if (env->mock_server) { 
+            if (env->mock_server) {
                 MockServerPoll(env->mock_server);
             }
         }
@@ -150,4 +149,3 @@ void EnvRunMillis(Env_t *env, uint32_t millis) {
         TimeNowMillis++;
     }
 }
-

@@ -10,12 +10,12 @@
 #include "uds.h"
 #include "tp.h"
 
-#define UDS_LOG_NONE    0  // No log output
-#define UDS_LOG_ERROR   1  // Log errors only
-#define UDS_LOG_WARN    2  // Log warnings and errors
-#define UDS_LOG_INFO    3  // Log info, warnings, and errors
-#define UDS_LOG_DEBUG   4  // Log debug, info, warnings, and errors
-#define UDS_LOG_VERBOSE 5  // Log verbose, debug, info, warnings, and errors
+#define UDS_LOG_NONE 0    // No log output
+#define UDS_LOG_ERROR 1   // Log errors only
+#define UDS_LOG_WARN 2    // Log warnings and errors
+#define UDS_LOG_INFO 3    // Log info, warnings, and errors
+#define UDS_LOG_DEBUG 4   // Log debug, info, warnings, and errors
+#define UDS_LOG_VERBOSE 5 // Log verbose, debug, info, warnings, and errors
 
 typedef int UDS_LogLevel_t;
 
