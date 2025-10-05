@@ -10,17 +10,18 @@
 static UDSServer_t srv;
 static UDSTpIsoTpSock_t tp;
 static bool done = false;
+static int sleep_ms(uint32_t tms);
 
 void sigint_handler(int signum) {
     printf("SIGINT received\n");
     done = true;
 }
 
-static uint8_t fn(UDSServer_t *srv, UDSEvent_t ev, const void *arg) {
+static UDSErr_t fn(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     switch (ev) {
     default:
         printf("Unhandled event: %d\n", ev);
-        return kServiceNotSupported;
+        return UDS_NRC_ServiceNotSupported;
     }
 }
 
