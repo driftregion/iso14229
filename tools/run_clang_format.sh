@@ -5,6 +5,7 @@ CHECK_FORMAT=${CHECK_FORMAT:-""}
 
 files=`find src -type f \( -name '*.c' -o -name '*.h' \) -not -path "src/tp/isotp-c/*"`
 files="$files `find test -type f -name '*.c'`"
+files="$files `find examples -type f -name '*.c' -not -path '*/build/*'`"
 
 
 if [ -n "$CLANG_FORMAT" ] ; then

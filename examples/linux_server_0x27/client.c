@@ -24,7 +24,7 @@ typedef struct {
     size_t seed_len;
 } SequenceContext_t;
 
-static int sign(const uint8_t *seed, size_t seed_len, uint8_t* key, size_t key_len) {
+static int sign(const uint8_t *seed, size_t seed_len, uint8_t *key, size_t key_len) {
     int ret = 0;
     mbedtls_pk_context pk;
     mbedtls_entropy_context entropy;
@@ -32,7 +32,8 @@ static int sign(const uint8_t *seed, size_t seed_len, uint8_t* key, size_t key_l
     mbedtls_entropy_init(&entropy);
     mbedtls_ctr_drbg_init(&ctr_drbg);
     const char *pers = "rsa_sign";
-    mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, (const unsigned char *)pers, strlen(pers));
+    mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, (const unsigned char *)pers,
+                          strlen(pers));
 
     mbedtls_pk_init(&pk);
 
@@ -62,8 +63,9 @@ static int sign(const uint8_t *seed, size_t seed_len, uint8_t* key, size_t key_l
     }
 
     // Perform RSA signing operation
-    if (mbedtls_rsa_rsassa_pkcs1_v15_sign(rsa, mbedtls_ctr_drbg_random, &ctr_drbg, MBEDTLS_RSA_PRIVATE,
-                                          MBEDTLS_MD_SHA256, seed_len, seed, key) != 0) {
+    if (mbedtls_rsa_rsassa_pkcs1_v15_sign(rsa, mbedtls_ctr_drbg_random, &ctr_drbg,
+                                          MBEDTLS_RSA_PRIVATE, MBEDTLS_MD_SHA256, seed_len, seed,
+                                          key) != 0) {
         mbedtls_printf("Failed to sign data\n");
         ret = -1;
         goto exit;
@@ -84,86 +86,88 @@ UDSErr_t fn(UDSClient_t *client, UDSEvent_t evt, void *ev_data) {
         UDS_LOGI(__FILE__, "%s (%d)", UDSEventToStr(evt), evt);
     }
     if (UDS_EVT_Err == evt) {
-        UDS_LOGE(__FILE__, "Exiting on step %d with error: %s", c->step, UDSErrToStr(*(UDSErr_t*)ev_data));
+        UDS_LOGE(__FILE__, "Exiting on step %d with error: %s", c->step,
+                 UDSErrToStr(*(UDSErr_t *)ev_data));
         c->err = *(UDSErr_t *)ev_data;
         c->step = Step_DONE;
     }
     switch (c->step) {
-        case Step_0_RequestSeed: {
-            c->err = UDSSendSecurityAccess(client, 3, NULL, 0);
+    case Step_0_RequestSeed: {
+        c->err = UDSSendSecurityAccess(client, 3, NULL, 0);
+        if (c->err) {
+            UDS_LOGE(__FILE__, "UDSSendSecurityAccess failed with err: %s", UDSErrToStr(c->err));
+            c->step = Step_DONE;
+        }
+        c->step = Step_1_ReceiveSeed;
+        break;
+    }
+    case Step_1_ReceiveSeed: {
+        if (UDS_EVT_ResponseReceived == evt) {
+            struct SecurityAccessResponse sar = {0};
+            c->err = UDSUnpackSecurityAccessResponse(client, &sar);
             if (c->err) {
-                UDS_LOGE(__FILE__, "UDSSendSecurityAccess failed with err: %s", UDSErrToStr(c->err));
-                c->step = Step_DONE;
-            }
-            c->step = Step_1_ReceiveSeed;
-            break;
-        }
-        case Step_1_ReceiveSeed: {
-            if (UDS_EVT_ResponseReceived == evt) {
-                struct SecurityAccessResponse sar = {0};
-                c->err = UDSUnpackSecurityAccessResponse(client, &sar);
-                if (c->err) {
-                    UDS_LOGE(__FILE__, "UDSUnpackSecurityAccessResponse failed with err: %s", UDSErrToStr(c->err));
-                    c->step = Step_DONE;
-                    break;
-                }
-
-                printf("seed: ");
-                for (int i = 0; i < sar.securitySeedLength; i++) {
-                    printf("%02X ", sar.securitySeed[i]);
-                }
-                printf("\n");
-
-                // Check if all bytes in the seed are 0
-                bool all_zero = true;
-                for (int i = 0; i < sar.securitySeedLength; i++) {
-                    if (sar.securitySeed[i] != 0) {
-                        all_zero = false;
-                        break;
-                    }
-                }
-
-                if (all_zero) {
-                    UDS_LOGI(__FILE__, "seed is all zero, already unlocked");
-                    c->step = Step_DONE;
-                    break;
-                }
-
-                // Store seed for later use
-                memcpy(c->seed, sar.securitySeed, sar.securitySeedLength);
-                c->seed_len = sar.securitySeedLength;
-                c->step = Step_2_SendKey;
-            }
-            break;
-        }
-        case Step_2_SendKey: {
-            uint8_t key[512] = {0};
-            if (sign(c->seed, c->seed_len, key, sizeof(key))) {
-                UDS_LOGE(__FILE__, "sign failed");
-                c->err = UDS_FAIL;
+                UDS_LOGE(__FILE__, "UDSUnpackSecurityAccessResponse failed with err: %s",
+                         UDSErrToStr(c->err));
                 c->step = Step_DONE;
                 break;
             }
 
-            c->err = UDSSendSecurityAccess(client, 4, key, sizeof(key));
-            if (c->err) {
-                UDS_LOGE(__FILE__, "UDSSendSecurityAccess failed with err: %s", UDSErrToStr(c->err));
+            printf("seed: ");
+            for (int i = 0; i < sar.securitySeedLength; i++) {
+                printf("%02X ", sar.securitySeed[i]);
+            }
+            printf("\n");
+
+            // Check if all bytes in the seed are 0
+            bool all_zero = true;
+            for (int i = 0; i < sar.securitySeedLength; i++) {
+                if (sar.securitySeed[i] != 0) {
+                    all_zero = false;
+                    break;
+                }
+            }
+
+            if (all_zero) {
+                UDS_LOGI(__FILE__, "seed is all zero, already unlocked");
                 c->step = Step_DONE;
                 break;
             }
-            c->step = Step_3_ReceiveKeyResponse;
-            break;
+
+            // Store seed for later use
+            memcpy(c->seed, sar.securitySeed, sar.securitySeedLength);
+            c->seed_len = sar.securitySeedLength;
+            c->step = Step_2_SendKey;
         }
-        case Step_3_ReceiveKeyResponse: {
-            if (UDS_EVT_ResponseReceived == evt) {
-                UDS_LOGI(__FILE__, "Security access unlocked");
-                c->step = Step_DONE;
-            }
+        break;
+    }
+    case Step_2_SendKey: {
+        uint8_t key[512] = {0};
+        if (sign(c->seed, c->seed_len, key, sizeof(key))) {
+            UDS_LOGE(__FILE__, "sign failed");
+            c->err = UDS_FAIL;
+            c->step = Step_DONE;
             break;
         }
 
-        default:
+        c->err = UDSSendSecurityAccess(client, 4, key, sizeof(key));
+        if (c->err) {
+            UDS_LOGE(__FILE__, "UDSSendSecurityAccess failed with err: %s", UDSErrToStr(c->err));
+            c->step = Step_DONE;
             break;
+        }
+        c->step = Step_3_ReceiveKeyResponse;
+        break;
+    }
+    case Step_3_ReceiveKeyResponse: {
+        if (UDS_EVT_ResponseReceived == evt) {
+            UDS_LOGI(__FILE__, "Security access unlocked");
+            c->step = Step_DONE;
+        }
+        break;
+    }
+
+    default:
+        break;
     }
     return UDS_OK;
 }
@@ -185,7 +189,6 @@ int main(int ac, char **av) {
 #else
 #error "no transport defined"
 #endif
-
 
     if (UDSClientInit(&client)) {
         exit(-1);
