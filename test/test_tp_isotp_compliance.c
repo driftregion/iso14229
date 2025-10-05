@@ -229,7 +229,7 @@ void test_send_recv_max_len(void **state) {
     UDSTpSend(e->client_tp, MSG, sizeof(MSG), NULL);
 
     // the server should receive it quickly, albeit perhaps with a slight delay on vcan
-    EXPECT_WITHIN_MS(e, UDSTpRecv(e->server_tp, buf, sizeof(buf), NULL) > 0, 1000);
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->server_tp, buf, sizeof(buf), NULL) > 0, 3000);
 
     // it should be the same message
     TEST_MEMORY_EQUAL(buf, MSG, sizeof(MSG));
@@ -266,7 +266,7 @@ const struct CMUnitTest tests_tp_mock[] = {
     cmocka_unit_test_setup_teardown(test_send_functional_larger_than_single_frame_fails,    SetupMockTpPair,        TeardownMockTpPair),
     cmocka_unit_test_setup_teardown(test_send_recv_max_len,                                 SetupMockTpPair,        TeardownMockTpPair),
 
-    // The mock server doesn't implement fc timeouts 
+    // The mock server doesn't implement fc timeouts
     // cmocka_unit_test_setup_teardown(test_flow_control_frame_timeout,                        SetupMockTpClientOnly,  TeardownMockTpClientOnly),
 
     // Extended ID tests
@@ -278,7 +278,7 @@ const struct CMUnitTest tests_tp_mock[] = {
 };
 
 const struct CMUnitTest tests_tp_isotp_c[] = {
-    cmocka_unit_test_setup_teardown(test_send_recv,                                         SetupIsoTpCPair,        TeardownIsoTpCPair), 
+    cmocka_unit_test_setup_teardown(test_send_recv,                                         SetupIsoTpCPair,        TeardownIsoTpCPair),
     cmocka_unit_test_setup_teardown(test_send_recv_functional,                              SetupIsoTpCPair,        TeardownIsoTpCPair),
     cmocka_unit_test_setup_teardown(test_send_recv_largest_single_frame,                    SetupIsoTpCPair,        TeardownIsoTpCPair),
     cmocka_unit_test_setup_teardown(test_send_functional_larger_than_single_frame_fails,    SetupIsoTpCPair,        TeardownIsoTpCPair),

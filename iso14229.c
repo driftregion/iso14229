@@ -716,14 +716,15 @@ UDSErr_t UDSSendSecurityAccess(UDSClient_t *client, uint8_t level, uint8_t *data
     client->send_buf[0] = kSID_SECURITY_ACCESS;
     client->send_buf[1] = level;
 
-    if (NULL == data) {
-        return UDS_ERR_INVALID_ARG;
-    }
     if (size > sizeof(client->send_buf) - UDS_0X27_REQ_BASE_LEN) {
         return UDS_ERR_BUFSIZ;
     }
     if (size == 0 && NULL != data) {
         UDS_LOGE(__FILE__, "size == 0 and data is non-null");
+        return UDS_ERR_INVALID_ARG;
+    }
+    if (size > 0 && NULL == data) {
+        UDS_LOGE(__FILE__, "size > 0 but data is null");
         return UDS_ERR_INVALID_ARG;
     }
     if (size > 0) {
@@ -1285,7 +1286,7 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
 
     return UDS_PositiveResponse;
 respond_to_0x19_malformed_response:
-    UDS_LOGE(__FILE__, "RDTCI subFunc 0x%02X is malformed. Length: %d\n", type, r->send_len);
+    UDS_LOGE(__FILE__, "RDTCI subFunc 0x%02X is malformed. Length: %zu\n", type, r->send_len);
     return NegativeResponse(r, UDS_NRC_GeneralReject);
 }
 
@@ -3255,21 +3256,25 @@ static UDSTpStatus_t isotp_sock_tp_poll(UDSTp_t *hdl) {
     int fds[2] = {impl->phys_fd, impl->func_fd};
     struct pollfd pfds[2] = {0};
     pfds[0].fd = impl->phys_fd;
-    pfds[0].events = POLLERR;
+    pfds[0].events = POLLERR | POLLOUT;
     pfds[0].revents = 0;
 
     pfds[1].fd = impl->func_fd;
-    pfds[1].events = POLLERR;
+    pfds[1].events = POLLERR | POLLOUT;
     pfds[1].revents = 0;
 
     ret = poll(pfds, 2, 1);
     if (ret < 0) {
-        perror("poll");
+        UDS_LOGE(__FILE__, "poll failed: %d", ret);
+        status |= UDS_TP_ERR;
     } else if (ret == 0) {
-        ; // no error
+        ; // timeout, no events
     } else {
+        // poll() returned with events
         for (int i = 0; i < 2; i++) {
             struct pollfd pfd = pfds[i];
+
+            // Check for errors
             if (pfd.revents & POLLERR) {
                 int pending_err = 0;
                 socklen_t len = sizeof(pending_err);
@@ -3280,7 +3285,7 @@ static UDSTpStatus_t isotp_sock_tp_poll(UDSTp_t *hdl) {
                         status |= UDS_TP_ERR;
                         break;
                     default:
-                        UDS_LOGE(__FILE__, "Asynchronous socket error: %s (%d)\n",
+                        UDS_LOGE(__FILE__, "Asynchronous socket error: %s (%d)",
                                  strerror(pending_err), pending_err);
                         status |= UDS_TP_ERR;
                         break;
@@ -3288,8 +3293,18 @@ static UDSTpStatus_t isotp_sock_tp_poll(UDSTp_t *hdl) {
                 } else {
                     UDS_LOGE(__FILE__, "POLLERR was set, but no error returned via SO_ERROR?");
                 }
-            } else {
-                UDS_LOGE(__FILE__, "poll() returned, but no POLLERR. revents=0x%x", pfd.revents);
+            }
+
+            // Check if send is in progress on physical socket
+            // Only check the physical socket (not functional) since that's what sends multi-frame
+            if (fds[i] == impl->phys_fd && pfd.revents != 0) {
+                // When POLLOUT is NOT set but other events are present, the socket cannot accept
+                // writes because a multi-frame transmission is in progress.
+                // See: https://lore.kernel.org/all/20230331125511.372783-1-michal.sojka@cvut.cz/
+                // The kernel ISO-TP driver suppresses POLLOUT when tx.state != ISOTP_IDLE
+                if (!(pfd.revents & POLLOUT)) {
+                    status |= UDS_TP_SEND_IN_PROGRESS;
+                }
             }
         }
     }
