@@ -36,12 +36,11 @@ typedef uint8_t UDSTpAddr_t;
  * @details data interface between the application layer and the transport layer
  */
 typedef struct {
-    UDS_A_Mtype_t A_Mtype; // message type (diagnostic, remote diagnostic, secure diagnostic, secure
-                           // remote diagnostic)
-    uint32_t A_SA;         // application source address
-    uint32_t A_TA;         // application target address
-    UDS_A_TA_Type_t A_TA_Type; // application target address type (physical or functional)
-    uint32_t A_AE;             // application layer remote address
+    UDS_A_Mtype_t A_Mtype;     /**< message type (diagnostic, remote diagnostic, secure diagnostic, secure remote diagnostic) */
+    uint32_t A_SA;             /**< application source address */
+    uint32_t A_TA;             /**< application target address */
+    UDS_A_TA_Type_t A_TA_Type; /**< application target address type (physical or functional) */
+    uint32_t A_AE;             /**< application layer remote address */
 } UDSSDU_t;
 
 #define UDS_TP_NOOP_ADDR (0xFFFFFFFF)
@@ -54,8 +53,8 @@ typedef struct UDSTp {
     /**
      * @brief Send data to the transport
      * @param hdl: pointer to transport handle
-     * @param buf: a pointer to the data to send (this may be the buffer returned by @ref
-     * get_send_buf)
+     * @param buf: a pointer to the data to send
+     * @param len: length of data to send
      * @param info: pointer to SDU info (may be NULL). If NULL, implementation should send with
      * physical addressing
      */

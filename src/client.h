@@ -9,51 +9,64 @@
 #define UDS_FUNCTIONAL 0x2         // send the request as a functional request
 #define UDS_IGNORE_SRV_TIMINGS 0x8 // ignore the server-provided p2 and p2_star
 
+/**
+ * @brief UDS client structure
+ */
 typedef struct UDSClient {
-    uint16_t p2_ms;      // p2 timeout
-    uint32_t p2_star_ms; // 0x78 p2* timeout
-    UDSTp_t *tp;
+    uint16_t p2_ms;      /**< p2 timeout in milliseconds */
+    uint32_t p2_star_ms; /**< p2* timeout in milliseconds (for 0x78 response) */
+    UDSTp_t *tp;         /**< transport layer handle */
 
-    uint32_t p2_timer;
-    uint8_t state; // client request state
+    uint32_t p2_timer;   /**< p2 timer value */
+    uint8_t state;       /**< client request state */
 
-    uint8_t options;
-    uint8_t defaultOptions;
-    // a copy of the options at the time a request is made
-    uint8_t _options_copy;
+    uint8_t options;        /**< current request options */
+    uint8_t defaultOptions; /**< default options for all requests */
+    uint8_t _options_copy;  /**< copy of options at the time a request is made */
 
-    // callback function
-    int (*fn)(struct UDSClient *client, UDSEvent_t evt, void *ev_data);
-    void *fn_data; // user-specified function data
+    int (*fn)(struct UDSClient *client, UDSEvent_t evt, void *ev_data); /**< callback function */
+    void *fn_data; /**< user-specified function data */
 
-    uint16_t recv_size;
-    uint16_t send_size;
-    uint8_t recv_buf[UDS_CLIENT_RECV_BUF_SIZE];
-    uint8_t send_buf[UDS_CLIENT_SEND_BUF_SIZE];
+    uint16_t recv_size; /**< size of received data */
+    uint16_t send_size; /**< size of data to send */
+    uint8_t recv_buf[UDS_CLIENT_RECV_BUF_SIZE]; /**< receive buffer */
+    uint8_t send_buf[UDS_CLIENT_SEND_BUF_SIZE]; /**< send buffer */
 } UDSClient_t;
 
+/**
+ * @brief Security access response structure
+ */
 struct SecurityAccessResponse {
-    uint8_t securityAccessType;
-    const uint8_t *securitySeed;
-    uint16_t securitySeedLength;
+    uint8_t securityAccessType;      /**< security access type (subfunction) */
+    const uint8_t *securitySeed;     /**< pointer to security seed data */
+    uint16_t securitySeedLength;     /**< length of security seed */
 };
 
+/**
+ * @brief Request download response structure
+ */
 struct RequestDownloadResponse {
-    size_t maxNumberOfBlockLength;
+    size_t maxNumberOfBlockLength; /**< maximum number of block length */
 };
 
+/**
+ * @brief Routine control response structure
+ */
 struct RoutineControlResponse {
-    uint8_t routineControlType;
-    uint16_t routineIdentifier;
-    const uint8_t *routineStatusRecord;
-    uint16_t routineStatusRecordLength;
+    uint8_t routineControlType;         /**< routine control type (subfunction) */
+    uint16_t routineIdentifier;         /**< routine identifier */
+    const uint8_t *routineStatusRecord; /**< pointer to routine status record */
+    uint16_t routineStatusRecordLength; /**< length of routine status record */
 };
 
+/**
+ * @brief Read data by identifier variable structure
+ */
 typedef struct {
-    uint16_t did;
-    uint16_t len;
-    void *data;
-    void *(*UnpackFn)(void *dst, const void *src, size_t n);
+    uint16_t did;  /**< data identifier */
+    uint16_t len;  /**< data length */
+    void *data;    /**< pointer to data buffer */
+    void *(*UnpackFn)(void *dst, const void *src, size_t n); /**< optional unpack function */
 } UDSRDBIVar_t;
 
 UDSErr_t UDSClientInit(UDSClient_t *client);
