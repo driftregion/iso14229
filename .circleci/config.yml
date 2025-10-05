@@ -56,16 +56,58 @@ jobs:
             tools/coverage_run.sh
             cp "$(bazel info output_path)/_coverage/_coverage_report.dat" coverage.lcov
 
-      - run: 
+      - run:
           name: coverage upload
           command: |
             curl -Os https://cli.codecov.io/latest/linux/codecov
             chmod +x codecov
-            ./codecov --verbose upload-process --fail-on-error -t $CODECOV_TOKEN -F unittests --name "CircleCI Unit Tests Coverage" 
+            ./codecov --verbose upload-process --fail-on-error -t $CODECOV_TOKEN -F unittests --name "CircleCI Unit Tests Coverage"
 
+  build-examples:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: medium
+    steps:
+      - checkout
+
+      - run:
+          name: Install dependencies
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y "linux-modules-extra-$(uname -r)" can-utils build-essential libmbedtls-dev
+
+      - run:
+          name: Enable SocketCAN (vcan)
+          command: |
+            set -euxo pipefail
+            sudo modprobe can || true
+            sudo modprobe can_raw || true
+            sudo modprobe vcan || true
+            sudo ip link add dev vcan0 type vcan || true
+            sudo ip link set vcan0 up
+            ip -details link show vcan0
+
+      - run:
+          name: Build and test linux_rdbi_wdbi
+          command: |
+            cd examples/linux_rdbi_wdbi
+            ./test.sh
+
+      - run:
+          name: Build linux_server
+          command: |
+            cd examples/linux_server
+            make
+
+      - run:
+          name: Build and test linux_server_0x27
+          command: |
+            cd examples/linux_server_0x27
+            ./test.sh
 
 workflows:
   version: 2
   build:
     jobs:
       - test-linux
+      - build-examples
