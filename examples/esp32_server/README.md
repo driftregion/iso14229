@@ -7,3 +7,5 @@
 
 1. download and install `esp-idf`
 2. connect CAN board to ESP32
+
+`. ~/esp/esp-idf/export.sh`
