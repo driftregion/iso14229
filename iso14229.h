@@ -1,6 +1,11 @@
 #ifndef ISO14229_H
 #define ISO14229_H
 
+/**
+ * @file iso14229.h
+ * @brief ISO14229-1 (UDS) library - Amalgamated header
+ */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -294,43 +299,68 @@ UDSTpStatus_t UDSTpPoll(UDSTp_t *hdl);
 
 
 
+/**
+ * @enum UDSEvent_t
+ * @brief UDS events
+ *
+ * Events are passed to the server or client callback function along with
+ * a pointer to the associated argument structure.
+ */
 typedef enum UDSEvent {
-    // Common Event ----------------- Argument Type
-    UDS_EVT_Err, // UDSErr_t *
+    UDS_EVT_Err, /**< Common event. Argument type: UDSErr_t * */
 
-    // Server Event ----------------- Argument Type
-    UDS_EVT_DiagSessCtrl,         // UDSDiagSessCtrlArgs_t *
-    UDS_EVT_EcuReset,             // UDSECUResetArgs_t *
-    UDS_EVT_ClearDiagnosticInfo,  // UDSCDIArgs_t *
-    UDS_EVT_ReadDTCInformation,   // UDSRDTCIArgs_t *
-    UDS_EVT_ReadDataByIdent,      // UDSRDBIArgs_t *
-    UDS_EVT_ReadMemByAddr,        // UDSReadMemByAddrArgs_t *
-    UDS_EVT_CommCtrl,             // UDSCommCtrlArgs_t *
-    UDS_EVT_SecAccessRequestSeed, // UDSSecAccessRequestSeedArgs_t *
-    UDS_EVT_SecAccessValidateKey, // UDSSecAccessValidateKeyArgs_t *
-    UDS_EVT_WriteDataByIdent,     // UDSWDBIArgs_t *
-    UDS_EVT_WriteMemByAddr,       // UDSWriteMemByAddrArgs_t *
-    UDS_EVT_DynamicDefineDataId,  // UDSDDDIArgs_t *
-    UDS_EVT_IOControl,            // UDSIOCtrlArgs_t*
-    UDS_EVT_RoutineCtrl,          // UDSRoutineCtrlArgs_t*
-    UDS_EVT_RequestDownload,      // UDSRequestDownloadArgs_t*
-    UDS_EVT_RequestUpload,        // UDSRequestUploadArgs_t *
-    UDS_EVT_TransferData,         // UDSTransferDataArgs_t *
-    UDS_EVT_RequestTransferExit,  // UDSRequestTransferExitArgs_t *
-    UDS_EVT_SessionTimeout,       // NULL
-    UDS_EVT_DoScheduledReset,     // uint8_t *
-    UDS_EVT_RequestFileTransfer,  // UDSRequestFileTransferArgs_t *
-    UDS_EVT_ControlDTCSetting,    // UDSControlDTCSettingArgs_t *
-    UDS_EVT_LinkControl,          // UDSLinkCtrlArgs_t *
-    UDS_EVT_Custom,               // UDSCustomArgs_t *
+    UDS_EVT_DiagSessCtrl, /**< Server event: Diagnostic Session Control (0x10). Argument type:
+                             UDSDiagSessCtrlArgs_t * */
+    UDS_EVT_EcuReset,     /**< Server event: ECU Reset (0x11). Argument type: UDSECUResetArgs_t * */
+    UDS_EVT_ClearDiagnosticInfo,  /**< Server event: Clear Diagnostic Information (0x14). Argument
+                                     type: UDSCDIArgs_t * */
+    UDS_EVT_ReadDTCInformation,   /**< Server event: Read DTC Information (0x19). Argument type:
+                                     UDSRDTCIArgs_t * */
+    UDS_EVT_ReadDataByIdent,      /**< Server event: Read Data By Identifier (0x22). Argument type:
+                                     UDSRDBIArgs_t * */
+    UDS_EVT_ReadMemByAddr,        /**< Server event: Read Memory By Address (0x23). Argument type:
+                                     UDSReadMemByAddrArgs_t * */
+    UDS_EVT_CommCtrl,             /**< Server event: Communication Control (0x28). Argument type:
+                                     UDSCommCtrlArgs_t * */
+    UDS_EVT_SecAccessRequestSeed, /**< Server event: Security Access Request Seed (0x27). Argument
+                                     type: UDSSecAccessRequestSeedArgs_t * */
+    UDS_EVT_SecAccessValidateKey, /**< Server event: Security Access Validate Key (0x27). Argument
+                                     type: UDSSecAccessValidateKeyArgs_t * */
+    UDS_EVT_WriteDataByIdent,     /**< Server event: Write Data By Identifier (0x2E). Argument type:
+                                     UDSWDBIArgs_t * */
+    UDS_EVT_WriteMemByAddr,       /**< Server event: Write Memory By Address (0x3D). Argument type:
+                                     UDSWriteMemByAddrArgs_t * */
+    UDS_EVT_DynamicDefineDataId,  /**< Server event: Dynamically Define Data Identifier (0x2C).
+                                     Argument type: UDSDDDIArgs_t * */
+    UDS_EVT_IOControl, /**< Server event: Input/Output Control By Identifier (0x2F). Argument type:
+                          UDSIOCtrlArgs_t * */
+    UDS_EVT_RoutineCtrl,         /**< Server event: Routine Control (0x31). Argument type:
+                                    UDSRoutineCtrlArgs_t * */
+    UDS_EVT_RequestDownload,     /**< Server event: Request Download (0x34). Argument type:
+                                    UDSRequestDownloadArgs_t * */
+    UDS_EVT_RequestUpload,       /**< Server event: Request Upload (0x35). Argument type:
+                                    UDSRequestUploadArgs_t * */
+    UDS_EVT_TransferData,        /**< Server event: Transfer Data (0x36). Argument type:
+                                    UDSTransferDataArgs_t * */
+    UDS_EVT_RequestTransferExit, /**< Server event: Request Transfer Exit (0x37). Argument type:
+                                    UDSRequestTransferExitArgs_t * */
+    UDS_EVT_SessionTimeout,      /**< Server event: Session timeout. Argument type: NULL */
+    UDS_EVT_DoScheduledReset, /**< Server event: Execute scheduled reset. Argument type: uint8_t *
+                               */
+    UDS_EVT_RequestFileTransfer, /**< Server event: Request File Transfer (0x38). Argument type:
+                                    UDSRequestFileTransferArgs_t * */
+    UDS_EVT_ControlDTCSetting,   /**< Server event: Control DTC Setting (0x85). Argument type:
+                                    UDSControlDTCSettingArgs_t * */
+    UDS_EVT_LinkControl, /**< Server event: Link Control (0x87). Argument type: UDSLinkCtrlArgs_t *
+                          */
+    UDS_EVT_Custom,      /**< Server event: Custom service. Argument type: UDSCustomArgs_t * */
 
-    // Client Event
-    UDS_EVT_Poll,             // NULL
-    UDS_EVT_SendComplete,     //
-    UDS_EVT_ResponseReceived, //
-    UDS_EVT_Idle,             // NULL
+    UDS_EVT_Poll,             /**< Client event: Poll. Argument type: NULL */
+    UDS_EVT_SendComplete,     /**< Client event: Send complete. Argument type: NULL */
+    UDS_EVT_ResponseReceived, /**< Client event: Response received. Argument type: NULL */
+    UDS_EVT_Idle,             /**< Client event: Idle. Argument type: NULL */
 
-    UDS_EVT_MAX, // unused
+    UDS_EVT_MAX, /**< Unused sentinel value */
 } UDSEvent_t;
 
 typedef enum {

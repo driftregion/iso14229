@@ -17,8 +17,8 @@ typedef struct UDSClient {
     uint32_t p2_star_ms; /**< p2* timeout in milliseconds (for 0x78 response) */
     UDSTp_t *tp;         /**< transport layer handle */
 
-    uint32_t p2_timer;   /**< p2 timer value */
-    uint8_t state;       /**< client request state */
+    uint32_t p2_timer; /**< p2 timer value */
+    uint8_t state;     /**< client request state */
 
     uint8_t options;        /**< current request options */
     uint8_t defaultOptions; /**< default options for all requests */
@@ -27,8 +27,8 @@ typedef struct UDSClient {
     int (*fn)(struct UDSClient *client, UDSEvent_t evt, void *ev_data); /**< callback function */
     void *fn_data; /**< user-specified function data */
 
-    uint16_t recv_size; /**< size of received data */
-    uint16_t send_size; /**< size of data to send */
+    uint16_t recv_size;                         /**< size of received data */
+    uint16_t send_size;                         /**< size of data to send */
     uint8_t recv_buf[UDS_CLIENT_RECV_BUF_SIZE]; /**< receive buffer */
     uint8_t send_buf[UDS_CLIENT_SEND_BUF_SIZE]; /**< send buffer */
 } UDSClient_t;
@@ -37,9 +37,9 @@ typedef struct UDSClient {
  * @brief Security access response structure
  */
 struct SecurityAccessResponse {
-    uint8_t securityAccessType;      /**< security access type (subfunction) */
-    const uint8_t *securitySeed;     /**< pointer to security seed data */
-    uint16_t securitySeedLength;     /**< length of security seed */
+    uint8_t securityAccessType;  /**< security access type (subfunction) */
+    const uint8_t *securitySeed; /**< pointer to security seed data */
+    uint16_t securitySeedLength; /**< length of security seed */
 };
 
 /**
@@ -63,9 +63,9 @@ struct RoutineControlResponse {
  * @brief Read data by identifier variable structure
  */
 typedef struct {
-    uint16_t did;  /**< data identifier */
-    uint16_t len;  /**< data length */
-    void *data;    /**< pointer to data buffer */
+    uint16_t did;                                            /**< data identifier */
+    uint16_t len;                                            /**< data length */
+    void *data;                                              /**< pointer to data buffer */
     void *(*UnpackFn)(void *dst, const void *src, size_t n); /**< optional unpack function */
 } UDSRDBIVar_t;
 

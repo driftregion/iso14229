@@ -36,7 +36,8 @@ typedef uint8_t UDSTpAddr_t;
  * @details data interface between the application layer and the transport layer
  */
 typedef struct {
-    UDS_A_Mtype_t A_Mtype;     /**< message type (diagnostic, remote diagnostic, secure diagnostic, secure remote diagnostic) */
+    UDS_A_Mtype_t A_Mtype;     /**< message type (diagnostic, remote diagnostic, secure diagnostic,
+                                  secure remote diagnostic) */
     uint32_t A_SA;             /**< application source address */
     uint32_t A_TA;             /**< application target address */
     UDS_A_TA_Type_t A_TA_Type; /**< application target address type (physical or functional) */

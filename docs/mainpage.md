@@ -1,86 +1,85 @@
 # iso14229 {#mainpage}
 
-A portable, embedabble ISO14229-1 (UDS) library for writing UDS clients and servers.
+A portable, embeddable ISO14229-1 (UDS) library for writing UDS clients and servers.
 
-## Features
+**Source Code:** https://github.com/driftregion/iso14229
 
-- Supports client and server implementations
-- Event-driven, non-blocking API
-- Pluggable transport layer (ISO-TP)
-- No dynamic memory allocation
-- Portable C99 code
-- Comprehensive test coverage
+## Quick Start {#quickstart}
 
-## Quick Start
+1. Download the sources and add them to your project:
+    - [iso14229.h](https://github.com/driftregion/iso14229/raw/main/iso14229.h)
+    - [iso14229.c](https://github.com/driftregion/iso14229/raw/main/iso14229.c)
+2. Use the \ref examples_sec to guide your implementation.
 
-### Client Example
+---
 
-```c
-#include "iso14229.h"
+## Table of Contents
 
-UDSClient_t client;
-UDSClientInit(&client);
-client.tp = /* your transport layer */;
+- \ref server "Server API"
+- \ref client "Client API"
+- \ref services "UDS Services"
+- \ref examples_sec
+- \ref transport_layers
+- \ref configuration
 
-// Send a diagnostic session control request
-UDSSendDiagSessCtrl(&client, 0x01);
+---
 
-// Poll the client
-while (client.state != UDS_CLIENT_IDLE) {
-    UDSClientPoll(&client);
-}
-```
-
-### Server Example
-
-```c
-#include "iso14229.h"
-
-UDSServer_t server;
-UDSServerInit(&server);
-server.tp = /* your transport layer */;
-server.fn = my_service_handler;
-
-// Poll the server
-while (1) {
-    UDSServerPoll(&server);
-}
-```
-
-## Examples
+## Examples {#examples_sec}
 
 | Example | Description |
 |---------|-------------|
 | \ref examples/linux_server/README.md "linux_server" | Basic Linux server using socketcan ISO-TP |
 | \ref examples/linux_rdbi_wdbi/README.md "linux_rdbi_wdbi" | Read/Write Data By Identifier (0x22/0x2E) |
 | \ref examples/linux_server_0x27/README.md "linux_server_0x27" | Security Access (0x27) |
-| \ref examples/linux_server_0x29/README.md "linux_server_0x29" | Authentication service (0x29) |
 | \ref examples/arduino_server/README.md "arduino_server" | Arduino server |
 | \ref examples/esp32_server/README.md "esp32_server" | ESP32 server |
 | \ref examples/s32k144_server/README.md "s32k144_server" | NXP S32K144 server |
 
-## Architecture
+---
 
-The library is organized into several key components:
+## Transport Layers {#transport_layers}
 
-- **Client API** (client.h) - UDS client functionality
-- **Server API** (server.h) - UDS server functionality
-- **Transport Layer** (tp.h) - Pluggable ISO-TP transport abstraction
-- **Core UDS** (uds.h) - Common UDS definitions and utilities
+| Transport | Define | Description |
+|-----------|--------|-------------|
+| **isotp_sock** | `-DUDS_TP_ISOTP_SOCK` | Linux kernel ISO-TP socket (recommended for Linux) |
+| **isotp_c_socketcan** | `-DUDS_TP_ISOTP_C_SOCKETCAN` | isotp-c over SocketCAN (Linux) |
+| **isotp_c** | `-DUDS_TP_ISOTP_C` | Software ISO-TP (embedded, Windows, etc.) |
+| **isotp_mock** | `-DUDS_TP_ISOTP_MOCK` | In-memory transport for testing |
 
-## Transport Layers
+---
 
-The library supports multiple ISO-TP transport implementations:
+## Configuration {#configuration}
 
-- **isotp_mock** - In-memory transport for testing
-- **isotp_c** - Software ISO-TP implementation using isotp-c library
-- **isotp_sock** - Linux kernel ISO-TP socket
-- **isotp_c_socketcan** - isotp-c over SocketCAN
+Configure the library at compilation time with preprocessor defines:
 
-## Repository
+### Transport Selection
 
-Source code: https://github.com/driftregion/iso14229
+| Define | Description |
+|--------|-------------|
+| `-DUDS_TP_ISOTP_SOCK` | build the Linux kernel ISO-TP socket |
+| `-DUDS_TP_ISOTP_C` | build the isotp-c software implementation |
+| `-DUDS_TP_ISOTP_C_SOCKETCAN` | build isotp-c over SocketCAN |
+| `-DUDS_TP_ISOTP_MOCK` | build the mock transport for testing |
 
-## License
+### System Selection Override
 
-MIT License - See LICENSE file for details
+The system is usually detected by default, but can be overridden with the following options:
+
+| Define | Values |
+|--------|--------|
+| `-DUDS_SYS=` | `UDS_SYS_UNIX`, `UDS_SYS_WINDOWS`, `UDS_SYS_ARDUINO`, `UDS_SYS_ESP32`, `UDS_SYS_CUSTOM` |
+
+### Logging
+
+Logging is disabled by default. However, it is very helpful to identify problems during initial server/client bringup.
+
+| Define | Values |
+|--------|--------|
+| `-DUDS_LOG_LEVEL=` | `UDS_LOG_NONE`, `UDS_LOG_ERROR`, `UDS_LOG_WARN`, `UDS_LOG_INFO`, `UDS_LOG_DEBUG`, `UDS_LOG_VERBOSE` |
+
+### Other Options
+
+- `-DUDS_SERVER_...` - Server configuration options (see \ref server_configuration)
+- `-DUDS_CLIENT_...` - Client configuration options (see \ref client_configuration)
+
+---

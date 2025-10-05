@@ -59,7 +59,7 @@ GROUP_NESTED_COMPOUNDS = NO
 SUBGROUPING            = YES
 INLINE_GROUPED_CLASSES = NO
 INLINE_SIMPLE_STRUCTS  = NO
-TYPEDEF_HIDES_STRUCT   = NO
+TYPEDEF_HIDES_STRUCT   = YES
 LOOKUP_CACHE_SIZE      = 0
 NUM_PROC_THREADS       = 1
 #---------------------------------------------------------------------------
@@ -118,8 +118,12 @@ WARN_LOGFILE           =
 #---------------------------------------------------------------------------
 # Configuration options related to the input files
 #---------------------------------------------------------------------------
-INPUT                  = docs \
-                         src \
+INPUT                  = docs/mainpage.md \
+                         docs/client.md \
+                         docs/server.md \
+                         docs/services.md \
+                         iso14229.h \
+                         iso14229.c \
                          examples/arduino_server/README.md \
                          examples/esp32_server/README.md \
                          examples/linux_server/README.md \
@@ -195,9 +199,9 @@ USE_MDFILE_AS_MAINPAGE = docs/mainpage.md
 #---------------------------------------------------------------------------
 # Configuration options related to source browsing
 #---------------------------------------------------------------------------
-SOURCE_BROWSER         = NO
+SOURCE_BROWSER         = YES
 INLINE_SOURCES         = NO
-STRIP_CODE_COMMENTS    = YES
+STRIP_CODE_COMMENTS    = NO
 REFERENCED_BY_RELATION = NO
 REFERENCES_RELATION    = NO
 REFERENCES_LINK_SOURCE = YES

@@ -11,10 +11,10 @@
 typedef struct {
     uint8_t recv_buf[UDS_SERVER_RECV_BUF_SIZE]; /**< receive buffer */
     uint8_t send_buf[UDS_SERVER_SEND_BUF_SIZE]; /**< send buffer */
-    size_t recv_len;      /**< received data length */
-    size_t send_len;      /**< send data length */
-    size_t send_buf_size; /**< send buffer size */
-    UDSSDU_t info;        /**< service data unit information */
+    size_t recv_len;                            /**< received data length */
+    size_t send_len;                            /**< send data length */
+    size_t send_buf_size;                       /**< send buffer size */
+    UDSSDU_t info;                              /**< service data unit information */
 } UDSReq_t;
 
 /**
@@ -32,29 +32,32 @@ typedef struct UDSServer {
     uint32_t p2_star_ms; /**< Enhanced (NRC 0x78) P2_server_max supported by the server */
     uint16_t s3_ms;      /**< Session timeout */
 
-    uint8_t ecuResetScheduled;            /**< nonzero indicates that an ECUReset has been scheduled */
-    uint32_t ecuResetTimer;               /**< for delaying resetting until a response has been sent */
-    uint32_t p2_timer;                    /**< for rate limiting server responses */
-    uint32_t s3_session_timeout_timer;    /**< indicates that diagnostic session has timed out */
+    uint8_t ecuResetScheduled;         /**< nonzero indicates that an ECUReset has been scheduled */
+    uint32_t ecuResetTimer;            /**< for delaying resetting until a response has been sent */
+    uint32_t p2_timer;                 /**< for rate limiting server responses */
+    uint32_t s3_session_timeout_timer; /**< indicates that diagnostic session has timed out */
     uint32_t sec_access_auth_fail_timer;  /**< brute-force hardening: rate limit security access */
-    uint32_t sec_access_boot_delay_timer; /**< brute-force hardening: restrict security access until timer expires */
+    uint32_t sec_access_boot_delay_timer; /**< brute-force hardening: restrict security access until
+                                             timer expires */
 
     /**
      * @brief UDS-1-2013: Table 407 - 0x36 TransferData Supported negative
      * response codes requires that the server keep track of whether the
      * transfer is active
      */
-    bool xferIsActive; /**< transfer is active */
-    uint8_t xferBlockSequenceCounter; /**< UDS-1-2013: 14.4.2.3, Table 404: block sequence counter starts at 0x01 */
-    size_t xferTotalBytes;  /**< total transfer size in bytes requested by the client */
-    size_t xferByteCounter; /**< total number of bytes transferred */
-    size_t xferBlockLength; /**< block length (convenience for the TransferData API) */
+    bool xferIsActive;                /**< transfer is active */
+    uint8_t xferBlockSequenceCounter; /**< UDS-1-2013: 14.4.2.3, Table 404: block sequence counter
+                                         starts at 0x01 */
+    size_t xferTotalBytes;            /**< total transfer size in bytes requested by the client */
+    size_t xferByteCounter;           /**< total number of bytes transferred */
+    size_t xferBlockLength;           /**< block length (convenience for the TransferData API) */
 
     uint8_t sessionType;   /**< diagnostic session type (0x10) */
     uint8_t securityLevel; /**< SecurityAccess (0x27) level */
 
     bool RCRRP;             /**< set to true when user fn returns 0x78 and false otherwise */
-    bool requestInProgress; /**< set to true when a request has been processed but the response has not yet been sent */
+    bool requestInProgress; /**< set to true when a request has been processed but the response has
+                               not yet been sent */
 
     /**
      * @brief UDS-1 2013 defines the following conditions under which the server does not
