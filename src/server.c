@@ -1164,7 +1164,7 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
     return UDS_PositiveResponse;
 
 respond_to_0x29_malformed_response:
-    UDS_LOGE(__FILE__, "Auth: subFunc 0x%02X is malformed. Length: %d\n", type, r->send_len);
+    UDS_LOGE(__FILE__, "Auth: subFunc 0x%02X is malformed. Length: %zu\n", type, r->send_len);
     return NegativeResponse(r, UDS_NRC_GeneralReject);
 }
 
