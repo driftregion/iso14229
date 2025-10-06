@@ -754,9 +754,12 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        if (args.subFuncArgs.verifyCertArgs.certLen > r->recv_len - min_recv_len) {
-            UDS_LOGW(__FILE__, "Auth: VCU/B verify certificate too large: %u",
-                     args.subFuncArgs.verifyCertArgs.certLen);
+        /* Check if we have enough data to read challengeLen */
+        if (r->recv_len < min_recv_len + args.subFuncArgs.verifyCertArgs.certLen) {
+            UDS_LOGW(__FILE__,
+                     "Auth: VCU/B request too short for certificate data. req len: %zu, cert "
+                     "len: %u\n",
+                     r->recv_len, args.subFuncArgs.verifyCertArgs.certLen);
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
@@ -770,10 +773,11 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
+        /* Validate total message length */
         if (r->recv_len != min_recv_len + args.subFuncArgs.verifyCertArgs.certLen +
                                args.subFuncArgs.verifyCertArgs.challengeLen) {
             UDS_LOGW(__FILE__,
-                     "Auth: VCU/B request malformed length. req len: %u, cert len: %u, "
+                     "Auth: VCU/B request malformed length. req len: %zu, cert len: %u, "
                      "challenge len: %u\n",
                      r->recv_len, args.subFuncArgs.verifyCertArgs.certLen,
                      args.subFuncArgs.verifyCertArgs.challengeLen);
@@ -804,15 +808,24 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
+        /* Check if we have enough data to read publicKeyLen */
+        if (r->recv_len < min_recv_len + args.subFuncArgs.pownArgs.pownLen) {
+            UDS_LOGW(__FILE__,
+                     "Auth: POWN request too short for pown data. req len: %zu, pown len: %u\n",
+                     r->recv_len, args.subFuncArgs.pownArgs.pownLen);
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
         args.subFuncArgs.pownArgs.publicKeyLen =
             (uint16_t)((uint16_t)(r->recv_buf[4 + args.subFuncArgs.pownArgs.pownLen] << 8) |
                        (uint16_t)r->recv_buf[5 + args.subFuncArgs.pownArgs.pownLen]);
         args.subFuncArgs.pownArgs.publicKey = &r->recv_buf[6 + args.subFuncArgs.pownArgs.pownLen];
 
+        /* Validate total message length */
         if (r->recv_len != min_recv_len + args.subFuncArgs.pownArgs.pownLen +
                                args.subFuncArgs.pownArgs.publicKeyLen) {
             UDS_LOGW(__FILE__,
-                     "Auth: POWN request malformed length. req len: %u, pown len: %u, "
+                     "Auth: POWN request malformed length. req len: %zu, pown len: %u, "
                      "public key len: %u\n",
                      r->recv_len, args.subFuncArgs.pownArgs.pownLen,
                      args.subFuncArgs.pownArgs.publicKeyLen);
@@ -842,7 +855,7 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
         if (r->recv_len != min_recv_len + args.subFuncArgs.transCertArgs.len) {
-            UDS_LOGW(__FILE__, "Auth: TC request malformed length. req len: %u, cert len: %u\n",
+            UDS_LOGW(__FILE__, "Auth: TC request malformed length. req len: %zu, cert len: %u\n",
                      r->recv_len, args.subFuncArgs.transCertArgs.len);
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
@@ -865,14 +878,19 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
         r->send_len += 16;
         break;
     case UDS_LEV_AT_VPOWNU:
-    case UDS_LEV_AT_VPOWNB:
+    case UDS_LEV_AT_VPOWNB: {
         /**
          * + 16 bytes for algorithm ID
          * + 2 bytes for length of pown
+         * + 0 bytes pown
          * + 2 bytes for length of challenge
+         * + 0 bytes challenge
          * + 2 bytes for length of additional parameters
+         * + 0 bytes additional parameters
          */
-        if (r->recv_len < UDS_0X29_REQ_MIN_LEN + 16 + 2 + 2 + 2) {
+        size_t min_recv_len = UDS_0X29_REQ_MIN_LEN + 16 + 2 + 2 + 2;
+
+        if (r->recv_len < min_recv_len) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
@@ -887,11 +905,36 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
+        /* Check if we have enough data to read challengeLen */
+        if (r->recv_len < min_recv_len + args.subFuncArgs.verifyPownArgs.pownLen) {
+            UDS_LOGW(__FILE__,
+                     "Auth: VPOWNU/B request too short for pown data. req len: %zu, pown len: "
+                     "%u\n",
+                     r->recv_len, args.subFuncArgs.verifyPownArgs.pownLen);
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
         args.subFuncArgs.verifyPownArgs.challengeLen =
             (uint16_t)((uint16_t)(r->recv_buf[20 + args.subFuncArgs.verifyPownArgs.pownLen] << 8) |
                        (uint16_t)r->recv_buf[21 + args.subFuncArgs.verifyPownArgs.pownLen]);
         args.subFuncArgs.verifyPownArgs.challenge =
             &r->recv_buf[22 + args.subFuncArgs.verifyPownArgs.pownLen];
+
+        if (type == UDS_LEV_AT_VPOWNB && args.subFuncArgs.verifyPownArgs.challengeLen == 0) {
+            UDS_LOGW(__FILE__, "Auth: VPOWNB with zero challenge length\n");
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        /* Check if we have enough data to read addParamLen */
+        if (r->recv_len < min_recv_len + args.subFuncArgs.verifyPownArgs.pownLen +
+                              args.subFuncArgs.verifyPownArgs.challengeLen) {
+            UDS_LOGW(__FILE__,
+                     "Auth: VPOWNU/B request too short for challenge data. req len: %zu, pown "
+                     "len: %u, challenge len: %u\n",
+                     r->recv_len, args.subFuncArgs.verifyPownArgs.pownLen,
+                     args.subFuncArgs.verifyPownArgs.challengeLen);
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
 
         args.subFuncArgs.verifyPownArgs.addParamLen =
             (uint16_t)((uint16_t)(r->recv_buf[22 + args.subFuncArgs.verifyPownArgs.pownLen +
@@ -903,9 +946,23 @@ static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
             &r->recv_buf[24 + args.subFuncArgs.verifyPownArgs.pownLen +
                          args.subFuncArgs.verifyPownArgs.challengeLen];
 
+        /* Validate total message length */
+        if (r->recv_len != min_recv_len + args.subFuncArgs.verifyPownArgs.pownLen +
+                               args.subFuncArgs.verifyPownArgs.challengeLen +
+                               args.subFuncArgs.verifyPownArgs.addParamLen) {
+            UDS_LOGW(__FILE__,
+                     "Auth: VPOWNU/B request malformed length. req len: %zu, pown len: %u, "
+                     "challenge len: %u, addParam len: %u\n",
+                     r->recv_len, args.subFuncArgs.verifyPownArgs.pownLen,
+                     args.subFuncArgs.verifyPownArgs.challengeLen,
+                     args.subFuncArgs.verifyPownArgs.addParamLen);
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
         memcpy(&r->send_buf[3], args.subFuncArgs.verifyPownArgs.algoInd, 16);
         r->send_len += 16;
         break;
+    }
     default:
         return NegativeResponse(r, UDS_NRC_SubFunctionNotSupported);
     }
