@@ -6,10 +6,10 @@ TARGETS = server client
 PKGS = mbedtls mbedx509 mbedcrypto
 
 CFLAGS = -DUDS_TP_ISOTP_SOCK -DUDS_LINES -g -I ../..
-CFLAGS += $(shell pkg-config --cflags $(PKGS))
+CFLAGS += $(shell pkg-config --cflags $(PKGS) 2>/dev/null)
 
 # Use LDLIBS for libraries; order matters (crypto last)
-LDLIBS = $(shell pkg-config --libs $(PKGS))
+LDLIBS = $(shell pkg-config --libs $(PKGS) 2>/dev/null || echo "-lmbedtls -lmbedx509 -lmbedcrypto")
 
 # AES key artifacts
 KEY_BIN = uds_aes_key.bin
