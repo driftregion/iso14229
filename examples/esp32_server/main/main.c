@@ -48,8 +48,8 @@ void isotp_user_debug(const char *fmt, ...) { (void)fmt; }
 uint32_t isotp_user_get_us(void) { return UDSMillis() * 1000; }
 
 static const UDSISOTpCConfig_t tp_cfg = {
-    .source_addr = 0x7E8,
-    .target_addr = 0x7E0,
+    .source_addr = 0x7E0,
+    .target_addr = 0x7E8,
     .source_addr_func = 0x7DF,
     .target_addr_func = UDS_TP_NOOP_ADDR,
 };
