@@ -174,7 +174,7 @@ case UDS_EVT_RoutineCtrl: {
 
 This is used to prevent the client from timing out during long-running server actions such as writing to flash memory.
 
-For an asynchronous approach, consider using \ref service_0x36.
+To control long-running tasks asynchronously, consider using \ref service_0x31.
 
 ## Session Management
 
