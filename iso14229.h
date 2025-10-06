@@ -12,7 +12,10 @@
 extern "C" {
 #endif
 
+
 #define UDS_LIB_VERSION "0.9.0"
+
+
 
 #define UDS_SYS_CUSTOM 0
 #define UDS_SYS_UNIX 1
@@ -36,6 +39,9 @@ extern "C" {
 
 #endif
 
+
+
+
 #if UDS_SYS == UDS_SYS_ARDUINO
 
 #include <assert.h>
@@ -52,6 +58,8 @@ extern "C" {
 
 #endif
 
+
+
 #if UDS_SYS == UDS_SYS_UNIX
 
 #include <assert.h>
@@ -66,6 +74,8 @@ extern "C" {
 #include <time.h>
 
 #endif
+
+
 
 #if UDS_SYS == UDS_SYS_WINDOWS
 
@@ -86,6 +96,8 @@ typedef SSIZE_T ssize_t;
 
 #endif
 
+
+
 #if UDS_SYS == UDS_SYS_ESP32
 
 #include <string.h>
@@ -95,6 +107,8 @@ typedef SSIZE_T ssize_t;
 #define UDS_TP_ISOTP_C 1
 
 #endif
+
+
 
 /** ISO-TP Maximum Transmissiable Unit (ISO-15764-2-2004 section 5.3.3) */
 #define UDS_ISOTP_MTU (4095)
@@ -186,6 +200,9 @@ TransferData request message from the client. */
 #define UDS_CUSTOM_MILLIS 0
 #endif
 
+
+
+
 #if defined UDS_TP_ISOTP_C_SOCKETCAN
 #ifndef UDS_TP_ISOTP_C
 #define UDS_TP_ISOTP_C
@@ -269,6 +286,8 @@ ssize_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, ssize_t len, UDSSDU_t *info)
 ssize_t UDSTpRecv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info);
 UDSTpStatus_t UDSTpPoll(UDSTp_t *hdl);
 
+
+
 /**
  * @enum UDSEvent_t
  * @brief UDS events
@@ -314,100 +333,99 @@ typedef enum UDSEvent {
     UDS_EVT_MAX, /**< Unused sentinel value */
 } UDSEvent_t;
 
-    typedef enum {
-        UDS_FAIL = -1, // General error
-        UDS_OK = 0,    // Success
+typedef enum {
+    UDS_FAIL = -1, // General error
+    UDS_OK = 0,    // Success
 
-        // Negative Response Codes (NRCs) as defined in ISO14229-1:2020 Table A.1 - Negative
-        // Response Code (NRC) definition and values
-        UDS_PositiveResponse = 0,
-        // 0x01 to 0x0F are reserved by ISO14229-1:2020
-        UDS_NRC_GeneralReject = 0x10,
-        UDS_NRC_ServiceNotSupported = 0x11,
-        UDS_NRC_SubFunctionNotSupported = 0x12,
-        UDS_NRC_IncorrectMessageLengthOrInvalidFormat = 0x13,
-        UDS_NRC_ResponseTooLong = 0x14,
-        // 0x15 to 0x20 are reserved by ISO14229-1:2020
-        UDS_NRC_BusyRepeatRequest = 0x21,
-        UDS_NRC_ConditionsNotCorrect = 0x22,
-        UDS_NRC_RequestSequenceError = 0x24,
-        UDS_NRC_NoResponseFromSubnetComponent = 0x25,
-        UDS_NRC_FailurePreventsExecutionOfRequestedAction = 0x26,
-        // 0x27 to 0x30 are reserved by ISO14229-1:2020
-        UDS_NRC_RequestOutOfRange = 0x31,
-        // 0x32 is reserved by ISO14229-1:2020
-        UDS_NRC_SecurityAccessDenied = 0x33,
-        UDS_NRC_AuthenticationRequired = 0x34,
-        UDS_NRC_InvalidKey = 0x35,
-        UDS_NRC_ExceedNumberOfAttempts = 0x36,
-        UDS_NRC_RequiredTimeDelayNotExpired = 0x37,
-        UDS_NRC_SecureDataTransmissionRequired = 0x38,
-        UDS_NRC_SecureDataTransmissionNotAllowed = 0x39,
-        UDS_NRC_SecureDataVerificationFailed = 0x3A,
-        // 0x3B to 0x4F are reserved by ISO14229-1:2020
-        UDS_NRC_CertficateVerificationFailedInvalidTimePeriod = 0x50,
-        UDS_NRC_CertficateVerificationFailedInvalidSignature = 0x51,
-        UDS_NRC_CertficateVerificationFailedInvalidChainOfTrust = 0x52,
-        UDS_NRC_CertficateVerificationFailedInvalidType = 0x53,
-        UDS_NRC_CertficateVerificationFailedInvalidFormat = 0x54,
-        UDS_NRC_CertficateVerificationFailedInvalidContent = 0x55,
-        UDS_NRC_CertficateVerificationFailedInvalidScope = 0x56,
-        UDS_NRC_CertficateVerificationFailedInvalidCertificate = 0x57,
-        UDS_NRC_OwnershipVerificationFailed = 0x58,
-        UDS_NRC_ChallengeCalculationFailed = 0x59,
-        UDS_NRC_SettingAccessRightsFailed = 0x5A,
-        UDS_NRC_SessionKeyCreationOrDerivationFailed = 0x5B,
-        UDS_NRC_ConfigurationDataUsageFailed = 0x5C,
-        UDS_NRC_DeAuthenticationFailed = 0x5D,
-        // 0x5E to 0x6F are reserved by ISO14229-1:2020
-        UDS_NRC_UploadDownloadNotAccepted = 0x70,
-        UDS_NRC_TransferDataSuspended = 0x71,
-        UDS_NRC_GeneralProgrammingFailure = 0x72,
-        UDS_NRC_WrongBlockSequenceCounter = 0x73,
-        // 0x74 to 0x77 are reserved by ISO14229-1:2020
-        UDS_NRC_RequestCorrectlyReceived_ResponsePending = 0x78,
-        // 0x79 to 0x7D are reserved by ISO14229-1:2020
-        UDS_NRC_SubFunctionNotSupportedInActiveSession = 0x7E,
-        UDS_NRC_ServiceNotSupportedInActiveSession = 0x7F,
-        // 0x80 is reserved by ISO14229-1:2020
-        UDS_NRC_RpmTooHigh = 0x81,
-        UDS_NRC_RpmTooLow = 0x82,
-        UDS_NRC_EngineIsRunning = 0x83,
-        UDS_NRC_EngineIsNotRunning = 0x84,
-        UDS_NRC_EngineRunTimeTooLow = 0x85,
-        UDS_NRC_TemperatureTooHigh = 0x86,
-        UDS_NRC_TemperatureTooLow = 0x87,
-        UDS_NRC_VehicleSpeedTooHigh = 0x88,
-        UDS_NRC_VehicleSpeedTooLow = 0x89,
-        UDS_NRC_ThrottlePedalTooHigh = 0x8A,
-        UDS_NRC_ThrottlePedalTooLow = 0x8B,
-        UDS_NRC_TransmissionRangeNotInNeutral = 0x8C,
-        UDS_NRC_TransmissionRangeNotInGear = 0x8D,
-        // 0x8E is reserved by ISO14229-1:2020
-        UDS_NRC_BrakeSwitchNotClosed = 0x8F,
-        UDS_NRC_ShifterLeverNotInPark = 0x90,
-        UDS_NRC_TorqueConverterClutchLocked = 0x91,
-        UDS_NRC_VoltageTooHigh = 0x92,
-        UDS_NRC_VoltageTooLow = 0x93,
-        UDS_NRC_ResourceTemporarilyNotAvailable = 0x94,
+    // Negative Response Codes (NRCs) as defined in ISO14229-1:2020 Table A.1 - Negative Response
+    // Code (NRC) definition and values
+    UDS_PositiveResponse = 0,
+    // 0x01 to 0x0F are reserved by ISO14229-1:2020
+    UDS_NRC_GeneralReject = 0x10,
+    UDS_NRC_ServiceNotSupported = 0x11,
+    UDS_NRC_SubFunctionNotSupported = 0x12,
+    UDS_NRC_IncorrectMessageLengthOrInvalidFormat = 0x13,
+    UDS_NRC_ResponseTooLong = 0x14,
+    // 0x15 to 0x20 are reserved by ISO14229-1:2020
+    UDS_NRC_BusyRepeatRequest = 0x21,
+    UDS_NRC_ConditionsNotCorrect = 0x22,
+    UDS_NRC_RequestSequenceError = 0x24,
+    UDS_NRC_NoResponseFromSubnetComponent = 0x25,
+    UDS_NRC_FailurePreventsExecutionOfRequestedAction = 0x26,
+    // 0x27 to 0x30 are reserved by ISO14229-1:2020
+    UDS_NRC_RequestOutOfRange = 0x31,
+    // 0x32 is reserved by ISO14229-1:2020
+    UDS_NRC_SecurityAccessDenied = 0x33,
+    UDS_NRC_AuthenticationRequired = 0x34,
+    UDS_NRC_InvalidKey = 0x35,
+    UDS_NRC_ExceedNumberOfAttempts = 0x36,
+    UDS_NRC_RequiredTimeDelayNotExpired = 0x37,
+    UDS_NRC_SecureDataTransmissionRequired = 0x38,
+    UDS_NRC_SecureDataTransmissionNotAllowed = 0x39,
+    UDS_NRC_SecureDataVerificationFailed = 0x3A,
+    // 0x3B to 0x4F are reserved by ISO14229-1:2020
+    UDS_NRC_CertficateVerificationFailedInvalidTimePeriod = 0x50,
+    UDS_NRC_CertficateVerificationFailedInvalidSignature = 0x51,
+    UDS_NRC_CertficateVerificationFailedInvalidChainOfTrust = 0x52,
+    UDS_NRC_CertficateVerificationFailedInvalidType = 0x53,
+    UDS_NRC_CertficateVerificationFailedInvalidFormat = 0x54,
+    UDS_NRC_CertficateVerificationFailedInvalidContent = 0x55,
+    UDS_NRC_CertficateVerificationFailedInvalidScope = 0x56,
+    UDS_NRC_CertficateVerificationFailedInvalidCertificate = 0x57,
+    UDS_NRC_OwnershipVerificationFailed = 0x58,
+    UDS_NRC_ChallengeCalculationFailed = 0x59,
+    UDS_NRC_SettingAccessRightsFailed = 0x5A,
+    UDS_NRC_SessionKeyCreationOrDerivationFailed = 0x5B,
+    UDS_NRC_ConfigurationDataUsageFailed = 0x5C,
+    UDS_NRC_DeAuthenticationFailed = 0x5D,
+    // 0x5E to 0x6F are reserved by ISO14229-1:2020
+    UDS_NRC_UploadDownloadNotAccepted = 0x70,
+    UDS_NRC_TransferDataSuspended = 0x71,
+    UDS_NRC_GeneralProgrammingFailure = 0x72,
+    UDS_NRC_WrongBlockSequenceCounter = 0x73,
+    // 0x74 to 0x77 are reserved by ISO14229-1:2020
+    UDS_NRC_RequestCorrectlyReceived_ResponsePending = 0x78,
+    // 0x79 to 0x7D are reserved by ISO14229-1:2020
+    UDS_NRC_SubFunctionNotSupportedInActiveSession = 0x7E,
+    UDS_NRC_ServiceNotSupportedInActiveSession = 0x7F,
+    // 0x80 is reserved by ISO14229-1:2020
+    UDS_NRC_RpmTooHigh = 0x81,
+    UDS_NRC_RpmTooLow = 0x82,
+    UDS_NRC_EngineIsRunning = 0x83,
+    UDS_NRC_EngineIsNotRunning = 0x84,
+    UDS_NRC_EngineRunTimeTooLow = 0x85,
+    UDS_NRC_TemperatureTooHigh = 0x86,
+    UDS_NRC_TemperatureTooLow = 0x87,
+    UDS_NRC_VehicleSpeedTooHigh = 0x88,
+    UDS_NRC_VehicleSpeedTooLow = 0x89,
+    UDS_NRC_ThrottlePedalTooHigh = 0x8A,
+    UDS_NRC_ThrottlePedalTooLow = 0x8B,
+    UDS_NRC_TransmissionRangeNotInNeutral = 0x8C,
+    UDS_NRC_TransmissionRangeNotInGear = 0x8D,
+    // 0x8E is reserved by ISO14229-1:2020
+    UDS_NRC_BrakeSwitchNotClosed = 0x8F,
+    UDS_NRC_ShifterLeverNotInPark = 0x90,
+    UDS_NRC_TorqueConverterClutchLocked = 0x91,
+    UDS_NRC_VoltageTooHigh = 0x92,
+    UDS_NRC_VoltageTooLow = 0x93,
+    UDS_NRC_ResourceTemporarilyNotAvailable = 0x94,
 
-        /* 0x95 to 0xEF are reservedForSpecificConditionsNotCorrect */
-        /* 0xF0 to 0xFE are vehicleManufacturerSpecificConditionsNotCorrect */
-        /* 0xFF is ISOSAEReserved */
+    /* 0x95 to 0xEF are reservedForSpecificConditionsNotCorrect */
+    /* 0xF0 to 0xFE are vehicleManufacturerSpecificConditionsNotCorrect */
+    /* 0xFF is ISOSAEReserved */
 
-        // The following values are not defined in ISO14229-1:2020
-        UDS_ERR_TIMEOUT = 0x100,      // A request has timed out
-        UDS_ERR_DID_MISMATCH,         // The response DID does not match the request DID
-        UDS_ERR_SID_MISMATCH,         // The response SID does not match the request SID
-        UDS_ERR_SUBFUNCTION_MISMATCH, // The response SubFunction does not match the request
-                                      // SubFunction
-        UDS_ERR_TPORT,          // Transport error. Check the transport layer for more information
-        UDS_ERR_RESP_TOO_SHORT, // The response is too short
-        UDS_ERR_BUFSIZ,         // The buffer is not large enough
-        UDS_ERR_INVALID_ARG,    // The function has been called with invalid arguments
-        UDS_ERR_BUSY,           // The client is busy and cannot process the request
-        UDS_ERR_MISUSE,         // The library is used incorrectly
-    } UDSErr_t;
+    // The following values are not defined in ISO14229-1:2020
+    UDS_ERR_TIMEOUT = 0x100,      // A request has timed out
+    UDS_ERR_DID_MISMATCH,         // The response DID does not match the request DID
+    UDS_ERR_SID_MISMATCH,         // The response SID does not match the request SID
+    UDS_ERR_SUBFUNCTION_MISMATCH, // The response SubFunction does not match the request SubFunction
+    UDS_ERR_TPORT,                // Transport error. Check the transport layer for more information
+    UDS_ERR_RESP_TOO_SHORT,       // The response is too short
+    UDS_ERR_BUFSIZ,               // The buffer is not large enough
+    UDS_ERR_INVALID_ARG,          // The function has been called with invalid arguments
+    UDS_ERR_BUSY,                 // The client is busy and cannot process the request
+    UDS_ERR_MISUSE,               // The library is used incorrectly
+} UDSErr_t;
 
 // ISO14229-1:2020 Table 25
 // UDS Level Diagnostic Session
@@ -590,6 +608,9 @@ enum UDSDiagnosticServiceId {
     kSID_LINK_CONTROL = 0x87,
 };
 
+
+
+
 #ifndef UDS_ASSERT
 #include <assert.h>
 #define UDS_ASSERT(x) assert(x)
@@ -610,10 +631,13 @@ bool UDSErrIsNRC(UDSErr_t err);
 const char *UDSErrToStr(UDSErr_t err);
 const char *UDSEventToStr(UDSEvent_t evt);
 
+
+
 /**
  * @brief logging for bring-up and unit tests.
  * This interface was copied from ESP-IDF.
  */
+
 
 #define UDS_LOG_NONE 0    // No log output
 #define UDS_LOG_ERROR 1   // Log errors only
@@ -725,6 +749,9 @@ static inline void UDS_LogSDUDummy(const char *tag, const uint8_t *buffer, size_
     (void)info;
 }
 
+
+
+
 #define UDS_SUPPRESS_POS_RESP 0x1  // set the suppress positive response bit
 #define UDS_FUNCTIONAL 0x2         // send the request as a functional request
 #define UDS_IGNORE_SRV_TIMINGS 0x8 // ignore the server-provided p2 and p2_star
@@ -834,6 +861,9 @@ UDSErr_t UDSUnpackRoutineControlResponse(const UDSClient_t *client,
 UDSErr_t UDSConfigDownload(UDSClient_t *client, uint8_t dataFormatIdentifier,
                            uint8_t addressAndLengthFormatIdentifier, size_t memoryAddress,
                            size_t memorySize, FILE *fd);
+
+
+
 
 /**
  * @brief Server request context
@@ -1231,20 +1261,20 @@ void UDSServerPoll(UDSServer_t *srv);
 #ifndef ISOTPC_CONFIG_H
 #define ISOTPC_CONFIG_H
 
-/* Max number of messages the receiver can receive at one time, this value
+/* Max number of messages the receiver can receive at one time, this value 
  * is affected by can driver queue length
  */
-#define ISO_TP_DEFAULT_BLOCK_SIZE 8
+#define ISO_TP_DEFAULT_BLOCK_SIZE   8
 
-/* The STmin parameter value specifies the minimum time gap allowed between
+/* The STmin parameter value specifies the minimum time gap allowed between 
  * the transmission of consecutive frame network protocol data units
  */
-#define ISO_TP_DEFAULT_ST_MIN_US 0
+#define ISO_TP_DEFAULT_ST_MIN_US    0
 
-/* This parameter indicate how many FC N_PDU WTs can be transmitted by the
+/* This parameter indicate how many FC N_PDU WTs can be transmitted by the 
  * receiver in a row.
  */
-#define ISO_TP_MAX_WFT_NUMBER 1
+#define ISO_TP_MAX_WFT_NUMBER       1
 
 /* Private: The default timeout to use when waiting for a response during a
  * multi-frame send or receive.
@@ -1253,7 +1283,7 @@ void UDSServerPoll(UDSServer_t *srv);
 
 /* Private: Determines if by default, padding is added to ISO-TP message frames.
  */
-// #define ISO_TP_FRAME_PADDING
+//#define ISO_TP_FRAME_PADDING
 
 /* Private: Value to use when padding frames if enabled by ISO_TP_FRAME_PADDING
  */
@@ -1262,9 +1292,9 @@ void UDSServerPoll(UDSServer_t *srv);
 #endif
 
 /* Private: Determines if by default, an additional argument is present in the
- * definition of isotp_user_send_can.
+ * definition of isotp_user_send_can. 
  */
-// #define ISO_TP_USER_SEND_CAN_ARG
+//#define ISO_TP_USER_SEND_CAN_ARG
 
 #endif // ISOTPC_CONFIG_H
 
@@ -1295,7 +1325,7 @@ void UDSServerPoll(UDSServer_t *srv);
 #ifdef _WIN32
 #include <windows.h>
 #define ISOTP_BYTE_ORDER_LITTLE_ENDIAN
-#define __builtin_bswap8 _byteswap_uint8
+#define __builtin_bswap8  _byteswap_uint8
 #define __builtin_bswap16 _byteswap_uint16
 #define __builtin_bswap32 _byteswap_uint32
 #define __builtin_bswap64 _byteswap_uint64
@@ -1304,21 +1334,21 @@ void UDSServerPoll(UDSServer_t *srv);
 /**************************************************************
  * internal used defines
  *************************************************************/
-#define ISOTP_RET_OK 0
-#define ISOTP_RET_ERROR -1
-#define ISOTP_RET_INPROGRESS -2
-#define ISOTP_RET_OVERFLOW -3
-#define ISOTP_RET_WRONG_SN -4
-#define ISOTP_RET_NO_DATA -5
-#define ISOTP_RET_TIMEOUT -6
-#define ISOTP_RET_LENGTH -7
-#define ISOTP_RET_NOSPACE -8
+#define ISOTP_RET_OK           0
+#define ISOTP_RET_ERROR        -1
+#define ISOTP_RET_INPROGRESS   -2
+#define ISOTP_RET_OVERFLOW     -3
+#define ISOTP_RET_WRONG_SN     -4
+#define ISOTP_RET_NO_DATA      -5
+#define ISOTP_RET_TIMEOUT      -6
+#define ISOTP_RET_LENGTH       -7
+#define ISOTP_RET_NOSPACE      -8
 
 /* return logic true if 'a' is after 'b' */
-#define IsoTpTimeAfter(a, b) ((int32_t)((int32_t)(b) - (int32_t)(a)) < 0)
+#define IsoTpTimeAfter(a,b) ((int32_t)((int32_t)(b) - (int32_t)(a)) < 0)
 
 /*  invalid bs */
-#define ISOTP_INVALID_BS 0xFFFF
+#define ISOTP_INVALID_BS       0xFFFF
 
 /* ISOTP sender status */
 typedef enum {
@@ -1337,33 +1367,33 @@ typedef enum {
 /* can fram defination */
 #if defined(ISOTP_BYTE_ORDER_LITTLE_ENDIAN)
 typedef struct {
-    uint8_t reserve_1 : 4;
-    uint8_t type : 4;
+    uint8_t reserve_1:4;
+    uint8_t type:4;
     uint8_t reserve_2[7];
 } IsoTpPciType;
 
 typedef struct {
-    uint8_t SF_DL : 4;
-    uint8_t type : 4;
+    uint8_t SF_DL:4;
+    uint8_t type:4;
     uint8_t data[7];
 } IsoTpSingleFrame;
 
 typedef struct {
-    uint8_t FF_DL_high : 4;
-    uint8_t type : 4;
+    uint8_t FF_DL_high:4;
+    uint8_t type:4;
     uint8_t FF_DL_low;
     uint8_t data[6];
 } IsoTpFirstFrame;
 
 typedef struct {
-    uint8_t SN : 4;
-    uint8_t type : 4;
+    uint8_t SN:4;
+    uint8_t type:4;
     uint8_t data[7];
 } IsoTpConsecutiveFrame;
 
 typedef struct {
-    uint8_t FS : 4;
-    uint8_t type : 4;
+    uint8_t FS:4;
+    uint8_t type:4;
     uint8_t BS;
     uint8_t STmin;
     uint8_t reserve[5];
@@ -1372,73 +1402,73 @@ typedef struct {
 #else
 
 typedef struct {
-    uint8_t type : 4;
-    uint8_t reserve_1 : 4;
+    uint8_t type:4;
+    uint8_t reserve_1:4;
     uint8_t reserve_2[7];
 } IsoTpPciType;
 
 /*
- * single frame
- * +-------------------------+-----+
- * | byte #0                 | ... |
- * +-------------------------+-----+
- * | nibble #0   | nibble #1 | ... |
- * +-------------+-----------+ ... +
- * | PCIType = 0 | SF_DL     | ... |
- * +-------------+-----------+-----+
- */
+* single frame
+* +-------------------------+-----+
+* | byte #0                 | ... |
+* +-------------------------+-----+
+* | nibble #0   | nibble #1 | ... |
+* +-------------+-----------+ ... +
+* | PCIType = 0 | SF_DL     | ... |
+* +-------------+-----------+-----+
+*/
 typedef struct {
-    uint8_t type : 4;
-    uint8_t SF_DL : 4;
+    uint8_t type:4;
+    uint8_t SF_DL:4;
     uint8_t data[7];
 } IsoTpSingleFrame;
 
 /*
- * first frame
- * +-------------------------+-----------------------+-----+
- * | byte #0                 | byte #1               | ... |
- * +-------------------------+-----------+-----------+-----+
- * | nibble #0   | nibble #1 | nibble #2 | nibble #3 | ... |
- * +-------------+-----------+-----------+-----------+-----+
- * | PCIType = 1 | FF_DL                             | ... |
- * +-------------+-----------+-----------------------+-----+
- */
+* first frame
+* +-------------------------+-----------------------+-----+
+* | byte #0                 | byte #1               | ... |
+* +-------------------------+-----------+-----------+-----+
+* | nibble #0   | nibble #1 | nibble #2 | nibble #3 | ... |
+* +-------------+-----------+-----------+-----------+-----+
+* | PCIType = 1 | FF_DL                             | ... |
+* +-------------+-----------+-----------------------+-----+
+*/
 typedef struct {
-    uint8_t type : 4;
-    uint8_t FF_DL_high : 4;
+    uint8_t type:4;
+    uint8_t FF_DL_high:4;
     uint8_t FF_DL_low;
     uint8_t data[6];
 } IsoTpFirstFrame;
 
 /*
- * consecutive frame
- * +-------------------------+-----+
- * | byte #0                 | ... |
- * +-------------------------+-----+
- * | nibble #0   | nibble #1 | ... |
- * +-------------+-----------+ ... +
- * | PCIType = 0 | SN        | ... |
- * +-------------+-----------+-----+
- */
+* consecutive frame
+* +-------------------------+-----+
+* | byte #0                 | ... |
+* +-------------------------+-----+
+* | nibble #0   | nibble #1 | ... |
+* +-------------+-----------+ ... +
+* | PCIType = 0 | SN        | ... |
+* +-------------+-----------+-----+
+*/
 typedef struct {
-    uint8_t type : 4;
-    uint8_t SN : 4;
+    uint8_t type:4;
+    uint8_t SN:4;
     uint8_t data[7];
 } IsoTpConsecutiveFrame;
 
 /*
- * flow control frame
- * +-------------------------+-----------------------+-----------------------+-----+
- * | byte #0                 | byte #1               | byte #2               | ... |
- * +-------------------------+-----------+-----------+-----------+-----------+-----+
- * | nibble #0   | nibble #1 | nibble #2 | nibble #3 | nibble #4 | nibble #5 | ... |
- * +-------------+-----------+-----------+-----------+-----------+-----------+-----+
- * | PCIType = 1 | FS        | BS                    | STmin                 | ... |
- * +-------------+-----------+-----------------------+-----------------------+-----+
- */
+* flow control frame
+* +-------------------------+-----------------------+-----------------------+-----+
+* | byte #0                 | byte #1               | byte #2               | ... |
+* +-------------------------+-----------+-----------+-----------+-----------+-----+
+* | nibble #0   | nibble #1 | nibble #2 | nibble #3 | nibble #4 | nibble #5 | ... |
+* +-------------+-----------+-----------+-----------+-----------+-----------+-----+
+* | PCIType = 1 | FS        | BS                    | STmin                 | ... |
+* +-------------+-----------+-----------------------+-----------------------+-----+
+*/
 typedef struct {
-    uint8_t type : 4;
-    uint8_t FS : 4;
+    uint8_t type:4;
+    uint8_t FS:4;
     uint8_t BS;
     uint8_t STmin;
     uint8_t reserve[5];
@@ -1452,12 +1482,12 @@ typedef struct {
 
 typedef struct {
     union {
-        IsoTpPciType common;
-        IsoTpSingleFrame single_frame;
-        IsoTpFirstFrame first_frame;
+        IsoTpPciType          common;
+        IsoTpSingleFrame      single_frame;
+        IsoTpFirstFrame       first_frame;
         IsoTpConsecutiveFrame consecutive_frame;
-        IsoTpFlowControl flow_control;
-        IsoTpDataArray data_array;
+        IsoTpFlowControl      flow_control;
+        IsoTpDataArray        data_array;
     } as;
 } IsoTpCanMessage;
 
@@ -1465,13 +1495,12 @@ typedef struct {
  * protocol specific defines
  *************************************************************/
 
-/* Private: Protocol Control Information (PCI) types, for identifying each frame of an ISO-TP
- * message.
+/* Private: Protocol Control Information (PCI) types, for identifying each frame of an ISO-TP message.
  */
 typedef enum {
-    ISOTP_PCI_TYPE_SINGLE = 0x0,
-    ISOTP_PCI_TYPE_FIRST_FRAME = 0x1,
-    TSOTP_PCI_TYPE_CONSECUTIVE_FRAME = 0x2,
+    ISOTP_PCI_TYPE_SINGLE             = 0x0,
+    ISOTP_PCI_TYPE_FIRST_FRAME        = 0x1,
+    TSOTP_PCI_TYPE_CONSECUTIVE_FRAME  = 0x2,
     ISOTP_PCI_TYPE_FLOW_CONTROL_FRAME = 0x3
 } IsoTpProtocolControlInformation;
 
@@ -1479,22 +1508,22 @@ typedef enum {
  */
 typedef enum {
     PCI_FLOW_STATUS_CONTINUE = 0x0,
-    PCI_FLOW_STATUS_WAIT = 0x1,
+    PCI_FLOW_STATUS_WAIT     = 0x1,
     PCI_FLOW_STATUS_OVERFLOW = 0x2
 } IsoTpFlowStatus;
 
 /* Private: network layer resault code.
  */
-#define ISOTP_PROTOCOL_RESULT_OK 0
-#define ISOTP_PROTOCOL_RESULT_TIMEOUT_A -1
-#define ISOTP_PROTOCOL_RESULT_TIMEOUT_BS -2
-#define ISOTP_PROTOCOL_RESULT_TIMEOUT_CR -3
-#define ISOTP_PROTOCOL_RESULT_WRONG_SN -4
-#define ISOTP_PROTOCOL_RESULT_INVALID_FS -5
-#define ISOTP_PROTOCOL_RESULT_UNEXP_PDU -6
-#define ISOTP_PROTOCOL_RESULT_WFT_OVRN -7
+#define ISOTP_PROTOCOL_RESULT_OK            0
+#define ISOTP_PROTOCOL_RESULT_TIMEOUT_A    -1
+#define ISOTP_PROTOCOL_RESULT_TIMEOUT_BS   -2
+#define ISOTP_PROTOCOL_RESULT_TIMEOUT_CR   -3
+#define ISOTP_PROTOCOL_RESULT_WRONG_SN     -4
+#define ISOTP_PROTOCOL_RESULT_INVALID_FS   -5
+#define ISOTP_PROTOCOL_RESULT_UNEXP_PDU    -6
+#define ISOTP_PROTOCOL_RESULT_WFT_OVRN     -7
 #define ISOTP_PROTOCOL_RESULT_BUFFER_OVFLW -8
-#define ISOTP_PROTOCOL_RESULT_ERROR -9
+#define ISOTP_PROTOCOL_RESULT_ERROR        -9
 
 #endif // ISOTPC_USER_DEFINITIONS_H
 #ifndef ISOTPC_USER_H
@@ -1507,20 +1536,20 @@ extern "C" {
 #endif
 
 /** @brief user implemented, print debug message */
-void isotp_user_debug(const char *message, ...);
+void isotp_user_debug(const char* message, ...);
 
 /**
  * @brief user implemented, send can message. should return ISOTP_RET_OK when success.
- *
+ * 
  * @return may return ISOTP_RET_NOSPACE if the CAN transfer should be retried later
  * or ISOTP_RET_ERROR if transmission couldn't be completed
  */
-int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t *data, const uint8_t size
+int  isotp_user_send_can(const uint32_t arbitration_id,
+                         const uint8_t* data, const uint8_t size
 #if ISO_TP_USER_SEND_CAN_ARG
-                        ,
-                        void *arg
-#endif
-);
+,void *arg
+#endif                         
+                         );
 
 /**
  * @brief user implemented, gets the amount of time passed since the last call in microseconds
@@ -1532,6 +1561,7 @@ uint32_t isotp_user_get_us(void);
 #endif
 
 #endif // ISOTPC_USER_H
+
 
 #ifndef ISOTPC_H
 #define ISOTPC_H
@@ -1545,6 +1575,7 @@ uint32_t isotp_user_get_us(void);
 extern "C" {
 #endif
 
+
 /**
  * @brief Struct containing the data for linking an application to a CAN instance.
  * The data stored in this struct is used internally and may be used by software programs
@@ -1552,41 +1583,41 @@ extern "C" {
  */
 typedef struct IsoTpLink {
     /* sender paramters */
-    uint32_t send_arbitration_id; /* used to reply consecutive frame */
+    uint32_t                    send_arbitration_id; /* used to reply consecutive frame */
     /* message buffer */
-    uint8_t *send_buffer;
-    uint16_t send_buf_size;
-    uint16_t send_size;
-    uint16_t send_offset;
+    uint8_t*                    send_buffer;
+    uint16_t                    send_buf_size;
+    uint16_t                    send_size;
+    uint16_t                    send_offset;
     /* multi-frame flags */
-    uint8_t send_sn;
-    uint16_t send_bs_remain; /* Remaining block size */
-    uint32_t send_st_min_us; /* Separation Time between consecutive frames */
-    uint8_t send_wtf_count;  /* Maximum number of FC.Wait frame transmissions  */
-    uint32_t send_timer_st;  /* Last time send consecutive frame */
-    uint32_t send_timer_bs;  /* Time until reception of the next FlowControl N_PDU
-                                start at sending FF, CF, receive FC
-                                end at receive FC */
-    int send_protocol_result;
-    uint8_t send_status;
+    uint8_t                     send_sn;
+    uint16_t                    send_bs_remain; /* Remaining block size */
+    uint32_t                    send_st_min_us; /* Separation Time between consecutive frames */
+    uint8_t                     send_wtf_count; /* Maximum number of FC.Wait frame transmissions  */
+    uint32_t                    send_timer_st;  /* Last time send consecutive frame */    
+    uint32_t                    send_timer_bs;  /* Time until reception of the next FlowControl N_PDU
+                                                   start at sending FF, CF, receive FC
+                                                   end at receive FC */
+    int                         send_protocol_result;
+    uint8_t                     send_status;
     /* receiver paramters */
-    uint32_t receive_arbitration_id;
+    uint32_t                    receive_arbitration_id;
     /* message buffer */
-    uint8_t *receive_buffer;
-    uint16_t receive_buf_size;
-    uint16_t receive_size;
-    uint16_t receive_offset;
+    uint8_t*                    receive_buffer;
+    uint16_t                    receive_buf_size;
+    uint16_t                    receive_size;
+    uint16_t                    receive_offset;
     /* multi-frame control */
-    uint8_t receive_sn;
-    uint8_t receive_bs_count;  /* Maximum number of FC.Wait frame transmissions  */
-    uint32_t receive_timer_cr; /* Time until transmission of the next ConsecutiveFrame N_PDU
-                                  start at sending FC, receive CF
-                                  end at receive FC */
-    int receive_protocol_result;
-    uint8_t receive_status;
+    uint8_t                     receive_sn;
+    uint8_t                     receive_bs_count; /* Maximum number of FC.Wait frame transmissions  */
+    uint32_t                    receive_timer_cr; /* Time until transmission of the next ConsecutiveFrame N_PDU
+                                                     start at sending FC, receive CF 
+                                                     end at receive FC */
+    int                         receive_protocol_result;
+    uint8_t                     receive_status;                                                     
 
 #if defined(ISO_TP_USER_SEND_CAN_ARG)
-    void *user_send_can_arg;
+    void*                       user_send_can_arg;
 #endif
 } IsoTpLink;
 
@@ -1597,16 +1628,15 @@ typedef struct IsoTpLink {
  * @param sendid The ID used to send data to other CAN nodes.
  * @param sendbuf A pointer to an area in memory which can be used as a buffer for data to be sent.
  * @param sendbufsize The size of the buffer area.
- * @param recvbuf A pointer to an area in memory which can be used as a buffer for data to be
- * received.
+ * @param recvbuf A pointer to an area in memory which can be used as a buffer for data to be received.
  * @param recvbufsize The size of the buffer area.
  */
-void isotp_init_link(IsoTpLink *link, uint32_t sendid, uint8_t *sendbuf, uint16_t sendbufsize,
+void isotp_init_link(IsoTpLink *link, uint32_t sendid, 
+                     uint8_t *sendbuf, uint16_t sendbufsize,
                      uint8_t *recvbuf, uint16_t recvbufsize);
 
 /**
- * @brief Polling function; call this function periodically to handle timeouts, send consecutive
- * frames, etc.
+ * @brief Polling function; call this function periodically to handle timeouts, send consecutive frames, etc.
  *
  * @param link The @code IsoTpLink @endcode instance used.
  */
@@ -1641,26 +1671,22 @@ void isotp_on_can_message(IsoTpLink *link, const uint8_t *data, uint8_t len);
 int isotp_send(IsoTpLink *link, const uint8_t payload[], uint16_t size);
 
 /**
- * @brief See @link isotp_send @endlink, with the exception that this function is used only for
- * functional addressing.
+ * @brief See @link isotp_send @endlink, with the exception that this function is used only for functional addressing.
  */
 int isotp_send_with_id(IsoTpLink *link, uint32_t id, const uint8_t payload[], uint16_t size);
 
 /**
- * @brief Receives and parses the received data and copies the parsed data in to the internal
- * buffer.
+ * @brief Receives and parses the received data and copies the parsed data in to the internal buffer.
  * @param link The @link IsoTpLink @endlink instance used to transceive data.
  * @param payload A pointer to an area in memory where the raw data is copied from.
  * @param payload_size The size of the received (raw) CAN data.
- * @param out_size A reference to a variable which will contain the size of the actual (parsed)
- * data.
+ * @param out_size A reference to a variable which will contain the size of the actual (parsed) data.
  *
  * @return Possible return values:
  *      - @link ISOTP_RET_OK @endlink
  *      - @link ISOTP_RET_NO_DATA @endlink
  */
-int isotp_receive(IsoTpLink *link, uint8_t *payload, const uint16_t payload_size,
-                  uint16_t *out_size);
+int isotp_receive(IsoTpLink *link, uint8_t *payload, const uint16_t payload_size, uint16_t *out_size);
 
 #ifdef __cplusplus
 }
@@ -1671,6 +1697,7 @@ int isotp_receive(IsoTpLink *link, uint8_t *payload, const uint16_t payload_size
 #endif
 
 #if defined(UDS_TP_ISOTP_C)
+
 
 typedef struct {
     UDSTp_t hdl;
@@ -1695,7 +1722,10 @@ void UDSISOTpCDeinit(UDSISOTpC_t *tp);
 
 #endif
 
+
+
 #if defined(UDS_TP_ISOTP_C_SOCKETCAN)
+
 
 typedef struct {
     UDSTp_t hdl;
@@ -1716,7 +1746,9 @@ void UDSTpISOTpCDeinit(UDSTpISOTpC_t *tp);
 
 #endif
 
+
 #if defined(UDS_TP_ISOTP_SOCK)
+
 
 typedef struct {
     UDSTp_t hdl;
@@ -1739,6 +1771,7 @@ void UDSTpIsoTpSockDeinit(UDSTpIsoTpSock_t *tp);
 
 #endif
 
+
 /**
  * @file isotp_mock.h
  * @brief in-memory ISO15765 (ISO-TP) transport layer implementation for testing
@@ -1746,6 +1779,8 @@ void UDSTpIsoTpSockDeinit(UDSTpIsoTpSock_t *tp);
  *
  */
 #if defined(UDS_TP_ISOTP_MOCK)
+
+
 
 typedef struct ISOTPMock {
     UDSTp_t hdl;
@@ -1792,6 +1827,7 @@ void ISOTPMockLogToStdout(void);
 void ISOTPMockReset(void);
 
 #endif
+
 
 #ifdef __cplusplus
 }
