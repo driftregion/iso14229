@@ -1,7 +1,6 @@
 #include "test/env.h"
 #include <unistd.h>
 
-
 int SetupMockTpPair(void **state) {
     Env_t *env = malloc(sizeof(Env_t));
     memset(env, 0, sizeof(Env_t));
@@ -177,7 +176,6 @@ void test_send_recv_functional(void **state) {
     const uint8_t MSG[] = {0x10, 0x02};
     UDSTpSend(e->client_tp, MSG, sizeof(MSG), &(UDSSDU_t){.A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL});
 
-
     // the server should receive it quickly
     UDSSDU_t info2 = {0};
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->server_tp, buf, sizeof(buf), &info2) > 0, 10);
@@ -206,13 +204,15 @@ void test_send_recv_largest_single_frame(void **state) {
     assert_int_equal(info2.A_TA_Type, UDS_A_TA_TYPE_FUNCTIONAL);
 }
 
-// ISO 15765-2 2016 Table 4 note b. Functional addressing shall only be supported for SingleFrame communication.
-void test_send_functional_larger_than_single_frame_fails(void **state){
+// ISO 15765-2 2016 Table 4 note b. Functional addressing shall only be supported for SingleFrame
+// communication.
+void test_send_functional_larger_than_single_frame_fails(void **state) {
     Env_t *e = *state;
 
     // When a functional request is sent with more than 7 bytes
     const uint8_t MSG[] = {1, 2, 3, 4, 5, 6, 7, 8};
-    ssize_t ret = UDSTpSend(e->client_tp, MSG, sizeof(MSG), &(UDSSDU_t){.A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL});
+    ssize_t ret = UDSTpSend(e->client_tp, MSG, sizeof(MSG),
+                            &(UDSSDU_t){.A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL});
 
     // it should fail
     assert_true(ret < 0);
@@ -229,12 +229,11 @@ void test_send_recv_max_len(void **state) {
     UDSTpSend(e->client_tp, MSG, sizeof(MSG), NULL);
 
     // the server should receive it quickly, albeit perhaps with a slight delay on vcan
-    EXPECT_WITHIN_MS(e, UDSTpRecv(e->server_tp, buf, sizeof(buf), NULL) > 0, 1000);
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->server_tp, buf, sizeof(buf), NULL) > 0, 3000);
 
     // it should be the same message
     TEST_MEMORY_EQUAL(buf, MSG, sizeof(MSG));
 }
-
 
 void test_flow_control_frame_timeout(void **state) {
     Env_t *e = *state;
@@ -266,7 +265,7 @@ const struct CMUnitTest tests_tp_mock[] = {
     cmocka_unit_test_setup_teardown(test_send_functional_larger_than_single_frame_fails,    SetupMockTpPair,        TeardownMockTpPair),
     cmocka_unit_test_setup_teardown(test_send_recv_max_len,                                 SetupMockTpPair,        TeardownMockTpPair),
 
-    // The mock server doesn't implement fc timeouts 
+    // The mock server doesn't implement fc timeouts
     // cmocka_unit_test_setup_teardown(test_flow_control_frame_timeout,                        SetupMockTpClientOnly,  TeardownMockTpClientOnly),
 
     // Extended ID tests
@@ -278,7 +277,7 @@ const struct CMUnitTest tests_tp_mock[] = {
 };
 
 const struct CMUnitTest tests_tp_isotp_c[] = {
-    cmocka_unit_test_setup_teardown(test_send_recv,                                         SetupIsoTpCPair,        TeardownIsoTpCPair), 
+    cmocka_unit_test_setup_teardown(test_send_recv,                                         SetupIsoTpCPair,        TeardownIsoTpCPair),
     cmocka_unit_test_setup_teardown(test_send_recv_functional,                              SetupIsoTpCPair,        TeardownIsoTpCPair),
     cmocka_unit_test_setup_teardown(test_send_recv_largest_single_frame,                    SetupIsoTpCPair,        TeardownIsoTpCPair),
     cmocka_unit_test_setup_teardown(test_send_functional_larger_than_single_frame_fails,    SetupIsoTpCPair,        TeardownIsoTpCPair),

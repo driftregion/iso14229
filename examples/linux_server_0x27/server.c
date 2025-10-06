@@ -1,3 +1,7 @@
+/**
+ * @file examples/linux_server_0x27/server.c
+ * @brief UDS server demonstrating Security Access (0x27)
+ */
 #include "iso14229.h"
 #include <stdint.h>
 #include <stdio.h>
@@ -15,7 +19,13 @@
 #include <mbedtls/error.h>
 
 static UDSServer_t srv;
+#if defined(UDS_TP_ISOTP_SOCK)
 static UDSTpIsoTpSock_t tp;
+#elif defined(UDS_TP_ISOTP_C_SOCKETCAN)
+static UDSTpISOTpC_t tp;
+#else
+#error "no transport defined"
+#endif
 static bool done = false;
 static uint8_t seed[32] = {0};
 
@@ -36,13 +46,12 @@ int rsa_verify(const uint8_t *key, size_t key_len, bool *valid) {
         goto exit;
     }
 
-    if ((ret = mbedtls_pk_verify(&pk, MBEDTLS_MD_SHA256, seed, sizeof(seed),
-                                 key, key_len)) != 0) {
+    if ((ret = mbedtls_pk_verify(&pk, MBEDTLS_MD_SHA256, seed, sizeof(seed), key, key_len)) != 0) {
         mbedtls_printf(" failed\n  ! mbedtls_pk_verify returned %d\n\n", ret);
         goto exit;
     }
 
-    exit:
+exit:
     *valid = (ret == 0);
     // print the mbedtls error code
     if (ret != 0) {
@@ -53,39 +62,44 @@ int rsa_verify(const uint8_t *key, size_t key_len, bool *valid) {
     return ret;
 }
 
-static uint8_t fn(UDSServer_t *srv, UDSEvent_t ev, const void *arg) {
+static UDSErr_t fn(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+    UDS_LOGI(__FILE__, "Server event: %s (%d)", UDSEventToStr(ev), ev);
     switch (ev) {
-        case UDS_EVT_SecAccessRequestSeed: {
-            UDSSecAccessRequestSeedArgs_t *req = (UDSSecAccessRequestSeedArgs_t *)arg;
-            // use urandom to generate a random seed
-            FILE *f = fopen("/dev/urandom", "r");
-            if (!f) {
-                fprintf(stderr, "Failed to open /dev/urandom\n");
-                return kGeneralReject;
-            }
-            fread(seed, sizeof(seed), 1, f);
-            fclose(f);
-            return req->copySeed(srv, seed, sizeof(seed));
+    case UDS_EVT_SecAccessRequestSeed: {
+        UDSSecAccessRequestSeedArgs_t *req = (UDSSecAccessRequestSeedArgs_t *)arg;
+        UDS_LOGI(__FILE__, "Generating seed for level %d", req->level);
+        // use urandom to generate a random seed
+        FILE *f = fopen("/dev/urandom", "r");
+        if (!f) {
+            UDS_LOGE(__FILE__, "Failed to open /dev/urandom");
+            return UDS_NRC_GeneralReject;
         }
-        case UDS_EVT_SecAccessValidateKey: {
-            UDSSecAccessValidateKeyArgs_t *req = (UDSSecAccessValidateKeyArgs_t *)arg;
-            bool valid = false;
+        fread(seed, sizeof(seed), 1, f);
+        fclose(f);
+        return req->copySeed(srv, seed, sizeof(seed));
+    }
+    case UDS_EVT_SecAccessValidateKey: {
+        UDSSecAccessValidateKeyArgs_t *req = (UDSSecAccessValidateKeyArgs_t *)arg;
+        bool valid = false;
 
-            if (0 != rsa_verify(req->key, req->len, &valid)) {
-                printf("rsa_verify failed\n");
-                return kGeneralReject;
+        UDS_LOGI(__FILE__, "Validating key, level=%d, len=%u", req->level, req->len);
+
+        if (0 != rsa_verify(req->key, req->len, &valid)) {
+            UDS_LOGE(__FILE__, "rsa_verify failed");
+            return UDS_NRC_GeneralReject;
+        } else {
+            if (valid) {
+                UDS_LOGI(__FILE__, "Security level %d unlocked", req->level);
+                return UDS_PositiveResponse;
             } else {
-                if (valid) {
-                    printf("Security level %d unlocked\n", req->level);
-                    return UDS_PositiveResponse;
-                } else {
-                    return kSecurityAccessDenied;
-                }
+                UDS_LOGE(__FILE__, "Security access denied");
+                return UDS_NRC_SecurityAccessDenied;
             }
         }
+    }
     default:
-        printf("Unhandled event: %d\n", ev);
-        return kServiceNotSupported;
+        UDS_LOGW(__FILE__, "Unhandled event: %d", ev);
+        return UDS_OK;
     }
 }
 
@@ -106,10 +120,19 @@ int main(int ac, char **av) {
     sa.sa_handler = sigint_handler;
     sigaction(SIGINT, &sa, NULL);
 
+#if defined(UDS_TP_ISOTP_SOCK)
     if (UDSTpIsoTpSockInitServer(&tp, "vcan0", 0x7E0, 0x7E8, 0x7DF)) {
         fprintf(stderr, "UDSTpIsoTpSockInitServer failed\n");
         exit(-1);
     }
+#elif defined(UDS_TP_ISOTP_C_SOCKETCAN)
+    if (UDSTpISOTpCInit((UDSTpISOTpC_t *)&tp, "vcan0", 0x7E0, 0x7E8, 0x7DF, 0x7FF)) {
+        fprintf(stderr, "UDSTpISOTpCInit failed\n");
+        exit(-1);
+    }
+#else
+#error "no transport defined"
+#endif
 
     if (UDSServerInit(&srv)) {
         fprintf(stderr, "UDSServerInit failed\n");

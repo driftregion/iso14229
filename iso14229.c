@@ -1,13 +1,15 @@
+/**
+ * @file iso14229.c
+ * @brief ISO14229-1 (UDS) library
+ * @copyright Copyright (c) Nick Kirkby
+ * @see https://github.com/driftregion/iso14229
+ */
+
 #include "iso14229.h"
 
 #ifdef UDS_LINES
 #line 1 "src/client.c"
 #endif
-
-
-
-
-
 
 // Client request states
 #define STATE_IDLE 0
@@ -206,7 +208,7 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
             UDS_LOGI(__FILE__, "tport err: %zd", ret);
         } else if (0 == ret) {
             UDS_LOGI(__FILE__, "send in progress...");
-            ; // 等待发送成功
+            ; // Waiting for send completion
         } else if (client->send_size == ret) {
             changeState(client, STATE_AWAIT_SEND_COMPLETE);
         } else {
@@ -716,14 +718,15 @@ UDSErr_t UDSSendSecurityAccess(UDSClient_t *client, uint8_t level, uint8_t *data
     client->send_buf[0] = kSID_SECURITY_ACCESS;
     client->send_buf[1] = level;
 
-    if (NULL == data) {
-        return UDS_ERR_INVALID_ARG;
-    }
     if (size > sizeof(client->send_buf) - UDS_0X27_REQ_BASE_LEN) {
         return UDS_ERR_BUFSIZ;
     }
     if (size == 0 && NULL != data) {
         UDS_LOGE(__FILE__, "size == 0 and data is non-null");
+        return UDS_ERR_INVALID_ARG;
+    }
+    if (size > 0 && NULL == data) {
+        UDS_LOGE(__FILE__, "size > 0 but data is null");
         return UDS_ERR_INVALID_ARG;
     }
     if (size > 0) {
@@ -872,11 +875,6 @@ UDSErr_t UDSUnpackRDBIResponse(UDSClient_t *client, UDSRDBIVar_t *vars, uint16_t
 #ifdef UDS_LINES
 #line 1 "src/server.c"
 #endif
-
-
-
-
-
 #include <stdint.h>
 
 static inline UDSErr_t NegativeResponse(UDSReq_t *r, UDSErr_t nrc) {
@@ -1292,7 +1290,7 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
 
     return UDS_PositiveResponse;
 respond_to_0x19_malformed_response:
-    UDS_LOGE(__FILE__, "RDTCI subFunc 0x%02X is malformed. Length: %d\n", type, r->send_len);
+    UDS_LOGE(__FILE__, "RDTCI subFunc 0x%02X is malformed. Length: %zu\n", type, r->send_len);
     return NegativeResponse(r, UDS_NRC_GeneralReject);
 }
 
@@ -2589,10 +2587,22 @@ static UDSErr_t Handle_0x85_ControlDTCSetting(UDSServer_t *srv, UDSReq_t *r) {
     if (r->recv_len < UDS_0X85_REQ_BASE_LEN) {
         return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
-    uint8_t dtcSettingType = r->recv_buf[1] & 0x3F;
+
+    uint8_t type = r->recv_buf[1] & 0x7F;
+
+    UDSControlDTCSettingArgs_t args = {
+        .type = type,
+        .data = r->recv_len > UDS_0X85_REQ_BASE_LEN ? &r->recv_buf[UDS_0X85_REQ_BASE_LEN] : NULL,
+        .len = r->recv_len > UDS_0X85_REQ_BASE_LEN ? r->recv_len - UDS_0X85_REQ_BASE_LEN : 0,
+    };
+
+    int ret = EmitEvent(srv, UDS_EVT_ControlDTCSetting, &args);
+    if (UDS_PositiveResponse != ret) {
+        return NegativeResponse(r, ret);
+    }
 
     r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_CONTROL_DTC_SETTING);
-    r->send_buf[1] = dtcSettingType;
+    r->send_buf[1] = type;
     r->send_len = UDS_0X85_RESP_LEN;
     return UDS_PositiveResponse;
 }
@@ -2725,7 +2735,7 @@ static UDSErr_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
     case kSID_TESTER_PRESENT:
     case kSID_CONTROL_DTC_SETTING:
     case kSID_LINK_CONTROL: {
-        assert(service);
+        UDS_ASSERT(service);
         response = service(srv, r);
 
         bool suppressPosRspMsgIndicationBit = r->recv_buf[1] & 0x80;
@@ -2752,7 +2762,7 @@ static UDSErr_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
     case kSID_TRANSFER_DATA:
     case kSID_REQUEST_FILE_TRANSFER:
     case kSID_REQUEST_TRANSFER_EXIT: {
-        assert(service);
+        UDS_ASSERT(service);
         response = service(srv, r);
         break;
     }
@@ -2920,8 +2930,6 @@ void UDSServerPoll(UDSServer_t *srv) {
 #line 1 "src/tp.c"
 #endif
 
-
-
 ssize_t UDSTpSend(struct UDSTp *hdl, const uint8_t *buf, ssize_t len, UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     UDS_ASSERT(hdl->send);
@@ -2943,10 +2951,6 @@ UDSTpStatus_t UDSTpPoll(struct UDSTp *hdl) {
 #ifdef UDS_LINES
 #line 1 "src/util.c"
 #endif
-
-
-
-
 
 #if UDS_CUSTOM_MILLIS
 #else
@@ -3267,8 +3271,6 @@ bool UDSErrIsNRC(UDSErr_t err) {
 #ifdef UDS_LINES
 #line 1 "src/log.c"
 #endif
-
-
 #include <stdio.h>
 #include <stdarg.h>
 
@@ -3297,10 +3299,6 @@ void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *bu
 #line 1 "src/tp/isotp_c.c"
 #endif
 #if defined(UDS_TP_ISOTP_C)
-
-
-
-
 
 
 static UDSTpStatus_t tp_poll(UDSTp_t *hdl) {
@@ -3412,9 +3410,6 @@ UDSErr_t UDSISOTpCInit(UDSISOTpC_t *tp, const UDSISOTpCConfig_t *cfg) {
 #line 1 "src/tp/isotp_c_socketcan.c"
 #endif
 #if defined(UDS_TP_ISOTP_C_SOCKETCAN)
-
-
-
 
 #include <linux/can.h>
 #include <linux/can/raw.h>
@@ -3646,9 +3641,6 @@ void UDSTpISOTpCDeinit(UDSTpISOTpC_t *tp) {
 #endif
 #if defined(UDS_TP_ISOTP_SOCK)
 
-
-
-
 #include <string.h>
 #include <errno.h>
 #include <linux/can.h>
@@ -3668,21 +3660,25 @@ static UDSTpStatus_t isotp_sock_tp_poll(UDSTp_t *hdl) {
     int fds[2] = {impl->phys_fd, impl->func_fd};
     struct pollfd pfds[2] = {0};
     pfds[0].fd = impl->phys_fd;
-    pfds[0].events = POLLERR;
+    pfds[0].events = POLLERR | POLLOUT;
     pfds[0].revents = 0;
 
     pfds[1].fd = impl->func_fd;
-    pfds[1].events = POLLERR;
+    pfds[1].events = POLLERR | POLLOUT;
     pfds[1].revents = 0;
 
     ret = poll(pfds, 2, 1);
     if (ret < 0) {
-        perror("poll");
+        UDS_LOGE(__FILE__, "poll failed: %d", ret);
+        status |= UDS_TP_ERR;
     } else if (ret == 0) {
-        ; // no error
+        ; // timeout, no events
     } else {
+        // poll() returned with events
         for (int i = 0; i < 2; i++) {
             struct pollfd pfd = pfds[i];
+
+            // Check for errors
             if (pfd.revents & POLLERR) {
                 int pending_err = 0;
                 socklen_t len = sizeof(pending_err);
@@ -3693,7 +3689,7 @@ static UDSTpStatus_t isotp_sock_tp_poll(UDSTp_t *hdl) {
                         status |= UDS_TP_ERR;
                         break;
                     default:
-                        UDS_LOGE(__FILE__, "Asynchronous socket error: %s (%d)\n",
+                        UDS_LOGE(__FILE__, "Asynchronous socket error: %s (%d)",
                                  strerror(pending_err), pending_err);
                         status |= UDS_TP_ERR;
                         break;
@@ -3701,8 +3697,18 @@ static UDSTpStatus_t isotp_sock_tp_poll(UDSTp_t *hdl) {
                 } else {
                     UDS_LOGE(__FILE__, "POLLERR was set, but no error returned via SO_ERROR?");
                 }
-            } else {
-                UDS_LOGE(__FILE__, "poll() returned, but no POLLERR. revents=0x%x", pfd.revents);
+            }
+
+            // Check if send is in progress on physical socket
+            // Only check the physical socket (not functional) since that's what sends multi-frame
+            if (fds[i] == impl->phys_fd && pfd.revents != 0) {
+                // When POLLOUT is NOT set but other events are present, the socket cannot accept
+                // writes because a multi-frame transmission is in progress.
+                // See: https://lore.kernel.org/all/20230331125511.372783-1-michal.sojka@cvut.cz/
+                // The kernel ISO-TP driver suppresses POLLOUT when tx.state != ISOTP_IDLE
+                if (!(pfd.revents & POLLOUT)) {
+                    status |= UDS_TP_SEND_IN_PROGRESS;
+                }
             }
         }
     }
@@ -3915,8 +3921,6 @@ void UDSTpIsoTpSockDeinit(UDSTpIsoTpSock_t *tp) {
 #endif
 #if defined(UDS_TP_ISOTP_MOCK)
 
-
-
 #include <assert.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -3979,7 +3983,7 @@ static void NetworkPoll(void) {
 }
 
 static ssize_t mock_tp_send(struct UDSTp *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
-    assert(hdl);
+    UDS_ASSERT(hdl);
     ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
     if (MsgCount >= NUM_MSGS) {
         UDS_LOGW(__FILE__, "mock_tp_send: too many messages in the queue");
@@ -4020,7 +4024,7 @@ static ssize_t mock_tp_send(struct UDSTp *hdl, uint8_t *buf, size_t len, UDSSDU_
 }
 
 static ssize_t mock_tp_recv(struct UDSTp *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
-    assert(hdl);
+    UDS_ASSERT(hdl);
     ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
     if (tp->recv_len == 0) {
         return 0;
@@ -4048,9 +4052,9 @@ static UDSTpStatus_t mock_tp_poll(struct UDSTp *hdl) {
 static_assert(offsetof(ISOTPMock_t, hdl) == 0, "ISOTPMock_t must not have any members before hdl");
 
 static void ISOTPMockAttach(ISOTPMock_t *tp, ISOTPMockArgs_t *args) {
-    assert(tp);
-    assert(args);
-    assert(TPCount < MAX_NUM_TP);
+    UDS_ASSERT(tp);
+    UDS_ASSERT(args);
+    UDS_ASSERT(TPCount < MAX_NUM_TP);
     TPs[TPCount++] = tp;
     tp->hdl.send = mock_tp_send;
     tp->hdl.recv = mock_tp_recv;
@@ -4064,7 +4068,7 @@ static void ISOTPMockAttach(ISOTPMock_t *tp, ISOTPMockArgs_t *args) {
 }
 
 static void ISOTPMockDetach(ISOTPMock_t *tp) {
-    assert(tp);
+    UDS_ASSERT(tp);
     for (unsigned i = 0; i < TPCount; i++) {
         if (TPs[i] == tp) {
             for (unsigned j = i + 1; j < TPCount; j++) {
@@ -4075,7 +4079,7 @@ static void ISOTPMockDetach(ISOTPMock_t *tp) {
             return;
         }
     }
-    assert(false);
+    UDS_ASSERT(false);
 }
 
 UDSTp_t *ISOTPMockNew(const char *name, ISOTPMockArgs_t *args) {
@@ -4142,8 +4146,6 @@ void ISOTPMockFree(UDSTp_t *tp) {
 #error
 #endif
 #include <stdint.h>
-
-
 
 ///////////////////////////////////////////////////////
 ///                 STATIC FUNCTIONS                ///

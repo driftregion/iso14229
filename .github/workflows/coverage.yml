@@ -25,8 +25,12 @@ jobs:
         echo "PR head SHA: ${{ github.event.pull_request.head.sha }}"
         echo "GitHub SHA: ${{ github.sha }}"
 
-    - name: Setup Bazel Cache
-      uses: ./.github/actions/setup-bazel-cache
+    - name: Setup Bazel
+      uses: bazel-contrib/setup-bazel@0.15.0
+      with:
+        bazelisk-cache: true
+        disk-cache: ${{ github.workflow }}
+        repository-cache: true
 
     - name: run coverage
       run: |

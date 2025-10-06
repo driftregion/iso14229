@@ -1,7 +1,7 @@
 SRCS += iso14229.c
 HDRS += iso14229.h
 TARGETS = server client
-CFLAGS = -DUDS_TP_ISOTP_SOCK -DUDS_LINES -g
+CFLAGS = -DUDS_TP_ISOTP_SOCK -DUDS_LINES -DUDS_LOG_LEVEL=UDS_LOG_INFO -g
 MBEDTLS ?= /usr/local
 LDFLAGS = -L$(MBEDTLS)/lib -lmbedtls -lmbedcrypto -lmbedx509
 
