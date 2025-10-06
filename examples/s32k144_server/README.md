@@ -29,7 +29,7 @@ bazel build --config=s32k //examples/s32k144:main
 1. update programming interface from "OpenSDA" to CMSIS-DAP [1](https://community.nxp.com/t5/S32K/S32K144evb-with-CMSIS-DAP/td-p/1227900) [2](https://developer.arm.com/documentation/kan299/latest/)
 2. install `pyocd`
 3. `pyocd pack install S32K144UAxxxLLx`
-3. update `/etc/udev/rules.d/50-cmsis-dap.rules` with the following:
+4. update `/etc/udev/rules.d/50-cmsis-dap.rules` with the following:
 
 ```
 # c251:f002 S32K144-EVB

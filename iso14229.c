@@ -2527,8 +2527,7 @@ UDSTpStatus_t UDSTpPoll(struct UDSTp *hdl) {
 #line 1 "src/util.c"
 #endif
 
-#if UDS_SYS == UDS_SYS_CUSTOM
-// User must provide UDSMillis() implementation
+#if UDS_CUSTOM_MILLIS
 #else
 uint32_t UDSMillis(void) {
 #if UDS_SYS == UDS_SYS_UNIX
@@ -2549,7 +2548,7 @@ uint32_t UDSMillis(void) {
 #error "UDSMillis() undefined!"
 #endif
 }
-#endif // UDS_SYS == UDS_SYS_CUSTOM
+#endif
 
 /**
  * @brief Check if a security level is reserved per ISO14229-1:2020 Table 42

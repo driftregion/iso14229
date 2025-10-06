@@ -53,7 +53,7 @@ The system is usually detected by default, but can be overridden with the follow
 |--------|--------|
 | `-DUDS_SYS=` | `UDS_SYS_UNIX`, `UDS_SYS_WINDOWS`, `UDS_SYS_ARDUINO`, `UDS_SYS_ESP32`, `UDS_SYS_CUSTOM` |
 
-For custom systems you will need to create a header file "uds_sys_custom.h" which includes the required types. For an example of a custom system, see the S32K example.
+For examples of `UDS_SYS_CUSTOM`, see \ref examples/arduino_server/README.md "arduino_server", \ref examples/esp32_server/README.md "esp32_server", \ref examples/s32k144_server/README.md "s32k144_server".
 
 ### Logging
 
