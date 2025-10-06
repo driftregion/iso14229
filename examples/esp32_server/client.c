@@ -1,6 +1,6 @@
 /**
  * @file examples/esp32_server/client.c
- * @brief UDS client demonstrating Read/Write Data By Identifier (0x22/0x2E)
+ * @brief UDS client to exercise the ESP32 UDS server
  */
 #include "iso14229.h"
 #include <stdint.h>
