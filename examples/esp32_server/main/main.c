@@ -2,6 +2,7 @@
 #include "iso14229.h"
 #include <driver/twai.h>
 #include <esp_log.h>
+#include "freertos/task.h"
 
 #define CAN_RX_PIN GPIO_NUM_7
 #define CAN_TX_PIN GPIO_NUM_6
@@ -47,11 +48,34 @@ void isotp_user_debug(const char *fmt, ...) { (void)fmt; }
 uint32_t isotp_user_get_us(void) { return UDSMillis() * 1000; }
 
 static const UDSISOTpCConfig_t tp_cfg = {
-    .source_addr = 0x7E8,
-    .target_addr = 0x7E0,
+    .source_addr = 0x7E0,
+    .target_addr = 0x7E8,
     .source_addr_func = 0x7DF,
     .target_addr_func = UDS_TP_NOOP_ADDR,
 };
+
+static void uds_task(void *arg) {
+    (void)arg;
+    ESP_LOGI(TAG, "starting...");
+    for (;;) {
+        twai_message_t rx_msg;
+        if (twai_receive(&rx_msg, pdMS_TO_TICKS(10)) == ESP_OK) {
+            if (rx_msg.identifier == tp.phys_sa) {
+                isotp_on_can_message(&tp.phys_link, rx_msg.data, rx_msg.data_length_code);
+            } else if (rx_msg.identifier == tp.func_sa) {
+                if (ISOTP_RECEIVE_STATUS_IDLE != tp.phys_link.receive_status) {
+                    ESP_LOGI(TAG,
+                             "func frame received but cannot process because link is not idle");
+                    continue;
+                }
+                isotp_on_can_message(&tp.func_link, rx_msg.data, rx_msg.data_length_code);
+            } else {
+                ESP_LOGI(TAG, "received unknown can id 0x%03lx", rx_msg.identifier);
+            }
+        }
+        UDSServerPoll(&srv);
+    }
+}
 
 static UDSErr_t fn(UDSServer_t *srv, UDSEvent_t evt, void *data) {
     ESP_LOGI(TAG, "received event %d", evt);
@@ -95,23 +119,5 @@ void app_main(void) {
     srv.fn = fn;
     srv.tp = &tp.hdl;
 
-    for (;;) {
-        twai_message_t rx_msg;
-        if (twai_receive(&rx_msg, 0) == ESP_OK) {
-            if (rx_msg.identifier == tp.phys_sa) {
-                isotp_on_can_message(&tp.phys_link, rx_msg.data, rx_msg.data_length_code);
-            } else if (rx_msg.identifier == tp.func_sa) {
-                if (ISOTP_RECEIVE_STATUS_IDLE != tp.phys_link.receive_status) {
-                    ESP_LOGI(TAG,
-                             "func frame received but cannot process because link is not idle");
-                    continue;
-                }
-                isotp_on_can_message(&tp.func_link, rx_msg.data, rx_msg.data_length_code);
-            } else {
-                ESP_LOGI(TAG, "received unknown can id 0x%03lx", rx_msg.identifier);
-            }
-        }
-
-        UDSServerPoll(&srv);
-    }
+    xTaskCreate(uds_task, "uds_task", 4096, NULL, 5, NULL);
 }
