@@ -1,3 +1,7 @@
+/**
+ * @file examples/linux_server_0x27/client.c
+ * @brief UDS client demonstrating Security Access (0x27)
+ */
 #include "iso14229.h"
 #include <stdint.h>
 #include <stdio.h>

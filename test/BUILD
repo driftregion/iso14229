@@ -94,6 +94,7 @@ sh_test(
     data = [
         "//src:iso14229.h",
         "//:README.md",
+        "//:Doxyfile",
     ],
 )
 
