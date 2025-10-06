@@ -1,3 +1,7 @@
+/**
+ * @file examples/linux_rdbi_wdbi/server.c
+ * @brief UDS server demonstrating Read/Write Data By Identifier (0x22/0x2E)
+ */
 #include "iso14229.h"
 #include <stdio.h>
 #include <stdlib.h>

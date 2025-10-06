@@ -1,3 +1,7 @@
+/**
+ * @file examples/linux_server/main.c
+ * @brief Basic Linux UDS server example using socketcan ISO-TP
+ */
 #include "iso14229.h"
 #include <stdio.h>
 #include <stdlib.h>

@@ -1,13 +1,15 @@
+/**
+ * @file iso14229.c
+ * @brief ISO14229-1 (UDS) library
+ * @copyright Copyright (c) Nick Kirkby
+ * @see https://github.com/driftregion/iso14229
+ */
+
 #include "iso14229.h"
 
 #ifdef UDS_LINES
 #line 1 "src/client.c"
 #endif
-
-
-
-
-
 
 // Client request states
 #define STATE_IDLE 0
@@ -873,11 +875,6 @@ UDSErr_t UDSUnpackRDBIResponse(UDSClient_t *client, UDSRDBIVar_t *vars, uint16_t
 #ifdef UDS_LINES
 #line 1 "src/server.c"
 #endif
-
-
-
-
-
 #include <stdint.h>
 
 static inline UDSErr_t NegativeResponse(UDSReq_t *r, UDSErr_t nrc) {
@@ -2508,8 +2505,6 @@ void UDSServerPoll(UDSServer_t *srv) {
 #line 1 "src/tp.c"
 #endif
 
-
-
 ssize_t UDSTpSend(struct UDSTp *hdl, const uint8_t *buf, ssize_t len, UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     UDS_ASSERT(hdl->send);
@@ -2531,10 +2526,6 @@ UDSTpStatus_t UDSTpPoll(struct UDSTp *hdl) {
 #ifdef UDS_LINES
 #line 1 "src/util.c"
 #endif
-
-
-
-
 
 #if UDS_CUSTOM_MILLIS
 #else
@@ -2855,8 +2846,6 @@ bool UDSErrIsNRC(UDSErr_t err) {
 #ifdef UDS_LINES
 #line 1 "src/log.c"
 #endif
-
-
 #include <stdio.h>
 #include <stdarg.h>
 
@@ -2885,10 +2874,6 @@ void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *bu
 #line 1 "src/tp/isotp_c.c"
 #endif
 #if defined(UDS_TP_ISOTP_C)
-
-
-
-
 
 
 static UDSTpStatus_t tp_poll(UDSTp_t *hdl) {
@@ -3000,9 +2985,6 @@ UDSErr_t UDSISOTpCInit(UDSISOTpC_t *tp, const UDSISOTpCConfig_t *cfg) {
 #line 1 "src/tp/isotp_c_socketcan.c"
 #endif
 #if defined(UDS_TP_ISOTP_C_SOCKETCAN)
-
-
-
 
 #include <linux/can.h>
 #include <linux/can/raw.h>
@@ -3233,9 +3215,6 @@ void UDSTpISOTpCDeinit(UDSTpISOTpC_t *tp) {
 #line 1 "src/tp/isotp_sock.c"
 #endif
 #if defined(UDS_TP_ISOTP_SOCK)
-
-
-
 
 #include <string.h>
 #include <errno.h>
@@ -3517,8 +3496,6 @@ void UDSTpIsoTpSockDeinit(UDSTpIsoTpSock_t *tp) {
 #endif
 #if defined(UDS_TP_ISOTP_MOCK)
 
-
-
 #include <assert.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -3744,8 +3721,6 @@ void ISOTPMockFree(UDSTp_t *tp) {
 #error
 #endif
 #include <stdint.h>
-
-
 
 ///////////////////////////////////////////////////////
 ///                 STATIC FUNCTIONS                ///

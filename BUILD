@@ -1,6 +1,9 @@
 load("@hedron_compile_commands//:refresh_compile_commands.bzl", "refresh_compile_commands")
 package(default_visibility = ["//visibility:public"])
-exports_files(["README.md"])
+exports_files([
+    "README.md",
+    "Doxyfile",
+])
 
 refresh_compile_commands(
     name = "test_compile_commands",
