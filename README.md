@@ -17,8 +17,8 @@ API status: Major version zero (0.y.z) **(not yet stable)**. Anything MAY change
 
 ## Features
 
-- client and server implementations
-- entirely static memory allocation. (no `malloc`, `calloc`, ...)
+- server and client included
+- static memory allocation. (no `malloc`, `calloc`, ...)
 - highly portable and tested
     - architectures: arm, x86-64, ppc, ppc64, risc
     - systems: linux, Windows, esp32, Arduino, NXP s32k
@@ -27,51 +27,20 @@ API status: Major version zero (0.y.z) **(not yet stable)**. Anything MAY change
 
 # Documentation
 
-https://driftregion.github.io/iso14229/
+Here https://driftregion.github.io/iso14229/ and also in [./docs](./docs)
 
 # Contributing
 
 Contributions are welcome.
 
-## Development
-
-You will need bazel and linux. 
-
-Use the pre-commit hook in .githooks to automate formatting the sources and updating the amalagamation.
-
-```sh
-git config core.hooksPath .githooks
-```
-
 ## Reporting Issues
 
 When reporting issues, please state what you expected to happen.
 
-## Running Tests
-
-```sh
-bazel test //...
-```
-
-See [test/README.md](test/README.md)
-
-## Release
-
-```sh
-bazel build //:release
-```
-
-### Release Checklist
-
-- [ ] branch is rebased on main `git fetch && git merge origin main`
-- [ ] push branch, all checks pass in CI `git push`
-- [ ] update changelog in README.md, commit
-- [ ] build release `bazel build //:release`
-- [ ] `./.github/release.sh`
-
 # Acknowledgements
 
-- [`isotp-c`](https://github.com/SimonCahill/isotp-c) which this project embeds
+- [`isotp-c`](https://github.com/SimonCahill/isotp-c) which iso14229 embeds.
+- The [NLnet NGI0 Core Fund](https://nlnet.nl/project/iso14229/) which funded some work on iso14229 in 2025.
 
 
 # Changelog

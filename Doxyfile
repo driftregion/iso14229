@@ -5,8 +5,8 @@
 #---------------------------------------------------------------------------
 DOXYFILE_ENCODING      = UTF-8
 PROJECT_NAME           = "iso14229"
-PROJECT_NUMBER         =
-PROJECT_BRIEF          =
+PROJECT_NUMBER         = "0.9.0"
+PROJECT_BRIEF          = "ISO14229-1 (UDS) C Library"
 PROJECT_LOGO           =
 OUTPUT_DIRECTORY       =
 CREATE_SUBDIRS         = NO

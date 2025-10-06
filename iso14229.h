@@ -3,7 +3,9 @@
 
 /**
  * @file iso14229.h
- * @brief ISO14229-1 (UDS) library - Amalgamated header
+ * @brief ISO14229-1 (UDS) library
+ * @copyright Copyright (c) Nick Kirkby
+ * @see https://github.com/driftregion/iso14229
  */
 
 #ifdef __cplusplus
@@ -11,8 +13,7 @@ extern "C" {
 #endif
 
 
-#define UDS_VERSION "0.9.0"
-
+#define UDS_LIB_VERSION "0.9.0"
 
 
 
@@ -40,12 +41,6 @@ extern "C" {
 
 
 
-
-
-
-
-
-
 #if UDS_SYS == UDS_SYS_ARDUINO
 
 #include <assert.h>
@@ -64,7 +59,6 @@ extern "C" {
 
 
 
-
 #if UDS_SYS == UDS_SYS_UNIX
 
 #include <assert.h>
@@ -79,7 +73,6 @@ extern "C" {
 #include <time.h>
 
 #endif
-
 
 
 
@@ -104,7 +97,6 @@ typedef SSIZE_T ssize_t;
 
 
 
-
 #if UDS_SYS == UDS_SYS_ESP32
 
 #include <string.h>
@@ -114,7 +106,6 @@ typedef SSIZE_T ssize_t;
 #define UDS_TP_ISOTP_C 1
 
 #endif
-
 
 
 
@@ -211,8 +202,6 @@ TransferData request message from the client. */
 
 
 
-
-
 #if defined UDS_TP_ISOTP_C_SOCKETCAN
 #ifndef UDS_TP_ISOTP_C
 #define UDS_TP_ISOTP_C
@@ -295,7 +284,6 @@ typedef struct UDSTp {
 ssize_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, ssize_t len, UDSSDU_t *info);
 ssize_t UDSTpRecv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info);
 UDSTpStatus_t UDSTpPoll(UDSTp_t *hdl);
-
 
 
 
@@ -589,10 +577,6 @@ enum UDSDiagnosticServiceId {
 
 
 
-
-
-
-
 #ifndef UDS_ASSERT
 #include <assert.h>
 #define UDS_ASSERT(x) assert(x)
@@ -615,15 +599,10 @@ const char *UDSEventToStr(UDSEvent_t evt);
 
 
 
-
 /**
  * @brief logging for bring-up and unit tests.
  * This interface was copied from ESP-IDF.
  */
-
-
-
-
 
 
 #define UDS_LOG_NONE 0    // No log output
@@ -735,11 +714,6 @@ static inline void UDS_LogSDUDummy(const char *tag, const uint8_t *buffer, size_
     (void)buff_len;
     (void)info;
 }
-
-
-
-
-
 
 
 
@@ -857,11 +831,6 @@ UDSErr_t UDSConfigDownload(UDSClient_t *client, uint8_t dataFormatIdentifier,
 
 
 
-
-
-
-
-
 /**
  * @brief Server request context
  */
@@ -942,8 +911,7 @@ typedef struct {
  * @brief ECU reset arguments
  */
 typedef struct {
-    const uint8_t type; /**< \~chinese 客户端请求的复位类型 \~english reset type requested by client
-                           (uint8_t) */
+    const uint8_t type;           /**< reset type requested by client */
     uint32_t powerDownTimeMillis; /**< when this much time has elapsed after a UDS_PositiveResponse,
                                      a UDS_EVT_DoScheduledReset will be issued */
 } UDSECUResetArgs_t;
@@ -1527,9 +1495,6 @@ extern "C" {
 #endif
 
 
-
-
-
 /**
  * @brief Struct containing the data for linking an application to a CAN instance.
  * The data stored in this struct is used internally and may be used by software programs
@@ -1650,13 +1615,7 @@ int isotp_receive(IsoTpLink *link, uint8_t *payload, const uint16_t payload_size
 
 #endif
 
-
 #if defined(UDS_TP_ISOTP_C)
-
-
-
-
-
 
 
 typedef struct {
@@ -1684,10 +1643,7 @@ void UDSISOTpCDeinit(UDSISOTpC_t *tp);
 
 
 
-
 #if defined(UDS_TP_ISOTP_C_SOCKETCAN)
-
-
 
 
 typedef struct {
@@ -1711,9 +1667,6 @@ void UDSTpISOTpCDeinit(UDSTpISOTpC_t *tp);
 
 
 #if defined(UDS_TP_ISOTP_SOCK)
-
-
-
 
 
 typedef struct {
@@ -1745,8 +1698,6 @@ void UDSTpIsoTpSockDeinit(UDSTpIsoTpSock_t *tp);
  *
  */
 #if defined(UDS_TP_ISOTP_MOCK)
-
-
 
 
 

@@ -15,6 +15,8 @@ server.tp = transport;
 server.fn = fn; /* your service handler function */
 ```
 
+For transport initialization, see \ref transport_layers.
+
 ### Service Handler
 
 The service handler function `server.fn` is called by `UDSServerPoll` when an event occurs. A listing of all events is available in \ref UDSEvent_t.
@@ -88,13 +90,19 @@ while (1) {
 
 The \ref UDSServer structure contains:
 
-- **Transport**: `tp` - Pointer to ISO-TP transport layer
-- **Callback**: `fn`, `fn_data` - Event handler and user data
-- **Timing**: `p2_ms`, `p2_star_ms`, `s3_ms` - Timing parameters
-- **Session**: `sessionType` - Current diagnostic session (0x10)
-- **Security**: `securityLevel` - Current security level (0x27)
-- **Transfer**: `xferIsActive`, `xferBlockSequenceCounter`, etc. - Transfer state
-- **Request Context**: `r` - Current request/response buffers
+| Identifier | Description | How to Use |
+|------------|-------------|------------|
+| `tp` | Pointer to ISO-TP transport layer | Set during initialization: `server.tp = transport;` |
+| `fn` | Event handler callback function | Set during initialization: `server.fn = fn;` |
+| `fn_data` | User data bound to server, accessible in `fn`| Optional: `server.fn_data = &my_data;` |
+| `p2_ms` | P2 timeout in milliseconds | Internal use only; Set default with `UDS_SERVER_DEFAULT_P2_MS` |
+| `p2_star_ms` | P2* timeout in milliseconds | Internal use only; Set default with `UDS_SERVER_DEFAULT_P2_STAR_MS` |
+| `s3_ms` | S3 session timeout in milliseconds | Internal use only; Set default with `UDS_SERVER_DEFAULT_S3_MS` |
+| `sessionType` | Current diagnostic session | Read: `if (server.sessionType == UDS_LEV_DS_EXTDS)` |
+| `securityLevel` | Current security level | Read/write: `server.securityLevel = args->level;` |
+| `xferIsActive` | Transfer operation active flag | Read: `if (server.xferIsActive)` |
+| `xferBlockSequenceCounter` | Transfer block sequence counter | Read only |
+| `r` | Current request/response buffers | Internal use only |
 
 ## Service Events
 
@@ -151,8 +159,6 @@ case UDS_EVT_RoutineCtrl: {
 }
 ```
 
-Note that the standard defines supported NRCs for each service. 
-
 ### Response Pending
 
 Return `UDS_NRC_RequestCorrectlyReceived_ResponsePending` (0x78) to indicate that processing is taking longer than P2:
@@ -184,51 +190,7 @@ Sessions automatically timeout after S3 time of inactivity, returning to the def
 
 ## Security Access
 
-Security access has built-in brute-force protection:
-
-```c
-case UDS_EVT_SecAccessRequestSeed: {
-    UDSSecAccessRequestSeedArgs_t *args = (UDSSecAccessRequestSeedArgs_t *)arg;
-    uint8_t seed[4] = {0x12, 0x34, 0x56, 0x78};
-    return args->copySeed(srv, seed, sizeof(seed));
-}
-
-case UDS_EVT_SecAccessValidateKey: {
-    UDSSecAccessValidateKeyArgs_t *args = (UDSSecAccessValidateKeyArgs_t *)arg;
-    // Validate the key
-    if (is_key_valid(args->key, args->len)) {
-        srv->securityLevel = args->level;
-        return UDS_OK;
-    }
-    return UDS_NRC_InvalidKey;
-}
-```
-
-## Transfer Services (Download/Upload)
-
-For firmware updates and calibration:
-
-```c
-case UDS_EVT_RequestDownload: {
-    UDSRequestDownloadArgs_t *args = (UDSRequestDownloadArgs_t *)arg;
-    // Prepare for download
-    args->maxNumberOfBlockLength = 512;
-    return UDS_OK;
-}
-
-case UDS_EVT_TransferData: {
-    UDSTransferDataArgs_t *args = (UDSTransferDataArgs_t *)arg;
-    // Write data to memory/flash
-    write_to_flash(args->data, args->len);
-    return UDS_OK;
-}
-
-case UDS_EVT_RequestTransferExit: {
-    // Finalize the transfer
-    finalize_flash_write();
-    return UDS_OK;
-}
-```
+See \ref examples/linux_server_0x27/server.c "Security Access Server Example"
 
 ## Configuration {#server_configuration}
 

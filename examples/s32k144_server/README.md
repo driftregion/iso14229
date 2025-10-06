@@ -1,4 +1,16 @@
-I'm so sorry that you too must futz with Freescale / NXP's byzantine drivers!
+# NXP S32K144 Server Example
+
+UDS server example for NXP S32K144 microcontroller.
+
+## Overview
+
+This example demonstrates a UDS server running on the NXP S32K144 evaluation board.
+
+## Files
+
+See the source files in the `examples/s32k144_server/` directory.
+
+## Hardware
 
 This demo uses the [S32K144-EVB](https://www.keil.arm.com/boards/nxp-s32k144-evb-rev-a-ee981eb/features/)
 
@@ -11,7 +23,6 @@ This uses `gcc-arm-none-eabi`, make sure it's installed first.
 sudo apt install gcc-arm-none-eabi
 bazel build --config=s32k //examples/s32k144:main
 ```
-
 
 # CMSIS-DAP
 

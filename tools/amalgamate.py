@@ -16,8 +16,9 @@ srcs = {os.path.basename(src): src for src in args.srcs}
 
 
 def strip_includes(src):
-    sub1 = re.sub(r'#include ".*', "", src, flags=re.MULTILINE)
-    return re.sub(r'#pragma once', "", sub1, flags=re.MULTILINE)
+    src = re.sub(r'#include ".*\n', "", src)
+    src = re.sub(r'#pragma once\n', "", src)
+    return src
 
 isotp_c_wrapped_c = "#if defined(UDS_TP_ISOTP_C)\n" + \
     "#ifndef ISO_TP_USER_SEND_CAN_ARG\n" + \
@@ -37,6 +38,13 @@ isotp_c_wrapped_h = "#if defined(UDS_TP_ISOTP_C)\n" + \
     "#endif\n"
 
 with open(args.out_c, "w", encoding="utf-8") as f:
+    f.write("/**\n")
+    f.write(" * @file iso14229.c\n")
+    f.write(" * @brief ISO14229-1 (UDS) library\n")
+    f.write(" * @copyright Copyright (c) Nick Kirkby\n")
+    f.write(" * @see https://github.com/driftregion/iso14229\n")
+    f.write(" */\n")
+    f.write("\n")
     f.write("#include \"iso14229.h\"\n")
     for src in [
         "src/client.c",
@@ -68,7 +76,9 @@ with open(args.out_h, "w", encoding="utf-8") as f:
     f.write("\n")
     f.write("/**\n")
     f.write(" * @file iso14229.h\n")
-    f.write(" * @brief ISO14229-1 (UDS) library - Amalgamated header\n")
+    f.write(" * @brief ISO14229-1 (UDS) library\n")
+    f.write(" * @copyright Copyright (c) Nick Kirkby\n")
+    f.write(" * @see https://github.com/driftregion/iso14229\n")
     f.write(" */\n")
     f.write("\n")
     f.write("#ifdef __cplusplus\n")

@@ -2,18 +2,6 @@
 
 The UDS client API provides functionality for sending diagnostic requests to UDS servers.
 
-## Overview
-
-The client implementation is event-driven and non-blocking, making it suitable for embedded systems and applications with real-time constraints.
-
-## Key Features
-
-- Event-driven, non-blocking API
-- Automatic handling of multi-frame messages via ISO-TP
-- Support for all standard UDS services
-- Configurable timeouts (P2, P2*)
-- Request options (suppress positive response, functional addressing)
-
 ## Basic Usage
 
 ### Initialization
@@ -25,6 +13,8 @@ UDSTp_t *transport = /* initialize your transport */;
 UDSClientInit(&client);
 client.tp = transport;
 ```
+
+For transport initialization, see \ref transport_layers.
 
 ### Sending Requests
 
@@ -68,12 +58,13 @@ Combine these flags when sending requests:
 |------|-------------|
 | `UDS_SUPPRESS_POS_RESP` | Suppress positive response (0x80 bit) |
 | `UDS_FUNCTIONAL` | Send as functional request (broadcast) |
-| `UDS_IGNORE_SRV_TIMINGS` | Ignore server-provided P2/P2* values |
+| `UDS_IGNORE_SRV_TIMINGS` | Ignore the server-provided P2/P2* values returned by a successful call to DiagnosticSessionControl |
 
 Example:
 ```c
 client.options = UDS_SUPPRESS_POS_RESP | UDS_FUNCTIONAL;
 UDSSendTesterPresent(&client);
+// client.options is cleared automatically after each request
 ```
 
 ## Event-Driven API
@@ -81,7 +72,7 @@ UDSSendTesterPresent(&client);
 The client uses callbacks to notify the application of events:
 
 ```c
-int client_callback(UDSClient_t *client, UDSEvent_t evt, void *ev_data) {
+int fn(UDSClient_t *client, UDSEvent_t evt, void *ev_data) {
     switch (evt) {
         case UDS_EVT_SendComplete:
             // Request sent successfully
@@ -103,20 +94,7 @@ client.fn = client_callback;
 
 ## Supported Services
 
-The client supports all standard UDS services. See \ref services "UDS Services" for detailed documentation of each service.
-
-Key services:
-
-- **0x10** \ref service_0x10 "Diagnostic Session Control" - \ref UDSSendDiagSessCtrl
-- **0x11** \ref service_0x11 "ECU Reset" - \ref UDSSendECUReset
-- **0x22** \ref service_0x22 "Read Data By Identifier" - \ref UDSSendRDBI
-- **0x27** \ref service_0x27 "Security Access" - \ref UDSSendSecurityAccess
-- **0x2E** \ref service_0x2e "Write Data By Identifier" - \ref UDSSendWDBI
-- **0x31** \ref service_0x31 "Routine Control" - \ref UDSSendRoutineCtrl
-- **0x34** \ref service_0x34 "Request Download" - \ref UDSSendRequestDownload
-- **0x36** \ref service_0x36 "Transfer Data" - \ref UDSSendTransferData
-- **0x37** \ref service_0x37 "Request Transfer Exit" - \ref UDSSendRequestTransferExit
-- **0x3E** Tester Present - \ref UDSSendTesterPresent
+See \ref services "UDS Services".
 
 ## Unpacking Responses
 

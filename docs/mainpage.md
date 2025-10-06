@@ -1,30 +1,19 @@
 # iso14229 {#mainpage}
 
-A portable, embeddable ISO14229-1 (UDS) library for writing UDS clients and servers.
+iso14229 is a UDS (ISO14229) library for writing servers and clients. 
 
 **Source Code:** https://github.com/driftregion/iso14229
 
 ## Quick Start {#quickstart}
 
-1. Download the sources and add them to your project:
-    - [iso14229.h](https://github.com/driftregion/iso14229/raw/main/iso14229.h)
-    - [iso14229.c](https://github.com/driftregion/iso14229/raw/main/iso14229.c)
+1. Download the sources `iso14229.c` and `iso14229.h` from the [releases page](https://github.com/driftregion/iso14229/releases) and add them to your project.
 2. Use the \ref examples_sec to guide your implementation.
 
 ---
 
-## Table of Contents
-
-- \ref server "Server API"
-- \ref client "Client API"
-- \ref services "UDS Services"
-- \ref examples_sec
-- \ref transport_layers
-- \ref configuration
-
----
-
 ## Examples {#examples_sec}
+
+To access the examples, clone or download the repository from https://github.com/driftregion/iso14229
 
 | Example | Description |
 |---------|-------------|
@@ -37,29 +26,24 @@ A portable, embeddable ISO14229-1 (UDS) library for writing UDS clients and serv
 
 ---
 
-## Transport Layers {#transport_layers}
+## API Documentation
 
-| Transport | Define | Description |
-|-----------|--------|-------------|
-| **isotp_sock** | `-DUDS_TP_ISOTP_SOCK` | Linux kernel ISO-TP socket (recommended for Linux) |
-| **isotp_c_socketcan** | `-DUDS_TP_ISOTP_C_SOCKETCAN` | isotp-c over SocketCAN (Linux) |
-| **isotp_c** | `-DUDS_TP_ISOTP_C` | Software ISO-TP (embedded, Windows, etc.) |
-| **isotp_mock** | `-DUDS_TP_ISOTP_MOCK` | In-memory transport for testing |
-
----
+- \ref server "Server API"
+- \ref client "Client API"
+- \ref services "UDS Services"
 
 ## Configuration {#configuration}
 
 Configure the library at compilation time with preprocessor defines:
 
-### Transport Selection
+### Transport Selection {#transport_layers}
 
-| Define | Description |
-|--------|-------------|
-| `-DUDS_TP_ISOTP_SOCK` | build the Linux kernel ISO-TP socket |
-| `-DUDS_TP_ISOTP_C` | build the isotp-c software implementation |
-| `-DUDS_TP_ISOTP_C_SOCKETCAN` | build isotp-c over SocketCAN |
-| `-DUDS_TP_ISOTP_MOCK` | build the mock transport for testing |
+| Transport | Define | Description | Suitable For Targets | Example Implementations |
+|-----------|--------|-------------|-------------|------------|
+| **isotp_sock** | `-DUDS_TP_ISOTP_SOCK` | Linux kernel ISO-TP socket | Linux newer than 5.10  |  \ref examples/linux_server_0x27/README.md "linux_server_0x27" |
+| **isotp_c_socketcan** | `-DUDS_TP_ISOTP_C_SOCKETCAN` | isotp-c over SocketCAN | Linux newer than 2.6.25 | \ref examples/linux_server_0x27/README.md "linux_server_0x27" |
+| **isotp_c** | `-DUDS_TP_ISOTP_C` | Software ISO-TP | Everything else | \ref examples/arduino_server/README.md "arduino_server" \ref examples/esp32_server/README.md "esp32_server" \ref examples/s32k144_server/README.md "s32k144_server" |
+| **isotp_mock** | `-DUDS_TP_ISOTP_MOCK` | In-memory transport for testing | platform-independent unit tests | see unit tests |
 
 ### System Selection Override
 
@@ -68,6 +52,8 @@ The system is usually detected by default, but can be overridden with the follow
 | Define | Values |
 |--------|--------|
 | `-DUDS_SYS=` | `UDS_SYS_UNIX`, `UDS_SYS_WINDOWS`, `UDS_SYS_ARDUINO`, `UDS_SYS_ESP32`, `UDS_SYS_CUSTOM` |
+
+For custom systems you will need to create a header file "uds_sys_custom.h" which includes the required types. For an example of a custom system, see the S32K example.
 
 ### Logging
 
