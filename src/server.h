@@ -85,7 +85,7 @@ typedef struct {
  * @brief ECU reset arguments
  */
 typedef struct {
-    const uint8_t type; /**< reset type requested by client */
+    const uint8_t type;           /**< reset type requested by client */
     uint32_t powerDownTimeMillis; /**< when this much time has elapsed after a UDS_PositiveResponse,
                                      a UDS_EVT_DoScheduledReset will be issued */
 } UDSECUResetArgs_t;
