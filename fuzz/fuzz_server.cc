@@ -170,8 +170,8 @@ std::vector<uint8_t> generate_0x29_authentication_request(FuzzedDataProvider &fu
     uint8_t subfunc = fuzzed_data.ConsumeIntegralInRange(0, 9);
 
     switch (subfunc) {
-    case 0: {
-        msg.push_back(0x00);
+    case 0: { // De-Authenticate
+        msg.push_back(subfunc);
         if (fuzzed_data.ConsumeBool()) {
             // add random data 50% of the time. Valid request has no other payload
             auto data = generate_random_subfunc_data(fuzzed_data);
@@ -179,10 +179,40 @@ std::vector<uint8_t> generate_0x29_authentication_request(FuzzedDataProvider &fu
         }
         break;
     }
-    case 1: {
+    case 1:   // verify Certificate Unidirectional
+    case 2: { // verify Certificate Bidirectional
+        msg.push_back(subfunc);
+        if (fuzzed_data.ConsumeBool()) {
+            // add random data 50% of the time.
+            auto data = generate_random_subfunc_data(fuzzed_data);
+            msg.insert(msg.end(), data.begin(), data.end());
+        } else {
+
+            // communicationConfiguration
+            msg.push_back(fuzzed_data.ConsumeIntegral<uint8_t>());
+
+            // Certificate length
+            uint16_t cert_len =
+                fuzzed_data.ConsumeIntegralInRange<uint16_t>(0, UDS_TP_MTU - msg.size());
+            msg.push_back((cert_len >> 8) & 0xFF);
+            msg.push_back(cert_len & 0xFF);
+
+            // Certificate
+            std::vector<uint8_t> cert = fuzzed_data.ConsumeBytes<uint8_t>(cert_len);
+            msg.insert(msg.end(), cert.begin(), cert.end());
+
+            // Challenge Length
+            uint16_t challenge_len =
+                fuzzed_data.ConsumeIntegralInRange<uint16_t>(0, UDS_TP_MTU - msg.size());
+
+            // Challenge
+            std::vector<uint8_t> challenge = fuzzed_data.ConsumeBytes<uint8_t>(challenge_len);
+            msg.insert(msg.end(), challenge.begin(), challenge.end());
+        }
+        break;
     }
-    case 2:
-    case 3:
+    case 3: { // proof of Ownership
+    }
     case 4:
     case 5:
     case 6:
