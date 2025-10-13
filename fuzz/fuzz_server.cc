@@ -20,11 +20,17 @@ static uint8_t client_recv_buf[UDS_TP_MTU];
 static UDSErr_t fn(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     FuzzedDataProvider *fuzzed_data = (FuzzedDataProvider *)srv->fn_data;
     UDSErr_t retval = static_cast<UDSErr_t>(fuzzed_data->ConsumeIntegral<int>());
+    // 50% of time to respond positively
+    if (fuzzed_data->ConsumeBool()) {
+        retval = UDS_PositiveResponse;
+    }
+
     switch (ev) {
     case UDS_EVT_DiagSessCtrl: {
         UDSDiagSessCtrlArgs_t *r = (UDSDiagSessCtrlArgs_t *)arg;
         r->p2_ms = fuzzed_data->ConsumeIntegral<uint16_t>();
         r->p2_star_ms = fuzzed_data->ConsumeIntegral<uint32_t>();
+
         break;
     }
     case UDS_EVT_EcuReset: {
@@ -121,11 +127,21 @@ uint32_t UDSMillis() { return g_time_now_us / 1000; }
 
 const uint8_t possible_requests[] = {
     0x00, // Random message
+    0x01, // Random message
+    0x02, // Random message
+    0x03, // Random message
+    0x04, // Random message
+    0x05, // Random message
+    0x06, // Random message
+    0x07, // Random message
+    0x08, // Random message
+    0x09, // Random message
     0x10, // Diagnostic Session Control
-    // 0x29, // Authentication
+    0x29, // Authentication
 };
 
-std::vector<uint8_t> generate_diagnostic_session_control_request(FuzzedDataProvider &fuzzed_data) {
+std::vector<uint8_t>
+generate_0x10_diagnostic_session_control_request(FuzzedDataProvider &fuzzed_data) {
     std::vector<uint8_t> msg;
     msg.push_back(kSID_DIAGNOSTIC_SESSION_CONTROL);
 
@@ -133,6 +149,52 @@ std::vector<uint8_t> generate_diagnostic_session_control_request(FuzzedDataProvi
     std::vector<uint8_t> random_bytes =
         fuzzed_data.ConsumeBytes<uint8_t>(fuzzed_data.ConsumeIntegralInRange<size_t>(0, 10));
     msg.insert(msg.end(), random_bytes.begin(), random_bytes.end());
+
+    return msg;
+}
+
+std::vector<uint8_t> generate_random_data(FuzzedDataProvider &fuzzed_data, size_t min_len,
+                                          size_t max_len) {
+    size_t msg_len = fuzzed_data.ConsumeIntegralInRange<size_t>(0, max_len);
+    return fuzzed_data.ConsumeBytes<uint8_t>(msg_len);
+}
+
+std::vector<uint8_t> generate_random_subfunc_data(FuzzedDataProvider &fuzzed_data) {
+    return generate_random_data(fuzzed_data, 0, UDS_TP_MTU - 1);
+}
+
+std::vector<uint8_t> generate_0x29_authentication_request(FuzzedDataProvider &fuzzed_data) {
+    std::vector<uint8_t> msg;
+    msg.push_back(kSID_AUTHENTICATION);
+
+    uint8_t subfunc = fuzzed_data.ConsumeIntegralInRange(0, 9);
+
+    switch (subfunc) {
+    case 0: {
+        msg.push_back(0x00);
+        if (fuzzed_data.ConsumeBool()) {
+            // add random data 50% of the time. Valid request has no other payload
+            auto data = generate_random_subfunc_data(fuzzed_data);
+            msg.insert(msg.end(), data.begin(), data.end());
+        }
+        break;
+    }
+    case 1: {
+    }
+    case 2:
+    case 3:
+    case 4:
+    case 5:
+    case 6:
+    case 7:
+    case 8: {
+    }
+    case 9: {
+        auto data = generate_random_subfunc_data(fuzzed_data);
+        msg.insert(msg.end(), data.begin(), data.end());
+        break;
+    }
+    }
 
     return msg;
 }
@@ -170,14 +232,26 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         std::vector<uint8_t> msg;
 
         switch (possible_requests[possible_request_index]) {
-        case 0: {
+        case 0:
+        case 1:
+        case 2:
+        case 3:
+        case 4:
+        case 5:
+        case 6:
+        case 7:
+        case 8:
+        case 9: {
             size_t msg_len = fuzzed_data.ConsumeIntegralInRange<size_t>(0, UDS_TP_MTU);
             msg = fuzzed_data.ConsumeBytes<uint8_t>(msg_len);
             break;
         }
         case kSID_DIAGNOSTIC_SESSION_CONTROL:
-            msg = generate_diagnostic_session_control_request(fuzzed_data);
+            msg = generate_0x10_diagnostic_session_control_request(fuzzed_data);
             break;
+        case kSID_AUTHENTICATION: {
+            msg = generate_0x29_authentication_request(fuzzed_data);
+        }
         }
 
         {
