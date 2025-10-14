@@ -177,6 +177,53 @@ typedef struct {
  * @brief Security access request seed arguments
  */
 typedef struct {
+    uint8_t type; /*! requested subfunction */
+
+    uint8_t (*set_auth_state)(UDSServer_t *srv,
+                              uint8_t state); /*! set the authentication state as lined out in
+                                                 ISO14229-1:2020 Table B.5 */
+
+    uint8_t (*copy)(UDSServer_t *srv, const void *src,
+                    uint16_t count); /*! function for copying data */
+
+    union {
+        struct {
+            uint8_t commConf;      /*! CommunicationConfiguration */
+            uint16_t certLen;      /*! lengthOfCertificateClient */
+            void *cert;            /*! pointer to certificateClient */
+            uint16_t challengeLen; /*! lengthOfChallengeClient (may be 0 for unidirectional
+                                      verification) */
+            void *challenge;       /*! pointer to challengeClient  */
+        } verifyCertArgs;          /*! Arguments for unidirectional or bidirectional verification */
+        struct {
+            uint16_t pownLen;      /*! lengthOfProofOfOwnership */
+            void *pown;            /*! pointer to proofOfOwnership */
+            uint16_t publicKeyLen; /*! lengthOfPublicKey (may be 0)*/
+            void *publicKey;       /*! pointer to publicKey */
+        } pownArgs;                /*! ProofOfOwnership*/
+        struct {
+            uint8_t evalId; /*! certificateEvaluationID */
+            uint16_t len;   /*! lengthOfCertificateData */
+            void *cert;     /*! pointer to certificateData */
+        } transCertArgs;    /*! TransmitCertificate */
+        struct {
+            uint8_t commConf; /*! CommunicationConfiguration */
+            void *algoInd;    /*! pointer to algorithmIndicator (always 16 bytes) */
+        } reqChallengeArgs;   /*! RequestChallengeForAuthentication*/
+        struct {
+            void *algoInd;         /*! pointer to algorithmIndicator (always 16 bytes) */
+            uint16_t pownLen;      /*! lengthOfProofOfOwnership */
+            void *pown;            /*! pointer to proofOfOwnership */
+            uint16_t challengeLen; /*! lengthOfChallengeClient (may be 0 when unidirectional) */
+            void *challenge;       /*! pointer to challengeClient */
+            uint16_t addParamLen;  /*! lengthOfAdditionalParameter (may be 0) */
+            void *addParam;        /*! pointer to additionalParameter */
+        } verifyPownArgs; /*! Arguments for unidirectional or bidirectional verification for
+                                proof of ownership */
+    } subFuncArgs;
+} UDSAuthArgs_t;
+
+typedef struct {
     const uint8_t level;             /*! requested security level */
     const uint8_t *const dataRecord; /*! pointer to request data */
     const uint16_t len;              /*! size of request data */

@@ -19,6 +19,8 @@ typedef enum UDSEvent {
     UDS_EVT_CommCtrl,             /**< Server evt 0x28, argtype: UDSCommCtrlArgs_t * */
     UDS_EVT_SecAccessRequestSeed, /**< Server evt 0x27, argtype: UDSSecAccessRequestSeedArgs_t * */
     UDS_EVT_SecAccessValidateKey, /**< Server evt 0x27, argtype: UDSSecAccessValidateKeyArgs_t * */
+    UDS_EVT_Auth,                 /**< Server evt 0x29, argtype: UDSAuthArgs_t * */
+    UDS_EVT_AuthTimeout,          /**< Server evt 0x29, argtype: NULL */
     UDS_EVT_WriteDataByIdent,     /**< Server evt 0x2E, argtype: UDSWDBIArgs_t * */
     UDS_EVT_WriteMemByAddr,       /**< Server evt 0x3D, argtype: UDSWriteMemByAddrArgs_t * */
     UDS_EVT_DynamicDefineDataId,  /**< Server evt 0x2C, argtype: UDSDDDIArgs_t * */
@@ -174,6 +176,34 @@ typedef enum {
 #define UDS_CTP_NWMCM_NCM 3 // NetworkManagementCommunicationMessagesAndNormalCommunicationMessages
 
 /**
+ * @brief 0x29 Authentication SubFunction
+ * ISO14229-1:2020 Table 74
+ */
+#define UDS_LEV_AT_DA 0     // deAuthenticate
+#define UDS_LEV_AT_VCU 1    // verifyCertificateUnidirectional
+#define UDS_LEV_AT_VCB 2    // verifyCertificateBidirectional
+#define UDS_LEV_AT_POWN 3   // proofOfOwnership
+#define UDS_LEV_AT_TC 4     // transmitCertificate
+#define UDS_LEV_AT_RCFA 5   // requestChallengeForAuthentication
+#define UDS_LEV_AT_VPOWNU 6 //  verifyProofOfOwnershipUnidirectional
+#define UDS_LEV_AT_VPOWNB 7 //  verifyProofOfOwnershipBidirectional
+#define UDS_LEV_AT_AC 8     //  authenticationConfiguration
+
+/**
+ * @brief 0x29 Authentication - Authentication Return Parameter
+ * ISO14229-1:2020 Table B.5
+ */
+#define UDS_AT_RA 0x00      // RequestAccepted
+#define UDS_AT_GR 0x01      // GeneralReject
+#define UDS_AT_ACAPCE 0x02  // authenticationConfiguration APCE
+#define UDS_AT_ACACRAC 0x03 // AuthenticationConfiguration ACR with asymmetric cryptography
+#define UDS_AT_ACACRSC 0x04 // AuthenticationConfiguration ACR with symmetric cryptography
+#define UDS_AT_DAS 0x10     // DeAuthentication successful
+#define UDS_AT_CVOVN 0x11   // CertificateVerified, OwnershipVerificationNecessary
+#define UDS_AT_OVAC 0x12    // OwnershipVerified, AuthenticationComplete
+#define UDS_AT_CV 0x13      // CertificateVerified
+
+/**
  * @brief 0x31 RoutineControl SubFunction = [routineControlType]
  * ISO14229-1:2020 Table 426
  */
@@ -229,6 +259,8 @@ typedef enum {
 #define UDS_0X27_RESP_BASE_LEN 2U
 #define UDS_0X28_REQ_BASE_LEN 3U
 #define UDS_0X28_RESP_LEN 2U
+#define UDS_0X29_REQ_MIN_LEN 2U
+#define UDS_0X29_RESP_BASE_LEN 3U
 #define UDS_0X2C_REQ_MIN_LEN 2U
 #define UDS_0X2C_RESP_BASE_LEN 2U
 #define UDS_0X2E_REQ_BASE_LEN 3U
@@ -268,6 +300,7 @@ enum UDSDiagnosticServiceId {
     kSID_READ_SCALING_DATA_BY_IDENTIFIER = 0x24,
     kSID_SECURITY_ACCESS = 0x27,
     kSID_COMMUNICATION_CONTROL = 0x28,
+    kSID_AUTHENTICATION = 0x29,
     kSID_READ_PERIODIC_DATA_BY_IDENTIFIER = 0x2A,
     kSID_DYNAMICALLY_DEFINE_DATA_IDENTIFIER = 0x2C,
     kSID_WRITE_DATA_BY_IDENTIFIER = 0x2E,

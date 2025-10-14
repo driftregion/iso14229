@@ -29,10 +29,16 @@ int Teardown(void **state) {
 }
 
 int fn_test_session_timeout(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
-    int *call_count = (int *)srv->fn_data;
-    TEST_INT_EQUAL(UDS_EVT_SessionTimeout, ev);
-    (*call_count)++;
-    return UDS_OK;
+    if (ev == UDS_EVT_SessionTimeout) {
+        int *call_count = (int *)srv->fn_data;
+        TEST_INT_EQUAL(UDS_EVT_SessionTimeout, ev);
+        (*call_count)++;
+        return UDS_OK;
+    } else if (ev == UDS_EVT_AuthTimeout) {
+        return UDS_OK;
+    }
+
+    return UDS_NRC_SubFunctionNotSupported;
 }
 
 void test_default_session_does_not_timeout(void **state) {
@@ -3023,6 +3029,1790 @@ void test_0x28_comm_ctrl_forced_malformed_response_in_event_handler(void **state
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP1, sizeof(EXPECTED_RESP1));
 }
 
+UDSErr_t fn_test_0x29_auth(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+    TEST_INT_EQUAL(ev, UDS_EVT_Auth);
+
+    UDSAuthArgs_t *args = arg;
+
+    switch (args->type) {
+    case UDS_LEV_AT_DA:
+        return args->set_auth_state(srv, UDS_AT_DAS);
+    case UDS_LEV_AT_VCU: {
+        TEST_INT_EQUAL(args->subFuncArgs.verifyCertArgs.commConf, 0x02);
+        TEST_INT_EQUAL(args->subFuncArgs.verifyCertArgs.certLen, 0x01);
+        uint8_t expected_cert[] = {0xFE};
+        TEST_MEMORY_EQUAL(args->subFuncArgs.verifyCertArgs.cert, expected_cert,
+                          sizeof(expected_cert));
+        TEST_INT_EQUAL(args->subFuncArgs.verifyCertArgs.challengeLen, 0x00);
+
+        args->set_auth_state(srv, UDS_AT_CVOVN);
+        const uint8_t data[] = {0x00, 0x01, 0xDD, 0x00, 0x00};
+        return args->copy(srv, data, sizeof(data));
+    }
+    case UDS_LEV_AT_VCB: {
+        TEST_INT_EQUAL(args->subFuncArgs.verifyCertArgs.commConf, 0x02);
+        TEST_INT_EQUAL(args->subFuncArgs.verifyCertArgs.certLen, 0x01);
+        uint8_t expected_cert[] = {0xFE};
+        TEST_MEMORY_EQUAL(args->subFuncArgs.verifyCertArgs.cert, expected_cert,
+                          sizeof(expected_cert));
+        TEST_INT_EQUAL(args->subFuncArgs.verifyCertArgs.challengeLen, 0x03);
+        uint8_t expected_challenge[] = {0x11, 0x22, 0x33};
+        TEST_MEMORY_EQUAL(args->subFuncArgs.verifyCertArgs.challenge, expected_challenge,
+                          sizeof(expected_challenge));
+
+        args->set_auth_state(srv, UDS_AT_CVOVN);
+        const uint8_t data[] = {0x00, 0x01, 0xEE, 0x00, 0x02, 0x12, 0x34,
+                                0x00, 0x01, 0xAB, 0x00, 0x01, 0xFE};
+        return args->copy(srv, data, sizeof(data));
+    }
+    case UDS_LEV_AT_POWN: {
+        TEST_INT_EQUAL(args->subFuncArgs.pownArgs.pownLen, 0x01);
+        uint8_t expected_pown[] = {0xFE};
+        TEST_MEMORY_EQUAL(args->subFuncArgs.pownArgs.pown, expected_pown, sizeof(expected_pown));
+        TEST_INT_EQUAL(args->subFuncArgs.pownArgs.publicKeyLen, 0x03);
+        uint8_t expected_key[] = {0x11, 0x22, 0x33};
+        TEST_MEMORY_EQUAL(args->subFuncArgs.pownArgs.publicKey, expected_key, sizeof(expected_key));
+
+        args->set_auth_state(srv, UDS_AT_OVAC);
+        const uint8_t data[] = {0x00, 0x02, 0xBC, 0xDE};
+        return args->copy(srv, data, sizeof(data));
+    }
+    case UDS_LEV_AT_TC: {
+        TEST_INT_EQUAL(args->subFuncArgs.transCertArgs.evalId, 0x1A);
+        TEST_INT_EQUAL(args->subFuncArgs.transCertArgs.len, 0x02);
+        uint8_t expected_cert[] = {0x43, 0x21};
+        TEST_MEMORY_EQUAL(args->subFuncArgs.pownArgs.pown, expected_cert, sizeof(expected_cert));
+
+        return args->set_auth_state(srv, UDS_AT_CV);
+    }
+    case UDS_LEV_AT_RCFA: {
+        TEST_INT_EQUAL(args->subFuncArgs.reqChallengeArgs.commConf, 0x1A);
+        uint8_t expected_algo[] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+                                   0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F};
+        TEST_MEMORY_EQUAL(args->subFuncArgs.pownArgs.pown, expected_algo, sizeof(expected_algo));
+
+        args->set_auth_state(srv, UDS_AT_RA);
+        const uint8_t data[] = {0x00, 0x02, 0x0B, 0xB0, 0x00, 0x01, 0x99};
+        return args->copy(srv, data, sizeof(data));
+    }
+    case UDS_LEV_AT_VPOWNU:
+    case UDS_LEV_AT_VPOWNB: {
+        uint8_t expected_algo[] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+                                   0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F};
+        TEST_MEMORY_EQUAL(args->subFuncArgs.verifyPownArgs.algoInd, expected_algo,
+                          sizeof(expected_algo));
+
+        TEST_INT_EQUAL(args->subFuncArgs.verifyPownArgs.pownLen, 0x02);
+        uint8_t expected_pown[] = {0xFE, 0xDC};
+        TEST_MEMORY_EQUAL(args->subFuncArgs.verifyPownArgs.pown, expected_pown,
+                          sizeof(expected_pown));
+
+        TEST_INT_EQUAL(args->subFuncArgs.verifyPownArgs.challengeLen, 0x01);
+        uint8_t expected_challenge[] = {0x11};
+        TEST_MEMORY_EQUAL(args->subFuncArgs.verifyPownArgs.challenge, expected_challenge,
+                          sizeof(expected_challenge));
+
+        TEST_INT_EQUAL(args->subFuncArgs.verifyPownArgs.addParamLen, 0x03);
+        uint8_t expected_param[] = {0x22, 0x33, 0x44};
+        TEST_MEMORY_EQUAL(args->subFuncArgs.verifyPownArgs.addParam, expected_param,
+                          sizeof(expected_param));
+
+        args->set_auth_state(srv, UDS_AT_OVAC);
+        if (args->type == UDS_LEV_AT_VPOWNU) {
+            const uint8_t data[] = {0x00, 0x02, 0x0B, 0xB0};
+            return args->copy(srv, data, sizeof(data));
+        } else {
+            const uint8_t data[] = {0x00, 0x03, 0xC1, 0xC2, 0xC3, 0x00, 0x02, 0x0B, 0xB0};
+            return args->copy(srv, data, sizeof(data));
+        }
+    }
+    case UDS_LEV_AT_AC:
+        return args->set_auth_state(srv, UDS_AT_ACACRSC);
+    }
+
+    return UDS_NRC_GeneralReject;
+}
+
+void test_0x29_auth_de_auth(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x29_auth;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x29,          /* SID */
+        UDS_LEV_AT_DA, /* AuthenticationTask */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x69,          /* Response SID */
+        UDS_LEV_AT_DA, /* AuthenticationTask */
+        UDS_AT_DAS,    /* Authentication Return Parameter */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x29_req_too_short(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x29_auth;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x29, /* SID */
+              /* Missing required SubFunc */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x7F, /* Response SID */
+        0x29, /* Original Request SID */
+        0x13, /* NRC: IncorrectMessageLengthOrInvalidFormat */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x29_auth_verify_certificate_unidirectional(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x29_auth;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x29,           /* SID */
+        UDS_LEV_AT_VCU, /* AuthenticationTask */
+        0x02,           /* communicationConfiguration */
+        0x00,           /* lengthOfCertificate [High Byte]  */
+        0x01,           /* lengthOfCertificate [Low Byte]  */
+        0xFE,           /* certificate[0] */
+        0x00,           /* lengthOfChallenge [High Byte] */
+        0x00,           /* lengthOfChallenge [Low Byte] */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x69,           /* Response SID */
+        UDS_LEV_AT_VCU, /* AuthenticationTask */
+        UDS_AT_CVOVN,   /* authenticationReturnParameter */
+        0x00,           /* lengthOfChallenge [High Byte]  */
+        0x01,           /* lengthOfChallenge [Low Byte]  */
+        0xDD,           /* challenge[0] */
+        0x00,           /* lengthOfEphemeralPublicKey [High Byte] */
+        0x00,           /* lengthOfEphemeralPublicKey [Low Byte] */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x29_auth_verify_certificate_bidirectional(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x29_auth;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x29,           /* SID */
+        UDS_LEV_AT_VCB, /* AuthenticationTask */
+        0x02,           /* communicationConfiguration */
+        0x00,           /* lengthOfCertificate [High Byte]  */
+        0x01,           /* lengthOfCertificate [Low Byte]  */
+        0xFE,           /* certificate[0] */
+        0x00,           /* lengthOfChallenge [High Byte] */
+        0x03,           /* lengthOfChallenge [Low Byte] */
+        0x11,           /* challenge[0] */
+        0x22,           /* challenge[1] */
+        0x33,           /* challenge[2] */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x69,           /* Response SID */
+        UDS_LEV_AT_VCB, /* AuthenticationTask */
+        UDS_AT_CVOVN,   /* authenticationReturnParameter */
+        0x00,           /* lengthOfChallenge [High Byte]  */
+        0x01,           /* lengthOfChallenge [Low Byte]  */
+        0xEE,           /* challenge[0] */
+        0x00,           /* lengthOfCertificate [High Byte] */
+        0x02,           /* lengthOfCertificate [Low Byte] */
+        0x12,           /* certificate[0] */
+        0x34,           /* certificate[1] */
+        0x00,           /* lengthOfProofOfOwnership [High Byte] */
+        0x01,           /* lengthOfProofOfOwnership [Low Byte] */
+        0xAB,           /* proofOfOwnership[0] */
+        0x00,           /* lengthOfEphemeralPublicKey [High Byte] */
+        0x01,           /* lengthOfEphemeralPublicKey [Low Byte] */
+        0xFE,           /* ephemeralPublicKey[0] */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x29_auth_proof_of_ownership(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x29_auth;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x29,            /* SID */
+        UDS_LEV_AT_POWN, /* AuthenticationTask */
+        0x00,            /* lengthOfPOWN [High Byte]  */
+        0x01,            /* lengthOfPOWN [Low Byte]  */
+        0xFE,            /* POWN[0] */
+        0x00,            /* lengthOfEphemeralPublicKey [High Byte] */
+        0x03,            /* lengthOfEphemeralPublicKey [Low Byte] */
+        0x11,            /* key[0] */
+        0x22,            /* key[1] */
+        0x33,            /* key[2] */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x69,            /* Response SID */
+        UDS_LEV_AT_POWN, /* AuthenticationTask */
+        UDS_AT_OVAC,     /* authenticationReturnParameter */
+        0x00,            /* lengthOfSessionKeyInfo [High Byte]  */
+        0x02,            /* lengthOfSessionKeyInfo [Low Byte]  */
+        0xBC,            /* sessionKey[0] */
+        0xDE,            /* sessionKey[1] */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x29_auth_transmit_cert(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x29_auth;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x29,          /* SID */
+        UDS_LEV_AT_TC, /* AuthenticationTask */
+        0x1A,          /* certificateEvaluationId */
+        0x00,          /* lengthOfCert [High Byte]  */
+        0x02,          /* lengthOfCert [Low Byte]  */
+        0x43,          /* Cert[0] */
+        0x21,          /* Cert[1] */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x69,          /* Response SID */
+        UDS_LEV_AT_TC, /* AuthenticationTask */
+        UDS_AT_CV,     /* authenticationReturnParameter */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x29_auth_req_challenge_for_auth(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[30] = {0};
+
+    e->server->fn = fn_test_0x29_auth;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x29,            /* SID */
+        UDS_LEV_AT_RCFA, /* AuthenticationTask */
+        0x1A,            /* communicationConfiguration */
+        0x00,            /* AlgorithmIndicator[0]  */
+        0x01,            /* AlgorithmIndicator[1]  */
+        0x02,            /* AlgortihmIndicator[2] */
+        0x03,            /* AlgortihmIndicator[3] */
+        0x04,            /* AlgortihmIndicator[4] */
+        0x05,            /* AlgortihmIndicator[5] */
+        0x06,            /* AlgortihmIndicator[6] */
+        0x07,            /* AlgortihmIndicator[7] */
+        0x08,            /* AlgortihmIndicator[8] */
+        0x09,            /* AlgortihmIndicator[9] */
+        0x0A,            /* AlgortihmIndicator[10] */
+        0x0B,            /* AlgortihmIndicator[11] */
+        0x0C,            /* AlgortihmIndicator[12] */
+        0x0D,            /* AlgortihmIndicator[13] */
+        0x0E,            /* AlgortihmIndicator[14] */
+        0x0F,            /* AlgortihmIndicator[15] */
+        0x10,            /* AlgortihmIndicator[16] */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x69,            /* Response SID */
+        UDS_LEV_AT_RCFA, /* AuthenticationTask */
+        UDS_AT_RA,       /* authenticationReturnParameter */
+        0x00,            /* AlgorithmIndicator[0]  */
+        0x01,            /* AlgorithmIndicator[1]  */
+        0x02,            /* AlgortihmIndicator[2] */
+        0x03,            /* AlgortihmIndicator[3] */
+        0x04,            /* AlgortihmIndicator[4] */
+        0x05,            /* AlgortihmIndicator[5] */
+        0x06,            /* AlgortihmIndicator[6] */
+        0x07,            /* AlgortihmIndicator[7] */
+        0x08,            /* AlgortihmIndicator[8] */
+        0x09,            /* AlgortihmIndicator[9] */
+        0x0A,            /* AlgortihmIndicator[10] */
+        0x0B,            /* AlgortihmIndicator[11] */
+        0x0C,            /* AlgortihmIndicator[12] */
+        0x0D,            /* AlgortihmIndicator[13] */
+        0x0E,            /* AlgortihmIndicator[14] */
+        0x0F,            /* AlgortihmIndicator[15] */
+        0x00,            /* lengthOfChallenge [High Byte] */
+        0x02,            /* lengthOfChallenge [Low Byte] */
+        0x0B,            /* challenge[0] */
+        0xB0,            /* challenge[1] */
+        0x00,            /* lengthOfAdditionalParam [High Byte] */
+        0x01,            /* lengthOfAdditionalParam [Low Byte] */
+        0x99,            /* additionalParam[0] */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x29_auth_verify_pown_unidirectional(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[30] = {0};
+
+    e->server->fn = fn_test_0x29_auth;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x29,              /* SID */
+        UDS_LEV_AT_VPOWNU, /* AuthenticationTask */
+        0x00,              /* AlgorithmIndicator[0]  */
+        0x01,              /* AlgorithmIndicator[1]  */
+        0x02,              /* AlgortihmIndicator[2] */
+        0x03,              /* AlgortihmIndicator[3] */
+        0x04,              /* AlgortihmIndicator[4] */
+        0x05,              /* AlgortihmIndicator[5] */
+        0x06,              /* AlgortihmIndicator[6] */
+        0x07,              /* AlgortihmIndicator[7] */
+        0x08,              /* AlgortihmIndicator[8] */
+        0x09,              /* AlgortihmIndicator[9] */
+        0x0A,              /* AlgortihmIndicator[10] */
+        0x0B,              /* AlgortihmIndicator[11] */
+        0x0C,              /* AlgortihmIndicator[12] */
+        0x0D,              /* AlgortihmIndicator[13] */
+        0x0E,              /* AlgortihmIndicator[14] */
+        0x0F,              /* AlgortihmIndicator[15] */
+        0x00,              /* lengthOfPOWN [High Byte] */
+        0x02,              /* lengthOfPOWN [Low Byte]  */
+        0xFE,              /* POWN[0] */
+        0xDC,              /* POWN[1] */
+        0x00,              /* lengthOfChallenge [High Byte] */
+        0x01,              /* lengthOfChallenge [Low Byte] */
+        0x11,              /* challenge[0] */
+        0x00,              /* lengthOfAdditionalParam [High Byte] */
+        0x03,              /* lengthOfAdditionalParam [Low Byte] */
+        0x22,              /* additionalParam[0] */
+        0x33,              /* additionalParam[1] */
+        0x44,              /* additionalParam[2] */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x69,              /* Response SID */
+        UDS_LEV_AT_VPOWNU, /* AuthenticationTask */
+        UDS_AT_OVAC,       /* authenticationReturnParameter */
+        0x00,              /* AlgorithmIndicator[0]  */
+        0x01,              /* AlgorithmIndicator[1]  */
+        0x02,              /* AlgortihmIndicator[2] */
+        0x03,              /* AlgortihmIndicator[3] */
+        0x04,              /* AlgortihmIndicator[4] */
+        0x05,              /* AlgortihmIndicator[5] */
+        0x06,              /* AlgortihmIndicator[6] */
+        0x07,              /* AlgortihmIndicator[7] */
+        0x08,              /* AlgortihmIndicator[8] */
+        0x09,              /* AlgortihmIndicator[9] */
+        0x0A,              /* AlgortihmIndicator[10] */
+        0x0B,              /* AlgortihmIndicator[11] */
+        0x0C,              /* AlgortihmIndicator[12] */
+        0x0D,              /* AlgortihmIndicator[13] */
+        0x0E,              /* AlgortihmIndicator[14] */
+        0x0F,              /* AlgortihmIndicator[15] */
+        0x00,              /* lengthOfSessionKey [High Byte] */
+        0x02,              /* lengthOfSessionKey [Low Byte] */
+        0x0B,              /* sessionKey[0] */
+        0xB0,              /* sessionKey[1] */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x29_auth_verify_pown_bidirectional(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[30] = {0};
+
+    e->server->fn = fn_test_0x29_auth;
+    e->server->fn_data = NULL;
+
+    /* Request ist the same as for unidirectional variant */
+    const uint8_t REQ[] = {
+        0x29,              /* SID */
+        UDS_LEV_AT_VPOWNB, /* AuthenticationTask */
+        0x00,              /* AlgorithmIndicator[0]  */
+        0x01,              /* AlgorithmIndicator[1]  */
+        0x02,              /* AlgortihmIndicator[2] */
+        0x03,              /* AlgortihmIndicator[3] */
+        0x04,              /* AlgortihmIndicator[4] */
+        0x05,              /* AlgortihmIndicator[5] */
+        0x06,              /* AlgortihmIndicator[6] */
+        0x07,              /* AlgortihmIndicator[7] */
+        0x08,              /* AlgortihmIndicator[8] */
+        0x09,              /* AlgortihmIndicator[9] */
+        0x0A,              /* AlgortihmIndicator[10] */
+        0x0B,              /* AlgortihmIndicator[11] */
+        0x0C,              /* AlgortihmIndicator[12] */
+        0x0D,              /* AlgortihmIndicator[13] */
+        0x0E,              /* AlgortihmIndicator[14] */
+        0x0F,              /* AlgortihmIndicator[15] */
+        0x00,              /* lengthOfPOWN [High Byte] */
+        0x02,              /* lengthOfPOWN [Low Byte]  */
+        0xFE,              /* POWN[0] */
+        0xDC,              /* POWN[1] */
+        0x00,              /* lengthOfChallenge [High Byte] */
+        0x01,              /* lengthOfChallenge [Low Byte] */
+        0x11,              /* challenge[0] */
+        0x00,              /* lengthOfAdditionalParam [High Byte] */
+        0x03,              /* lengthOfAdditionalParam [Low Byte] */
+        0x22,              /* additionalParam[0] */
+        0x33,              /* additionalParam[1] */
+        0x44,              /* additionalParam[2] */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x69,              /* Response SID */
+        UDS_LEV_AT_VPOWNB, /* AuthenticationTask */
+        UDS_AT_OVAC,       /* authenticationReturnParameter */
+        0x00,              /* AlgorithmIndicator[0]  */
+        0x01,              /* AlgorithmIndicator[1]  */
+        0x02,              /* AlgortihmIndicator[2] */
+        0x03,              /* AlgortihmIndicator[3] */
+        0x04,              /* AlgortihmIndicator[4] */
+        0x05,              /* AlgortihmIndicator[5] */
+        0x06,              /* AlgortihmIndicator[6] */
+        0x07,              /* AlgortihmIndicator[7] */
+        0x08,              /* AlgortihmIndicator[8] */
+        0x09,              /* AlgortihmIndicator[9] */
+        0x0A,              /* AlgortihmIndicator[10] */
+        0x0B,              /* AlgortihmIndicator[11] */
+        0x0C,              /* AlgortihmIndicator[12] */
+        0x0D,              /* AlgortihmIndicator[13] */
+        0x0E,              /* AlgortihmIndicator[14] */
+        0x0F,              /* AlgortihmIndicator[15] */
+        0x00,              /* lengthOfPOWN [High Byte] */
+        0x03,              /* lengthOfPOWN [Low Byte]  */
+        0xC1,              /* POWN[0] */
+        0xC2,              /* POWN[1] */
+        0xC3,              /* POWN[2] */
+        0x00,              /* lengthOfSessionKey [High Byte] */
+        0x02,              /* lengthOfSessionKey [Low Byte] */
+        0x0B,              /* sessionKey[0] */
+        0xB0,              /* sessionKey[1] */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+void test_0x29_auth_config(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    e->server->fn = fn_test_0x29_auth;
+    e->server->fn_data = NULL;
+
+    const uint8_t REQ[] = {
+        0x29,          /* SID */
+        UDS_LEV_AT_AC, /* AuthenticationTask */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x69,           /* Response SID */
+        UDS_LEV_AT_AC,  /* AuthenticationTask */
+        UDS_AT_ACACRSC, /* AuthenticationConfiguration */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+}
+
+UDSErr_t fn_test_0x29_auth_timeout(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+    if (ev == UDS_EVT_DiagSessCtrl || ev == UDS_EVT_SessionTimeout) {
+        return UDS_OK;
+    }
+
+    if (ev == UDS_EVT_AuthTimeout) {
+        *(bool *)srv->fn_data = true;
+        return UDS_OK;
+    }
+
+    return UDS_NRC_SubFunctionNotSupported;
+}
+
+void test_0x29_auth_timeout_on_session_timeout(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    bool authTimeoutReceived = false;
+    e->server->fn = fn_test_0x29_auth_timeout;
+    e->server->fn_data = &authTimeoutReceived;
+
+    const uint8_t REQ[] = {
+        0x10,            /* SID */
+        UDS_LEV_DS_PRGS, /* Session */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    const uint8_t EXPECTED_RESP[] = {
+        0x50,            /* Response SID */
+        UDS_LEV_DS_PRGS, /* Session */
+        /* Session parameter don't interest us here */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
+    TEST_INT_EQUAL(authTimeoutReceived, false);
+
+    /* Provoke Timeout */
+    EnvRunMillis(e, 10000);
+    TEST_INT_EQUAL(authTimeoutReceived, true);
+}
+
+void test_0x29_auth_timeout_on_session_switch_to_default(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[20] = {0};
+
+    bool authTimeoutReceived = false;
+    e->server->fn = fn_test_0x29_auth_timeout;
+    e->server->fn_data = &authTimeoutReceived;
+
+    const uint8_t REQ1[] = {
+        0x10,            /* SID */
+        UDS_LEV_DS_PRGS, /* Session */
+    };
+
+    UDSTpSend(e->client_tp, REQ1, sizeof(REQ1), NULL);
+
+    const uint8_t EXPECTED_RESP1[] = {
+        0x50,            /* Response SID */
+        UDS_LEV_DS_PRGS, /* Session */
+        /* Session parameter don't interest us here */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP1, sizeof(EXPECTED_RESP1));
+    TEST_INT_EQUAL(authTimeoutReceived, false);
+
+    const uint8_t REQ2[] = {
+        0x10,          /* SID */
+        UDS_LEV_DS_DS, /* Session */
+    };
+
+    UDSTpSend(e->client_tp, REQ2, sizeof(REQ2), NULL);
+
+    const uint8_t EXPECTED_RESP2[] = {
+        0x50,          /* Response SID */
+        UDS_LEV_DS_DS, /* Session */
+        /* Session parameter don't interest us here */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP2, sizeof(EXPECTED_RESP2));
+    TEST_INT_EQUAL(authTimeoutReceived, true);
+}
+
+UDSErr_t fn_test_0x29_example_1(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+    TEST_INT_EQUAL(ev, UDS_EVT_Auth);
+
+    UDSAuthArgs_t *args = arg;
+
+    switch (args->type) {
+    case UDS_LEV_AT_AC:
+        return args->set_auth_state(srv, UDS_AT_ACAPCE);
+    case UDS_LEV_AT_VCU: {
+        args->set_auth_state(srv, UDS_AT_CVOVN);
+
+        uint8_t challengeLength[] = {0x00, 0x40};
+        args->copy(srv, challengeLength, sizeof(challengeLength));
+
+        uint8_t challenge[] = {0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF, 0xB0, 0xB1, 0xB2, 0xB3, 0xB4,
+                               0xB5, 0xB6, 0xB7, 0xB8, 0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF,
+                               0xC0, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7, 0xC8, 0xC9, 0xCA,
+                               0xCB, 0xCC, 0xCD, 0xCE, 0xCF, 0xD0, 0xD1, 0xD2, 0xD3, 0xD4, 0xD5,
+                               0xD6, 0xD7, 0xD8, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDE, 0xDF, 0xE0,
+                               0xE1, 0xE2, 0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0x44};
+        args->copy(srv, challenge, sizeof(challenge));
+
+        uint8_t publicKeyLength[] = {0x00, 0x00};
+        return args->copy(srv, publicKeyLength, sizeof(publicKeyLength));
+    }
+    case UDS_LEV_AT_POWN: {
+        args->set_auth_state(srv, UDS_AT_OVAC);
+
+        uint8_t sessionKeyLength[] = {0x00, 0x00};
+        return args->copy(srv, sessionKeyLength, sizeof(sessionKeyLength));
+    }
+    }
+
+    return UDS_NRC_GeneralReject;
+}
+
+// ISO14229-1 2020 10.6.8.1 Example #1 - Unidirectional Authentication with PKI Certificate Exchange
+// without session key establishment (happy path)
+// This example skips step 4 as it is not part of the authentication service
+void test_0x29_auth_example_1(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[500] = {0};
+
+    e->server->fn = fn_test_0x29_example_1;
+    e->server->fn_data = NULL;
+
+    /* Request per ISO14229-1 2020 Table 87 */
+    const uint8_t REQ[] = {
+        0x29,          /* Authentication Request SID (ARS) */
+        UDS_LEV_AT_AC, /* authenticationTask = authenticationConfiguration (LEV_AT_AC) */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 88 */
+    const uint8_t EXPECTED_RESP1[] = {
+        0x69,          /* Authentication Response SID (ARS) */
+        UDS_LEV_AT_AC, /* authenticationTask = authenticationConfiguration (LEV_AT_AC) */
+        UDS_AT_ACAPCE, /* returnValue = Authentication Configuration APCE (RV_ACAPCE) */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP1, sizeof(EXPECTED_RESP1));
+
+    /* Request per ISO14229-1 2020 Table 89 */
+    const uint8_t REQ2[] = {
+        0x29,           /* Authentication Request SID (ARS) */
+        UDS_LEV_AT_VCU, /* authenticationTask = verifyCertificateUnidirectional (LEV_AT_VCU) */
+        0x00,           /* communicationConfiguration = no secure communication (COCO) */
+
+        0x01, /* lengthOfCertificateClient[0] */
+        0xF4, /* lengthOfCertificateClient[1] */
+
+        /* certificateClient [0-499] */
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E,
+        0x3F, 0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D,
+        0x4E, 0x4F, 0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59, 0x5A, 0x5B, 0x5C,
+        0x5D, 0x5E, 0x5F, 0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6A, 0x6B,
+        0x6C, 0x6D, 0x6E, 0x6F, 0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7A,
+        0x7B, 0x7C, 0x7D, 0x7E, 0x7F, 0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89,
+        0x8A, 0x8B, 0x8C, 0x8D, 0x8E, 0x8F, 0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97, 0x98,
+        0x99, 0x9A, 0x9B, 0x9C, 0x9D, 0x9E, 0x9F, 0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6, 0xA7,
+        0xA8, 0xA9, 0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF, 0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0xB5, 0xB6,
+        0xB7, 0xB8, 0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF, 0xC0, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5,
+        0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF, 0xD0, 0xD1, 0xD2, 0xD3, 0xD4,
+        0xD5, 0xD6, 0xD7, 0xD8, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDE, 0xDF, 0xE0, 0xE1, 0xE2, 0xE3,
+        0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9, 0xEA, 0xEB, 0xEC, 0xED, 0xEE, 0xEF, 0xF0, 0xF1, 0xF2,
+        0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE, 0xFF, 0x00, 0x01,
+        0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,
+        0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F,
+        0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E,
+        0x2F, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D,
+        0x3E, 0x3F, 0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4C,
+        0x4D, 0x4E, 0x4F, 0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59, 0x5A, 0x5B,
+        0x5C, 0x5D, 0x5E, 0x5F, 0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6A,
+        0x6B, 0x6C, 0x6D, 0x6E, 0x6F, 0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79,
+        0x7A, 0x7B, 0x7C, 0x7D, 0x7E, 0x7F, 0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88,
+        0x89, 0x8A, 0x8B, 0x8C, 0x8D, 0x8E, 0x8F, 0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97,
+        0x98, 0x99, 0x9A, 0x9B, 0x9C, 0x9D, 0x9E, 0x9F, 0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6,
+        0xA7, 0xA8, 0xA9, 0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF, 0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0xB5,
+        0xB6, 0xB7, 0xB8, 0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF, 0xC0, 0xC1, 0xC2, 0xC3, 0xC4,
+        0xC5, 0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF, 0xD0, 0xD1, 0xD2, 0xD3,
+        0xD4, 0xD5, 0xD6, 0xD7, 0xD8, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDE, 0xDF, 0xE0, 0xE1, 0xE2,
+        0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9, 0xEA, 0xEB, 0xEC, 0xED, 0xEE, 0xEF, 0xF0, 0xF1,
+        0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE, 0xFF, 0x00,
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E,
+        0x1F, 0x20, 0x21, 0x22, 0xAD,
+
+        0x00, /* lengthOfChallengeClient[0] */
+        0x20, /* lengthOfChallengeClient[1] */
+
+        /* challengeClient [0-31] */
+        0xAA, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D,
+        0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C,
+        0x1D, 0x44};
+
+    UDSTpSend(e->client_tp, REQ2, sizeof(REQ2), NULL);
+
+    /* Response per ISO14229-1 2020 Table 90 */
+    const uint8_t EXPECTED_RESP2[] = {
+        0x69,           /* Authentication Response SID (ARS) */
+        UDS_LEV_AT_VCU, /* authenticationTask = verifyCertificateUnidirectional (LEV_AT_VCU) */
+        UDS_AT_CVOVN,   /* returnValue = Certificate verified, Ownership verification necessary
+                              (RV_CVOVN) */
+
+        0x00, /* lengthOfChallengeServer[0] */
+        0x40, /* lengthOfChallengeServer[1] */
+
+        /* challengeServer [0-63] */
+        0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF, 0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0xB5, 0xB6, 0xB7, 0xB8,
+        0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF, 0xC0, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7,
+        0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF, 0xD0, 0xD1, 0xD2, 0xD3, 0xD4, 0xD5, 0xD6,
+        0xD7, 0xD8, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDE, 0xDF, 0xE0, 0xE1, 0xE2, 0xE3, 0xE4, 0xE5,
+        0xE6, 0xE7, 0xE8, 0x44,
+
+        /* The example gives additional 2 bytes for the length of the ephemeral public key, but as
+           this is not part of the response message definition, it is not set here */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP2, sizeof(EXPECTED_RESP2));
+
+    /* Request per ISO14229-1 2020 Table 91 */
+    const uint8_t REQ3[] = {
+        0x29,            /* Authentication Request SID (ARS) */
+        UDS_LEV_AT_POWN, /* authenticationTask = proofOfOwnership (LEV_AT_POWN) */
+
+        0x01, /* lengthOfProofOfOwnershipClient[0] */
+        0x50, /* lengthOfProofOfOwnershipClient[1] */
+
+        /* proofOfOwnershipClient [0-335] */
+        0x7F, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D,
+        0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C,
+        0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B,
+        0x2C, 0x2D, 0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A,
+        0x3B, 0x3C, 0x3D, 0x3E, 0x3F, 0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49,
+        0x4A, 0x4B, 0x4C, 0x4D, 0x4E, 0x4F, 0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58,
+        0x59, 0x5A, 0x5B, 0x5C, 0x5D, 0x5E, 0x5F, 0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67,
+        0x68, 0x69, 0x6A, 0x6B, 0x6C, 0x6D, 0x6E, 0x6F, 0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76,
+        0x77, 0x78, 0x79, 0x7A, 0x7B, 0x7C, 0x7D, 0x7E, 0x7F, 0x80, 0x81, 0x82, 0x83, 0x84, 0x85,
+        0x86, 0x87, 0x88, 0x89, 0x8A, 0x8B, 0x8C, 0x8D, 0x8E, 0x8F, 0x90, 0x91, 0x92, 0x93, 0x94,
+        0x95, 0x96, 0x97, 0x98, 0x99, 0x9A, 0x9B, 0x9C, 0x9D, 0x9E, 0x9F, 0xA0, 0xA1, 0xA2, 0xA3,
+        0xA4, 0xA5, 0xA6, 0xA7, 0xA8, 0xA9, 0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF, 0xB0, 0xB1, 0xB2,
+        0xB3, 0xB4, 0xB5, 0xB6, 0xB7, 0xB8, 0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF, 0xC0, 0xC1,
+        0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF, 0xD0,
+        0xD1, 0xD2, 0xD3, 0xD4, 0xD5, 0xD6, 0xD7, 0xD8, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDE, 0xDF,
+        0xE0, 0xE1, 0xE2, 0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9, 0xEA, 0xEB, 0xEC, 0xED, 0xEE,
+        0xEF, 0xF0, 0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD,
+        0xFE, 0xFF, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C,
+        0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B,
+        0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A,
+        0x2B, 0x2C, 0x2D, 0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39,
+        0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F, 0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48,
+        0x49, 0x4A, 0x4B, 0x4C, 0x4D, 0xB7,
+
+        0x00, /* lengthOfEphemeralPublicKeyClient[0] */
+        0x00, /* lengthOfEphemeralPublicKeyClient[1] */
+    };
+
+    UDSTpSend(e->client_tp, REQ3, sizeof(REQ3), NULL);
+
+    /* Response per ISO14229-1 2020 Table 92 */
+    const uint8_t EXPECTED_RESP3[] = {
+        0x69,            /* Authentication Response SID (ARS) */
+        UDS_LEV_AT_POWN, /* authenticationTask = proofOfOwnership (LEV_AT_POWN) */
+        0x12,            /* returnValue = Ownership verified, Authentication complete (RV_OVAC) */
+        0x00,            /* lengthOfSessionKeyInfo[0] (LOSKI) */
+        0x00,            /* lengthOfSessionKeyInfo[1] (LOSKI) */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP3, sizeof(EXPECTED_RESP3));
+}
+
+UDSErr_t fn_test_0x29_example_2(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+    TEST_INT_EQUAL(ev, UDS_EVT_Auth);
+
+    UDSAuthArgs_t *args = arg;
+
+    switch (args->type) {
+    case UDS_LEV_AT_VCU:
+        return UDS_NRC_CertficateVerificationFailedInvalidTimePeriod;
+    }
+
+    return UDS_NRC_GeneralReject;
+}
+
+// ISO14229-1 2020 10.6.8.2 Example #2 - Unidirectional Authentication with PKI Certificate Exchange
+// without session key establishment (failure path)
+// This example skips step 2 as it is not part of the authentication service
+void test_0x29_auth_example_2(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[700] = {0};
+
+    e->server->fn = fn_test_0x29_example_2;
+    e->server->fn_data = NULL;
+
+    /* Request per ISO14229-1 2020 Table 95 */
+    const uint8_t REQ[] = {
+        0x29,           /* Authentication Request SID (ARS) */
+        UDS_LEV_AT_VCU, /* authenticationTask = verifyCertificateUnidirectional (LEV_AT_VCU) */
+        0x00,           /* communicationConfiguration = no secure communication (COCO) */
+
+        0x01, /* lengthOfCertificateClient[0] */
+        0xF4, /* lengthOfCertificateClient[1] */
+
+        /* certificateClient [0-499] */
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E,
+        0x3F, 0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D,
+        0x4E, 0x4F, 0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59, 0x5A, 0x5B, 0x5C,
+        0x5D, 0x5E, 0x5F, 0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6A, 0x6B,
+        0x6C, 0x6D, 0x6E, 0x6F, 0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7A,
+        0x7B, 0x7C, 0x7D, 0x7E, 0x7F, 0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89,
+        0x8A, 0x8B, 0x8C, 0x8D, 0x8E, 0x8F, 0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97, 0x98,
+        0x99, 0x9A, 0x9B, 0x9C, 0x9D, 0x9E, 0x9F, 0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6, 0xA7,
+        0xA8, 0xA9, 0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF, 0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0xB5, 0xB6,
+        0xB7, 0xB8, 0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF, 0xC0, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5,
+        0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF, 0xD0, 0xD1, 0xD2, 0xD3, 0xD4,
+        0xD5, 0xD6, 0xD7, 0xD8, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDE, 0xDF, 0xE0, 0xE1, 0xE2, 0xE3,
+        0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9, 0xEA, 0xEB, 0xEC, 0xED, 0xEE, 0xEF, 0xF0, 0xF1, 0xF2,
+        0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE, 0xFF, 0x00, 0x01,
+        0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,
+        0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F,
+        0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E,
+        0x2F, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D,
+        0x3E, 0x3F, 0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4C,
+        0x4D, 0x4E, 0x4F, 0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59, 0x5A, 0x5B,
+        0x5C, 0x5D, 0x5E, 0x5F, 0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6A,
+        0x6B, 0x6C, 0x6D, 0x6E, 0x6F, 0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79,
+        0x7A, 0x7B, 0x7C, 0x7D, 0x7E, 0x7F, 0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88,
+        0x89, 0x8A, 0x8B, 0x8C, 0x8D, 0x8E, 0x8F, 0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97,
+        0x98, 0x99, 0x9A, 0x9B, 0x9C, 0x9D, 0x9E, 0x9F, 0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6,
+        0xA7, 0xA8, 0xA9, 0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF, 0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0xB5,
+        0xB6, 0xB7, 0xB8, 0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF, 0xC0, 0xC1, 0xC2, 0xC3, 0xC4,
+        0xC5, 0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF, 0xD0, 0xD1, 0xD2, 0xD3,
+        0xD4, 0xD5, 0xD6, 0xD7, 0xD8, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDE, 0xDF, 0xE0, 0xE1, 0xE2,
+        0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9, 0xEA, 0xEB, 0xEC, 0xED, 0xEE, 0xEF, 0xF0, 0xF1,
+        0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE, 0xFF, 0x00,
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E,
+        0x1F, 0x20, 0x21, 0x22, 0xAD,
+
+        0x00, /* lengthOfChallengeClient[0] (LOCHCL) */
+        0x20, /* lengthOfChallengeClient[1] (LOCHCL) */
+
+        /* challengeClient [0-31] */
+        0xAA, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D,
+        0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C,
+        0x1D, 0x44};
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 96 */
+    const uint8_t EXPECTED_RESP1[] = {
+        0x7F, /* Negative Response SID (SIDRSIDNRQ) */
+        0x29, /* Authentication Request SID (ARS) */
+        UDS_NRC_CertficateVerificationFailedInvalidTimePeriod,
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP1, sizeof(EXPECTED_RESP1));
+}
+
+UDSErr_t fn_test_0x29_example_3(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+    TEST_INT_EQUAL(ev, UDS_EVT_Auth);
+
+    UDSAuthArgs_t *args = arg;
+
+    switch (args->type) {
+    case UDS_LEV_AT_TC:
+        return args->set_auth_state(srv, UDS_AT_CV);
+    }
+
+    return UDS_NRC_GeneralReject;
+}
+
+// ISO14229-1 2020 10.6.8.3 Example #3 – Transmit Certificate after Authentication with PKI
+// Certificate Exchange (happy path)
+void test_0x29_auth_example_3(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[700] = {0};
+
+    e->server->fn = fn_test_0x29_example_3;
+    e->server->fn_data = NULL;
+
+    /* Request per ISO14229-1 2020 Table 99 */
+    const uint8_t REQ1[] = {
+        0x29,          /* Authentication Request SID (ARS) */
+        UDS_LEV_AT_TC, /* authenticationTask = transmitCertificate (LEV_AT_TC) */
+
+        0x00, /* Custom added certificateEvaluationID (missing in sample) */
+
+        0x01, /* lengthOfCertificateData[0] (LOCEDA) */
+        0xF4, /* lengthOfCertificateData[1] (LOCEDA) */
+
+        /* certificateData [0-499] */
+        0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F,
+        0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D, 0x4E,
+        0x4F, 0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59, 0x5A, 0x5B, 0x5C, 0x5D,
+        0x5E, 0x5F, 0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6A, 0x6B, 0x6C,
+        0x6D, 0x6E, 0x6F, 0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7A, 0x7B,
+        0x7C, 0x7D, 0x7E, 0x7F, 0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89, 0x8A,
+        0x8B, 0x8C, 0x8D, 0x8E, 0x8F, 0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97, 0x98, 0x99,
+        0x9A, 0x9B, 0x9C, 0x9D, 0x9E, 0x9F, 0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6, 0xA7, 0xA8,
+        0xA9, 0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF, 0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0xB5, 0xB6, 0xB7,
+        0xB8, 0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF, 0xC0, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6,
+        0xC7, 0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF, 0xD0, 0xD1, 0xD2, 0xD3, 0xD4, 0xD5,
+        0xD6, 0xD7, 0xD8, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDE, 0xDF, 0xE0, 0xE1, 0xE2, 0xE3, 0xE4,
+        0xE5, 0xE6, 0xE7, 0xE8, 0xE9, 0xEA, 0xEB, 0xEC, 0xED, 0xEE, 0xEF, 0xF0, 0xF1, 0xF2, 0xF3,
+        0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE, 0xFF, 0x00, 0x01, 0x02,
+        0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11,
+        0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20,
+        0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E,
+        0x3F, 0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D,
+        0x4E, 0x4F, 0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59, 0x5A, 0x5B, 0x5C,
+        0x5D, 0x5E, 0x5F, 0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6A, 0x6B,
+        0x6C, 0x6D, 0x6E, 0x6F, 0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7A,
+        0x7B, 0x7C, 0x7D, 0x7E, 0x7F, 0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89,
+        0x8A, 0x8B, 0x8C, 0x8D, 0x8E, 0x8F, 0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97, 0x98,
+        0x99, 0x9A, 0x9B, 0x9C, 0x9D, 0x9E, 0x9F, 0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6, 0xA7,
+        0xA8, 0xA9, 0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF, 0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0xB5, 0xB6,
+        0xB7, 0xB8, 0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF, 0xC0, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5,
+        0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF, 0xD0, 0xD1, 0xD2, 0xD3, 0xD4,
+        0xD5, 0xD6, 0xD7, 0xD8, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDE, 0xDF, 0xE0, 0xE1, 0xE2, 0xE3,
+        0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9, 0xEA, 0xEB, 0xEC, 0xED, 0xEE, 0xEF, 0xF0, 0xF1, 0xF2,
+        0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE, 0xFF, 0x00, 0x01,
+        0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,
+        0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F,
+        0x20, 0x21, 0x23, 0x24, 0xAC};
+
+    UDSTpSend(e->client_tp, REQ1, sizeof(REQ1), NULL);
+
+    /* Response per ISO14229-1 2020 Table 100 */
+    const uint8_t EXPECTED_RESP1[] = {
+        0x69,          /* Authentication Response SID (ARS) */
+        UDS_LEV_AT_TC, /* authenticationTask = transmitCertificate (LEV_AT_TC) */
+        UDS_AT_CV,     /* returnValue = Certificate verified (RV_CV) */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP1, sizeof(EXPECTED_RESP1));
+}
+
+UDSErr_t fn_test_0x29_example_4(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+    TEST_INT_EQUAL(ev, UDS_EVT_Auth);
+
+    UDSAuthArgs_t *args = arg;
+
+    switch (args->type) {
+    case UDS_LEV_AT_AC:
+        return args->set_auth_state(srv, UDS_AT_ACACRAC);
+
+    case UDS_LEV_AT_RCFA:
+        uint8_t challengeLength[] = {0x00, 0x40};
+        args->copy(srv, challengeLength, sizeof(challengeLength));
+
+        uint8_t challenge[] = {0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF, 0xB0, 0xB1, 0xB2, 0xB3, 0xB4,
+                               0xB5, 0xB6, 0xB7, 0xB8, 0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF,
+                               0xC0, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7, 0xC8, 0xC9, 0xCA,
+                               0xCB, 0xCC, 0xCD, 0xCE, 0xCF, 0xD0, 0xD1, 0xD2, 0xD3, 0xD4, 0xD5,
+                               0xD6, 0xD7, 0xD8, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDE, 0xDF, 0xE0,
+                               0xE1, 0xE2, 0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0x44};
+
+        args->copy(srv, challenge, sizeof(challenge));
+
+        uint8_t paramLength[] = {0x00, 0x00};
+        args->copy(srv, paramLength, sizeof(paramLength));
+        return args->set_auth_state(srv, UDS_AT_RA);
+
+    case UDS_LEV_AT_VPOWNU:
+        uint8_t sessionKeyLength[] = {0x00, 0x00};
+        args->copy(srv, sessionKeyLength, sizeof(sessionKeyLength));
+        return args->set_auth_state(srv, UDS_AT_OVAC);
+    }
+
+    return UDS_NRC_GeneralReject;
+}
+
+// ISO14229-1 2020 10.6.8.4 Example #4 - Unidirectional Authentication using Challenge-Response with
+// asymmetric cryptography without session key establishment (happy path)
+void test_0x29_auth_example_4(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[700] = {0};
+
+    e->server->fn = fn_test_0x29_example_4;
+    e->server->fn_data = NULL;
+
+    /* Request per ISO14229-1 2020 Table 101 */
+    const uint8_t REQ1[] = {
+        0x29,          /* Authentication Request SID (ARS) */
+        UDS_LEV_AT_AC, /* authenticationTask = authenticationConfiguration (LEV_AT_AC) */
+    };
+
+    UDSTpSend(e->client_tp, REQ1, sizeof(REQ1), NULL);
+
+    /* Response per ISO14229-1 2020 Table 102 */
+    const uint8_t EXPECTED_RESP1[] = {
+        0x69,           /* Authentication Response SID (ARS) */
+        UDS_LEV_AT_AC,  /* authenticationTask = authenticationConfiguration (LEV_AT_AC) */
+        UDS_AT_ACACRAC, /* returnValue = AuthenticationConfiguration ACR with asymmetric
+                         cryptography (RV_ACACR) */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP1, sizeof(EXPECTED_RESP1));
+
+    /* Request per ISO14229-1 2020 Table 103 */
+    const uint8_t REQ2[] = {
+        0x29, /* Authentication Request SID (ARS) */
+        0x05, /* authenticationTask = requestChallengeForAuthentication (LEV_AT_RCFA) */
+        0x00, /* communicationConfiguration = no secure communication (COCO) */
+
+        0x06, /* algorithmIndicator[0] */
+        0x07, /* algorithmIndicator[1] */
+        0x08, /* algorithmIndicator[2] */
+        0x09, /* algorithmIndicator[3] */
+        0x0A, /* algorithmIndicator[4] */
+        0x0B, /* algorithmIndicator[5] */
+        0x0C, /* algorithmIndicator[6] */
+        0x0D, /* algorithmIndicator[7] */
+        0x0E, /* algorithmIndicator[8] */
+        0x0F, /* algorithmIndicator[9] */
+        0x10, /* algorithmIndicator[10] */
+        0x0A, /* algorithmIndicator[11] */
+        0x11, /* algorithmIndicator[12] */
+        0x12, /* algorithmIndicator[13] */
+        0x13, /* algorithmIndicator[14] */
+        0x00, /* algorithmIndicator[15] */
+    };
+
+    UDSTpSend(e->client_tp, REQ2, sizeof(REQ2), NULL);
+
+    /* Response per ISO14229-1 2020 Table 104 */
+    const uint8_t EXPECTED_RESP2[] = {
+        0x69,            /* Authentication Response SID (ARS) */
+        UDS_LEV_AT_RCFA, /* authenticationTask = requestChallengeForAuthentication (LEV_AT_RCFA) */
+        UDS_AT_RA,       /* returnValue = Request accepted (RV_RA) */
+
+        0x06, /* algorithmIndicator[0] */
+        0x07, /* algorithmIndicator[1] */
+        0x08, /* algorithmIndicator[2] */
+        0x09, /* algorithmIndicator[3] */
+        0x0A, /* algorithmIndicator[4] */
+        0x0B, /* algorithmIndicator[5] */
+        0x0C, /* algorithmIndicator[6] */
+        0x0D, /* algorithmIndicator[7] */
+        0x0E, /* algorithmIndicator[8] */
+        0x0F, /* algorithmIndicator[9] */
+        0x10, /* algorithmIndicator[10] */
+        0x0A, /* algorithmIndicator[11] */
+        0x11, /* algorithmIndicator[12] */
+        0x12, /* algorithmIndicator[13] */
+        0x13, /* algorithmIndicator[14] */
+        0x00, /* algorithmIndicator[15] */
+
+        0x00, /* lengthOfChallengeServer[0] */
+        0x40, /* lengthOfChallengeServer[1] */
+
+        /* challengeServer [0-63] */
+        0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF, 0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0xB5, 0xB6, 0xB7, 0xB8,
+        0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF, 0xC0, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7,
+        0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF, 0xD0, 0xD1, 0xD2, 0xD3, 0xD4, 0xD5, 0xD6,
+        0xD7, 0xD8, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDE, 0xDF, 0xE0, 0xE1, 0xE2, 0xE3, 0xE4, 0xE5,
+        0xE6, 0xE7, 0xE8, 0x44,
+
+        0x00, /* lengthOfNeededAdditionalParameter[0] */
+        0x00, /* lengthOfNeededAdditionalParameter[1] */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP2, sizeof(EXPECTED_RESP2));
+
+    /* Request per ISO14229-1 2020 Table 105 */
+    const uint8_t REQ3[] = {
+        0x29,              /* Authentication Request SID (ARS) */
+        UDS_LEV_AT_VPOWNU, /* authenticationTask = verifyProofOfOwnershipUnidirectional
+                              (LEV_AT_VPOWNU) */
+
+        0x06, /* algorithmIndicator[0] */
+        0x07, /* algorithmIndicator[1] */
+        0x08, /* algorithmIndicator[2] */
+        0x09, /* algorithmIndicator[3] */
+        0x0A, /* algorithmIndicator[4] */
+        0x0B, /* algorithmIndicator[5] */
+        0x0C, /* algorithmIndicator[6] */
+        0x0D, /* algorithmIndicator[7] */
+        0x0E, /* algorithmIndicator[8] */
+        0x0F, /* algorithmIndicator[9] */
+        0x10, /* algorithmIndicator[10] */
+        0x0A, /* algorithmIndicator[11] */
+        0x11, /* algorithmIndicator[12] */
+        0x12, /* algorithmIndicator[13] */
+        0x13, /* algorithmIndicator[14] */
+        0x00, /* algorithmIndicator[15] */
+
+        0x01, /* lengthOfProofOfOwnershipClient[0] (LPOWNCL) */
+        0x50, /* lengthOfProofOfOwnershipClient[1] (LPOWNCL) */
+
+        /* proofOfOwnershipClient [0-335] */
+        0x7F, 0x21, 0x82, 0x01, 0x4B, 0x7F, 0x4E, 0x44, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
+        0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15,
+        0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24,
+        0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33,
+        0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F, 0x40, 0x41, 0x42,
+        /* bytes 75..79 per table */
+        0x5F, 0x37, 0x82, 0x01, 0x00,
+
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
+        0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D,
+        0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C,
+        0x2D, 0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B,
+        0x3C, 0x3D, 0x3E, 0x3F, 0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A,
+        0x4B, 0x4C, 0x4D, 0x4E, 0x4F, 0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59,
+        0x5A, 0x5B, 0x5C, 0x5D, 0x5E, 0x5F, 0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68,
+        0x69, 0x6A, 0x6B, 0x6C, 0x6D, 0x6E, 0x6F, 0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77,
+        0x78, 0x79, 0x7A, 0x7B, 0x7C, 0x7D, 0x7E, 0x7F, 0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86,
+        0x87, 0x88, 0x89, 0x8A, 0x8B, 0x8C, 0x8D, 0x8E, 0x8F, 0x90, 0x91, 0x92, 0x93, 0x94, 0x95,
+        0x96, 0x97, 0x98, 0x99, 0x9A, 0x9B, 0x9C, 0x9D, 0x9E, 0x9F, 0xA0, 0xA1, 0xA2, 0xA3, 0xA4,
+        0xA5, 0xA6, 0xA7, 0xA8, 0xA9, 0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF, 0xB0, 0xB1, 0xB2, 0xB3,
+        0xB4, 0xB5, 0xB6, 0xB7, 0xB8, 0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF, 0xC0, 0xC1, 0xC2,
+        0xC3, 0xC4, 0xC5, 0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF, 0xD0, 0xD1,
+        0xD2, 0xD3, 0xD4, 0xD5, 0xD6, 0xD7, 0xD8, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDE, 0xDF, 0xE0,
+        0xE1, 0xE2, 0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9, 0xEA, 0xEB, 0xEC, 0xED, 0xEE, 0xEF,
+        0xF0, 0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE,
+        0xFF,
+
+        0x00, /* lengthOfChallengeClient[0] (LOCHCL) */
+        0x20, /* lengthOfChallengeClient[1] (LOCHCL) */
+
+        /* challengeClient [0-31] */
+        0xAA, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D,
+        0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C,
+        0x1D, 0x44,
+
+        0x00, /* lengthOfAdditionalParameter[0] (LOAP) */
+        0x00, /* lengthOfAdditionalParameter[1] (LOAP) */
+
+    };
+
+    UDSTpSend(e->client_tp, REQ3, sizeof(REQ3), NULL);
+
+    /* Response per ISO14229-1 2020 Table 106 */
+    const uint8_t EXPECTED_RESP3[] = {
+        0x69,              /* Authentication Response SID (ARS) */
+        UDS_LEV_AT_VPOWNU, /* authenticationTask = verifyProofOfOwnershipUnidirectional
+                              (LEV_AT_VPOWNU) */
+        UDS_AT_OVAC,       /* returnValue = Ownership verified, Authentication complete (RV_OVAC) */
+
+        0x06, /* algorithmIndicator[0] */
+        0x07, /* algorithmIndicator[1] */
+        0x08, /* algorithmIndicator[2] */
+        0x09, /* algorithmIndicator[3] */
+        0x0A, /* algorithmIndicator[4] */
+        0x0B, /* algorithmIndicator[5] */
+        0x0C, /* algorithmIndicator[6] */
+        0x0D, /* algorithmIndicator[7] */
+        0x0E, /* algorithmIndicator[8] */
+        0x0F, /* algorithmIndicator[9] */
+        0x10, /* algorithmIndicator[10] */
+        0x0A, /* algorithmIndicator[11] */
+        0x11, /* algorithmIndicator[12] */
+        0x12, /* algorithmIndicator[13] */
+        0x13, /* algorithmIndicator[14] */
+        0x00, /* algorithmIndicator[15] */
+
+        0x00, /* lengthOfSessionKeyInfo[0] (LOSKI) */
+        0x00, /* lengthOfSessionKeyInfo[1] (LOSKI) */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP3, sizeof(EXPECTED_RESP3));
+}
+
+UDSErr_t fn_test_0x29_example_5(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+    TEST_INT_EQUAL(ev, UDS_EVT_Auth);
+
+    UDSAuthArgs_t *args = arg;
+
+    switch (args->type) {
+    case UDS_LEV_AT_RCFA: {
+        TEST_INT_EQUAL(args->subFuncArgs.reqChallengeArgs.commConf, 0x00);
+        uint8_t expected_algo[] = {0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D,
+                                   0x01, 0x01, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00};
+        TEST_MEMORY_EQUAL(args->subFuncArgs.pownArgs.pown, expected_algo, sizeof(expected_algo));
+
+        args->set_auth_state(srv, UDS_AT_RA);
+        const uint8_t lenOfChallenge[] = {0x00, 0x40};
+        args->copy(srv, lenOfChallenge, sizeof(lenOfChallenge));
+
+        const uint8_t challenge[] = {
+            0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF, 0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0xB5, 0xB6,
+            0xB7, 0xB8, 0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF, 0xC0, 0xC1, 0xC2, 0xC3,
+            0xC4, 0xC5, 0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF, 0xD0,
+            0xD1, 0xD2, 0xD3, 0xD4, 0xD5, 0xD6, 0xD7, 0xD8, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD,
+            0xDE, 0xDF, 0xE0, 0xE1, 0xE2, 0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0x44,
+        };
+        args->copy(srv, challenge, sizeof(challenge));
+
+        const uint8_t lenOfparam[] = {0x00, 0x00};
+        return args->copy(srv, lenOfparam, sizeof(lenOfparam));
+    }
+    case UDS_LEV_AT_VPOWNU:
+        return UDS_NRC_CertficateVerificationFailedInvalidSignature;
+    }
+
+    return UDS_NRC_GeneralReject;
+}
+
+// ISO14229-1 2020 10.6.8.5 Example #5 - Unidirectional Authentication using Challenge-Response
+// (ACR) with asymmetric cryptography without session key establishment (failure path)
+void test_0x29_auth_example_5(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[500] = {0};
+
+    e->server->fn = fn_test_0x29_example_5;
+    e->server->fn_data = NULL;
+
+    /* Request per ISO14229-1 2020 Table 107 */
+    const uint8_t REQ[] = {
+        0x29,            /* Request SID */
+        UDS_LEV_AT_RCFA, /* authenticationTask */
+        0x00,            /* communicationConfiguration */
+        0x06,            /* algorithmIndicator[0] */
+        0x09,            /* algorithmIndicator[1] */
+        0x2A,            /* algorithmIndicator[2] */
+        0x86,            /* algorithmIndicator[3] */
+        0x48,            /* algorithmIndicator[4] */
+        0x86,            /* algorithmIndicator[5] */
+        0xF7,            /* algorithmIndicator[6] */
+        0x0D,            /* algorithmIndicator[7] */
+        0x01,            /* algorithmIndicator[8] */
+        0x01,            /* algorithmIndicator[9] */
+        0x0A,            /* algorithmIndicator[10] */
+        0x00,            /* algorithmIndicator[11] */
+        0x00,            /* algorithmIndicator[12] */
+        0x00,            /* algorithmIndicator[13] */
+        0x00,            /* algorithmIndicator[14] */
+        0x00,            /* algorithmIndicator[15] */
+    };
+
+    UDSTpSend(e->client_tp, REQ, sizeof(REQ), NULL);
+
+    /* Response per ISO14229-1 2020 Table 108 */
+    const uint8_t EXPECTED_RESP1[] = {
+        0x69,            /* Authentication Response SID (ARS) */
+        UDS_LEV_AT_RCFA, /* authenticationTask = requestChallengeForAuthentication (LEV_AT_RCFA) */
+        UDS_AT_RA,       /* returnValue = Request accepted (RV_RA) */
+        0x06,            /* algorithmIndicator[0] (predefined by sample) */
+        0x09,            /* algorithmIndicator[1] */
+        0x2A,            /* algorithmIndicator[2] */
+        0x86,            /* algorithmIndicator[3] */
+        0x48,            /* algorithmIndicator[4] */
+        0x86,            /* algorithmIndicator[5] */
+        0xF7,            /* algorithmIndicator[6] */
+        0x0D,            /* algorithmIndicator[7] */
+        0x01,            /* algorithmIndicator[8] */
+        0x01,            /* algorithmIndicator[9] */
+        0x0A,            /* algorithmIndicator[10 */
+        0x00,            /* algorithmIndicator[11] (predefined by sample) */
+        0x00,            /* algorithmIndicator[12] */
+        0x00,            /* algorithmIndicator[13] */
+        0x00,            /* algorithmIndicator[14] */
+        0x00,            /* algorithmIndicator[15] (predefined by sample) */
+        0x00,            /* lengthOfChallengeServer[0] */
+        0x40,            /* lengthOfChallengeServer[1] */
+
+        /* challengeServer [0-63] */
+        0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF, 0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0xB5, 0xB6, 0xB7, 0xB8,
+        0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF, 0xC0, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7,
+        0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF, 0xD0, 0xD1, 0xD2, 0xD3, 0xD4, 0xD5, 0xD6,
+        0xD7, 0xD8, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDE, 0xDF, 0xE0, 0xE1, 0xE2, 0xE3, 0xE4, 0xE5,
+        0xE6, 0xE7, 0xE8, 0x44,
+
+        0x00, /* lengthOfNeededAdditionalParameter[0] */
+        0x00, /* lengthOfNeededAdditionalParameter[1] */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP1, sizeof(EXPECTED_RESP1));
+
+    /* Request per ISO14229-1 2020 Table 109 */
+    const uint8_t REQ2[] = {
+        0x29,              /* Authentication Request SID (ARS) */
+        UDS_LEV_AT_VPOWNU, /* authenticationTask = verifyProofOfOwnershipUnidirectional
+                              (LEV_AT_VPOWNU) */
+
+        0x06, /* algorithmIndicator[0] */
+        0x07, /* algorithmIndicator[1] */
+        0x08, /* algorithmIndicator[2] */
+        0x09, /* algorithmIndicator[3] */
+        0x0A, /* algorithmIndicator[4] */
+        0x0B, /* algorithmIndicator[5] */
+        0x0C, /* algorithmIndicator[6] */
+        0x0D, /* algorithmIndicator[7] */
+        0x0E, /* algorithmIndicator[8] */
+        0x0F, /* algorithmIndicator[9] */
+        0x10, /* algorithmIndicator[10] */
+        0x0A, /* algorithmIndicator[11] */
+        0x11, /* algorithmIndicator[12] */
+        0x12, /* algorithmIndicator[13] */
+        0x13, /* algorithmIndicator[14] */
+        0x00, /* algorithmIndicator[15] */
+
+        0x01, /* lengthOfProofOfOwnershipClient[0] */
+        0x50, /* lengthOfProofOfOwnershipClient[1] */
+
+        /* proofOfOwnershipClient [0-335] */
+        0x7F, 0x21, 0x82, 0x01, 0x4B, 0x7F, 0x4E, 0x44,
+        /* ascending fill 0x00.. for bytes 8..73 */
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
+        0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D,
+        0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C,
+        0x2D, 0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B,
+        0x3C, 0x3D, 0x3E, 0x3F, 0x40, 0x41,
+        /* byte 74 */
+        0x42,
+        /* bytes 75..79 fixed by table */
+        0x5F, 0x37, 0x82, 0x01, 0x00,
+        /* ascending fill 0x00..0xFF for bytes 80..335 */
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
+        0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D,
+        0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C,
+        0x2D, 0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B,
+        0x3C, 0x3D, 0x3E, 0x3F, 0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A,
+        0x4B, 0x4C, 0x4D, 0x4E, 0x4F, 0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59,
+        0x5A, 0x5B, 0x5C, 0x5D, 0x5E, 0x5F, 0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68,
+        0x69, 0x6A, 0x6B, 0x6C, 0x6D, 0x6E, 0x6F, 0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77,
+        0x78, 0x79, 0x7A, 0x7B, 0x7C, 0x7D, 0x7E, 0x7F, 0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86,
+        0x87, 0x88, 0x89, 0x8A, 0x8B, 0x8C, 0x8D, 0x8E, 0x8F, 0x90, 0x91, 0x92, 0x93, 0x94, 0x95,
+        0x96, 0x97, 0x98, 0x99, 0x9A, 0x9B, 0x9C, 0x9D, 0x9E, 0x9F, 0xA0, 0xA1, 0xA2, 0xA3, 0xA4,
+        0xA5, 0xA6, 0xA7, 0xA8, 0xA9, 0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF, 0xB0, 0xB1, 0xB2, 0xB3,
+        0xB4, 0xB5, 0xB6, 0xB7, 0xB8, 0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF, 0xC0, 0xC1, 0xC2,
+        0xC3, 0xC4, 0xC5, 0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF, 0xD0, 0xD1,
+        0xD2, 0xD3, 0xD4, 0xD5, 0xD6, 0xD7, 0xD8, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDE, 0xDF, 0xE0,
+        0xE1, 0xE2, 0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9, 0xEA, 0xEB, 0xEC, 0xED, 0xEE, 0xEF,
+        0xF0, 0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE,
+        0xFF,
+
+        0x00, /* lengthOfChallengeClient[0] */
+        0x20, /* lengthOfChallengeClient[1] */
+
+        /* challengeClient [0-31] */
+        0xAA, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D,
+        0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C,
+        0x1D, 0x44,
+
+        0x00, /* lengthOfAdditionalParameter[0] */
+        0x00, /* lengthOfAdditionalParameter[1] */
+    };
+
+    UDSTpSend(e->client_tp, REQ2, sizeof(REQ2), NULL);
+
+    /* Response per ISO14229-1 2020 Table 110 */
+    const uint8_t EXPECTED_RESP2[] = {
+        0x7F, /* Response SID */
+        0x29, /* Original Request SID */
+        UDS_NRC_CertficateVerificationFailedInvalidSignature,
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP2, sizeof(EXPECTED_RESP2));
+}
+
+UDSErr_t fn_test_0x29_example_6(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+    TEST_INT_EQUAL(ev, UDS_EVT_Auth);
+
+    UDSAuthArgs_t *args = arg;
+
+    switch (args->type) {
+    case UDS_LEV_AT_RCFA: {
+        args->set_auth_state(srv, UDS_AT_RA);
+
+        uint8_t challengeLength[] = {0x00, 0x10};
+        args->copy(srv, challengeLength, sizeof(challengeLength));
+
+        uint8_t challengeServer[] = {0x32, 0x43, 0xF6, 0xA8, 0x88, 0x5A, 0x30, 0x8D,
+                                     0x31, 0x31, 0x98, 0xA2, 0xE0, 0x37, 0x07, 0x34};
+        args->copy(srv, challengeServer, sizeof(challengeServer));
+
+        uint8_t parameterLength[] = {0x00, 0x00};
+        return args->copy(srv, parameterLength, sizeof(parameterLength));
+    }
+    case UDS_LEV_AT_VPOWNU: {
+        args->set_auth_state(srv, UDS_AT_OVAC);
+
+        uint8_t sessionKeyLength[] = {0x00, 0x00};
+        return args->copy(srv, sessionKeyLength, sizeof(sessionKeyLength));
+    }
+    }
+
+    return UDS_NRC_GeneralReject;
+}
+
+// ISO14229-1 2020 10.6.8.6 Example #6 Unidirectional Authentication using Challenge-Response (ACR)
+// with symmetric cryptography without session key establishment (happy path)
+void test_0x29_auth_example_6(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[100] = {0};
+
+    e->server->fn = fn_test_0x29_example_6;
+    e->server->fn_data = NULL;
+
+    /* Request per ISO14229-1 2020 Table 111 */
+    const uint8_t REQ1[] = {
+        0x29,            /* Authentication Request SID (ARS) */
+        UDS_LEV_AT_RCFA, /* authenticationTask = requestChallengeForAuthentication (LEV_AT_RCFA) */
+        0x00,            /* communicationConfiguration = no secure communication (COCO) */
+
+        0x06, /* algorithmIndicator[0] */
+        0x07, /* algorithmIndicator[1] */
+        0x08, /* algorithmIndicator[2] */
+        0x09, /* algorithmIndicator[3] */
+        0x0A, /* algorithmIndicator[4] */
+        0x0B, /* algorithmIndicator[5] */
+        0x0C, /* algorithmIndicator[6] */
+        0x0D, /* algorithmIndicator[7] */
+        0x0E, /* algorithmIndicator[8] */
+        0x0F, /* algorithmIndicator[9] */
+        0x02, /* algorithmIndicator[10] */
+        0x11, /* algorithmIndicator[11] */
+        0x12, /* algorithmIndicator[12] */
+        0x13, /* algorithmIndicator[13] */
+        0x14, /* algorithmIndicator[14] */
+        0x00, /* algorithmIndicator[15] */
+    };
+
+    UDSTpSend(e->client_tp, REQ1, sizeof(REQ1), NULL);
+
+    /* Response per ISO14229-1 2020 Table 112 */
+    const uint8_t EXPECTED_RESP1[] = {
+        0x69,            /* Authentication Response SID (ARS) */
+        UDS_LEV_AT_RCFA, /* authenticationTask = requestChallengeForAuthentication (LEV_AT_RCFA) */
+        UDS_AT_RA,       /* returnValue = Request accepted (RV_RA) */
+
+        0x06, /* algorithmIndicator[0] */
+        0x07, /* algorithmIndicator[1] */
+        0x08, /* algorithmIndicator[2] */
+        0x09, /* algorithmIndicator[3] */
+        0x0A, /* algorithmIndicator[4] */
+        0x0B, /* algorithmIndicator[5] */
+        0x0C, /* algorithmIndicator[6] */
+        0x0D, /* algorithmIndicator[7] */
+        0x0E, /* algorithmIndicator[8] */
+        0x0F, /* algorithmIndicator[9] */
+        0x02, /* algorithmIndicator[10] */
+        0x11, /* algorithmIndicator[11] */
+        0x12, /* algorithmIndicator[12] */
+        0x13, /* algorithmIndicator[13] */
+        0x14, /* algorithmIndicator[14] */
+        0x00, /* algorithmIndicator[15] */
+
+        0x00, /* lengthOfChallengeServer[0] (high byte) */
+        0x10, /* lengthOfChallengeServer[1] (low byte) */
+
+        /* challengeServer [0-15] */
+        0x32, 0x43, 0xF6, 0xA8, 0x88, 0x5A, 0x30, 0x8D, 0x31, 0x31, 0x98, 0xA2, 0xE0, 0x37, 0x07,
+        0x34,
+
+        0x00, /* lengthOfNeededAdditionalParameter[0] (high byte) */
+        0x00, /* lengthOfNeededAdditionalParameter[1] (low byte) */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP1, sizeof(EXPECTED_RESP1));
+
+    /* Request per ISO14229-1 2020 Table 113 */
+    const uint8_t REQ2[] = {
+        0x29,              /* Authentication Request SID (ARS) */
+        UDS_LEV_AT_VPOWNU, /* authenticationTask = verifyProofOfOwnershipUnidirectional
+                              (LEV_AT_VPOWNU) */
+
+        0x06, /* algorithmIndicator[0] */
+        0x07, /* algorithmIndicator[1] */
+        0x08, /* algorithmIndicator[2] */
+        0x09, /* algorithmIndicator[3] */
+        0x0A, /* algorithmIndicator[4] */
+        0x0B, /* algorithmIndicator[5] */
+        0x0C, /* algorithmIndicator[6] */
+        0x0D, /* algorithmIndicator[7] */
+        0x0E, /* algorithmIndicator[8] */
+        0x0F, /* algorithmIndicator[9] */
+        0x10, /* algorithmIndicator[10] */
+        0x02, /* algorithmIndicator[11] */
+        0x11, /* algorithmIndicator[12] */
+        0x12, /* algorithmIndicator[13] */
+        0x13, /* algorithmIndicator[14] */
+        0x00, /* algorithmIndicator[15] */
+
+        0x00, /* lengthOfProofOfOwnershipClient[0] (high byte, LPOWNCL_HB) */
+        0x10, /* lengthOfProofOfOwnershipClient[1] (low byte, LPOWNCL_LB) */
+
+        /* proofOfOwnershipClient [0-15] */
+        0x39, 0x25, 0x84, 0x1D, 0x02, 0xDC, 0x09, 0xFB, 0xDC, 0x11, 0x85, 0x97, 0x19, 0x6A, 0x0B,
+        0x32,
+
+        0x00, /* lengthOfChallengeClient[0] (LOCHCL) */
+        0x00, /* lengthOfChallengeClient[1] (LOCHCL) */
+
+        0x00, /* lengthOfAdditionalParameter[0] (high byte, LOAP_HB) */
+        0x00, /* lengthOfAdditionalParameter[1] (low byte, LOAP_LB) */
+    };
+
+    UDSTpSend(e->client_tp, REQ2, sizeof(REQ2), NULL);
+
+    /* Response per ISO14229-1 2020 Table 114 */
+    const uint8_t EXPECTED_RESP2[] = {
+        0x69,              /* Authentication Response SID (ARS) */
+        UDS_LEV_AT_VPOWNU, /* authenticationTask = verifyProofOfOwnershipUnidirectional
+                              (LEV_AT_VPOWNU) */
+        UDS_AT_OVAC,       /* returnValue = Ownership verified, Authentication complete (RV_OVAC) */
+
+        0x06, /* algorithmIndicator[0] */
+        0x07, /* algorithmIndicator[1] */
+        0x08, /* algorithmIndicator[2] */
+        0x09, /* algorithmIndicator[3] */
+        0x0A, /* algorithmIndicator[4] */
+        0x0B, /* algorithmIndicator[5] */
+        0x0C, /* algorithmIndicator[6] */
+        0x0D, /* algorithmIndicator[7] */
+        0x0E, /* algorithmIndicator[8] */
+        0x0F, /* algorithmIndicator[9] */
+        0x10, /* algorithmIndicator[10] */
+        0x02, /* algorithmIndicator[11] */
+        0x11, /* algorithmIndicator[12] */
+        0x12, /* algorithmIndicator[13] */
+        0x13, /* algorithmIndicator[14] */
+        0x00, /* algorithmIndicator[15] */
+
+        0x00, /* lengthOfSessionKeyInfo[0] (LOSKI) */
+        0x00, /* lengthOfSessionKeyInfo[1] (LOSKI) */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP2, sizeof(EXPECTED_RESP2));
+}
+
+UDSErr_t fn_test_0x29_example_7(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+    TEST_INT_EQUAL(ev, UDS_EVT_Auth);
+
+    UDSAuthArgs_t *args = arg;
+
+    switch (args->type) {
+    case UDS_LEV_AT_RCFA: {
+        args->set_auth_state(srv, UDS_AT_RA);
+
+        uint8_t challengeLength[] = {0x00, 0x10};
+        args->copy(srv, challengeLength, sizeof(challengeLength));
+
+        uint8_t challengeServer[] = {0x32, 0x43, 0xF6, 0xA8, 0x88, 0x5A, 0x30, 0x8D,
+                                     0x31, 0x31, 0x98, 0xA2, 0xE0, 0x37, 0x07, 0x34};
+        args->copy(srv, challengeServer, sizeof(challengeServer));
+
+        uint8_t parameterLength[] = {0x00, 0x00};
+        return args->copy(srv, parameterLength, sizeof(parameterLength));
+    }
+    case UDS_LEV_AT_VPOWNU:
+        return UDS_NRC_OwnershipVerificationFailed;
+    }
+
+    return UDS_NRC_GeneralReject;
+}
+
+// ISO14229-1 2020 10.6.8.7 Example #7 Unidirectional Authentication using Challenge-Response (ACR)
+// with symmetric cryptography without session key establishment (failure path)
+void test_0x29_auth_example_7(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[100] = {0};
+
+    e->server->fn = fn_test_0x29_example_7;
+    e->server->fn_data = NULL;
+
+    /* Request per ISO14229-1 2020 Table 115 */
+    const uint8_t REQ1[] = {
+        0x29,            /* Authentication Request SID (ARS) */
+        UDS_LEV_AT_RCFA, /* authenticationTask = requestChallengeForAuthentication (LEV_AT_RCFA) */
+        0x00,            /* communicationConfiguration = no secure communication (COCO) */
+
+        0x06, /* algorithmIndicator[0] */
+        0x07, /* algorithmIndicator[1] */
+        0x08, /* algorithmIndicator[2] */
+        0x09, /* algorithmIndicator[3] */
+        0x0A, /* algorithmIndicator[4] */
+        0x0B, /* algorithmIndicator[5] */
+        0x0C, /* algorithmIndicator[6] */
+        0x0D, /* algorithmIndicator[7] */
+        0x0E, /* algorithmIndicator[8] */
+        0x0F, /* algorithmIndicator[9] */
+        0x02, /* algorithmIndicator[10] */
+        0x11, /* algorithmIndicator[11] */
+        0x12, /* algorithmIndicator[12] */
+        0x13, /* algorithmIndicator[13] */
+        0x14, /* algorithmIndicator[14] */
+        0x00, /* algorithmIndicator[15] */
+    };
+
+    UDSTpSend(e->client_tp, REQ1, sizeof(REQ1), NULL);
+
+    /* Response per ISO14229-1 2020 Table 116 */
+    const uint8_t EXPECTED_RESP1[] = {
+        0x69,            /* Authentication Response SID (ARS) */
+        UDS_LEV_AT_RCFA, /* authenticationTask = requestChallengeForAuthentication (LEV_AT_RCFA) */
+        UDS_AT_RA,       /* returnValue = Request accepted (RV_RA) */
+
+        0x06, /* algorithmIndicator[0] */
+        0x07, /* algorithmIndicator[1] */
+        0x08, /* algorithmIndicator[2] */
+        0x09, /* algorithmIndicator[3] */
+        0x0A, /* algorithmIndicator[4] */
+        0x0B, /* algorithmIndicator[5] */
+        0x0C, /* algorithmIndicator[6] */
+        0x0D, /* algorithmIndicator[7] */
+        0x0E, /* algorithmIndicator[8] */
+        0x0F, /* algorithmIndicator[9] */
+        0x02, /* algorithmIndicator[10] */
+        0x11, /* algorithmIndicator[11] */
+        0x12, /* algorithmIndicator[12] */
+        0x13, /* algorithmIndicator[13] */
+        0x14, /* algorithmIndicator[14] */
+        0x00, /* algorithmIndicator[15] */
+
+        0x00, /* lengthOfChallengeServer[0] (high byte) */
+        0x10, /* lengthOfChallengeServer[1] (low byte) */
+
+        /* challengeServer [0-15] */
+        0x32, 0x43, 0xF6, 0xA8, 0x88, 0x5A, 0x30, 0x8D, 0x31, 0x31, 0x98, 0xA2, 0xE0, 0x37, 0x07,
+        0x34,
+
+        0x00, /* lengthOfNeededAdditionalParameter[0] (high byte) */
+        0x00, /* lengthOfNeededAdditionalParameter[1] (low byte) */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP1, sizeof(EXPECTED_RESP1));
+
+    /* Request per ISO14229-1 2020 Table 117 */
+    const uint8_t REQ2[] = {
+        0x29,              /* Authentication Request SID (ARS) */
+        UDS_LEV_AT_VPOWNU, /* authenticationTask = verifyProofOfOwnershipUnidirectional
+                              (LEV_AT_VPOWNU) */
+
+        0x06, /* algorithmIndicator[0] */
+        0x07, /* algorithmIndicator[1] */
+        0x08, /* algorithmIndicator[2] */
+        0x09, /* algorithmIndicator[3] */
+        0x0A, /* algorithmIndicator[4] */
+        0x0B, /* algorithmIndicator[5] */
+        0x0C, /* algorithmIndicator[6] */
+        0x0D, /* algorithmIndicator[7] */
+        0x0E, /* algorithmIndicator[8] */
+        0x0F, /* algorithmIndicator[9] */
+        0x10, /* algorithmIndicator[10] */
+        0x02, /* algorithmIndicator[11] */
+        0x11, /* algorithmIndicator[12] */
+        0x12, /* algorithmIndicator[13] */
+        0x13, /* algorithmIndicator[14] */
+        0x00, /* algorithmIndicator[15] */
+
+        0x00, /* lengthOfProofOfOwnershipClient[0] (high byte) */
+        0x10, /* lengthOfProofOfOwnershipClient[1] (low byte) */
+
+        /* proofOfOwnershipClient [0-15] */
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+        0x11,
+
+        0x00, /* lengthOfChallengeClient[0] (LOCHCL) */
+        0x00, /* lengthOfChallengeClient[1] (LOCHCL) */
+
+        0x00, /* lengthOfAdditionalParameter[0] (high byte) */
+        0x00, /* lengthOfAdditionalParameter[1] (low byte) */
+    };
+
+    UDSTpSend(e->client_tp, REQ2, sizeof(REQ2), NULL);
+
+    /* Response per ISO14229-1 2020 Table 118 */
+    const uint8_t EXPECTED_RESP2[] = {
+        0x7F,                                /* Negative Response SID (SIDRSIDNRQ) */
+        0x29,                                /* Authentication Request SID (ARS) */
+        UDS_NRC_OwnershipVerificationFailed, /* responseCode = Ownership verification failed
+                                                (NRC_OVF) */
+    };
+
+    /* the client transport should receive a response within client_p2 ms */
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+    TEST_MEMORY_EQUAL(buf, EXPECTED_RESP2, sizeof(EXPECTED_RESP2));
+}
+
 UDSErr_t fn_test_0x2C(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     TEST_INT_EQUAL(ev, UDS_EVT_DynamicDefineDataId);
     UDSDDDIArgs_t *args = arg;
@@ -4265,6 +6055,28 @@ int main(int ac, char **av) {
         cmocka_unit_test_setup_teardown(test_0x28_comm_ctrl_invalid_request, Setup, Teardown),
         cmocka_unit_test_setup_teardown(
             test_0x28_comm_ctrl_forced_malformed_response_in_event_handler, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_auth_de_auth, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_req_too_short, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_auth_verify_certificate_unidirectional, Setup,
+                                        Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_auth_verify_certificate_bidirectional, Setup,
+                                        Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_auth_proof_of_ownership, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_auth_transmit_cert, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_auth_req_challenge_for_auth, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_auth_verify_pown_unidirectional, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_auth_verify_pown_bidirectional, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_auth_config, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_auth_timeout_on_session_timeout, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_auth_timeout_on_session_switch_to_default, Setup,
+                                        Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_auth_example_1, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_auth_example_2, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_auth_example_3, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_auth_example_4, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_auth_example_5, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_auth_example_6, Setup, Teardown),
+        cmocka_unit_test_setup_teardown(test_0x29_auth_example_7, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_request_too_short, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_sub_0x01, Setup, Teardown),
         cmocka_unit_test_setup_teardown(test_0x2C_sub_0x01_request_too_short, Setup, Teardown),

@@ -40,3 +40,7 @@ cppcheck_reports
 .venv
 tools/cppcheck/misra_c_2023__headlines_for_cppcheck.txt
 latex/
+
+# aes key files generated for the sample
+examples/linux_server_0x29/uds_aes_key.bin
+examples/linux_server_0x29/uds_aes_key.h

@@ -920,7 +920,15 @@ static UDSErr_t Handle_0x10_DiagnosticSessionControl(UDSServer_t *srv, UDSReq_t 
         .p2_star_ms = UDS_CLIENT_DEFAULT_P2_STAR_MS,
     };
 
-    UDSErr_t err = EmitEvent(srv, UDS_EVT_DiagSessCtrl, &args);
+    UDSErr_t err = UDS_OK;
+
+    // when transitioning from a non-default session to a default session
+    if (srv->sessionType != UDS_LEV_DS_DS && args.type == UDS_LEV_DS_DS) {
+        // ignore event returncode as we don't force user to handle this event
+        EmitEvent(srv, UDS_EVT_AuthTimeout, NULL);
+    }
+
+    err = EmitEvent(srv, UDS_EVT_DiagSessCtrl, &args);
 
     if (UDS_PositiveResponse != err) {
         return NegativeResponse(r, err);
@@ -1559,6 +1567,479 @@ static UDSErr_t Handle_0x28_CommunicationControl(UDSServer_t *srv, UDSReq_t *r) 
     return UDS_PositiveResponse;
 }
 
+static uint8_t set_auth_state(UDSServer_t *srv, uint8_t state) {
+    if (srv == NULL) {
+        return UDS_NRC_GeneralReject;
+    }
+    UDSReq_t *r = (UDSReq_t *)&srv->r;
+    r->send_buf[2] = state;
+
+    return UDS_PositiveResponse;
+}
+
+static UDSErr_t Handle_0x29_Authentication(UDSServer_t *srv, UDSReq_t *r) {
+    UDSErr_t ret = UDS_PositiveResponse;
+    uint8_t type = r->recv_buf[1];
+
+    if (r->recv_len < UDS_0X29_REQ_MIN_LEN) {
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+    }
+
+    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_AUTHENTICATION);
+    r->send_buf[1] = type;
+    r->send_buf[2] = UDS_AT_GR; /* Expect this to be overridden by the user event handler */
+    r->send_len = UDS_0X29_RESP_BASE_LEN;
+
+    UDSAuthArgs_t args = {
+        .type = type,
+        .set_auth_state = set_auth_state,
+        .copy = safe_copy,
+    };
+
+    switch (type) {
+    case UDS_LEV_AT_DA:
+    case UDS_LEV_AT_AC:
+        /* No custom check necessary */
+        break;
+    case UDS_LEV_AT_VCU:
+    case UDS_LEV_AT_VCB: {
+        /**
+         * + 1 byte communication configuration
+         * + 2 bytes length of certificate
+         * + 0 bytes certificate
+         * + 2 bytes length of challenge
+         * + 0 bytes challenge
+         */
+        size_t min_recv_len = UDS_0X29_REQ_MIN_LEN + 1 + 2 + 2;
+
+        if (r->recv_len < min_recv_len) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.subFuncArgs.verifyCertArgs.commConf = r->recv_buf[2];
+        args.subFuncArgs.verifyCertArgs.certLen =
+            (uint16_t)((uint16_t)(r->recv_buf[3] << 8) | (uint16_t)r->recv_buf[4]);
+        args.subFuncArgs.verifyCertArgs.cert = &r->recv_buf[5];
+
+        if (args.subFuncArgs.verifyCertArgs.certLen == 0) {
+            UDS_LOGW(__FILE__, "Auth: VCU/B verify certificate with zero length\n");
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        /* Check if we have enough data to read challengeLen */
+        if (r->recv_len < min_recv_len + args.subFuncArgs.verifyCertArgs.certLen) {
+            UDS_LOGW(__FILE__,
+                     "Auth: VCU/B request too short for certificate data. req len: %zu, cert "
+                     "len: %u\n",
+                     r->recv_len, args.subFuncArgs.verifyCertArgs.certLen);
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.subFuncArgs.verifyCertArgs.challengeLen =
+            (uint16_t)((uint16_t)(r->recv_buf[5 + args.subFuncArgs.verifyCertArgs.certLen] << 8) |
+                       (uint16_t)r->recv_buf[6 + args.subFuncArgs.verifyCertArgs.certLen]);
+        args.subFuncArgs.verifyCertArgs.challenge =
+            &r->recv_buf[7 + args.subFuncArgs.verifyCertArgs.certLen];
+
+        if (type == UDS_LEV_AT_VCB && args.subFuncArgs.verifyCertArgs.challengeLen == 0) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        /* Validate total message length */
+        if (r->recv_len != min_recv_len + args.subFuncArgs.verifyCertArgs.certLen +
+                               args.subFuncArgs.verifyCertArgs.challengeLen) {
+            UDS_LOGW(__FILE__,
+                     "Auth: VCU/B request malformed length. req len: %zu, cert len: %u, "
+                     "challenge len: %u\n",
+                     r->recv_len, args.subFuncArgs.verifyCertArgs.certLen,
+                     args.subFuncArgs.verifyCertArgs.challengeLen);
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        break;
+    }
+    case UDS_LEV_AT_POWN: {
+        /**
+         * + 2 bytes length of pown
+         * + 0 bytes pown
+         * + 2 bytes length of ephemeral public key
+         * + 0 bytes ephemeral public key
+         */
+        size_t min_recv_len = UDS_0X29_REQ_MIN_LEN + 2 + 2;
+
+        if (r->recv_len < min_recv_len) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.subFuncArgs.pownArgs.pownLen =
+            (uint16_t)((uint16_t)(r->recv_buf[2] << 8) | (uint16_t)r->recv_buf[3]);
+        args.subFuncArgs.pownArgs.pown = &r->recv_buf[4];
+
+        if (args.subFuncArgs.pownArgs.pownLen == 0) {
+            UDS_LOGW(__FILE__, "Auth: POWN with zero length\n");
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        /* Check if we have enough data to read publicKeyLen */
+        if (r->recv_len < min_recv_len + args.subFuncArgs.pownArgs.pownLen) {
+            UDS_LOGW(__FILE__,
+                     "Auth: POWN request too short for pown data. req len: %zu, pown len: %u\n",
+                     r->recv_len, args.subFuncArgs.pownArgs.pownLen);
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.subFuncArgs.pownArgs.publicKeyLen =
+            (uint16_t)((uint16_t)(r->recv_buf[4 + args.subFuncArgs.pownArgs.pownLen] << 8) |
+                       (uint16_t)r->recv_buf[5 + args.subFuncArgs.pownArgs.pownLen]);
+        args.subFuncArgs.pownArgs.publicKey = &r->recv_buf[6 + args.subFuncArgs.pownArgs.pownLen];
+
+        /* Validate total message length */
+        if (r->recv_len != min_recv_len + args.subFuncArgs.pownArgs.pownLen +
+                               args.subFuncArgs.pownArgs.publicKeyLen) {
+            UDS_LOGW(__FILE__,
+                     "Auth: POWN request malformed length. req len: %zu, pown len: %u, "
+                     "public key len: %u\n",
+                     r->recv_len, args.subFuncArgs.pownArgs.pownLen,
+                     args.subFuncArgs.pownArgs.publicKeyLen);
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        break;
+    }
+
+    case UDS_LEV_AT_TC: {
+        /**
+         * + 1 byte for evaluation ID
+         * + 2 bytes length of certificate
+         */
+        size_t min_recv_len = UDS_0X29_REQ_MIN_LEN + 1 + 2;
+
+        if (r->recv_len < min_recv_len) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.subFuncArgs.transCertArgs.evalId = r->recv_buf[2];
+        args.subFuncArgs.transCertArgs.len =
+            (uint16_t)((uint16_t)(r->recv_buf[3] << 8) | (uint16_t)r->recv_buf[4]);
+        args.subFuncArgs.transCertArgs.cert = &r->recv_buf[5];
+        if (args.subFuncArgs.transCertArgs.len == 0) {
+            UDS_LOGW(__FILE__, "Auth: TC with zero certificate length\n");
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+        if (r->recv_len != min_recv_len + args.subFuncArgs.transCertArgs.len) {
+            UDS_LOGW(__FILE__, "Auth: TC request malformed length. req len: %zu, cert len: %u\n",
+                     r->recv_len, args.subFuncArgs.transCertArgs.len);
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        break;
+    }
+    case UDS_LEV_AT_RCFA:
+        /**
+         * + 1 byte for communication configuration
+         * + 16 bytes for algorithm ID
+         */
+        if (r->recv_len < UDS_0X29_REQ_MIN_LEN + 1 + 16) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.subFuncArgs.reqChallengeArgs.commConf = r->recv_buf[2];
+        args.subFuncArgs.reqChallengeArgs.algoInd = &r->recv_buf[3];
+
+        memcpy(&r->send_buf[3], args.subFuncArgs.reqChallengeArgs.algoInd, 16);
+        r->send_len += 16;
+        break;
+    case UDS_LEV_AT_VPOWNU:
+    case UDS_LEV_AT_VPOWNB: {
+        /**
+         * + 16 bytes for algorithm ID
+         * + 2 bytes for length of pown
+         * + 0 bytes pown
+         * + 2 bytes for length of challenge
+         * + 0 bytes challenge
+         * + 2 bytes for length of additional parameters
+         * + 0 bytes additional parameters
+         */
+        size_t min_recv_len = UDS_0X29_REQ_MIN_LEN + 16 + 2 + 2 + 2;
+
+        if (r->recv_len < min_recv_len) {
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.subFuncArgs.verifyPownArgs.algoInd = &r->recv_buf[2];
+
+        args.subFuncArgs.verifyPownArgs.pownLen =
+            (uint16_t)((uint16_t)(r->recv_buf[18] << 8) | (uint16_t)r->recv_buf[19]);
+        args.subFuncArgs.verifyPownArgs.pown = &r->recv_buf[20];
+
+        if (args.subFuncArgs.verifyPownArgs.pownLen == 0) {
+            UDS_LOGW(__FILE__, "Auth: VPOWNU/B with zero pown length\n");
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        /* Check if we have enough data to read challengeLen */
+        if (r->recv_len < min_recv_len + args.subFuncArgs.verifyPownArgs.pownLen) {
+            UDS_LOGW(__FILE__,
+                     "Auth: VPOWNU/B request too short for pown data. req len: %zu, pown len: "
+                     "%u\n",
+                     r->recv_len, args.subFuncArgs.verifyPownArgs.pownLen);
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.subFuncArgs.verifyPownArgs.challengeLen =
+            (uint16_t)((uint16_t)(r->recv_buf[20 + args.subFuncArgs.verifyPownArgs.pownLen] << 8) |
+                       (uint16_t)r->recv_buf[21 + args.subFuncArgs.verifyPownArgs.pownLen]);
+        args.subFuncArgs.verifyPownArgs.challenge =
+            &r->recv_buf[22 + args.subFuncArgs.verifyPownArgs.pownLen];
+
+        if (type == UDS_LEV_AT_VPOWNB && args.subFuncArgs.verifyPownArgs.challengeLen == 0) {
+            UDS_LOGW(__FILE__, "Auth: VPOWNB with zero challenge length\n");
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        /* Check if we have enough data to read addParamLen */
+        if (r->recv_len < min_recv_len + args.subFuncArgs.verifyPownArgs.pownLen +
+                              args.subFuncArgs.verifyPownArgs.challengeLen) {
+            UDS_LOGW(__FILE__,
+                     "Auth: VPOWNU/B request too short for challenge data. req len: %zu, pown "
+                     "len: %u, challenge len: %u\n",
+                     r->recv_len, args.subFuncArgs.verifyPownArgs.pownLen,
+                     args.subFuncArgs.verifyPownArgs.challengeLen);
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        args.subFuncArgs.verifyPownArgs.addParamLen =
+            (uint16_t)((uint16_t)(r->recv_buf[22 + args.subFuncArgs.verifyPownArgs.pownLen +
+                                              args.subFuncArgs.verifyPownArgs.challengeLen]
+                                  << 8) |
+                       (uint16_t)r->recv_buf[23 + args.subFuncArgs.verifyPownArgs.pownLen +
+                                             args.subFuncArgs.verifyPownArgs.challengeLen]);
+        args.subFuncArgs.verifyPownArgs.addParam =
+            &r->recv_buf[24 + args.subFuncArgs.verifyPownArgs.pownLen +
+                         args.subFuncArgs.verifyPownArgs.challengeLen];
+
+        /* Validate total message length */
+        if (r->recv_len != min_recv_len + args.subFuncArgs.verifyPownArgs.pownLen +
+                               args.subFuncArgs.verifyPownArgs.challengeLen +
+                               args.subFuncArgs.verifyPownArgs.addParamLen) {
+            UDS_LOGW(__FILE__,
+                     "Auth: VPOWNU/B request malformed length. req len: %zu, pown len: %u, "
+                     "challenge len: %u, addParam len: %u\n",
+                     r->recv_len, args.subFuncArgs.verifyPownArgs.pownLen,
+                     args.subFuncArgs.verifyPownArgs.challengeLen,
+                     args.subFuncArgs.verifyPownArgs.addParamLen);
+            return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
+        }
+
+        memcpy(&r->send_buf[3], args.subFuncArgs.verifyPownArgs.algoInd, 16);
+        r->send_len += 16;
+        break;
+    }
+    default:
+        return NegativeResponse(r, UDS_NRC_SubFunctionNotSupported);
+    }
+
+    ret = EmitEvent(srv, UDS_EVT_Auth, &args);
+
+    if (UDS_PositiveResponse != ret) {
+        return NegativeResponse(r, ret);
+    }
+
+    if (r->send_len < UDS_0X29_RESP_BASE_LEN) {
+        goto respond_to_0x29_malformed_response;
+    }
+
+    switch (type) {
+    case UDS_LEV_AT_DA:
+    case UDS_LEV_AT_TC:
+    case UDS_LEV_AT_AC:
+        if (r->send_len < UDS_0X29_RESP_BASE_LEN) {
+            goto respond_to_0x29_malformed_response;
+        }
+        break;
+    case UDS_LEV_AT_VCU: {
+        /**
+         * + 2 bytes for length of challenge
+         * + 2 bytes for length of ephemeral public key
+         */
+        if (r->send_len < UDS_0X29_RESP_BASE_LEN + 4) {
+            goto respond_to_0x29_malformed_response;
+        }
+
+        uint16_t challengeLength =
+            (uint16_t)((uint16_t)(r->send_buf[3] << 8) | (uint16_t)r->send_buf[4]);
+        uint16_t pubKeyLength = (uint16_t)((uint16_t)(r->send_buf[5 + challengeLength] << 8) |
+                                           (uint16_t)r->send_buf[6 + challengeLength]);
+
+        if (challengeLength == 0) {
+            UDS_LOGW(__FILE__, "Auth: VCU response with zero challenge length\n");
+            goto respond_to_0x29_malformed_response;
+        }
+
+        if (challengeLength + pubKeyLength + UDS_0X29_RESP_BASE_LEN + 4 != r->send_len) {
+            UDS_LOGW(__FILE__, "Auth: VCU response with malformed length\n");
+            goto respond_to_0x29_malformed_response;
+        }
+        break;
+    }
+    case UDS_LEV_AT_VCB: {
+        /**
+         * + 2 bytes for length of challenge
+         * + 2 bytes for length of certificate
+         * + 2 bytes for length of pown
+         * + 2 bytes for length of ephemeral public key
+         */
+        if (r->send_len < UDS_0X29_RESP_BASE_LEN + 8) {
+            goto respond_to_0x29_malformed_response;
+        }
+
+        uint16_t challengeLength =
+            (uint16_t)((uint16_t)(r->send_buf[3] << 8) | (uint16_t)r->send_buf[4]);
+
+        if (challengeLength == 0) {
+            UDS_LOGW(__FILE__, "Auth: VCB response with zero challenge length\n");
+            goto respond_to_0x29_malformed_response;
+        }
+
+        uint16_t certLength = (uint16_t)((uint16_t)(r->send_buf[5 + challengeLength] << 8) |
+                                         (uint16_t)r->send_buf[6 + challengeLength]);
+
+        if (certLength == 0) {
+            UDS_LOGW(__FILE__, "Auth: VCB response with zero certificate length\n");
+            goto respond_to_0x29_malformed_response;
+        }
+
+        uint16_t pownLength =
+            (uint16_t)((uint16_t)(r->send_buf[7 + challengeLength + certLength] << 8) |
+                       (uint16_t)r->send_buf[8 + challengeLength + certLength]);
+        if (pownLength == 0) {
+            UDS_LOGW(__FILE__, "Auth: VCB response with zero pown length\n");
+            goto respond_to_0x29_malformed_response;
+        }
+
+        uint16_t pubKeyLength =
+            (uint16_t)((uint16_t)(r->send_buf[9 + challengeLength + certLength + pownLength] << 8) |
+                       (uint16_t)r->send_buf[10 + challengeLength + certLength + pownLength]);
+        if (pubKeyLength == 0) {
+            UDS_LOGW(__FILE__, "Auth: VCB response with zero pubkey length\n");
+            goto respond_to_0x29_malformed_response;
+        }
+
+        if (challengeLength + certLength + pownLength + pubKeyLength + UDS_0X29_RESP_BASE_LEN + 8 !=
+            r->send_len) {
+            UDS_LOGW(__FILE__, "Auth: VCB response with malformed length\n");
+            goto respond_to_0x29_malformed_response;
+        }
+
+        break;
+    }
+
+    case UDS_LEV_AT_POWN: {
+        /**
+         * + 2 bytes for length of session key info
+         */
+        if (r->send_len < UDS_0X29_RESP_BASE_LEN + 2) {
+            goto respond_to_0x29_malformed_response;
+        }
+
+        uint16_t sessionKeyInfoLength =
+            (uint16_t)((uint16_t)(r->send_buf[3] << 8) | (uint16_t)r->send_buf[4]);
+
+        if (sessionKeyInfoLength + UDS_0X29_RESP_BASE_LEN + 2 != r->send_len) {
+            UDS_LOGW(__FILE__, "Auth: POWN response with malformed length\n");
+            goto respond_to_0x29_malformed_response;
+        }
+        break;
+    }
+    case UDS_LEV_AT_RCFA: {
+        /**
+         * + 16 bytes for algorithm ID
+         * + 2 bytes for length of challenge
+         * + 0 bytes for challenge
+         * + 2 bytes for length of additional parameters
+         * + 0 bytes for additional parameters
+         */
+        if (r->send_len < UDS_0X29_RESP_BASE_LEN + 16 + 2 + 2) {
+            goto respond_to_0x29_malformed_response;
+        }
+
+        uint16_t challengeLength =
+            (uint16_t)((uint16_t)(r->send_buf[3 + 16] << 8) | (uint16_t)r->send_buf[4 + 16]);
+        if (challengeLength == 0) {
+            UDS_LOGW(__FILE__, "Auth: RCFA response with zero challenge length\n");
+            goto respond_to_0x29_malformed_response;
+        }
+
+        uint16_t additionalParamLength =
+            (uint16_t)((uint16_t)(r->send_buf[5 + 16 + challengeLength] << 8) |
+                       (uint16_t)r->send_buf[6 + 16 + challengeLength]);
+
+        if (r->send_len !=
+            UDS_0X29_RESP_BASE_LEN + 16 + 2 + challengeLength + 2 + additionalParamLength) {
+            UDS_LOGW(__FILE__, "Auth: RCFA response with malformed length\n");
+            goto respond_to_0x29_malformed_response;
+        }
+
+        break;
+    }
+
+    case UDS_LEV_AT_VPOWNU: {
+        /**
+         * + 16 bytes for algorithm ID
+         * + 2 bytes for length of session key
+         */
+        if (r->send_len < UDS_0X29_RESP_BASE_LEN + 16 + 2) {
+            goto respond_to_0x29_malformed_response;
+        }
+
+        uint16_t sessionKeyLength =
+            (uint16_t)((uint16_t)(r->send_buf[3 + 16] << 8) | (uint16_t)r->send_buf[4 + 16]);
+
+        if (UDS_0X29_RESP_BASE_LEN + 16 + 2 + sessionKeyLength != r->send_len) {
+            UDS_LOGW(__FILE__, "Auth: VPOWNU response with malformed length\n");
+            goto respond_to_0x29_malformed_response;
+        }
+
+        break;
+    }
+    case UDS_LEV_AT_VPOWNB: {
+        /**
+         * + 16 bytes for algorithm ID
+         * + 2 bytes for length of pown
+         * + 2 bytes for length of session key
+         */
+        if (r->send_len < UDS_0X29_RESP_BASE_LEN + 16 + 2 + 2) {
+            goto respond_to_0x29_malformed_response;
+        }
+
+        uint16_t pownLength =
+            (uint16_t)((uint16_t)(r->send_buf[3 + 16] << 8) | (uint16_t)r->send_buf[4 + 16]);
+        if (pownLength == 0) {
+            UDS_LOGW(__FILE__, "Auth: VPOWNB response with zero pown length\n");
+            goto respond_to_0x29_malformed_response;
+        }
+
+        uint16_t sessionKeyLength = (uint16_t)((uint16_t)(r->send_buf[5 + 16 + pownLength] << 8) |
+                                               (uint16_t)r->send_buf[6 + 16 + pownLength]);
+        if (UDS_0X29_RESP_BASE_LEN + 16 + 2 + pownLength + 2 + sessionKeyLength != r->send_len) {
+            UDS_LOGW(__FILE__, "Auth: VPOWNB response with malformed length\n");
+            goto respond_to_0x29_malformed_response;
+        }
+
+        break;
+    }
+    default:
+        UDS_LOGW(__FILE__, "Auth: subFunc 0x%02X is not supported.\n", type);
+        return NegativeResponse(r, UDS_NRC_SubFunctionNotSupported);
+    }
+
+    return UDS_PositiveResponse;
+
+respond_to_0x29_malformed_response:
+    UDS_LOGE(__FILE__, "Auth: subFunc 0x%02X is malformed. Length: %zu\n", type, r->send_len);
+    return NegativeResponse(r, UDS_NRC_GeneralReject);
+}
+
 static UDSErr_t Handle_0x2C_DynamicDefineDataIdentifier(UDSServer_t *srv, UDSReq_t *r) {
     UDSErr_t ret = UDS_PositiveResponse;
     uint8_t type = r->recv_buf[1];
@@ -1631,7 +2112,6 @@ static UDSErr_t Handle_0x2C_DynamicDefineDataIdentifier(UDSServer_t *srv, UDSReq
                      r->recv_buf[4]);
             return NegativeResponse(r, UDS_NRC_RequestOutOfRange);
         }
-
         if ((r->recv_len - 5) % bytesPerAddrAndSize != 0) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
@@ -2029,12 +2509,12 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
         (mode_of_operation == UDS_MOOP_RDDIR)) {
         // ISO14229:2020 Table 481:
         // If the modeOfOperation parameter equals to 0x02 (DeleteFile), 0x04 (ReadFile) or 0x05
-        // (ReadDir) this parameter [fileSizeParameterLength] shall not be included in the request
-        // message. If the modeOfOperation parameter equals to 0x02 (DeleteFile), 0x04 (ReadFile) or
-        // 0x05 (ReadDir) this parameter [fileSizeUncompressed] shall not be included in the request
-        // message. If the modeOfOperation parameter equals to 0x02 (DeleteFile), 0x04 (ReadFile) or
-        // 0x05 (ReadDir) this parameter [fileSizeCompressed] shall not be included in the request
-        // message.
+        // (ReadDir) this parameter [fileSizeParameterLength] shall not be included in the
+        // request message. If the modeOfOperation parameter equals to 0x02 (DeleteFile), 0x04
+        // (ReadFile) or 0x05 (ReadDir) this parameter [fileSizeUncompressed] shall not be
+        // included in the request message. If the modeOfOperation parameter equals to 0x02
+        // (DeleteFile), 0x04 (ReadFile) or 0x05 (ReadDir) this parameter [fileSizeCompressed]
+        // shall not be included in the request message.
     } else {
         file_size_parameter_length = r->recv_buf[byte_idx];
         byte_idx++;
@@ -2198,8 +2678,8 @@ static UDSErr_t Handle_0x87_LinkControl(UDSServer_t *srv, UDSReq_t *r) {
     }
 
     r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_LINK_CONTROL);
-    r->send_buf[1] = r->recv_buf[1]; /* do not use `type` because we want to preserve the suppress
-                                        response bit */
+    r->send_buf[1] = r->recv_buf[1]; /* do not use `type` because we want to preserve the
+                                        suppress response bit */
     r->send_len = UDS_0X87_RESP_LEN;
 
     UDSLinkCtrlArgs_t args = {
@@ -2243,6 +2723,8 @@ static UDSService getServiceForSID(uint8_t sid) {
         return &Handle_0x27_SecurityAccess;
     case kSID_COMMUNICATION_CONTROL:
         return &Handle_0x28_CommunicationControl;
+    case kSID_AUTHENTICATION:
+        return &Handle_0x29_Authentication;
     case kSID_READ_PERIODIC_DATA_BY_IDENTIFIER:
         return NULL;
     case kSID_DYNAMICALLY_DEFINE_DATA_IDENTIFIER:
@@ -2422,6 +2904,7 @@ void UDSServerPoll(UDSServer_t *srv) {
     // UDS-1-2013 Figure 38: Session Timeout (S3)
     if (UDS_LEV_DS_DS != srv->sessionType &&
         UDSTimeAfter(UDSMillis(), srv->s3_session_timeout_timer)) {
+        EmitEvent(srv, UDS_EVT_AuthTimeout, NULL);
         EmitEvent(srv, UDS_EVT_SessionTimeout, NULL);
         srv->sessionType = UDS_LEV_DS_DS;
         srv->securityLevel = 0;
