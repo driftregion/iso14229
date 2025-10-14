@@ -17,6 +17,16 @@ int LLVMFuzzerTestOneInput(const uint8_t *, size_t);
 static uint64_t g_time_now_us = 0;
 static uint8_t client_recv_buf[UDS_TP_MTU];
 
+std::vector<uint8_t> generate_random_data(FuzzedDataProvider &fuzzed_data, size_t min_len,
+                                          size_t max_len) {
+    size_t msg_len = fuzzed_data.ConsumeIntegralInRange<size_t>(0, max_len);
+    return fuzzed_data.ConsumeBytes<uint8_t>(msg_len);
+}
+
+std::vector<uint8_t> generate_random_subfunc_data(FuzzedDataProvider &fuzzed_data) {
+    return generate_random_data(fuzzed_data, 0, UDS_TP_MTU - 1);
+}
+
 static UDSErr_t fn(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     FuzzedDataProvider *fuzzed_data = (FuzzedDataProvider *)srv->fn_data;
     UDSErr_t retval = static_cast<UDSErr_t>(fuzzed_data->ConsumeIntegral<int>());
@@ -153,16 +163,6 @@ generate_0x10_diagnostic_session_control_request(FuzzedDataProvider &fuzzed_data
     return msg;
 }
 
-std::vector<uint8_t> generate_random_data(FuzzedDataProvider &fuzzed_data, size_t min_len,
-                                          size_t max_len) {
-    size_t msg_len = fuzzed_data.ConsumeIntegralInRange<size_t>(0, max_len);
-    return fuzzed_data.ConsumeBytes<uint8_t>(msg_len);
-}
-
-std::vector<uint8_t> generate_random_subfunc_data(FuzzedDataProvider &fuzzed_data) {
-    return generate_random_data(fuzzed_data, 0, UDS_TP_MTU - 1);
-}
-
 std::vector<uint8_t> generate_0x29_authentication_request(FuzzedDataProvider &fuzzed_data) {
     std::vector<uint8_t> msg;
     msg.push_back(kSID_AUTHENTICATION);
@@ -170,7 +170,8 @@ std::vector<uint8_t> generate_0x29_authentication_request(FuzzedDataProvider &fu
     uint8_t subfunc = fuzzed_data.ConsumeIntegralInRange(0, 9);
 
     switch (subfunc) {
-    case 0: { // De-Authenticate
+    case 0:   // De-Authenticate
+    case 8: { // authentication configuration
         msg.push_back(subfunc);
         if (fuzzed_data.ConsumeBool()) {
             // add random data 50% of the time. Valid request has no other payload
@@ -204,6 +205,8 @@ std::vector<uint8_t> generate_0x29_authentication_request(FuzzedDataProvider &fu
             // Challenge Length
             uint16_t challenge_len =
                 fuzzed_data.ConsumeIntegralInRange<uint16_t>(0, UDS_TP_MTU - msg.size());
+            msg.push_back((challenge_len >> 8) & 0xFF);
+            msg.push_back(challenge_len & 0xFF);
 
             // Challenge
             std::vector<uint8_t> challenge = fuzzed_data.ConsumeBytes<uint8_t>(challenge_len);
@@ -212,12 +215,108 @@ std::vector<uint8_t> generate_0x29_authentication_request(FuzzedDataProvider &fu
         break;
     }
     case 3: { // proof of Ownership
+        msg.push_back(subfunc);
+        if (fuzzed_data.ConsumeBool()) {
+            // add random data 50% of the time.
+            auto data = generate_random_subfunc_data(fuzzed_data);
+            msg.insert(msg.end(), data.begin(), data.end());
+        } else {
+            // proof of ownership length
+            uint16_t pown_len =
+                fuzzed_data.ConsumeIntegralInRange<uint16_t>(0, UDS_TP_MTU - msg.size());
+            // proof of ownership
+            std::vector<uint8_t> pown = fuzzed_data.ConsumeBytes<uint8_t>(pown_len);
+            msg.insert(msg.end(), pown.begin(), pown.end());
+
+            // ephemeral public key length
+            uint16_t ephkey_len =
+                fuzzed_data.ConsumeIntegralInRange<uint16_t>(0, UDS_TP_MTU - msg.size());
+            // ephemeral public key
+            std::vector<uint8_t> ephkey = fuzzed_data.ConsumeBytes<uint8_t>(ephkey_len);
+            msg.insert(msg.end(), ephkey.begin(), ephkey.end());
+        }
+        break;
     }
-    case 4:
-    case 5:
+    case 4: {
+        msg.push_back(subfunc);
+        if (fuzzed_data.ConsumeBool()) {
+            // add random data 50% of the time.
+            auto data = generate_random_subfunc_data(fuzzed_data);
+            msg.insert(msg.end(), data.begin(), data.end());
+        } else {
+            // proof certificate evaluation id
+            uint16_t cert_eval_id =
+                fuzzed_data.ConsumeIntegralInRange<uint16_t>(0, UDS_TP_MTU - msg.size());
+            msg.push_back((cert_eval_id >> 8) & 0xFF);
+            msg.push_back(cert_eval_id & 0xFF);
+
+            // certificate data length
+            uint16_t cert_data_len =
+                fuzzed_data.ConsumeIntegralInRange<uint16_t>(0, UDS_TP_MTU - msg.size());
+            // certificate data
+            std::vector<uint8_t> cert_data = fuzzed_data.ConsumeBytes<uint8_t>(cert_data_len);
+            msg.insert(msg.end(), cert_data.begin(), cert_data.end());
+        }
+        break;
+    }
+    case 5: {
+        msg.push_back(subfunc);
+        if (fuzzed_data.ConsumeBool()) {
+            // add random data 50% of the time.
+            auto data = generate_random_subfunc_data(fuzzed_data);
+            msg.insert(msg.end(), data.begin(), data.end());
+        } else {
+            // communication configuration
+            msg.push_back(fuzzed_data.ConsumeIntegral<uint8_t>());
+
+            std::vector<uint8_t> algo_indicator = fuzzed_data.ConsumeBytes<uint8_t>(
+                fuzzed_data.ConsumeIntegralInRange<size_t>(16, 16));
+        }
+        break;
+    }
     case 6:
-    case 7:
-    case 8: {
+    case 7: {
+        msg.push_back(subfunc);
+        if (fuzzed_data.ConsumeBool()) {
+            // add random data 50% of the time.
+            auto data = generate_random_subfunc_data(fuzzed_data);
+            msg.insert(msg.end(), data.begin(), data.end());
+        } else {
+            std::vector<uint8_t> algo_indicator = fuzzed_data.ConsumeBytes<uint8_t>(
+                fuzzed_data.ConsumeIntegralInRange<size_t>(16, 16));
+
+            msg.insert(msg.end(), algo_indicator.begin(), algo_indicator.end());
+
+            uint16_t pown_len =
+                fuzzed_data.ConsumeIntegralInRange<uint16_t>(0, UDS_TP_MTU - msg.size());
+            msg.push_back((pown_len >> 8) & 0xFF);
+            msg.push_back(pown_len & 0xFF);
+
+            // proof of ownership
+            std::vector<uint8_t> pown = fuzzed_data.ConsumeBytes<uint8_t>(pown_len);
+            msg.insert(msg.end(), pown.begin(), pown.end());
+
+            // challenge client length
+            uint16_t challenge_client_len =
+                fuzzed_data.ConsumeIntegralInRange<uint16_t>(0, UDS_TP_MTU - msg.size());
+            msg.push_back((challenge_client_len >> 8) & 0xFF);
+            msg.push_back(challenge_client_len & 0xFF);
+
+            // challenge client
+            std::vector<uint8_t> challenge_client =
+                fuzzed_data.ConsumeBytes<uint8_t>(challenge_client_len);
+            msg.insert(msg.end(), challenge_client.begin(), challenge_client.end());
+
+            // additional parameter length
+            uint16_t add_param_len =
+                fuzzed_data.ConsumeIntegralInRange<uint16_t>(0, UDS_TP_MTU - msg.size());
+            msg.push_back((add_param_len >> 8) & 0xFF);
+            msg.push_back(add_param_len & 0xFF);
+
+            // additional parameter
+            std::vector<uint8_t> add_param = fuzzed_data.ConsumeBytes<uint8_t>(add_param_len);
+            msg.insert(msg.end(), add_param.begin(), add_param.end());
+        }
     }
     case 9: {
         auto data = generate_random_subfunc_data(fuzzed_data);
