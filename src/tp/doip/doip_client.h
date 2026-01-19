@@ -4,6 +4,7 @@
 #include "tp.h"
 #include "uds.h"
 #include "doip_defines.h"
+#include "doip_transport.h"
 
 
 #define DOIP_ACK_TIMEOUT_MS 1000 /* 1 second for Diagnostic ACK (0x8002 or 0x8003)*/
@@ -24,7 +25,8 @@ typedef enum {
 /* DoIP Client Context */
 typedef struct {
     UDSTp_t hdl;    /* Must be the first entry! */
-    int socket_fd;
+    DoIPTransport tcp;        /* TCP transport for diagnostics */
+    DoIPTransport udp;        /* UDP transport for discovery */
     DoIPClientState_t state;
 
     uint16_t source_address;        /* Client logical address */
@@ -32,6 +34,7 @@ typedef struct {
 
     char server_ip[64];
     uint16_t server_port;
+    bool udp_loopback;        /* discovery via loopback instead of multicast */
 
     uint8_t rx_buffer[DOIP_BUFFER_SIZE];  /* Raw socket receive buffer */
     size_t rx_offset;
@@ -63,5 +66,14 @@ UDSErr_t UDSDoIPInitClient(DoIPClient_t *tp, const char *ipaddress, uint16_t por
  * @param tp Pointer to DoIP client context
  */
 void UDSDoIPDeinit(DoIPClient_t *tp);
+
+/**
+ * @brief Discover vehicles using UDP DoIP
+ * @param tp DoIP client context
+ * @param timeout_ms Receive timeout in ms
+ * @param loopback If true, use loopback instead of multicast
+ * @return number of discovery frames observed (>=0), or negative on error
+ */
+int UDSDoIPDiscoverVehicles(DoIPClient_t *tp, int timeout_ms, bool loopback);
 
 #endif

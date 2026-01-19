@@ -24,6 +24,7 @@
 #include <time.h>
 
 #include "doip_client.h"
+#include "doip_transport.h"
 #include "log.h"
 
 /* Macro to extract 16-bit BE DoIP address from buffer */
@@ -142,9 +143,9 @@ static int doip_send_message(const DoIPClient_t *tp, uint16_t payload_type, cons
         memcpy(buffer + DOIP_HEADER_SIZE, payload, payload_len);
     }
 
-    ssize_t sent = send(tp->socket_fd, buffer, DOIP_HEADER_SIZE + payload_len, 0);
+    ssize_t sent = doip_tp_tcp_send((DoIPTransport *)&tp->tcp, buffer, DOIP_HEADER_SIZE + payload_len);
     if (sent < 0) {
-        perror("send");
+        perror("doip_tp_tcp_send");
         return -1;
     }
 
@@ -353,33 +354,16 @@ static void doip_process_message(DoIPClient_t *tp, const DoIPHeader_t *header,
  * @param timeout_ms Timeout in milliseconds
  */
 static ssize_t doip_receive_data(DoIPClient_t *tp, int timeout_ms) {
-    fd_set readfds;
-    struct timeval tv;
-
-    FD_ZERO(&readfds);
-    FD_SET(tp->socket_fd, &readfds);
-
-    tv.tv_sec = timeout_ms / 1000;
-    tv.tv_usec = (timeout_ms % 1000) * 1000;
-
-    int ret = select(tp->socket_fd + 1, &readfds, NULL, NULL, &tv);
-    if (ret < 0) {
-        perror("select");
-        return -1;
-    }
-
-    if (ret == 0) {
-        return 0; /* Timeout */
-    }
-
-    ssize_t bytes_read =
-        recv(tp->socket_fd, tp->rx_buffer + tp->rx_offset, DOIP_BUFFER_SIZE - tp->rx_offset, 0);
+    ssize_t bytes_read = doip_tp_tcp_recv((DoIPTransport *)&tp->tcp,
+                                          tp->rx_buffer + tp->rx_offset,
+                                          DOIP_BUFFER_SIZE - tp->rx_offset,
+                                          timeout_ms);
 
     if (bytes_read <= 0) {
         if (bytes_read == 0) {
             UDS_LOGE(__FILE__, "DoIP: Server disconnected");
         } else {
-            perror("recv");
+            perror("doip_tp_tcp_recv");
         }
         doip_change_state(tp, DOIP_STATE_DISCONNECTED);
         return -1;
@@ -431,41 +415,19 @@ int doip_client_connect(DoIPClient_t *tp) {
         return -1;
     }
 
-    /* Create TCP socket */
-    tp->socket_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (tp->socket_fd < 0) {
-        UDS_LOGE(__FILE__, "Socket error: %s", strerror(errno));
+    if (doip_tp_tcp_init((DoIPTransport *)&tp->tcp, tp->server_ip, tp->server_port ? tp->server_port : DOIP_TCP_PORT) < 0) {
+        UDS_LOGE(__FILE__, "DoIP: TCP init failed");
         return -1;
     }
-
-    /* Set socket timeout */
-    struct timeval tv;
-    tv.tv_sec = DOIP_DEFAULT_TIMEOUT_MS / 1000;
-    tv.tv_usec = (DOIP_DEFAULT_TIMEOUT_MS % 1000) * 1000;
-    setsockopt(tp->socket_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-
-    /* Connect to server */
-    struct sockaddr_in server_addr;
-    memset(&server_addr, 0, sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(DOIP_TCP_PORT);
-
-    if (inet_pton(AF_INET, tp->server_ip, &server_addr.sin_addr) <= 0) {
-        UDS_LOGE(__FILE__, "DoIP: Invalid server IP address %s", tp->server_ip);
-        close(tp->socket_fd);
-        return -1;
-    }
-
-    if (connect(tp->socket_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-        UDS_LOGE(__FILE__, "Connect error: %s (%s:%d)", strerror(errno), tp->server_ip,
-                 tp->server_port);
-        close(tp->socket_fd);
+    if (doip_tp_tcp_connect((DoIPTransport *)&tp->tcp) < 0) {
+        UDS_LOGE(__FILE__, "DoIP: TCP connect error (%s:%d)", tp->server_ip,
+                 tp->server_port ? tp->server_port : DOIP_TCP_PORT);
         return -1;
     }
 
     doip_change_state(tp, DOIP_STATE_CONNECTED);
-
-    UDS_LOGI(__FILE__, "DoIP Client: Connected to %s:%d", tp->server_ip, DOIP_TCP_PORT);
+    UDS_LOGI(__FILE__, "DoIP Client: Connected to %s:%d", tp->server_ip,
+             tp->server_port ? tp->server_port : DOIP_TCP_PORT);
 
     return 0;
 }
@@ -612,10 +574,7 @@ void doip_client_process(DoIPClient_t *tp, int timeout_ms) {
  * @param tp DoIP client context
  */
 void doip_client_disconnect(DoIPClient_t *tp) {
-    if (tp->socket_fd >= 0) {
-        close(tp->socket_fd);
-        tp->socket_fd = -1;
-    }
+    doip_tp_tcp_close((DoIPTransport *)&tp->tcp);
 
     doip_change_state(tp, DOIP_STATE_DISCONNECTED);
     tp->rx_offset = 0;
@@ -722,7 +681,7 @@ static UDSTpStatus_t doip_tp_poll(UDSTp_t *hdl) {
     DoIPClient_t *impl = (DoIPClient_t *)hdl;
 
     // Basic connectivity check
-    if (impl->state == DOIP_STATE_DISCONNECTED || impl->socket_fd < 0) {
+    if (impl->state == DOIP_STATE_DISCONNECTED || impl->tcp.fd < 0) {
         status |= UDS_TP_ERR;
         return status;
     }
@@ -829,6 +788,40 @@ void UDSDoIPDeinit(DoIPClient_t *tp) {
     }
 
     doip_client_disconnect(tp);
+}
+
+/* --------------------------------------------------------------
+ * UDP discovery (basic): initialize UDP transport and poll once
+ * -------------------------------------------------------------- */
+int UDSDoIPDiscoverVehicles(DoIPClient_t *tp, int timeout_ms, bool loopback) {
+    if (!tp) return -1;
+    tp->udp_loopback = loopback;
+    if (doip_tp_udp_init((DoIPTransport *)&tp->udp, 0, loopback) < 0) {
+        UDS_LOGE(__FILE__, "DoIP UDP: init failed");
+        return -1;
+    }
+    if (!loopback) {
+        if (doip_tp_udp_join_default_multicast((DoIPTransport *)&tp->udp) < 0) {
+            UDS_LOGE(__FILE__, "DoIP UDP: multicast join failed");
+            doip_tp_udp_close((DoIPTransport *)&tp->udp);
+            return -1;
+        }
+    }
+
+    uint8_t buf[DOIP_BUFFER_SIZE];
+    ssize_t n = doip_tp_udp_recv((DoIPTransport *)&tp->udp, buf, sizeof(buf), timeout_ms);
+    if (n <= 0) {
+        UDS_LOGW(__FILE__, "DoIP UDP: no discovery frames (%zd)", n);
+        doip_tp_udp_close((DoIPTransport *)&tp->udp);
+        return 0; /* none discovered */
+    }
+
+    UDS_LOGI(__FILE__, "DoIP UDP: received discovery frame (%zd bytes)", n);
+    UDS_LOG_SDU(__FILE__, buf, (size_t)n, NULL);
+
+    /* Minimal policy: keep current server_ip, leave selection to application */
+    doip_tp_udp_close((DoIPTransport *)&tp->udp);
+    return 1; /* at least one frame observed */
 }
 
 #endif /* UDS_TP_DOIP */
