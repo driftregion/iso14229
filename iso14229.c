@@ -4374,6 +4374,8 @@ void doip_update_sdu_info(const UDSTp_t *hdl, UDSSDU_t *info) {
  * @param info Pointer to SDU info structure (optional)
  * @return ssize_t Number of bytes sent, or negative on error
  */
+
+/* NOTE: SonarCube complains about missing const, but the interface requires non-const */
 static ssize_t doip_tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     ssize_t ret = -1;

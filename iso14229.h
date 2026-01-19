@@ -1804,7 +1804,7 @@ typedef struct {
     uint8_t protocol_version_inv;   /**< Inverse of protocol version */
     uint16_t payload_type;          /**< Payload type (table 17) */
     uint32_t payload_length;        /**< Payload length */
-} __attribute__((packed)) DoIPHeader_t;
+} DoIPHeader_t;
 
 
 
