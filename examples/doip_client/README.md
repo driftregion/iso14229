@@ -193,3 +193,54 @@ This codebase now includes a small DoIP transport abstraction, a split TCP/UDP i
 - Build Integration
   - CMake: when `BUILD_UDS_TP_DOIP=ON`, the DoIP target includes the new TCP/UDP transport sources.
   - Bazel: `src/BUILD` updated to include the new transport sources and headers.
+
+  ### Quick Start: Discovery + Selection
+
+  Minimal example of discovering DoIP responders and selecting one by VIN prefix:
+
+  ```c
+  #include <stdio.h>
+  #include <string.h>
+  #include <stdbool.h>
+  #include <stdint.h>
+  #include "tp/doip/doip_client.h"
+
+  static bool select_by_vin(const DoIPDiscoveryInfo *info, void *user) {
+      const char *needle = (const char *)user; // VIN prefix or full VIN
+      if (!needle || !*needle) return false;
+      if (info->vin[0] == '\0') return false;
+      return strncmp(info->vin, needle, strlen(needle)) == 0;
+  }
+
+  int main(int argc, char **argv) {
+      const char *vin_prefix = argc > 1 ? argv[1] : NULL;
+      bool loopback = argc > 2 ? (strcmp(argv[2], "loopback") == 0) : false;
+
+      DoIPClient_t tp;
+      memset(&tp, 0, sizeof(tp));
+
+      UDSDoIPSetSelectionCallback(&tp, select_by_vin, (void*)vin_prefix);
+
+      int count = UDSDoIPDiscoverVehicles(&tp, 2000, loopback);
+      printf("Discovered %d responders\n", count);
+      printf("Selected server: %s\n", tp.server_ip);
+      return 0;
+  }
+  ```
+
+  Build and run (ad hoc):
+
+  ```bash
+  gcc -DUDS_TP_DOIP -Isrc -I. -o build/doip_discovery_example \
+    src/tp/doip/doip_client.c src/tp/doip/doip_tp_udp.c src/tp/doip/doip_tp_tcp.c \
+    examples/doip_discovery_example/main.c
+
+  # Default multicast discovery (~2s), chooses first responder
+  ./build/doip_discovery_example
+
+  # Filter by VIN prefix
+  ./build/doip_discovery_example WBA
+
+  # Loopback discovery for local testing
+  ./build/doip_discovery_example "" loopback
+  ```
