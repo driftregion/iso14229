@@ -54,6 +54,8 @@ typedef struct {
     uint16_t remote_port;
     uint16_t logical_address; /* if known */
     char vin[18];             /* 17-char VIN plus NUL if parsed */
+    char eid[13];             /* 6-byte EID as hex string */
+    char gid[13];             /* 6-byte GID as hex string */
 } DoIPDiscoveryInfo;
 
 /* Optional selection callback */

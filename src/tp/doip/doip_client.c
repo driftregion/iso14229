@@ -24,6 +24,7 @@
 #include <time.h>
 
 #include "doip_client.h"
+#include "util.h"
 #include "doip_transport.h"
 #include "log.h"
 
@@ -848,21 +849,48 @@ int UDSDoIPDiscoverVehicles(DoIPClient_t *tp, int timeout_ms, bool loopback) {
         snprintf(info.ip, sizeof(info.ip), "%s", src_ip);
         info.remote_port = src_port;
 
-        /* Optional: basic heuristic to find VIN (printable 17 chars) */
-        if (n >= 17) {
-            for (size_t i = 0; i + 17 <= (size_t)n; ++i) {
-                bool printable = true;
-                for (size_t j = 0; j < 17; ++j) {
-                    uint8_t c = buf[i + j];
-                    if (c < '0' || c > 'Z') { /* coarse filter */
-                        printable = false;
-                        break;
-                    }
-                }
-                if (printable) {
-                    memcpy(info.vin, buf + i, 17);
+        /* Parse DoIP header to extract known fields from known payload types */
+        if ((size_t)n >= DOIP_HEADER_SIZE) {
+            DoIPHeader_t hdr;
+            if (doip_header_parse(buf, &hdr)) {
+                const uint8_t *pl = buf + DOIP_HEADER_SIZE;
+                size_t plen = hdr.payload_length;
+                /* Vehicle identification response/announcement payloads commonly start with VIN */
+                if (plen >= 17) {
+                    memcpy(info.vin, pl, 17);
                     info.vin[17] = '\0';
-                    break;
+                }
+                /* Next 6 bytes often EID, then 6 bytes GID */
+                if (plen >= 23) {
+                    for (int i = 0; i < 6; ++i) {
+                        sprintf(&info.eid[i * 2], "%02X", pl[17 + i]);
+                    }
+                    info.eid[12] = '\0';
+                }
+                if (plen >= 29) {
+                    for (int i = 0; i < 6; ++i) {
+                        sprintf(&info.gid[i * 2], "%02X", pl[23 + i]);
+                    }
+                    info.gid[12] = '\0';
+                }
+            } else {
+                /* Fallback: coarse VIN scan in entire datagram */
+                if ((size_t)n >= 17) {
+                    for (size_t i = 0; i + 17 <= (size_t)n; ++i) {
+                        bool printable = true;
+                        for (size_t j = 0; j < 17; ++j) {
+                            uint8_t c = buf[i + j];
+                            if (!(c >= '0' && c <= '9') && !(c >= 'A' && c <= 'Z')) {
+                                printable = false;
+                                break;
+                            }
+                        }
+                        if (printable) {
+                            memcpy(info.vin, buf + i, 17);
+                            info.vin[17] = '\0';
+                            break;
+                        }
+                    }
                 }
             }
         }
