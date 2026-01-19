@@ -147,3 +147,49 @@ Client                          Server
 
 - ISO 13400: Road vehicles - Diagnostic communication over Internet Protocol (DoIP)
 - ISO 14229: Unified Diagnostic Services (UDS)
+
+---
+
+## New Modules and Functions (DoIP Transport & Discovery)
+
+This codebase now includes a small DoIP transport abstraction, a split TCP/UDP implementation, and basic UDP discovery with a selection callback.
+
+- Transport Abstraction
+  - File: [src/tp/doip/doip_transport.h](../../src/tp/doip/doip_transport.h)
+    - `DoIPTransport`: minimal socket wrapper used by the client (fields: `fd`, `port`, `ip`, `is_udp`, `loopback`).
+  - TCP Transport: [src/tp/doip/doip_tp_tcp.c](../../src/tp/doip/doip_tp_tcp.c)
+    - `doip_tp_tcp_init(t, ip, port)`: initialize transport with remote IP/port.
+    - `doip_tp_tcp_connect(t)`: connect to DoIP TCP server.
+    - `doip_tp_tcp_send(t, buf, len)`: send bytes.
+    - `doip_tp_tcp_recv(t, buf, len, timeout_ms)`: receive with timeout.
+    - `doip_tp_tcp_close(t)`: close socket.
+  - UDP Transport: [src/tp/doip/doip_tp_udp.c](../../src/tp/doip/doip_tp_udp.c)
+    - `doip_tp_udp_init(t, port, loopback)`: bind for discovery (loopback binds 127.0.0.1).
+    - `doip_tp_udp_join_default_multicast(t)`: join 224.224.224.224:13400.
+    - `doip_tp_udp_recv(t, buf, len, timeout_ms)`: receive datagram.
+    - `doip_tp_udp_recvfrom(t, buf, len, timeout_ms, src_ip, src_ip_sz, src_port)`: receive + source address.
+    - `doip_tp_udp_close(t)`: close socket.
+
+- DoIP Client Refactor
+  - Files: [src/tp/doip/doip_client.h](../../src/tp/doip/doip_client.h), [src/tp/doip/doip_client.c](../../src/tp/doip/doip_client.c)
+  - The client now embeds `DoIPTransport` for TCP (diagnostics) and UDP (discovery) and uses these for connect/send/recv/close.
+  - Field `udp_loopback` controls whether discovery uses loopback instead of multicast.
+
+- Discovery & Server Selection
+  - Types (in client header):
+    - `DoIPDiscoveryInfo`: `{ ip, remote_port, logical_address, vin[18], eid[13], gid[13] }`.
+    - `DoIPSelectServerFn`: `bool (*)(const DoIPDiscoveryInfo*, void*)` callback.
+  - APIs:
+    - `UDSDoIPSetSelectionCallback(tp, fn, user)`: register callback to choose a server from responders.
+    - `UDSDoIPDiscoverVehicles(tp, timeout_ms, loopback)`: listens for discovery frames (multicast or loopback), parses VIN/EID/GID when present, invokes selection callback (or defaults to first responder), and updates `tp->server_ip`/`tp->server_port` on selection.
+  - Notes:
+    - Default DoIP multicast group/port: 224.224.224.224:13400.
+    - Default selection without a callback picks the first responder; prefer a callback to filter by VIN/logical address/EID/GID.
+
+- Example
+  - File: [examples/doip_discovery_example/main.c](../doip_discovery_example/main.c)
+    - Demonstrates discovery and selection via VIN prefix. Prints the selected server IP.
+
+- Build Integration
+  - CMake: when `BUILD_UDS_TP_DOIP=ON`, the DoIP target includes the new TCP/UDP transport sources.
+  - Bazel: `src/BUILD` updated to include the new transport sources and headers.
