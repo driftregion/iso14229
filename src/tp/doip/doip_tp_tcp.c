@@ -1,6 +1,7 @@
 #if defined(UDS_TP_DOIP)
 
 #include <string.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
 #include <sys/socket.h>

@@ -48,6 +48,19 @@ typedef struct {
     uint8_t diag_nack_code;
 } DoIPClient_t;
 
+/* Discovery info (minimal set) */
+typedef struct {
+    char ip[64];
+    uint16_t remote_port;
+    uint16_t logical_address; /* if known */
+    char vin[18];             /* 17-char VIN plus NUL if parsed */
+} DoIPDiscoveryInfo;
+
+/* Optional selection callback */
+typedef bool (*DoIPSelectServerFn)(const DoIPDiscoveryInfo *info, void *user);
+
+void UDSDoIPSetSelectionCallback(DoIPClient_t *tp, DoIPSelectServerFn fn, void *user);
+
 /**
  * @brief Initialize DoIP client transport layer
  *

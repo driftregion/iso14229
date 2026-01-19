@@ -9,6 +9,7 @@
 #include <sys/select.h>
 
 #include "doip_transport.h"
+#include <stdio.h>
 
 /* Default DoIP multicast group and port for discovery */
 static const char *DOIP_DEFAULT_MCAST = "224.224.224.224"; /* per ISO 13400 */
@@ -89,6 +90,36 @@ ssize_t doip_tp_udp_recv(DoIPTransport *t, uint8_t *buf, size_t len, int timeout
     if (ret == 0) return 0; /* timeout */
 
     return recv(t->fd, buf, len, 0);
+}
+
+ssize_t doip_tp_udp_recvfrom(DoIPTransport *t, uint8_t *buf, size_t len, int timeout_ms,
+                             char *src_ip_out, size_t src_ip_out_sz, uint16_t *src_port_out) {
+    if (!t || t->fd < 0 || !buf) return -1;
+    fd_set rfds;
+    struct timeval tv;
+    FD_ZERO(&rfds);
+    FD_SET(t->fd, &rfds);
+    tv.tv_sec = timeout_ms / 1000;
+    tv.tv_usec = (timeout_ms % 1000) * 1000;
+
+    int ret = select(t->fd + 1, &rfds, NULL, NULL, timeout_ms >= 0 ? &tv : NULL);
+    if (ret < 0) return -1;
+    if (ret == 0) return 0; /* timeout */
+
+    struct sockaddr_in src;
+    socklen_t slen = sizeof(src);
+    ssize_t n = recvfrom(t->fd, buf, len, 0, (struct sockaddr *)&src, &slen);
+    if (n <= 0) return n;
+    if (src_ip_out && src_ip_out_sz > 0) {
+        const char *ip = inet_ntoa(src.sin_addr);
+        if (ip) {
+            snprintf(src_ip_out, src_ip_out_sz, "%s", ip);
+        }
+    }
+    if (src_port_out) {
+        *src_port_out = ntohs(src.sin_port);
+    }
+    return n;
 }
 
 void doip_tp_udp_close(DoIPTransport *t) {

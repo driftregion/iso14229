@@ -737,7 +737,6 @@ UDSErr_t UDSDoIPInitClient(DoIPClient_t *tp, const char *ipaddress, uint16_t por
 
     memset(tp, 0, sizeof(DoIPClient_t));
 
-    tp->socket_fd = -1;
     doip_change_state(tp, DOIP_STATE_DISCONNECTED);
     tp->source_address = source_addr;
     tp->target_address = target_addr;
@@ -791,7 +790,19 @@ void UDSDoIPDeinit(DoIPClient_t *tp) {
 }
 
 /* --------------------------------------------------------------
- * UDP discovery (basic): initialize UDP transport and poll once
+ * Selection callback support
+ * -------------------------------------------------------------- */
+static DoIPSelectServerFn g_select_fn = NULL;
+static void *g_select_user = NULL;
+
+void UDSDoIPSetSelectionCallback(DoIPClient_t *tp, DoIPSelectServerFn fn, void *user) {
+    (void)tp; /* per-client not required; use global for simplicity */
+    g_select_fn = fn;
+    g_select_user = user;
+}
+
+/* --------------------------------------------------------------
+ * UDP discovery: collect responders within timeout, allow selection
  * -------------------------------------------------------------- */
 int UDSDoIPDiscoverVehicles(DoIPClient_t *tp, int timeout_ms, bool loopback) {
     if (!tp) return -1;
@@ -808,20 +819,75 @@ int UDSDoIPDiscoverVehicles(DoIPClient_t *tp, int timeout_ms, bool loopback) {
         }
     }
 
+    int found = 0;
+    const int slice_ms = 200;
+    int remaining = timeout_ms > 0 ? timeout_ms : 0;
     uint8_t buf[DOIP_BUFFER_SIZE];
-    ssize_t n = doip_tp_udp_recv((DoIPTransport *)&tp->udp, buf, sizeof(buf), timeout_ms);
-    if (n <= 0) {
-        UDS_LOGW(__FILE__, "DoIP UDP: no discovery frames (%zd)", n);
-        doip_tp_udp_close((DoIPTransport *)&tp->udp);
-        return 0; /* none discovered */
+    char src_ip[64];
+    uint16_t src_port = 0;
+
+    while (remaining > 0) {
+        int win = remaining < slice_ms ? remaining : slice_ms;
+        ssize_t n = doip_tp_udp_recvfrom((DoIPTransport *)&tp->udp, buf, sizeof(buf), win,
+                                         src_ip, sizeof(src_ip), &src_port);
+        if (n < 0) {
+            UDS_LOGE(__FILE__, "DoIP UDP: recvfrom error");
+            break;
+        } else if (n == 0) {
+            remaining -= win;
+            continue;
+        }
+
+        found++;
+        UDS_LOGI(__FILE__, "DoIP UDP: discovery frame from %s:%u (%zd bytes)", src_ip, src_port,
+                 n);
+        UDS_LOG_SDU(__FILE__, buf, (size_t)n, NULL);
+
+        DoIPDiscoveryInfo info;
+        memset(&info, 0, sizeof(info));
+        snprintf(info.ip, sizeof(info.ip), "%s", src_ip);
+        info.remote_port = src_port;
+
+        /* Optional: basic heuristic to find VIN (printable 17 chars) */
+        if (n >= 17) {
+            for (size_t i = 0; i + 17 <= (size_t)n; ++i) {
+                bool printable = true;
+                for (size_t j = 0; j < 17; ++j) {
+                    uint8_t c = buf[i + j];
+                    if (c < '0' || c > 'Z') { /* coarse filter */
+                        printable = false;
+                        break;
+                    }
+                }
+                if (printable) {
+                    memcpy(info.vin, buf + i, 17);
+                    info.vin[17] = '\0';
+                    break;
+                }
+            }
+        }
+
+        /* Invoke selection callback if provided */
+        bool choose = false;
+        if (g_select_fn) {
+            choose = g_select_fn(&info, g_select_user);
+        } else {
+            /* Default: choose first responder */
+            if (found == 1) choose = true;
+        }
+
+        if (choose) {
+            snprintf(tp->server_ip, sizeof(tp->server_ip), "%s", info.ip);
+            tp->server_port = DOIP_TCP_PORT; /* default TCP port */
+            UDS_LOGI(__FILE__, "DoIP: selected server %s:%u", tp->server_ip, tp->server_port);
+            break; /* stop after selection */
+        }
+
+        remaining -= win;
     }
 
-    UDS_LOGI(__FILE__, "DoIP UDP: received discovery frame (%zd bytes)", n);
-    UDS_LOG_SDU(__FILE__, buf, (size_t)n, NULL);
-
-    /* Minimal policy: keep current server_ip, leave selection to application */
     doip_tp_udp_close((DoIPTransport *)&tp->udp);
-    return 1; /* at least one frame observed */
+    return found;
 }
 
 #endif /* UDS_TP_DOIP */

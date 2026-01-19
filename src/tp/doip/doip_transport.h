@@ -27,6 +27,9 @@ void doip_tp_tcp_close(DoIPTransport *t);
 int doip_tp_udp_init(DoIPTransport *t, uint16_t port, bool loopback);
 int doip_tp_udp_join_default_multicast(DoIPTransport *t);
 ssize_t doip_tp_udp_recv(DoIPTransport *t, uint8_t *buf, size_t len, int timeout_ms);
+/* Receive with source address info */
+ssize_t doip_tp_udp_recvfrom(DoIPTransport *t, uint8_t *buf, size_t len, int timeout_ms,
+                             char *src_ip_out, size_t src_ip_out_sz, uint16_t *src_port_out);
 void doip_tp_udp_close(DoIPTransport *t);
 
 #endif /* UDS_TP_DOIP */
