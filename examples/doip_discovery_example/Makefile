@@ -1,7 +1,5 @@
-APP_SRCS += main.c \
-            ../../src/tp/doip/doip_client.c \
-            ../../src/tp/doip/doip_tp_udp.c \
-            ../../src/tp/doip/doip_tp_tcp.c
+APP_SRCS += doip_discover.c \
+            main/iso14229.c
 APP_TARGET = doip_discovery
 
 # Use the verbose log level for debugging

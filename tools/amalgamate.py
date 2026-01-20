@@ -57,6 +57,8 @@ with open(args.out_c, "w", encoding="utf-8") as f:
         "src/tp/isotp_sock.c",
         "src/tp/isotp_mock.c",
         "src/tp/doip/doip_client.c",
+        "src/tp/doip/doip_tp_udp.c",
+        "src/tp/doip/doip_tp_tcp.c",
     ]:
         f.write("\n")
         f.write("#ifdef UDS_LINES\n")
@@ -117,6 +119,7 @@ with open(args.out_h, "w", encoding="utf-8") as f:
         "src/tp/isotp_sock.h",
         "src/tp/isotp_mock.h",
         "src/tp/doip/doip_defines.h",
+        "src/tp/doip/doip_transport.h",
         "src/tp/doip/doip_client.h",
     ]:
         f.write("\n")

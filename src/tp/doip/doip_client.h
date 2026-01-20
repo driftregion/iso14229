@@ -62,6 +62,8 @@ typedef struct {
 typedef bool (*DoIPSelectServerFn)(const DoIPDiscoveryInfo *info, void *user);
 
 void UDSDoIPSetSelectionCallback(DoIPClient_t *tp, DoIPSelectServerFn fn, void *user);
+/* Discovery options */
+void UDSDoIPSetDiscoveryOptions(bool request_only, bool dump_raw);
 
 /**
  * @brief Initialize DoIP client transport layer
@@ -90,5 +92,7 @@ void UDSDoIPDeinit(DoIPClient_t *tp);
  * @return number of discovery frames observed (>=0), or negative on error
  */
 int UDSDoIPDiscoverVehicles(DoIPClient_t *tp, int timeout_ms, bool loopback);
+/* Extended: allow overriding UDP port (0 = default 13400) */
+int UDSDoIPDiscoverVehiclesEx(DoIPClient_t *tp, int timeout_ms, bool loopback, uint16_t port);
 
 #endif

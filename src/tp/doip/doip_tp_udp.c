@@ -10,11 +10,11 @@
 #include <fcntl.h>
 
 #include "doip_transport.h"
+#include "doip_defines.h"
 #include <stdio.h>
 
-/* Default DoIP multicast group and port for discovery */
+/* Default DoIP multicast group for discovery */
 static const char *DOIP_DEFAULT_MCAST = "224.224.224.224"; /* per ISO 13400 */
-static const uint16_t DOIP_DEFAULT_UDP_PORT = 13400;
 
 int doip_tp_udp_init(DoIPTransport *t, uint16_t port, bool loopback) {
     if (!t) return -1;
@@ -22,7 +22,8 @@ int doip_tp_udp_init(DoIPTransport *t, uint16_t port, bool loopback) {
     t->fd = -1;
     t->is_udp = true;
     t->loopback = loopback;
-    t->port = port ? port : DOIP_DEFAULT_UDP_PORT;
+    /* For tester discovery, default listen port is 13401 */
+    t->port = port ? port : DOIP_UDP_TEST_EQUIPMENT_REQUEST_PORT;
 
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd < 0) {
@@ -57,6 +58,10 @@ int doip_tp_udp_init(DoIPTransport *t, uint16_t port, bool loopback) {
             close(fd);
             return -1;
         }
+
+        /* Enable broadcast for sending to 255.255.255.255 */
+        int broadcast = 1;
+        (void)setsockopt(fd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast));
     }
 
     /* set non-blocking after successful bind */
@@ -136,6 +141,32 @@ void doip_tp_udp_close(DoIPTransport *t) {
         close(t->fd);
         t->fd = -1;
     }
+}
+
+ssize_t doip_tp_udp_sendto(DoIPTransport *t, const uint8_t *buf, size_t len,
+                           const char *dst_ip, uint16_t dst_port, int timeout_ms) {
+    if (!t || t->fd < 0 || !buf || !dst_ip) return -1;
+
+    fd_set wfds;
+    struct timeval tv;
+    FD_ZERO(&wfds);
+    FD_SET(t->fd, &wfds);
+    tv.tv_sec = timeout_ms / 1000;
+    tv.tv_usec = (timeout_ms % 1000) * 1000;
+
+    int ret = select(t->fd + 1, NULL, &wfds, NULL, timeout_ms >= 0 ? &tv : NULL);
+    if (ret < 0) return -1;
+    if (ret == 0) return 0; /* timeout */
+
+    struct sockaddr_in dst;
+    memset(&dst, 0, sizeof(dst));
+    dst.sin_family = AF_INET;
+    dst.sin_port = htons(dst_port);
+    if (inet_pton(AF_INET, dst_ip, &dst.sin_addr) <= 0) {
+        return -1;
+    }
+
+    return sendto(t->fd, buf, len, 0, (struct sockaddr *)&dst, sizeof(dst));
 }
 
 #endif /* UDS_TP_DOIP */

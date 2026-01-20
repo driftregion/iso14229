@@ -48,5 +48,10 @@ typedef struct {
 } DoIPHeader_t;
 
 
+/* UDP ports (ISO 13400-2 Table 48) */
+#define DOIP_UDP_DISCOVERY_PORT                    13400
+#define DOIP_UDP_TEST_EQUIPMENT_REQUEST_PORT       13401
+
+
 
 #endif  /* DOIP_DEFINES_H */

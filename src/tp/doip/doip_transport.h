@@ -37,6 +37,10 @@ ssize_t doip_tp_udp_recvfrom(DoIPTransport *t, uint8_t *buf, size_t len, int tim
                              char *src_ip_out, size_t src_ip_out_sz, uint16_t *src_port_out);
 void doip_tp_udp_close(DoIPTransport *t);
 
+/* UDP send helper */
+ssize_t doip_tp_udp_sendto(DoIPTransport *t, const uint8_t *buf, size_t len,
+                           const char *dst_ip, uint16_t dst_port, int timeout_ms);
+
 #endif /* UDS_TP_DOIP */
 
 

@@ -795,6 +795,8 @@ void UDSDoIPDeinit(DoIPClient_t *tp) {
  * -------------------------------------------------------------- */
 static DoIPSelectServerFn g_select_fn = NULL;
 static void *g_select_user = NULL;
+static bool g_discovery_request_only = false;
+static bool g_discovery_dump_raw = false;
 
 void UDSDoIPSetSelectionCallback(DoIPClient_t *tp, DoIPSelectServerFn fn, void *user) {
     (void)tp; /* per-client not required; use global for simplicity */
@@ -802,17 +804,22 @@ void UDSDoIPSetSelectionCallback(DoIPClient_t *tp, DoIPSelectServerFn fn, void *
     g_select_user = user;
 }
 
+void UDSDoIPSetDiscoveryOptions(bool request_only, bool dump_raw) {
+    g_discovery_request_only = request_only;
+    g_discovery_dump_raw = dump_raw;
+}
+
 /* --------------------------------------------------------------
  * UDP discovery: collect responders within timeout, allow selection
  * -------------------------------------------------------------- */
-int UDSDoIPDiscoverVehicles(DoIPClient_t *tp, int timeout_ms, bool loopback) {
+int UDSDoIPDiscoverVehiclesEx(DoIPClient_t *tp, int timeout_ms, bool loopback, uint16_t port) {
     if (!tp) return -1;
     tp->udp_loopback = loopback;
-    if (doip_tp_udp_init((DoIPTransport *)&tp->udp, 0, loopback) < 0) {
+    if (doip_tp_udp_init((DoIPTransport *)&tp->udp, port, loopback) < 0) {
         UDS_LOGE(__FILE__, "DoIP UDP: init failed");
         return -1;
     }
-    if (!loopback) {
+    if (!loopback && !g_discovery_request_only) {
         if (doip_tp_udp_join_default_multicast((DoIPTransport *)&tp->udp) < 0) {
             UDS_LOGE(__FILE__, "DoIP UDP: multicast join failed");
             doip_tp_udp_close((DoIPTransport *)&tp->udp);
@@ -820,8 +827,35 @@ int UDSDoIPDiscoverVehicles(DoIPClient_t *tp, int timeout_ms, bool loopback) {
         }
     }
 
+    /* Actively send a Vehicle Identification Request */
+    {
+        uint8_t req[DOIP_HEADER_SIZE];
+        req[0] = DOIP_PROTOCOL_VERSION;
+        req[1] = DOIP_PROTOCOL_VERSION_INV;
+        req[2] = 0x00; /* payload_type MSB: 0x0001 */
+        req[3] = 0x01; /* payload_type LSB */
+        req[4] = 0x00; /* payload_length: 0 */
+        req[5] = 0x00;
+        req[6] = 0x00;
+        req[7] = 0x00;
+
+        const char *dst_ip = loopback ? "127.0.0.1" : "255.255.255.255";
+        uint16_t dst_port = DOIP_UDP_DISCOVERY_PORT;
+        ssize_t sent = doip_tp_udp_sendto((DoIPTransport *)&tp->udp, req, sizeof(req), dst_ip,
+                                          dst_port, 500);
+        if (sent <= 0) {
+            UDS_LOGW(__FILE__, "DoIP UDP: VI request send failed (dst %s:%u)", dst_ip, dst_port);
+        } else {
+            UDS_LOGI(__FILE__, "DoIP UDP: sent Vehicle Identification Request to %s:%u",
+                     dst_ip, dst_port);
+        }
+    }
+
     int found = 0;
     const int slice_ms = 200;
+    const int resend_interval_ms = 500;
+    int elapsed_ms = 0;
+    int sent_count = 1; /* already sent one request above */
     int remaining = timeout_ms > 0 ? timeout_ms : 0;
     uint8_t buf[DOIP_BUFFER_SIZE];
     char src_ip[64];
@@ -836,13 +870,27 @@ int UDSDoIPDiscoverVehicles(DoIPClient_t *tp, int timeout_ms, bool loopback) {
             break;
         } else if (n == 0) {
             remaining -= win;
+            elapsed_ms += win;
+            if (elapsed_ms >= sent_count * resend_interval_ms && found == 0) {
+                /* Resend VI request to improve discovery probability */
+                uint8_t req2[DOIP_HEADER_SIZE] = {DOIP_PROTOCOL_VERSION, DOIP_PROTOCOL_VERSION_INV,
+                                                 0x00, 0x01, 0x00, 0x00, 0x00, 0x00};
+                const char *dst_ip2 = loopback ? "127.0.0.1" : "255.255.255.255";
+                uint16_t dst_port2 = DOIP_UDP_DISCOVERY_PORT;
+                (void)doip_tp_udp_sendto((DoIPTransport *)&tp->udp, req2, sizeof(req2), dst_ip2,
+                                          dst_port2, 200);
+                UDS_LOGV(__FILE__, "DoIP UDP: re-sent VI request to %s:%u", dst_ip2, dst_port2);
+                sent_count++;
+            }
             continue;
         }
 
         found++;
         UDS_LOGI(__FILE__, "DoIP UDP: discovery frame from %s:%u (%zd bytes)", src_ip, src_port,
                  n);
-        UDS_LOG_SDU(__FILE__, buf, (size_t)n, NULL);
+        if (g_discovery_dump_raw) {
+            UDS_LOG_SDU(__FILE__, buf, (size_t)n, NULL);
+        }
 
         DoIPDiscoveryInfo info;
         memset(&info, 0, sizeof(info));
@@ -873,6 +921,10 @@ int UDSDoIPDiscoverVehicles(DoIPClient_t *tp, int timeout_ms, bool loopback) {
                     }
                     info.gid[12] = '\0';
                 }
+                if (info.vin[0] != '\0') {
+                    UDS_LOGI(__FILE__, "DoIP UDP: parsed VIN=%s from %s:%u", info.vin, src_ip,
+                             src_port);
+                }
             } else {
                 /* Fallback: coarse VIN scan in entire datagram */
                 if ((size_t)n >= 17) {
@@ -891,6 +943,10 @@ int UDSDoIPDiscoverVehicles(DoIPClient_t *tp, int timeout_ms, bool loopback) {
                             break;
                         }
                     }
+                }
+                if (info.vin[0] != '\0') {
+                    UDS_LOGI(__FILE__, "DoIP UDP: heuristic VIN=%s from %s:%u", info.vin,
+                             src_ip, src_port);
                 }
             }
         }
@@ -916,6 +972,11 @@ int UDSDoIPDiscoverVehicles(DoIPClient_t *tp, int timeout_ms, bool loopback) {
 
     doip_tp_udp_close((DoIPTransport *)&tp->udp);
     return found;
+}
+
+int UDSDoIPDiscoverVehicles(DoIPClient_t *tp, int timeout_ms, bool loopback) {
+    /* By default, listen on the tester request port (13401) to receive announcements */
+    return UDSDoIPDiscoverVehiclesEx(tp, timeout_ms, loopback, DOIP_UDP_TEST_EQUIPMENT_REQUEST_PORT);
 }
 
 #endif /* UDS_TP_DOIP */
