@@ -18,6 +18,13 @@ typedef struct DoIPTransport {
     int send_timeout_ms;   /* send timeout (ms), <=0 uses default */
 } DoIPTransport;
 
+WIP: Assemble struct for tcp and udp function pointers
+typedef (*tcp_init)(DoIPTransport *t, const char *ip, uint16_t port);
+
+typedef struct DoIPTcpTransport {
+    tcp_init init;
+} DoIPTcpTransport;
+
 /* TCP transport helpers */
 int doip_tp_tcp_init(DoIPTransport *t, const char *ip, uint16_t port);
 int doip_tp_tcp_connect(DoIPTransport *t);
