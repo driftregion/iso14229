@@ -4186,7 +4186,8 @@ int doip_client_activate_routing(DoIPClient_t *tp) {
     clock_t start = clock();
 
     while (tp->state == DOIP_STATE_ROUTING_ACTIVATION_PENDING) {
-        int elapsed_ms = ((clock() - start) * 1000) / CLOCKS_PER_SEC;
+        clock_t elapsed_ticks = clock() - start;
+        clock_t elapsed_ms = (elapsed_ticks * 1000LL) / CLOCKS_PER_SEC;
         int remaining_ms = timeout_ms - elapsed_ms;
 
         if (remaining_ms <= 0) {
@@ -4249,7 +4250,8 @@ ssize_t doip_client_send_diag_message(DoIPClient_t *tp, const uint8_t *data, siz
     clock_t start = clock();
 
     while (!tp->diag_ack_received && !tp->diag_nack_received) {
-        int elapsed_ms = ((clock() - start) * 1000) / CLOCKS_PER_SEC;
+        clock_t elapsed_ticks = clock() - start;
+        clock_t elapsed_ms = (elapsed_ticks * 1000LL) / CLOCKS_PER_SEC;
         int remaining_ms = timeout_ms - elapsed_ms;
 
         if (remaining_ms <= 0) {
@@ -5100,7 +5102,7 @@ ssize_t doip_tp_tcp_send(const DoIPTcpTransport *tcp, const uint8_t *buf, size_t
     if (!tcp || tcp->fd < 0 || !buf) return -1;
     size_t total = 0;
     int sflags = 0;
-#ifdef MSG_NOSIGNALconnect
+#ifdef MSG_NOSIGNAL
     sflags |= MSG_NOSIGNAL;
 #endif
     while (total < len) {

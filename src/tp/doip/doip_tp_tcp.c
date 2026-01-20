@@ -124,7 +124,7 @@ ssize_t doip_tp_tcp_send(const DoIPTcpTransport *tcp, const uint8_t *buf, size_t
     if (!tcp || tcp->fd < 0 || !buf) return -1;
     size_t total = 0;
     int sflags = 0;
-#ifdef MSG_NOSIGNALconnect
+#ifdef MSG_NOSIGNAL
     sflags |= MSG_NOSIGNAL;
 #endif
     while (total < len) {
