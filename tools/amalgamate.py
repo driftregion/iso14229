@@ -92,6 +92,7 @@ with open(args.out_h, "w", encoding="utf-8") as f:
         "src/sys_unix.h",
         "src/sys_win32.h",
         "src/sys_esp32.h",
+        "src/sys_rtt.h",
         "src/config.h",
         "src/tp.h",
         "src/uds.h",

@@ -22,6 +22,7 @@ extern "C" {
 #define UDS_SYS_WINDOWS 2
 #define UDS_SYS_ARDUINO 3
 #define UDS_SYS_ESP32 4
+#define UDS_SYS_RTT 5
 
 #if !defined(UDS_SYS)
 
@@ -33,6 +34,8 @@ extern "C" {
 #define UDS_SYS UDS_SYS_ARDUINO
 #elif defined(ESP_PLATFORM)
 #define UDS_SYS UDS_SYS_ESP32
+#elif defined(__RTTHREAD__)
+#define UDS_SYS UDS_SYS_RTT
 #else
 #define UDS_SYS UDS_SYS_CUSTOM
 #endif
@@ -105,6 +108,23 @@ typedef SSIZE_T ssize_t;
 #include <esp_timer.h>
 
 #define UDS_TP_ISOTP_C 1
+
+#endif
+
+
+
+#if UDS_SYS == UDS_SYS_RTT
+
+#include <assert.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
+#include <inttypes.h>
+#include <rtt_uds_config.h>
+
+#define UDS_TP_ISOTP_C 1
+#define UDS_ENABLE_PRINTF_FORMAT_CHECK 0
+#define strnlen rt_strnlen
 
 #endif
 
@@ -198,6 +218,10 @@ TransferData request message from the client. */
 
 #ifndef UDS_CUSTOM_MILLIS
 #define UDS_CUSTOM_MILLIS 0
+#endif
+
+#ifndef UDS_ENABLE_PRINTF_FORMAT_CHECK
+#define UDS_ENABLE_PRINTF_FORMAT_CHECK 1
 #endif
 
 
@@ -689,7 +713,7 @@ typedef int UDS_LogLevel_t;
 #define UDS_LOG_SDU(tag, buffer, buff_len, info) UDS_LogSDUDummy(tag, buffer, buff_len, info)
 #endif
 
-#if defined(__GNUC__) || defined(__clang__)
+#if UDS_ENABLE_PRINTF_FORMAT_CHECK && (defined(__GNUC__) || defined(__clang__))
 #define UDS_PRINTF_FORMAT(fmt_index, first_arg)                                                    \
     __attribute__((format(printf, fmt_index, first_arg)))
 #else

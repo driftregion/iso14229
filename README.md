@@ -21,9 +21,9 @@ API status: Major version zero (0.y.z) **(not yet stable)**. Anything MAY change
 - static memory allocation. (no `malloc`, `calloc`, ...)
 - highly portable and tested
     - architectures: arm, x86-64, ppc, ppc64, risc
-    - systems: linux, Windows, esp32, Arduino, NXP s32k
+    - systems: linux, Windows, esp32, RT-Thread, Arduino, NXP s32k
 - multiple transports supported: isotp-c, linux isotp sockets
-- examples for esp32, Arduino, NXP S32K144
+- examples for esp32, RT-Thread, Arduino, NXP S32K144
 
 # Documentation
 

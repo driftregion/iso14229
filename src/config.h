@@ -89,3 +89,7 @@ TransferData request message from the client. */
 #ifndef UDS_CUSTOM_MILLIS
 #define UDS_CUSTOM_MILLIS 0
 #endif
+
+#ifndef UDS_ENABLE_PRINTF_FORMAT_CHECK
+#define UDS_ENABLE_PRINTF_FORMAT_CHECK 1
+#endif

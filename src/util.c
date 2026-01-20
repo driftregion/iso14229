@@ -20,6 +20,8 @@ uint32_t UDSMillis(void) {
     return millis();
 #elif UDS_SYS == UDS_SYS_ESP32
     return esp_timer_get_time() / 1000;
+#elif UDS_SYS == UDS_SYS_RTT
+    return (uint32_t)rt_tick_get_millisecond();
 #else
 #error "UDSMillis() undefined!"
 #endif

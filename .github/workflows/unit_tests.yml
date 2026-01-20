@@ -77,3 +77,78 @@ jobs:
         esp_idf_version: v5.2
         target: esp32
         path: 'examples/esp32_server'
+
+  rt-thread-qemu:
+    runs-on: ubuntu-22.04
+    name: Build RT-Thread QEMU
+    steps:
+    - name: checkout
+      uses: actions/checkout@v4
+
+    - name: Install Tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y scons qemu-system libncurses5-dev git
+        pip install kconfiglib requests
+
+    - name: Install Arm ToolChains
+      run: |
+        wget -q https://github.com/RT-Thread/toolchains-ci/releases/download/v1.3/gcc-arm-none-eabi-10-2020-q4-major-x86_64-linux.tar.bz2
+        sudo tar xjf gcc-arm-none-eabi-10-2020-q4-major-x86_64-linux.tar.bz2 -C /opt
+
+    - name: Checkout RT-Thread Source
+      uses: actions/checkout@v4
+      with:
+        repository: RT-Thread/rt-thread
+        path: rt-thread
+        ref: master
+
+    - name: Build and Verify
+      shell: bash
+      run: |
+        export RTT_CC=gcc
+        export RTT_EXEC_PATH=/opt/gcc-arm-none-eabi-10-2020-q4-major/bin
+        export RTT_ROOT=${{ github.workspace }}/rt-thread
+
+        BSP_PATH=$RTT_ROOT/bsp/qemu-vexpress-a9
+        USER_SCONSCRIPT=${{ github.workspace }}/examples/rtt_server/SConscript
+
+        cd $BSP_PATH
+
+        sed -i "/DoBuilding/i objs += SConscript('$USER_SCONSCRIPT')" SConstruct
+
+        scons --pyconfig-silent
+
+        echo "Injecting ISO14229 Configurations..."
+        
+        echo "#define PKG_USING_ISO14229 1" >> rtconfig.h
+        echo "#define UDS_USING_EXAMPLE 1" >> rtconfig.h
+        
+        echo "#define RT_USING_ULOG 1" >> rtconfig.h
+        echo "#define UDS_RTTHREAD_ULOG_ENABLED 1" >> rtconfig.h
+        echo "#define UDS_LOG_LEVEL 3" >> rtconfig.h
+        echo "#define UDS_EXAMPLE_ENABLE_DEBUG_LOG 1" >> rtconfig.h
+
+        echo "#define UDS_EXAMPLE_CAN_DEVICE_NAME \"can1\"" >> rtconfig.h
+        echo "#define UDS_EXAMPLE_THREAD_PRIO 10" >> rtconfig.h
+        echo "#define UDS_EXAMPLE_THREAD_STACK_SIZE 4096" >> rtconfig.h
+        
+        echo "#define UDS_EXAMPLE_LED_CTRL_DID 0x0001" >> rtconfig.h
+        echo "#define UDS_EXAMPLE_PIN_LED_R -1" >> rtconfig.h
+        echo "#define UDS_EXAMPLE_PIN_LED_G -1" >> rtconfig.h
+        echo "#define UDS_EXAMPLE_PIN_LED_B -1" >> rtconfig.h
+
+        echo "#define RT_USING_CAN" >> rtconfig.h
+        echo "#define BSP_USING_CAN" >> rtconfig.h
+        echo "#define RT_USING_FILTER" >> rtconfig.h
+
+        echo "Start Compiling..."
+        scons -j$(nproc)
+
+        echo "Verifying symbols..."
+        if /opt/gcc-arm-none-eabi-10-2020-q4-major/bin/arm-none-eabi-nm rtthread.elf | grep -i "uds"; then
+            echo "✅ Verification Passed: UDS/ISO14229 symbols found in binary!"
+        else
+            echo "❌ Verification Failed: No UDS/ISO14229 symbols found!"
+            exit 1
+        fi

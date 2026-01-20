@@ -5,6 +5,7 @@
 #define UDS_SYS_WINDOWS 2
 #define UDS_SYS_ARDUINO 3
 #define UDS_SYS_ESP32 4
+#define UDS_SYS_RTT 5
 
 #if !defined(UDS_SYS)
 
@@ -16,6 +17,8 @@
 #define UDS_SYS UDS_SYS_ARDUINO
 #elif defined(ESP_PLATFORM)
 #define UDS_SYS UDS_SYS_ESP32
+#elif defined(__RTTHREAD__)
+#define UDS_SYS UDS_SYS_RTT
 #else
 #define UDS_SYS UDS_SYS_CUSTOM
 #endif
@@ -26,3 +29,4 @@
 #include "sys_win32.h"
 #include "sys_arduino.h"
 #include "sys_esp32.h"
+#include "sys_rtt.h"
