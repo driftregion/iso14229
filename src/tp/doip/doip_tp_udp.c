@@ -7,6 +7,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/select.h>
+#include <fcntl.h>
 
 #include "doip_transport.h"
 #include <stdio.h>
@@ -56,6 +57,13 @@ int doip_tp_udp_init(DoIPTransport *t, uint16_t port, bool loopback) {
             close(fd);
             return -1;
         }
+    }
+
+    /* set non-blocking after successful bind */
+    int flags = fcntl(fd, F_GETFL, 0);
+    if (flags < 0 || fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0) {
+        close(fd);
+        return -1;
     }
 
     t->fd = fd;
