@@ -25,8 +25,10 @@ typedef enum {
 /* DoIP Client Context */
 typedef struct {
     UDSTp_t hdl;    /* Must be the first entry! */
-    DoIPTransport tcp;        /* TCP transport for diagnostics */
-    DoIPTransport udp;        /* UDP transport for discovery */
+    //DoIPTransport tcp;        /* TCP transport for diagnostics */
+    //DoIPTransport udp;        /* UDP transport for discovery */
+    DoIPTcpTransport tcp;        /* TCP transport for diagnostics */
+    DoIPUdpTransport udp;        /* UDP transport for discovery */
     DoIPClientState_t state;
 
     uint16_t source_address;        /* Client logical address */
@@ -34,7 +36,7 @@ typedef struct {
 
     char server_ip[64];
     uint16_t server_port;
-    bool udp_loopback;        /* discovery via loopback instead of multicast */
+    //bool udp_loopback;        /* discovery via loopback instead of multicast */
 
     uint8_t rx_buffer[DOIP_BUFFER_SIZE];  /* Raw socket receive buffer */
     size_t rx_offset;

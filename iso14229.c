@@ -3862,15 +3862,14 @@ static int doip_send_message(const DoIPClient_t *tp, uint16_t payload_type, cons
         memcpy(buffer + DOIP_HEADER_SIZE, payload, payload_len);
     }
 
-    ssize_t sent = doip_tp_tcp_send((DoIPTransport *)&tp->tcp, buffer, DOIP_HEADER_SIZE + payload_len);
+    ssize_t sent = tp->tcp.send(&tp->tcp, buffer, DOIP_HEADER_SIZE + payload_len);
     if (sent < 0) {
-        perror("doip_tp_tcp_send");
+        perror("tcp_send");
         return -1;
     }
 
     /* Return number of UDS payload bytes sent (strip headers) */
-    return sent - DOIP_HEADER_SIZE -
-           DOIP_DIAG_HEADER_SIZE;
+    return sent - DOIP_HEADER_SIZE - DOIP_DIAG_HEADER_SIZE;
 }
 
 /**
@@ -4032,7 +4031,7 @@ static void doip_handle_diag_message(DoIPClient_t *tp, const uint8_t *payload,
     doip_store_uds_response(tp, payload, payload_len);
 }
 
-/**
+/**#ifdef DOIP_MOCK_TP
  * @brief Process received DoIP message according to payload type.
  * @param tp DoIP client context
  * @param header Pointer to DoIP header
@@ -4073,16 +4072,14 @@ static void doip_process_message(DoIPClient_t *tp, const DoIPHeader_t *header,
  * @param timeout_ms Timeout in milliseconds
  */
 static ssize_t doip_receive_data(DoIPClient_t *tp, int timeout_ms) {
-    ssize_t bytes_read = doip_tp_tcp_recv((DoIPTransport *)&tp->tcp,
-                                          tp->rx_buffer + tp->rx_offset,
-                                          DOIP_BUFFER_SIZE - tp->rx_offset,
-                                          timeout_ms);
+    ssize_t bytes_read = tp->tcp.recv(&tp->tcp, tp->rx_buffer + tp->rx_offset,
+                                      DOIP_BUFFER_SIZE - tp->rx_offset, timeout_ms);
 
     if (bytes_read <= 0) {
         if (bytes_read == 0) {
             UDS_LOGE(__FILE__, "DoIP: Server disconnected");
         } else {
-            perror("doip_tp_tcp_recv");
+            perror("tcp_recv");
         }
         doip_change_state(tp, DOIP_STATE_DISCONNECTED);
         return -1;
@@ -4134,11 +4131,12 @@ int doip_client_connect(DoIPClient_t *tp) {
         return -1;
     }
 
-    if (doip_tp_tcp_init((DoIPTransport *)&tp->tcp, tp->server_ip, tp->server_port ? tp->server_port : DOIP_TCP_PORT) < 0) {
+    if (tp->tcp.init(&tp->tcp, tp->server_ip, tp->server_port ? tp->server_port : DOIP_TCP_PORT) <
+        0) {
         UDS_LOGE(__FILE__, "DoIP: TCP init failed");
         return -1;
     }
-    if (doip_tp_tcp_connect((DoIPTransport *)&tp->tcp) < 0) {
+    if (tp->tcp.connect(&tp->tcp) < 0) {
         UDS_LOGE(__FILE__, "DoIP: TCP connect error (%s:%d)", tp->server_ip,
                  tp->server_port ? tp->server_port : DOIP_TCP_PORT);
         return -1;
@@ -4293,7 +4291,7 @@ void doip_client_process(DoIPClient_t *tp, int timeout_ms) {
  * @param tp DoIP client context
  */
 void doip_client_disconnect(DoIPClient_t *tp) {
-    doip_tp_tcp_close((DoIPTransport *)&tp->tcp);
+    tp->tcp.close(&tp->tcp);
 
     doip_change_state(tp, DOIP_STATE_DISCONNECTED);
     tp->rx_offset = 0;
@@ -4472,6 +4470,51 @@ UDSErr_t UDSDoIPInitClient(DoIPClient_t *tp, const char *ipaddress, uint16_t por
     tp->hdl.recv = doip_tp_recv;
     tp->hdl.poll = doip_tp_poll;
 
+    memset(&tp->tcp, 0, sizeof(tp->tcp));
+    memset(&tp->udp, 0, sizeof(tp->udp));
+
+#ifdef DOIP_MOCK_TP
+    /* For testing purposes, use mock transport implementations */
+    tp->tcp.init = doip_mock_tcp_init;
+    tp->tcp.connect = doip_mock_tcp_connect;
+    tp->tcp.send = doip_mock_tcp_send;
+    tp->tcp.recv = doip_mock_tcp_recv;
+    tp->tcp.close = doip_mock_tcp_close;
+
+    tp->udp.init = doip_mock_udp_init;
+    tp->udp.sendto = doip_mock_udp_sendto;
+    tp->udp.recv = doip_mock_udp_recv;
+    tp->udp.recvfrom = doip_mock_udp_recvfrom;
+    tp->udp.close = doip_mock_udp_close;
+#else
+    /* Use real TCP/UDP transport implementations */
+    tp->tcp.init = doip_tp_tcp_init;
+    tp->tcp.connect = doip_tp_tcp_connect;
+    tp->tcp.send = doip_tp_tcp_send;
+    tp->tcp.recv = doip_tp_tcp_recv;
+    tp->tcp.close = doip_tp_tcp_close;
+
+    tp->udp.init = doip_tp_udp_init;
+    tp->udp.sendto = doip_tp_udp_sendto;
+    tp->udp.recv = doip_tp_udp_recv;
+    tp->udp.recvfrom = doip_tp_udp_recvfrom;
+    tp->udp.close = doip_tp_udp_close;
+    tp->udp.join_multicast = doip_tp_udp_join_default_multicast;
+#endif
+
+    // sanity checks for transport functions
+    if (tp->tcp.init == NULL || tp->tcp.connect == NULL || tp->tcp.send == NULL ||
+        tp->tcp.recv == NULL || tp->tcp.close == NULL) {
+        UDS_LOGE(__FILE__, "UDS DoIP Client: TCP transport functions not set");
+        return UDS_ERR_TPORT;
+    }
+
+    if (tp->udp.init == NULL || tp->udp.sendto == NULL || tp->udp.recv == NULL ||
+        tp->udp.recvfrom == NULL || tp->udp.close == NULL || tp->udp.join_multicast == NULL) {
+        UDS_LOGE(__FILE__, "UDS DoIP Client: UDP transport functions not set");
+        return UDS_ERR_TPORT;
+    }
+
     UDS_LOGI(__FILE__, "UDS DoIP Client: Initialized (SA=0x%04X, TA=0x%04X)", tp->source_address,
              tp->target_address);
 
@@ -4531,16 +4574,17 @@ void UDSDoIPSetDiscoveryOptions(bool request_only, bool dump_raw) {
  * UDP discovery: collect responders within timeout, allow selection
  * -------------------------------------------------------------- */
 int UDSDoIPDiscoverVehiclesEx(DoIPClient_t *tp, int timeout_ms, bool loopback, uint16_t port) {
-    if (!tp) return -1;
-    tp->udp_loopback = loopback;
-    if (doip_tp_udp_init((DoIPTransport *)&tp->udp, port, loopback) < 0) {
+    if (!tp)
+        return -1;
+    tp->udp.loopback = loopback;
+    if (tp->udp.init(&tp->udp, port, loopback) < 0) {
         UDS_LOGE(__FILE__, "DoIP UDP: init failed");
         return -1;
     }
     if (!loopback && !g_discovery_request_only) {
-        if (doip_tp_udp_join_default_multicast((DoIPTransport *)&tp->udp) < 0) {
+        if (tp->udp.join_multicast(&tp->udp) < 0) {
             UDS_LOGE(__FILE__, "DoIP UDP: multicast join failed");
-            doip_tp_udp_close((DoIPTransport *)&tp->udp);
+            doip_tp_udp_close(&tp->udp);
             return -1;
         }
     }
@@ -4559,13 +4603,12 @@ int UDSDoIPDiscoverVehiclesEx(DoIPClient_t *tp, int timeout_ms, bool loopback, u
 
         const char *dst_ip = loopback ? "127.0.0.1" : "255.255.255.255";
         uint16_t dst_port = DOIP_UDP_DISCOVERY_PORT;
-        ssize_t sent = doip_tp_udp_sendto((DoIPTransport *)&tp->udp, req, sizeof(req), dst_ip,
-                                          dst_port, 500);
+        ssize_t sent = doip_tp_udp_sendto(&tp->udp, req, sizeof(req), dst_ip, dst_port, 500);
         if (sent <= 0) {
             UDS_LOGW(__FILE__, "DoIP UDP: VI request send failed (dst %s:%u)", dst_ip, dst_port);
         } else {
-            UDS_LOGI(__FILE__, "DoIP UDP: sent Vehicle Identification Request to %s:%u",
-                     dst_ip, dst_port);
+            UDS_LOGI(__FILE__, "DoIP UDP: sent Vehicle Identification Request to %s:%u", dst_ip,
+                     dst_port);
         }
     }
 
@@ -4581,8 +4624,8 @@ int UDSDoIPDiscoverVehiclesEx(DoIPClient_t *tp, int timeout_ms, bool loopback, u
 
     while (remaining > 0) {
         int win = remaining < slice_ms ? remaining : slice_ms;
-        ssize_t n = doip_tp_udp_recvfrom((DoIPTransport *)&tp->udp, buf, sizeof(buf), win,
-                                         src_ip, sizeof(src_ip), &src_port);
+        ssize_t n = doip_tp_udp_recvfrom(&tp->udp, buf, sizeof(buf), win, src_ip, sizeof(src_ip),
+                                         &src_port);
         if (n < 0) {
             UDS_LOGE(__FILE__, "DoIP UDP: recvfrom error");
             break;
@@ -4591,12 +4634,17 @@ int UDSDoIPDiscoverVehiclesEx(DoIPClient_t *tp, int timeout_ms, bool loopback, u
             elapsed_ms += win;
             if (elapsed_ms >= sent_count * resend_interval_ms && found == 0) {
                 /* Resend VI request to improve discovery probability */
-                uint8_t req2[DOIP_HEADER_SIZE] = {DOIP_PROTOCOL_VERSION, DOIP_PROTOCOL_VERSION_INV,
-                                                 0x00, 0x01, 0x00, 0x00, 0x00, 0x00};
+                uint8_t req2[DOIP_HEADER_SIZE] = {DOIP_PROTOCOL_VERSION,
+                                                  DOIP_PROTOCOL_VERSION_INV,
+                                                  0x00,
+                                                  0x01,
+                                                  0x00,
+                                                  0x00,
+                                                  0x00,
+                                                  0x00};
                 const char *dst_ip2 = loopback ? "127.0.0.1" : "255.255.255.255";
                 uint16_t dst_port2 = DOIP_UDP_DISCOVERY_PORT;
-                (void)doip_tp_udp_sendto((DoIPTransport *)&tp->udp, req2, sizeof(req2), dst_ip2,
-                                          dst_port2, 200);
+                (void)doip_tp_udp_sendto(&tp->udp, req2, sizeof(req2), dst_ip2, dst_port2, 200);
                 UDS_LOGV(__FILE__, "DoIP UDP: re-sent VI request to %s:%u", dst_ip2, dst_port2);
                 sent_count++;
             }
@@ -4604,8 +4652,7 @@ int UDSDoIPDiscoverVehiclesEx(DoIPClient_t *tp, int timeout_ms, bool loopback, u
         }
 
         found++;
-        UDS_LOGI(__FILE__, "DoIP UDP: discovery frame from %s:%u (%zd bytes)", src_ip, src_port,
-                 n);
+        UDS_LOGI(__FILE__, "DoIP UDP: discovery frame from %s:%u (%zd bytes)", src_ip, src_port, n);
         if (g_discovery_dump_raw) {
             UDS_LOG_SDU(__FILE__, buf, (size_t)n, NULL);
         }
@@ -4663,8 +4710,8 @@ int UDSDoIPDiscoverVehiclesEx(DoIPClient_t *tp, int timeout_ms, bool loopback, u
                     }
                 }
                 if (info.vin[0] != '\0') {
-                    UDS_LOGI(__FILE__, "DoIP UDP: heuristic VIN=%s from %s:%u", info.vin,
-                             src_ip, src_port);
+                    UDS_LOGI(__FILE__, "DoIP UDP: heuristic VIN=%s from %s:%u", info.vin, src_ip,
+                             src_port);
                 }
             }
         }
@@ -4675,7 +4722,8 @@ int UDSDoIPDiscoverVehiclesEx(DoIPClient_t *tp, int timeout_ms, bool loopback, u
             choose = g_select_fn(&info, g_select_user);
         } else {
             /* Default: choose first responder */
-            if (found == 1) choose = true;
+            if (found == 1)
+                choose = true;
         }
 
         if (choose) {
@@ -4688,13 +4736,14 @@ int UDSDoIPDiscoverVehiclesEx(DoIPClient_t *tp, int timeout_ms, bool loopback, u
         remaining -= win;
     }
 
-    doip_tp_udp_close((DoIPTransport *)&tp->udp);
+    doip_tp_udp_close(&tp->udp);
     return found;
 }
 
 int UDSDoIPDiscoverVehicles(DoIPClient_t *tp, int timeout_ms, bool loopback) {
     /* By default, listen on the tester request port (13401) to receive announcements */
-    return UDSDoIPDiscoverVehiclesEx(tp, timeout_ms, loopback, DOIP_UDP_TEST_EQUIPMENT_REQUEST_PORT);
+    return UDSDoIPDiscoverVehiclesEx(tp, timeout_ms, loopback,
+                                     DOIP_UDP_TEST_EQUIPMENT_REQUEST_PORT);
 }
 
 #endif /* UDS_TP_DOIP */
@@ -4712,20 +4761,70 @@ int UDSDoIPDiscoverVehicles(DoIPClient_t *tp, int timeout_ms, bool loopback) {
 #include <arpa/inet.h>
 #include <sys/select.h>
 #include <fcntl.h>
+#include <netinet/ip.h>
 
 #include <stdio.h>
 
 /* Default DoIP multicast group for discovery */
 static const char *DOIP_DEFAULT_MCAST = "224.224.224.224"; /* per ISO 13400 */
 
-int doip_tp_udp_init(DoIPTransport *t, uint16_t port, bool loopback) {
-    if (!t) return -1;
-    memset(t, 0, sizeof(*t));
-    t->fd = -1;
-    t->is_udp = true;
-    t->loopback = loopback;
+#ifdef DOIP_MOCK_TP
+
+int doip_tp_mock_udp_init(DoIPUdpTransport *udp, uint16_t port, bool loopback) {
+    (void)udp;
+    (void)port;
+    (void)loopback;
+    return 0;
+}
+
+ssize_t doip_tp_mock_udp_recv(DoIPUdpTransport *udp, uint8_t *buf, size_t len, int timeout_ms) {
+    (void)udp;
+    (void)buf;
+    (void)len;
+    (void)timeout_ms;
+    return 0;
+}
+
+ssize_t doip_tp_mock_udp_recvfrom(DoIPUdpTransport *udp, uint8_t *buf, size_t len, int timeout_ms,
+                                 char *src_ip_out, size_t src_ip_out_sz, uint16_t *src_port_out) {
+    (void)udp;
+    (void)buf;
+    (void)len;
+    (void)timeout_ms;
+    (void)src_ip_out;
+    (void)src_ip_out_sz;
+    (void)src_port_out;
+    return 0;
+}
+
+void doip_tp_mock_udp_close(DoIPUdpTransport *udp) {
+    (void)udp;
+}
+
+ssize_t doip_tp_mock_udp_sendto(DoIPUdpTransport *udp, const uint8_t *buf, size_t len,
+                               const char *dst_ip, uint16_t dst_port, int timeout_ms) {
+    (void)udp;
+    (void)buf;
+    (void)len;
+    (void)dst_ip;
+    (void)dst_port;
+    (void)timeout_ms;
+    return 0;
+}
+
+int doip_tp_mock_udp_join_default_multicast(DoIPUdpTransport *udp) {
+    (void)udp;
+    return 0;
+}
+
+#else
+int doip_tp_udp_init(DoIPUdpTransport *udp, uint16_t port, bool loopback) {
+    if (!udp) return -1;
+
+    udp->fd = -1;
+    udp->loopback = loopback;
     /* For tester discovery, default listen port is 13401 */
-    t->port = port ? port : DOIP_UDP_TEST_EQUIPMENT_REQUEST_PORT;
+    udp->port = port ? port : DOIP_UDP_TEST_EQUIPMENT_REQUEST_PORT;
 
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd < 0) {
@@ -4740,7 +4839,7 @@ int doip_tp_udp_init(DoIPTransport *t, uint16_t port, bool loopback) {
         struct sockaddr_in sa;
         memset(&sa, 0, sizeof(sa));
         sa.sin_family = AF_INET;
-        sa.sin_port = htons(t->port);
+        sa.sin_port = htons(udp->port);
         sa.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
         if (bind(fd, (struct sockaddr *)&sa, sizeof(sa)) < 0) {
             close(fd);
@@ -4754,7 +4853,7 @@ int doip_tp_udp_init(DoIPTransport *t, uint16_t port, bool loopback) {
         struct sockaddr_in sa;
         memset(&sa, 0, sizeof(sa));
         sa.sin_family = AF_INET;
-        sa.sin_port = htons(t->port);
+        sa.sin_port = htons(udp->port);
         sa.sin_addr.s_addr = htonl(INADDR_ANY);
         if (bind(fd, (struct sockaddr *)&sa, sizeof(sa)) < 0) {
             close(fd);
@@ -4773,57 +4872,57 @@ int doip_tp_udp_init(DoIPTransport *t, uint16_t port, bool loopback) {
         return -1;
     }
 
-    t->fd = fd;
+    udp->fd = fd;
     return 0;
 }
 
-int doip_tp_udp_join_default_multicast(DoIPTransport *t) {
-    if (!t || t->fd < 0) return -1;
-    if (t->loopback) return 0; /* no multicast join needed */
+int doip_tp_udp_join_default_multicast(DoIPUdpTransport *udp) {
+    if (!udp || udp->fd < 0) return -1;
+    if (udp->loopback) return 0; /* no multicast join needed */
 
     struct ip_mreq mreq;
     memset(&mreq, 0, sizeof(mreq));
     mreq.imr_multiaddr.s_addr = inet_addr(DOIP_DEFAULT_MCAST);
     mreq.imr_interface.s_addr = htonl(INADDR_ANY);
-    if (setsockopt(t->fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
+    if (setsockopt(udp->fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
         return -1;
     }
     return 0;
 }
 
-ssize_t doip_tp_udp_recv(DoIPTransport *t, uint8_t *buf, size_t len, int timeout_ms) {
-    if (!t || t->fd < 0 || !buf) return -1;
+ssize_t doip_tp_udp_recv(DoIPUdpTransport *udp, uint8_t *buf, size_t len, int timeout_ms) {
+    if (!udp || udp->fd < 0 || !buf) return -1;
     fd_set rfds;
     struct timeval tv;
     FD_ZERO(&rfds);
-    FD_SET(t->fd, &rfds);
+    FD_SET(udp->fd, &rfds);
     tv.tv_sec = timeout_ms / 1000;
     tv.tv_usec = (timeout_ms % 1000) * 1000;
 
-    int ret = select(t->fd + 1, &rfds, NULL, NULL, timeout_ms >= 0 ? &tv : NULL);
+    int ret = select(udp->fd + 1, &rfds, NULL, NULL, timeout_ms >= 0 ? &tv : NULL);
     if (ret < 0) return -1;
     if (ret == 0) return 0; /* timeout */
 
-    return recv(t->fd, buf, len, 0);
+    return recv(udp->fd, buf, len, 0);
 }
 
-ssize_t doip_tp_udp_recvfrom(DoIPTransport *t, uint8_t *buf, size_t len, int timeout_ms,
+ssize_t doip_tp_udp_recvfrom(DoIPUdpTransport *udp, uint8_t *buf, size_t len, int timeout_ms,
                              char *src_ip_out, size_t src_ip_out_sz, uint16_t *src_port_out) {
-    if (!t || t->fd < 0 || !buf) return -1;
+    if (!udp || udp->fd < 0 || !buf) return -1;
     fd_set rfds;
     struct timeval tv;
     FD_ZERO(&rfds);
-    FD_SET(t->fd, &rfds);
+    FD_SET(udp->fd, &rfds);
     tv.tv_sec = timeout_ms / 1000;
     tv.tv_usec = (timeout_ms % 1000) * 1000;
 
-    int ret = select(t->fd + 1, &rfds, NULL, NULL, timeout_ms >= 0 ? &tv : NULL);
+    int ret = select(udp->fd + 1, &rfds, NULL, NULL, timeout_ms >= 0 ? &tv : NULL);
     if (ret < 0) return -1;
     if (ret == 0) return 0; /* timeout */
 
     struct sockaddr_in src;
     socklen_t slen = sizeof(src);
-    ssize_t n = recvfrom(t->fd, buf, len, 0, (struct sockaddr *)&src, &slen);
+    ssize_t n = recvfrom(udp->fd, buf, len, 0, (struct sockaddr *)&src, &slen);
     if (n <= 0) return n;
     if (src_ip_out && src_ip_out_sz > 0) {
         const char *ip = inet_ntoa(src.sin_addr);
@@ -4837,26 +4936,26 @@ ssize_t doip_tp_udp_recvfrom(DoIPTransport *t, uint8_t *buf, size_t len, int tim
     return n;
 }
 
-void doip_tp_udp_close(DoIPTransport *t) {
-    if (!t) return;
-    if (t->fd >= 0) {
-        close(t->fd);
-        t->fd = -1;
+void doip_tp_udp_close(DoIPUdpTransport *udp) {
+    if (!udp) return;
+    if (udp->fd >= 0) {
+        close(udp->fd);
+        udp->fd = -1;
     }
 }
 
-ssize_t doip_tp_udp_sendto(DoIPTransport *t, const uint8_t *buf, size_t len,
+ssize_t doip_tp_udp_sendto(DoIPUdpTransport *udp, const uint8_t *buf, size_t len,
                            const char *dst_ip, uint16_t dst_port, int timeout_ms) {
-    if (!t || t->fd < 0 || !buf || !dst_ip) return -1;
+    if (!udp || udp->fd < 0 || !buf || !dst_ip) return -1;
 
     fd_set wfds;
     struct timeval tv;
     FD_ZERO(&wfds);
-    FD_SET(t->fd, &wfds);
+    FD_SET(udp->fd, &wfds);
     tv.tv_sec = timeout_ms / 1000;
     tv.tv_usec = (timeout_ms % 1000) * 1000;
 
-    int ret = select(t->fd + 1, NULL, &wfds, NULL, timeout_ms >= 0 ? &tv : NULL);
+    int ret = select(udp->fd + 1, NULL, &wfds, NULL, timeout_ms >= 0 ? &tv : NULL);
     if (ret < 0) return -1;
     if (ret == 0) return 0; /* timeout */
 
@@ -4868,9 +4967,9 @@ ssize_t doip_tp_udp_sendto(DoIPTransport *t, const uint8_t *buf, size_t len,
         return -1;
     }
 
-    return sendto(t->fd, buf, len, 0, (struct sockaddr *)&dst, sizeof(dst));
+    return sendto(udp->fd, buf, len, 0, (struct sockaddr *)&dst, sizeof(dst));
 }
-
+#endif /* DOIP_MOCK_TP */
 #endif /* UDS_TP_DOIP */
 
 
@@ -4890,96 +4989,134 @@ ssize_t doip_tp_udp_sendto(DoIPTransport *t, const uint8_t *buf, size_t len,
 #include <fcntl.h>
 
 
-int doip_tp_tcp_init(DoIPTransport *t, const char *ip, uint16_t port) {
-    if (!t || !ip) return -1;
-    memset(t, 0, sizeof(*t));
-    t->fd = -1;
-    t->is_udp = false;
-    t->port = port ? port : DOIP_TCP_PORT;
-    snprintf(t->ip, sizeof(t->ip), "%s", ip);
-    t->connect_timeout_ms = DOIP_DEFAULT_TIMEOUT_MS;
-    t->send_timeout_ms = DOIP_DEFAULT_TIMEOUT_MS;
+void doip_tp_set_timeouts(DoIPTcpTransport *tcp, int connect_timeout_ms, int send_timeout_ms) {
+    if (!tcp) return;
+    if (connect_timeout_ms > 0) tcp->connect_timeout_ms = connect_timeout_ms;
+    if (send_timeout_ms > 0) tcp->send_timeout_ms = send_timeout_ms;
+}
+
+#ifdef DOIP_MOCK_TP
+int doip_tp_mock_init(DoIPTcpTransport *tcp, const char *ip, uint16_t port) {
+    (void)tcp;
+    (void)ip;
+    (void)port;
     return 0;
 }
 
-int doip_tp_tcp_connect(DoIPTransport *t) {
-    if (!t) return -1;
-    t->fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (t->fd < 0) {
+int doip_tp_mock_connect(DoIPTcpTransport *tcp) {
+    (void)tcp;
+    return 0;
+}
+
+ssize_t doip_tp_mock_send(DoIPTcpTransport *tcp, const uint8_t *buf, size_t len) {
+    (void)tcp;
+    (void)buf;
+    return (ssize_t)len;
+}
+
+ssize_t doip_tp_mock_recv(DoIPTcpTransport *tcp, uint8_t *buf, size_t len, int timeout_ms) {
+    (void)tcp;
+    (void)buf;
+    (void)len;
+    (void)timeout_ms;
+    return 0;
+}
+
+void doip_tp_mock_close(DoIPTcpTransport *tcp) {
+    (void)tcp;
+}
+
+#else
+
+int doip_tp_tcp_init(DoIPTcpTransport *tcp, const char *ip, uint16_t port) {
+    if (!tcp || !ip) return -1;
+
+    tcp->fd = -1;
+    tcp->port = port ? port : DOIP_TCP_PORT;
+    snprintf(tcp->ip, sizeof(tcp->ip), "%s", ip);
+    tcp->connect_timeout_ms = DOIP_DEFAULT_TIMEOUT_MS;
+    tcp->send_timeout_ms = DOIP_DEFAULT_TIMEOUT_MS;
+    return 0;
+}
+
+int doip_tp_tcp_connect(DoIPTcpTransport *tcp) {
+    if (!tcp) return -1;
+    tcp->fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (tcp->fd < 0) {
         return -1;
     }
 
     /* set non-blocking before connect to avoid blocking connect */
-    int flags = fcntl(t->fd, F_GETFL, 0);
-    if (flags < 0 || fcntl(t->fd, F_SETFL, flags | O_NONBLOCK) < 0) {
-        close(t->fd);
-        t->fd = -1;
+    int flags = fcntl(tcp->fd, F_GETFL, 0);
+    if (flags < 0 || fcntl(tcp->fd, F_SETFL, flags | O_NONBLOCK) < 0) {
+        close(tcp->fd);
+        tcp->fd = -1;
         return -1;
     }
 
     struct sockaddr_in sa;
     memset(&sa, 0, sizeof(sa));
     sa.sin_family = AF_INET;
-    sa.sin_port = htons(t->port);
-    if (inet_pton(AF_INET, t->ip, &sa.sin_addr) <= 0) {
-        close(t->fd);
-        t->fd = -1;
+    sa.sin_port = htons(tcp->port);
+    if (inet_pton(AF_INET, tcp->ip, &sa.sin_addr) <= 0) {
+        close(tcp->fd);
+        tcp->fd = -1;
         return -1;
     }
-    int rc = connect(t->fd, (struct sockaddr *)&sa, sizeof(sa));
+    int rc = connect(tcp->fd, (struct sockaddr *)&sa, sizeof(sa));
     if (rc < 0) {
         if (errno != EINPROGRESS) {
-            close(t->fd);
-            t->fd = -1;
+            close(tcp->fd);
+            tcp->fd = -1;
             return -1;
         }
         /* wait for writability or error within default timeout */
         fd_set wfds;
         FD_ZERO(&wfds);
-        FD_SET(t->fd, &wfds);
+        FD_SET(tcp->fd, &wfds);
         struct timeval tv;
-        int cto = (t->connect_timeout_ms > 0) ? t->connect_timeout_ms : DOIP_DEFAULT_TIMEOUT_MS;
+        int cto = (tcp->connect_timeout_ms > 0) ? tcp->connect_timeout_ms : DOIP_DEFAULT_TIMEOUT_MS;
         tv.tv_sec = cto / 1000;
         tv.tv_usec = (cto % 1000) * 1000;
-        rc = select(t->fd + 1, NULL, &wfds, NULL, &tv);
+        rc = select(tcp->fd + 1, NULL, &wfds, NULL, &tv);
         if (rc <= 0) {
             /* timeout or select error */
-            close(t->fd);
-            t->fd = -1;
+            close(tcp->fd);
+            tcp->fd = -1;
             return -1;
         }
         int soerr = 0;
         socklen_t slen = sizeof(soerr);
-        if (getsockopt(t->fd, SOL_SOCKET, SO_ERROR, &soerr, &slen) < 0 || soerr != 0) {
-            close(t->fd);
-            t->fd = -1;
+        if (getsockopt(tcp->fd, SOL_SOCKET, SO_ERROR, &soerr, &slen) < 0 || soerr != 0) {
+            close(tcp->fd);
+            tcp->fd = -1;
             return -1;
         }
     }
     return 0;
 }
 
-ssize_t doip_tp_tcp_send(DoIPTransport *t, const uint8_t *buf, size_t len) {
-    if (!t || t->fd < 0 || !buf) return -1;
+ssize_t doip_tp_tcp_send(const DoIPTcpTransport *tcp, const uint8_t *buf, size_t len) {
+    if (!tcp || tcp->fd < 0 || !buf) return -1;
     size_t total = 0;
     int sflags = 0;
-#ifdef MSG_NOSIGNAL
+#ifdef MSG_NOSIGNALconnect
     sflags |= MSG_NOSIGNAL;
 #endif
     while (total < len) {
         fd_set wfds;
         FD_ZERO(&wfds);
-        FD_SET(t->fd, &wfds);
+        FD_SET(tcp->fd, &wfds);
         struct timeval tv;
-        int sto = (t->send_timeout_ms > 0) ? t->send_timeout_ms : DOIP_DEFAULT_TIMEOUT_MS;
+        int sto = (tcp->send_timeout_ms > 0) ? tcp->send_timeout_ms : DOIP_DEFAULT_TIMEOUT_MS;
         tv.tv_sec = sto / 1000;
         tv.tv_usec = (sto % 1000) * 1000;
-        int rc = select(t->fd + 1, NULL, &wfds, NULL, &tv);
+        int rc = select(tcp->fd + 1, NULL, &wfds, NULL, &tv);
         if (rc <= 0) {
             /* timeout or error */
             return -1;
         }
-        ssize_t n = send(t->fd, buf + total, len - total, sflags);
+        ssize_t n = send(tcp->fd, buf + total, len - total, sflags);
         if (n > 0) {
             total += (size_t)n;
             continue;
@@ -4994,39 +5131,34 @@ ssize_t doip_tp_tcp_send(DoIPTransport *t, const uint8_t *buf, size_t len) {
     return (ssize_t)total;
 }
 
-void doip_tp_set_timeouts(DoIPTransport *t, int connect_timeout_ms, int send_timeout_ms) {
-    if (!t) return;
-    if (connect_timeout_ms > 0) t->connect_timeout_ms = connect_timeout_ms;
-    if (send_timeout_ms > 0) t->send_timeout_ms = send_timeout_ms;
-}
-
-ssize_t doip_tp_tcp_recv(DoIPTransport *t, uint8_t *buf, size_t len, int timeout_ms) {
-    if (!t || t->fd < 0 || !buf) return -1;
+ssize_t doip_tp_tcp_recv(DoIPTcpTransport *tcp, uint8_t *buf, size_t len, int timeout_ms) {
+    if (!tcp || tcp->fd < 0 || !buf) return -1;
 
     fd_set rfds;
     struct timeval tv;
     FD_ZERO(&rfds);
-    FD_SET(t->fd, &rfds);
+    FD_SET(tcp->fd, &rfds);
     tv.tv_sec = timeout_ms / 1000;
     tv.tv_usec = (timeout_ms % 1000) * 1000;
 
-    int ret = select(t->fd + 1, &rfds, NULL, NULL, timeout_ms >= 0 ? &tv : NULL);
+    int ret = select(tcp->fd + 1, &rfds, NULL, NULL, timeout_ms >= 0 ? &tv : NULL);
     if (ret < 0) {
         return -1;
     }
     if (ret == 0) {
         return 0; /* timeout */
     }
-    return recv(t->fd, buf, len, 0);
+    return recv(tcp->fd, buf, len, 0);
 }
 
-void doip_tp_tcp_close(DoIPTransport *t) {
-    if (!t) return;
-    if (t->fd >= 0) {
-        close(t->fd);
-        t->fd = -1;
+void doip_tp_tcp_close(DoIPTcpTransport *tcp) {
+    if (!tcp) return;
+    if (tcp->fd >= 0) {
+        close(tcp->fd);
+        tcp->fd = -1;
     }
 }
+#endif /* DOIP_MOCK_TP */
 
 #endif /* UDS_TP_DOIP */
 
