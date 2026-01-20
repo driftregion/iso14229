@@ -44,6 +44,8 @@ typedef struct {
     uint8_t uds_response[DOIP_BUFFER_SIZE]; /* Processed UDS response data */
     size_t uds_response_len;
 
+    uint8_t tx_buffer[DOIP_BUFFER_SIZE];  /* Reusable transmit buffer (eliminates stack allocations) */
+
     bool routing_activated;
     bool diag_ack_received;
     bool diag_nack_received;

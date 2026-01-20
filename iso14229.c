@@ -4218,8 +4218,8 @@ int doip_client_activate_routing(DoIPClient_t *tp) {
  * @param len Length of diagnostic message data (of UDS payload)
  */
 ssize_t doip_client_send_diag_message(DoIPClient_t *tp, const uint8_t *data, size_t len) {
-    /* Build diagnostic message payload */
-    uint8_t payload[DOIP_BUFFER_SIZE];
+    /* Use shared tx_buffer instead of stack allocation (embedded-friendly) */
+    uint8_t *payload = tp->tx_buffer;
     if (len + 4 > DOIP_BUFFER_SIZE) {
         UDS_LOGE(__FILE__, "DoIP: Message too large: %zu bytes > %d", len + 4, DOIP_BUFFER_SIZE);
         return -1;
@@ -4620,13 +4620,14 @@ int UDSDoIPDiscoverVehiclesEx(DoIPClient_t *tp, int timeout_ms, bool loopback, u
     int elapsed_ms = 0;
     int sent_count = 1; /* already sent one request above */
     int remaining = timeout_ms > 0 ? timeout_ms : 0;
-    uint8_t buf[DOIP_BUFFER_SIZE];
+    /* Use shared tx_buffer for UDP receive (eliminates 4KB stack allocation) */
+    uint8_t *buf = tp->tx_buffer;
     char src_ip[64];
     uint16_t src_port = 0;
 
     while (remaining > 0) {
         int win = remaining < slice_ms ? remaining : slice_ms;
-        ssize_t n = doip_tp_udp_recvfrom(&tp->udp, buf, sizeof(buf), win, src_ip, sizeof(src_ip),
+        ssize_t n = doip_tp_udp_recvfrom(&tp->udp, buf, DOIP_BUFFER_SIZE, win, src_ip, sizeof(src_ip),
                                          &src_port);
         if (n < 0) {
             UDS_LOGE(__FILE__, "DoIP UDP: recvfrom error");
