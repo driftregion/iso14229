@@ -24,6 +24,8 @@
 #include <time.h>
 
 #include "doip_client.h"
+#include "util.h"
+#include "doip_transport.h"
 #include "log.h"
 
 /* Macro to extract 16-bit BE DoIP address from buffer */
@@ -142,9 +144,9 @@ static int doip_send_message(const DoIPClient_t *tp, uint16_t payload_type, cons
         memcpy(buffer + DOIP_HEADER_SIZE, payload, payload_len);
     }
 
-    ssize_t sent = send(tp->socket_fd, buffer, DOIP_HEADER_SIZE + payload_len, 0);
+    ssize_t sent = doip_tp_tcp_send((DoIPTransport *)&tp->tcp, buffer, DOIP_HEADER_SIZE + payload_len);
     if (sent < 0) {
-        perror("send");
+        perror("doip_tp_tcp_send");
         return -1;
     }
 
@@ -353,33 +355,16 @@ static void doip_process_message(DoIPClient_t *tp, const DoIPHeader_t *header,
  * @param timeout_ms Timeout in milliseconds
  */
 static ssize_t doip_receive_data(DoIPClient_t *tp, int timeout_ms) {
-    fd_set readfds;
-    struct timeval tv;
-
-    FD_ZERO(&readfds);
-    FD_SET(tp->socket_fd, &readfds);
-
-    tv.tv_sec = timeout_ms / 1000;
-    tv.tv_usec = (timeout_ms % 1000) * 1000;
-
-    int ret = select(tp->socket_fd + 1, &readfds, NULL, NULL, &tv);
-    if (ret < 0) {
-        perror("select");
-        return -1;
-    }
-
-    if (ret == 0) {
-        return 0; /* Timeout */
-    }
-
-    ssize_t bytes_read =
-        recv(tp->socket_fd, tp->rx_buffer + tp->rx_offset, DOIP_BUFFER_SIZE - tp->rx_offset, 0);
+    ssize_t bytes_read = doip_tp_tcp_recv((DoIPTransport *)&tp->tcp,
+                                          tp->rx_buffer + tp->rx_offset,
+                                          DOIP_BUFFER_SIZE - tp->rx_offset,
+                                          timeout_ms);
 
     if (bytes_read <= 0) {
         if (bytes_read == 0) {
             UDS_LOGE(__FILE__, "DoIP: Server disconnected");
         } else {
-            perror("recv");
+            perror("doip_tp_tcp_recv");
         }
         doip_change_state(tp, DOIP_STATE_DISCONNECTED);
         return -1;
@@ -431,41 +416,19 @@ int doip_client_connect(DoIPClient_t *tp) {
         return -1;
     }
 
-    /* Create TCP socket */
-    tp->socket_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (tp->socket_fd < 0) {
-        UDS_LOGE(__FILE__, "Socket error: %s", strerror(errno));
+    if (doip_tp_tcp_init((DoIPTransport *)&tp->tcp, tp->server_ip, tp->server_port ? tp->server_port : DOIP_TCP_PORT) < 0) {
+        UDS_LOGE(__FILE__, "DoIP: TCP init failed");
         return -1;
     }
-
-    /* Set socket timeout */
-    struct timeval tv;
-    tv.tv_sec = DOIP_DEFAULT_TIMEOUT_MS / 1000;
-    tv.tv_usec = (DOIP_DEFAULT_TIMEOUT_MS % 1000) * 1000;
-    setsockopt(tp->socket_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-
-    /* Connect to server */
-    struct sockaddr_in server_addr;
-    memset(&server_addr, 0, sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(DOIP_TCP_PORT);
-
-    if (inet_pton(AF_INET, tp->server_ip, &server_addr.sin_addr) <= 0) {
-        UDS_LOGE(__FILE__, "DoIP: Invalid server IP address %s", tp->server_ip);
-        close(tp->socket_fd);
-        return -1;
-    }
-
-    if (connect(tp->socket_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-        UDS_LOGE(__FILE__, "Connect error: %s (%s:%d)", strerror(errno), tp->server_ip,
-                 tp->server_port);
-        close(tp->socket_fd);
+    if (doip_tp_tcp_connect((DoIPTransport *)&tp->tcp) < 0) {
+        UDS_LOGE(__FILE__, "DoIP: TCP connect error (%s:%d)", tp->server_ip,
+                 tp->server_port ? tp->server_port : DOIP_TCP_PORT);
         return -1;
     }
 
     doip_change_state(tp, DOIP_STATE_CONNECTED);
-
-    UDS_LOGI(__FILE__, "DoIP Client: Connected to %s:%d", tp->server_ip, DOIP_TCP_PORT);
+    UDS_LOGI(__FILE__, "DoIP Client: Connected to %s:%d", tp->server_ip,
+             tp->server_port ? tp->server_port : DOIP_TCP_PORT);
 
     return 0;
 }
@@ -612,10 +575,7 @@ void doip_client_process(DoIPClient_t *tp, int timeout_ms) {
  * @param tp DoIP client context
  */
 void doip_client_disconnect(DoIPClient_t *tp) {
-    if (tp->socket_fd >= 0) {
-        close(tp->socket_fd);
-        tp->socket_fd = -1;
-    }
+    doip_tp_tcp_close((DoIPTransport *)&tp->tcp);
 
     doip_change_state(tp, DOIP_STATE_DISCONNECTED);
     tp->rx_offset = 0;
@@ -722,7 +682,7 @@ static UDSTpStatus_t doip_tp_poll(UDSTp_t *hdl) {
     DoIPClient_t *impl = (DoIPClient_t *)hdl;
 
     // Basic connectivity check
-    if (impl->state == DOIP_STATE_DISCONNECTED || impl->socket_fd < 0) {
+    if (impl->state == DOIP_STATE_DISCONNECTED || impl->tcp.fd < 0) {
         status |= UDS_TP_ERR;
         return status;
     }
@@ -778,7 +738,6 @@ UDSErr_t UDSDoIPInitClient(DoIPClient_t *tp, const char *ipaddress, uint16_t por
 
     memset(tp, 0, sizeof(DoIPClient_t));
 
-    tp->socket_fd = -1;
     doip_change_state(tp, DOIP_STATE_DISCONNECTED);
     tp->source_address = source_addr;
     tp->target_address = target_addr;
@@ -829,6 +788,195 @@ void UDSDoIPDeinit(DoIPClient_t *tp) {
     }
 
     doip_client_disconnect(tp);
+}
+
+/* --------------------------------------------------------------
+ * Selection callback support
+ * -------------------------------------------------------------- */
+static DoIPSelectServerFn g_select_fn = NULL;
+static void *g_select_user = NULL;
+static bool g_discovery_request_only = false;
+static bool g_discovery_dump_raw = false;
+
+void UDSDoIPSetSelectionCallback(DoIPClient_t *tp, DoIPSelectServerFn fn, void *user) {
+    (void)tp; /* per-client not required; use global for simplicity */
+    g_select_fn = fn;
+    g_select_user = user;
+}
+
+void UDSDoIPSetDiscoveryOptions(bool request_only, bool dump_raw) {
+    g_discovery_request_only = request_only;
+    g_discovery_dump_raw = dump_raw;
+}
+
+/* --------------------------------------------------------------
+ * UDP discovery: collect responders within timeout, allow selection
+ * -------------------------------------------------------------- */
+int UDSDoIPDiscoverVehiclesEx(DoIPClient_t *tp, int timeout_ms, bool loopback, uint16_t port) {
+    if (!tp) return -1;
+    tp->udp_loopback = loopback;
+    if (doip_tp_udp_init((DoIPTransport *)&tp->udp, port, loopback) < 0) {
+        UDS_LOGE(__FILE__, "DoIP UDP: init failed");
+        return -1;
+    }
+    if (!loopback && !g_discovery_request_only) {
+        if (doip_tp_udp_join_default_multicast((DoIPTransport *)&tp->udp) < 0) {
+            UDS_LOGE(__FILE__, "DoIP UDP: multicast join failed");
+            doip_tp_udp_close((DoIPTransport *)&tp->udp);
+            return -1;
+        }
+    }
+
+    /* Actively send a Vehicle Identification Request */
+    {
+        uint8_t req[DOIP_HEADER_SIZE];
+        req[0] = DOIP_PROTOCOL_VERSION;
+        req[1] = DOIP_PROTOCOL_VERSION_INV;
+        req[2] = 0x00; /* payload_type MSB: 0x0001 */
+        req[3] = 0x01; /* payload_type LSB */
+        req[4] = 0x00; /* payload_length: 0 */
+        req[5] = 0x00;
+        req[6] = 0x00;
+        req[7] = 0x00;
+
+        const char *dst_ip = loopback ? "127.0.0.1" : "255.255.255.255";
+        uint16_t dst_port = DOIP_UDP_DISCOVERY_PORT;
+        ssize_t sent = doip_tp_udp_sendto((DoIPTransport *)&tp->udp, req, sizeof(req), dst_ip,
+                                          dst_port, 500);
+        if (sent <= 0) {
+            UDS_LOGW(__FILE__, "DoIP UDP: VI request send failed (dst %s:%u)", dst_ip, dst_port);
+        } else {
+            UDS_LOGI(__FILE__, "DoIP UDP: sent Vehicle Identification Request to %s:%u",
+                     dst_ip, dst_port);
+        }
+    }
+
+    int found = 0;
+    const int slice_ms = 200;
+    const int resend_interval_ms = 500;
+    int elapsed_ms = 0;
+    int sent_count = 1; /* already sent one request above */
+    int remaining = timeout_ms > 0 ? timeout_ms : 0;
+    uint8_t buf[DOIP_BUFFER_SIZE];
+    char src_ip[64];
+    uint16_t src_port = 0;
+
+    while (remaining > 0) {
+        int win = remaining < slice_ms ? remaining : slice_ms;
+        ssize_t n = doip_tp_udp_recvfrom((DoIPTransport *)&tp->udp, buf, sizeof(buf), win,
+                                         src_ip, sizeof(src_ip), &src_port);
+        if (n < 0) {
+            UDS_LOGE(__FILE__, "DoIP UDP: recvfrom error");
+            break;
+        } else if (n == 0) {
+            remaining -= win;
+            elapsed_ms += win;
+            if (elapsed_ms >= sent_count * resend_interval_ms && found == 0) {
+                /* Resend VI request to improve discovery probability */
+                uint8_t req2[DOIP_HEADER_SIZE] = {DOIP_PROTOCOL_VERSION, DOIP_PROTOCOL_VERSION_INV,
+                                                 0x00, 0x01, 0x00, 0x00, 0x00, 0x00};
+                const char *dst_ip2 = loopback ? "127.0.0.1" : "255.255.255.255";
+                uint16_t dst_port2 = DOIP_UDP_DISCOVERY_PORT;
+                (void)doip_tp_udp_sendto((DoIPTransport *)&tp->udp, req2, sizeof(req2), dst_ip2,
+                                          dst_port2, 200);
+                UDS_LOGV(__FILE__, "DoIP UDP: re-sent VI request to %s:%u", dst_ip2, dst_port2);
+                sent_count++;
+            }
+            continue;
+        }
+
+        found++;
+        UDS_LOGI(__FILE__, "DoIP UDP: discovery frame from %s:%u (%zd bytes)", src_ip, src_port,
+                 n);
+        if (g_discovery_dump_raw) {
+            UDS_LOG_SDU(__FILE__, buf, (size_t)n, NULL);
+        }
+
+        DoIPDiscoveryInfo info;
+        memset(&info, 0, sizeof(info));
+        snprintf(info.ip, sizeof(info.ip), "%s", src_ip);
+        info.remote_port = src_port;
+
+        /* Parse DoIP header to extract known fields from known payload types */
+        if ((size_t)n >= DOIP_HEADER_SIZE) {
+            DoIPHeader_t hdr;
+            if (doip_header_parse(buf, &hdr)) {
+                const uint8_t *pl = buf + DOIP_HEADER_SIZE;
+                size_t plen = hdr.payload_length;
+                /* Vehicle identification response/announcement payloads commonly start with VIN */
+                if (plen >= 17) {
+                    memcpy(info.vin, pl, 17);
+                    info.vin[17] = '\0';
+                }
+                /* Next 6 bytes often EID, then 6 bytes GID */
+                if (plen >= 23) {
+                    for (int i = 0; i < 6; ++i) {
+                        sprintf(&info.eid[i * 2], "%02X", pl[17 + i]);
+                    }
+                    info.eid[12] = '\0';
+                }
+                if (plen >= 29) {
+                    for (int i = 0; i < 6; ++i) {
+                        sprintf(&info.gid[i * 2], "%02X", pl[23 + i]);
+                    }
+                    info.gid[12] = '\0';
+                }
+                if (info.vin[0] != '\0') {
+                    UDS_LOGI(__FILE__, "DoIP UDP: parsed VIN=%s from %s:%u", info.vin, src_ip,
+                             src_port);
+                }
+            } else {
+                /* Fallback: coarse VIN scan in entire datagram */
+                if ((size_t)n >= 17) {
+                    for (size_t i = 0; i + 17 <= (size_t)n; ++i) {
+                        bool printable = true;
+                        for (size_t j = 0; j < 17; ++j) {
+                            uint8_t c = buf[i + j];
+                            if (!(c >= '0' && c <= '9') && !(c >= 'A' && c <= 'Z')) {
+                                printable = false;
+                                break;
+                            }
+                        }
+                        if (printable) {
+                            memcpy(info.vin, buf + i, 17);
+                            info.vin[17] = '\0';
+                            break;
+                        }
+                    }
+                }
+                if (info.vin[0] != '\0') {
+                    UDS_LOGI(__FILE__, "DoIP UDP: heuristic VIN=%s from %s:%u", info.vin,
+                             src_ip, src_port);
+                }
+            }
+        }
+
+        /* Invoke selection callback if provided */
+        bool choose = false;
+        if (g_select_fn) {
+            choose = g_select_fn(&info, g_select_user);
+        } else {
+            /* Default: choose first responder */
+            if (found == 1) choose = true;
+        }
+
+        if (choose) {
+            snprintf(tp->server_ip, sizeof(tp->server_ip), "%s", info.ip);
+            tp->server_port = DOIP_TCP_PORT; /* default TCP port */
+            UDS_LOGI(__FILE__, "DoIP: selected server %s:%u", tp->server_ip, tp->server_port);
+            break; /* stop after selection */
+        }
+
+        remaining -= win;
+    }
+
+    doip_tp_udp_close((DoIPTransport *)&tp->udp);
+    return found;
+}
+
+int UDSDoIPDiscoverVehicles(DoIPClient_t *tp, int timeout_ms, bool loopback) {
+    /* By default, listen on the tester request port (13401) to receive announcements */
+    return UDSDoIPDiscoverVehiclesEx(tp, timeout_ms, loopback, DOIP_UDP_TEST_EQUIPMENT_REQUEST_PORT);
 }
 
 #endif /* UDS_TP_DOIP */

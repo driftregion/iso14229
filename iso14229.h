@@ -1804,11 +1804,65 @@ typedef struct {
     uint8_t protocol_version_inv;   /**< Inverse of protocol version */
     uint16_t payload_type;          /**< Payload type (table 17) */
     uint32_t payload_length;        /**< Payload length */
-} __attribute__((packed)) DoIPHeader_t;
+} DoIPHeader_t;
+
+
+/* UDP ports (ISO 13400-2 Table 48) */
+#define DOIP_UDP_DISCOVERY_PORT                    13400
+#define DOIP_UDP_TEST_EQUIPMENT_REQUEST_PORT       13401
 
 
 
 #endif  /* DOIP_DEFINES_H */
+
+
+#ifndef DOIP_TRANSPORT_H
+#define DOIP_TRANSPORT_H
+#if defined(UDS_TP_DOIP)
+
+
+#include <stdint.h>
+#include <stddef.h>
+#include <stdbool.h>
+
+/* Minimal transport abstraction for DoIP */
+typedef struct DoIPTransport {
+    int fd;                /* OS socket descriptor */
+    uint16_t port;         /* local or remote port */
+    char ip[64];           /* remote IP (for TCP) */
+    bool is_udp;           /* transport type flag */
+    bool loopback;         /* UDP loopback mode */
+    int connect_timeout_ms;/* connect timeout (ms), <=0 uses default */
+    int send_timeout_ms;   /* send timeout (ms), <=0 uses default */
+} DoIPTransport;
+
+/* TCP transport helpers */
+int doip_tp_tcp_init(DoIPTransport *t, const char *ip, uint16_t port);
+int doip_tp_tcp_connect(DoIPTransport *t);
+ssize_t doip_tp_tcp_send(DoIPTransport *t, const uint8_t *buf, size_t len);
+ssize_t doip_tp_tcp_recv(DoIPTransport *t, uint8_t *buf, size_t len, int timeout_ms);
+void doip_tp_tcp_close(DoIPTransport *t);
+
+/* Optional: configure timeouts on the transport */
+void doip_tp_set_timeouts(DoIPTransport *t, int connect_timeout_ms, int send_timeout_ms);
+
+/* UDP transport helpers (vehicle discovery) */
+int doip_tp_udp_init(DoIPTransport *t, uint16_t port, bool loopback);
+int doip_tp_udp_join_default_multicast(DoIPTransport *t);
+ssize_t doip_tp_udp_recv(DoIPTransport *t, uint8_t *buf, size_t len, int timeout_ms);
+/* Receive with source address info */
+ssize_t doip_tp_udp_recvfrom(DoIPTransport *t, uint8_t *buf, size_t len, int timeout_ms,
+                             char *src_ip_out, size_t src_ip_out_sz, uint16_t *src_port_out);
+void doip_tp_udp_close(DoIPTransport *t);
+
+/* UDP send helper */
+ssize_t doip_tp_udp_sendto(DoIPTransport *t, const uint8_t *buf, size_t len,
+                           const char *dst_ip, uint16_t dst_port, int timeout_ms);
+
+#endif /* UDS_TP_DOIP */
+
+
+#endif /* DOIP_TRANSPORT_H */
 
 
 #if defined(UDS_TP_DOIP)
@@ -1833,7 +1887,8 @@ typedef enum {
 /* DoIP Client Context */
 typedef struct {
     UDSTp_t hdl;    /* Must be the first entry! */
-    int socket_fd;
+    DoIPTransport tcp;        /* TCP transport for diagnostics */
+    DoIPTransport udp;        /* UDP transport for discovery */
     DoIPClientState_t state;
 
     uint16_t source_address;        /* Client logical address */
@@ -1841,6 +1896,7 @@ typedef struct {
 
     char server_ip[64];
     uint16_t server_port;
+    bool udp_loopback;        /* discovery via loopback instead of multicast */
 
     uint8_t rx_buffer[DOIP_BUFFER_SIZE];  /* Raw socket receive buffer */
     size_t rx_offset;
@@ -1853,6 +1909,23 @@ typedef struct {
     bool diag_nack_received;
     uint8_t diag_nack_code;
 } DoIPClient_t;
+
+/* Discovery info (minimal set) */
+typedef struct {
+    char ip[64];
+    uint16_t remote_port;
+    uint16_t logical_address; /* if known */
+    char vin[18];             /* 17-char VIN plus NUL if parsed */
+    char eid[13];             /* 6-byte EID as hex string */
+    char gid[13];             /* 6-byte GID as hex string */
+} DoIPDiscoveryInfo;
+
+/* Optional selection callback */
+typedef bool (*DoIPSelectServerFn)(const DoIPDiscoveryInfo *info, void *user);
+
+void UDSDoIPSetSelectionCallback(DoIPClient_t *tp, DoIPSelectServerFn fn, void *user);
+/* Discovery options */
+void UDSDoIPSetDiscoveryOptions(bool request_only, bool dump_raw);
 
 /**
  * @brief Initialize DoIP client transport layer
@@ -1872,6 +1945,17 @@ UDSErr_t UDSDoIPInitClient(DoIPClient_t *tp, const char *ipaddress, uint16_t por
  * @param tp Pointer to DoIP client context
  */
 void UDSDoIPDeinit(DoIPClient_t *tp);
+
+/**
+ * @brief Discover vehicles using UDP DoIP
+ * @param tp DoIP client context
+ * @param timeout_ms Receive timeout in ms
+ * @param loopback If true, use loopback instead of multicast
+ * @return number of discovery frames observed (>=0), or negative on error
+ */
+int UDSDoIPDiscoverVehicles(DoIPClient_t *tp, int timeout_ms, bool loopback);
+/* Extended: allow overriding UDP port (0 = default 13400) */
+int UDSDoIPDiscoverVehiclesEx(DoIPClient_t *tp, int timeout_ms, bool loopback, uint16_t port);
 
 #endif
 

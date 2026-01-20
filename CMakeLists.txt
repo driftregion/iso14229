@@ -41,6 +41,14 @@ foreach(VARIANT IN LISTS VARIANT_LIST)
     # Set compile definition for this variant
     target_compile_definitions(${TARGET_NAME} PRIVATE ${VARIANT})
 
+    # When building DoIP, also compile the transport instances (TCP/UDP)
+    if (VARIANT STREQUAL "UDS_TP_DOIP")
+        target_sources(${TARGET_NAME} PRIVATE
+            src/tp/doip/doip_tp_tcp.c
+            src/tp/doip/doip_tp_udp.c
+        )
+    endif()
+
     message(STATUS "Configured target: ${TARGET_NAME} with variant: ${VARIANT}")
 endforeach()
 
