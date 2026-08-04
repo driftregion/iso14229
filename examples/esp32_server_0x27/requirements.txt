@@ -1,0 +1,10 @@
+# Python UDS Client Requirements for ESP32 Server Testing
+
+# Core UDS library
+udsoncan>=1.21.0
+
+# CAN bus interface
+python-can>=4.0.0
+
+# Cryptographic operations for RSA signing
+cryptography>=3.4.8
