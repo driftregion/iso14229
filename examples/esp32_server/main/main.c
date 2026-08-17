@@ -1,8 +1,8 @@
 #include "driver/gpio.h"
 #include "iso14229.h"
-#include <driver/twai.h>
+#include "driver/twai.h"
 #include <esp_log.h>
-#include "freertos/task.h"
+#include "freertos/FreeRTOS.h"
 
 #define CAN_RX_PIN GPIO_NUM_7
 #define CAN_TX_PIN GPIO_NUM_6
@@ -37,9 +37,9 @@ int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t *data, cons
     tx_msg.data_length_code = size;
     memmove(tx_msg.data, data, size);
     if (ESP_OK == twai_transmit(&tx_msg, 0)) {
-        return size;
+        return ISOTP_RET_OK;
     } else {
-        return -1;
+        return ISOTP_RET_ERROR;
     }
 }
 

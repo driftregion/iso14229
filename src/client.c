@@ -45,7 +45,7 @@ static const char *ClientStateName(uint8_t state) {
 
 static void changeState(UDSClient_t *client, uint8_t state) {
     if (state != client->state) {
-        UDS_LOGI(__FILE__, "client state: %s (%d) -> %s (%d)", ClientStateName(client->state),
+        UDS_LOGV(__FILE__, "client state: %s (%d) -> %s (%d)", ClientStateName(client->state),
                  client->state, ClientStateName(state), state);
 
         client->state = state;
@@ -242,7 +242,7 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
                 changeState(client, STATE_IDLE);
             }
         } else {
-            UDS_LOGI(__FILE__, "received %zd bytes. Processing...", len);
+            UDS_LOGD(__FILE__, "received %zd bytes. Processing...", len);
             UDS_ASSERT(len <= (ssize_t)UINT16_MAX);
             client->recv_size = (uint16_t)len;
 

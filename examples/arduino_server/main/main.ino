@@ -10,10 +10,25 @@ extern "C" uint32_t isotp_user_get_us(void) { return UDSMillis() * 1000; }
 
 extern "C" int isotp_user_send_can(uint32_t arb_id, const uint8_t *data, const uint8_t size, void *ud) {
   (void)ud;
-  CAN.beginPacket(arb_id);
-  CAN.write(data, size);
-  CAN.endPacket();
-  return size;
+  int success = 0;
+  success = CAN.beginPacket(arb_id);
+  if (!success) {
+    goto done;
+  }
+  success = CAN.write(data, size);
+  if (!success) {
+    goto done;
+  }
+  success = CAN.endPacket();
+  if (!success) {
+    goto done;
+  }
+  done:
+  if (success) {
+    return ISOTP_RET_OK;
+  } else {
+    return ISOTP_RET_ERROR;
+  }
 }
 
 extern "C" void isotp_user_debug(const char *fmt, ...) {
@@ -64,7 +79,7 @@ static UDSErr_t fn(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
         return UDS_OK;
 
     case UDS_EVT_DoScheduledReset:
-        NVIC_SystemReset();   // Perform a system reset
+        NVIC_SystemReset();
         return UDS_OK;
 
     default:
@@ -76,6 +91,14 @@ static UDSErr_t fn(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
 
 void setup() {
   Serial.begin(9600);
+  for (int cnt=0; cnt < 1000; cnt++) { 
+    if (Serial) {
+      break;
+    }
+    delay(1);
+  }
+
+  Serial.println("Starting Arduino UDS Server");
 
   UDSErr_t err = UDSServerInit(&srv);
   if(UDS_OK != err) {
@@ -85,8 +108,8 @@ void setup() {
   }
 
   const UDSISOTpCConfig_t tp_cfg = {
-      .source_addr=0x7E8,
-      .target_addr=0x7E0,
+      .source_addr=0x7E0,
+      .target_addr=0x7E8,
       .source_addr_func=0x7DF,
       .target_addr_func=UDS_TP_NOOP_ADDR,
   };
@@ -101,7 +124,6 @@ void setup() {
   srv.tp = &tp.hdl;
   srv.fn = fn;
 
-  // start the CAN bus at 500 kbps
   if (!CAN.begin(500E3)) {
     Serial.println("Starting CAN failed!");
     while (1);

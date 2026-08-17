@@ -3,8 +3,8 @@ module(name = "iso14229")
 bazel_dep(name = "platforms", version="1.0.0")
 bazel_dep(name = "rules_python", version = "1.8.2")
 bazel_dep(name = "rules_shell", version="0.6.1")
-bazel_dep(name = "rules_cc", version="0.2.16")
-bazel_dep(name = "toolchains_llvm", version = "1.4.0")
+bazel_dep(name = "rules_cc", version="0.2.17")
+bazel_dep(name = "toolchains_llvm", version = "1.8.0")
 
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
@@ -18,10 +18,10 @@ git_override(
 
 http_archive(
     name = "cmocka",
-    url = "https://cmocka.org/files/1.1/cmocka-1.1.7.tar.xz",
-    sha256 = "810570eb0b8d64804331f82b29ff47c790ce9cd6b163e98d47a4807047ecad82",
+    url = "https://gitlab.com/cmocka/cmocka/-/archive/cmocka-2.0.0/cmocka-cmocka-2.0.0.tar.gz",
+    sha256 = "77c425c9e702a06128a03c4dc1f3fa2cb437011659db0b98f53f79a9bbe1ce8e",
     build_file = "//test:cmocka.BUILD",
-    strip_prefix = "cmocka-1.1.7",
+    strip_prefix = "cmocka-cmocka-2.0.0",
 )
 
 http_archive(
@@ -57,12 +57,6 @@ filegroup(
 )
 
 
-# Configure and register the toolchain.
-git_override(
-  module_name = "toolchains_llvm",
-  commit = "ace6215bbfe8a76884646b2458b42380e2201607",
-  remote = "https://github.com/bazel-contrib/toolchains_llvm",
-)
 llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm")
 llvm.toolchain(
     name="llvm_toolchain",
