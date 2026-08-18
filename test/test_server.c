@@ -3867,18 +3867,18 @@ void test_0x38_readdir(void **state) {
 
     // and the ReadDir modeOfOperation is set,
     const uint8_t REQUEST[] = {
-        0x38, // RequestFileTransfer
-        0x05, // ReadDir
-        0x00, // filePathAndNameLength MSB
-        0x04, // filePathAndNameLength LSB
-        0x2f, 0x74, 0x6d, 0x70  // '/tmp', the name of the directory to be read. 
+        0x38,                  // RequestFileTransfer
+        0x05,                  // ReadDir
+        0x00,                  // filePathAndNameLength MSB
+        0x04,                  // filePathAndNameLength LSB
+        0x2f, 0x74, 0x6d, 0x70 // '/tmp', the name of the directory to be read.
     };
     UDSTpSend(e->client_tp, REQUEST, sizeof(REQUEST), NULL);
 
     // the server should send a response
     EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
                      UDS_CLIENT_DEFAULT_P2_MS);
-
+    // The first two bytes of the response should be
     const uint8_t RESP[] = {0x78, 0x02};
     TEST_MEMORY_EQUAL(buf, RESP, sizeof(RESP));
 }

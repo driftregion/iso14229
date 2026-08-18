@@ -1026,7 +1026,8 @@ static UDSErr_t Handle_0x35_RequestUpload(UDSServer_t *srv, UDSReq_t *r) {
 
     r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_REQUEST_UPLOAD);
     r->send_buf[1] = lengthFormatIdentifier;
-    StoreBE(&r->send_buf[UDS_0X35_RESP_BASE_LEN], args.maxNumberOfBlockLength, sizeof(args.maxNumberOfBlockLength));
+    StoreBE(&r->send_buf[UDS_0X35_RESP_BASE_LEN], args.maxNumberOfBlockLength,
+            sizeof(args.maxNumberOfBlockLength));
     r->send_len = UDS_0X35_RESP_BASE_LEN + (size_t)sizeof(args.maxNumberOfBlockLength);
     return UDS_PositiveResponse;
 }
@@ -1171,7 +1172,7 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
         (mode_of_operation == UDS_MOOP_RDDIR)) {
         // Paraphrasing ISO14229:2020 Table 481:
         // If the modeOfOperation parameter equals to 0x02 (DeleteFile), 0x04 (ReadFile) or 0x05
-        // (ReadDir) these parameters [fileSizeParameterLength, fileSizeUncompressed, 
+        // (ReadDir) these parameters [fileSizeParameterLength, fileSizeUncompressed,
         // fileSizeCompressed] shall not be included in the request message.
     } else {
         file_size_parameter_length = r->recv_buf[byte_idx];
@@ -1221,7 +1222,7 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
     }
 
     r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_REQUEST_FILE_TRANSFER);
-    r->send_buf[1] = mode_of_operation; 
+    r->send_buf[1] = mode_of_operation;
 
     if (mode_of_operation == UDS_MOOP_DELFILE) {
         r->send_len = 2;
@@ -1229,7 +1230,8 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
     }
 
     if (args.maxNumberOfBlockLength > UDS_TP_MTU) {
-        UDS_LOGW(__FILE__, "Clamping maxNumberOfBlockLength %hu to %hu", args.maxNumberOfBlockLength, UDS_TP_MTU);
+        UDS_LOGW(__FILE__, "Clamping maxNumberOfBlockLength %hu to %hu",
+                 args.maxNumberOfBlockLength, UDS_TP_MTU);
         args.maxNumberOfBlockLength = UDS_TP_MTU;
     }
 
@@ -1240,14 +1242,16 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
     r->send_len = 3;
 
     // A_Data bytes 4 to 4+m-1: maxNumberOfBlockLength
-    StoreBE(&r->send_buf[r->send_len], args.maxNumberOfBlockLength, sizeof(args.maxNumberOfBlockLength));
+    StoreBE(&r->send_buf[r->send_len], args.maxNumberOfBlockLength,
+            sizeof(args.maxNumberOfBlockLength));
     r->send_len += (size_t)sizeof(args.maxNumberOfBlockLength);
 
     // daataFormatIdentifier: 0 if ReadDir
     r->send_buf[r->send_len] = UDS_MOOP_RDDIR ? 0x00 : args.dataFormatIdentifier;
     r->send_len += 1;
 
-    if (mode_of_operation == UDS_MOOP_ADDFILE || mode_of_operation == UDS_MOOP_DELFILE || mode_of_operation == UDS_MOOP_REPLFILE || mode_of_operation == UDS_MOOP_RSFILE) {
+    if (mode_of_operation == UDS_MOOP_ADDFILE || mode_of_operation == UDS_MOOP_DELFILE ||
+        mode_of_operation == UDS_MOOP_REPLFILE || mode_of_operation == UDS_MOOP_RSFILE) {
         ;
     } else {
         // fileSizeOrDirInfoParameterLength
@@ -1255,19 +1259,23 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
         r->send_len += 2;
 
         // fileSizeUncompressedOrDirInfoLength
-        StoreBE(&r->send_buf[r->send_len], args.fileSizeUnCompressed, sizeof(args.fileSizeUnCompressed));
+        StoreBE(&r->send_buf[r->send_len], args.fileSizeUnCompressed,
+                sizeof(args.fileSizeUnCompressed));
         r->send_len += sizeof(args.fileSizeUnCompressed);
 
         if (mode_of_operation == UDS_MOOP_RDDIR) {
             ;
         } else {
             // fileSizeCompressed
-            StoreBE(&r->send_buf[r->send_len], args.fileSizeCompressed, sizeof(args.fileSizeCompressed));
+            StoreBE(&r->send_buf[r->send_len], args.fileSizeCompressed,
+                    sizeof(args.fileSizeCompressed));
             r->send_len += sizeof(args.fileSizeCompressed);
         }
     }
 
-    if (mode_of_operation == UDS_MOOP_ADDFILE || mode_of_operation == UDS_MOOP_DELFILE || mode_of_operation == UDS_MOOP_REPLFILE || mode_of_operation == UDS_MOOP_RDFILE || mode_of_operation == UDS_MOOP_RDDIR) {
+    if (mode_of_operation == UDS_MOOP_ADDFILE || mode_of_operation == UDS_MOOP_DELFILE ||
+        mode_of_operation == UDS_MOOP_REPLFILE || mode_of_operation == UDS_MOOP_RDFILE ||
+        mode_of_operation == UDS_MOOP_RDDIR) {
         ;
     } else {
         // filePosition

@@ -8,6 +8,7 @@ filegroup(
         "server.c",
         "tp.c",
         "util.c",
+        "util_private.h",
         "tp/isotp_c_socketcan.c",
         "tp/isotp_c.c",
         "tp/isotp_mock.c",

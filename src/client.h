@@ -20,9 +20,11 @@ typedef struct UDSClient {
     uint32_t p2_timer; /**< p2 timer value */
     uint8_t state;     /**< client request state */
 
-    uint8_t options;        /**< current request options */
-    uint8_t defaultOptions; /**< default options for all requests */
-    uint8_t _options_copy;  /**< copy of options at the time a request is made */
+    uint8_t options;                        /**< current request options */
+    uint8_t defaultOptions;                 /**< default options for all requests */
+    uint8_t _options_copy;                  /**< copy of options at the time a request is made */
+    uint8_t cfg_data_format_identifier;     /**< 0x38 RequestFileTransfer dataFormatIdentifier */
+    uint8_t cfg_file_size_parameter_length; /**< 0x38 RequestFileTransfer fileSizeParameterLength */
 
     int (*fn)(struct UDSClient *client, UDSEvent_t evt, void *ev_data); /**< callback function */
     void *fn_data; /**< user-specified function data */
@@ -98,9 +100,7 @@ UDSErr_t UDSSendTransferDataStream(UDSClient_t *client, uint8_t blockSequenceCou
 UDSErr_t UDSSendRequestTransferExit(UDSClient_t *client);
 
 UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, uint8_t mode, const char *filePath,
-                                    uint8_t dataFormatIdentifier, uint8_t fileSizeParameterLength,
                                     size_t fileSizeUncompressed, size_t fileSizeCompressed);
-
 UDSErr_t UDSCtrlDTCSetting(UDSClient_t *client, uint8_t dtcSettingType,
                            uint8_t *dtcSettingControlOptionRecord, uint16_t len);
 UDSErr_t UDSUnpackRDBIResponse(UDSClient_t *client, UDSRDBIVar_t *vars, uint16_t numVars);

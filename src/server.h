@@ -308,17 +308,20 @@ typedef struct {
     const uint8_t modeOfOperation;      /*! request: one of UDS_MOOP_*. */
     const uint16_t filePathLen;         /*! request: data length. */
     const uint8_t *filePath;            /*! request: file path or directory name (ReadDirectory). */
-    const uint8_t dataFormatIdentifier; /*! request: specifier for format of data (does not apply to DeleteFile or ReadDir) */
+    const uint8_t dataFormatIdentifier; /*! request: specifier for format of data (does not apply to
+                                           DeleteFile or ReadDir) */
 
     // if MOOP is AddFile, ReplaceFile, or ResumeFile, these fields are **requests**.
-    // if MOOP is ReadFile or ReadDirectory, these fields are **responses** -- the server must set them.
-    // if MOOP is DelFile, these fields are unused.
-    size_t fileSizeUnCompressed;  /*! file size or directory info len (ReadDirectory) */
-    size_t fileSizeCompressed;    /*! compressed filesize (ReadFile), otherwise zero. */
+    // if MOOP is ReadFile or ReadDirectory, these fields are **responses** -- the server must set
+    // them. if MOOP is DelFile, these fields are unused.
+    size_t fileSizeUnCompressed; /*! file size or directory info len (ReadDirectory) */
+    size_t fileSizeCompressed;   /*! compressed filesize (ReadFile), otherwise zero. */
 
-    uint16_t maxNumberOfBlockLength;    /*! response: Defaults to UDS_TP_MTU. Informs client how many data bytes to
-                                           send in each `TransferData` request. (unused by DelFile). */
-    size_t filePosition;                /*! response: byte position to resume from after suspended download (ResumeFile), otherwise zero. */
+    uint16_t maxNumberOfBlockLength; /*! response: Defaults to UDS_TP_MTU. Informs client how many
+                                        data bytes to send in each `TransferData` request. (unused
+                                        by DelFile). */
+    size_t filePosition; /*! response: byte position to resume from after suspended download
+                            (ResumeFile), otherwise zero. */
 } UDSRequestFileTransferArgs_t;
 
 /**

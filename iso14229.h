@@ -1132,7 +1132,7 @@ typedef struct {
  * @brief Request file transfer arguments
  */
 typedef struct {
-    const uint8_t modeOfOperation;      /*! requested specifier for operation mode */
+    const uint8_t modeOfOperation;      /*! MOOP, one of  */
     const uint16_t filePathLen;         /*! request data length */
     const uint8_t *filePath;            /*! requested file path and name */
     const uint8_t dataFormatIdentifier; /*! optional specifier for format of data */
@@ -1140,6 +1140,7 @@ typedef struct {
     const size_t fileSizeCompressed;    /*! optional file size */
     uint16_t maxNumberOfBlockLength;    /*! optional response: inform client how many data bytes to
                                            send in each    `TransferData` request */
+    size_t filePosition;                /*! RSF*/
 } UDSRequestFileTransferArgs_t;
 
 /**

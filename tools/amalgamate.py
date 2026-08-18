@@ -47,6 +47,7 @@ with open(args.out_c, "w", encoding="utf-8") as f:
     f.write("\n")
     f.write("#include \"iso14229.h\"\n")
     for src in [
+        "src/util_private.h",
         "src/client.c",
         "src/server.c",
         "src/tp.c",
