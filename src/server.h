@@ -305,7 +305,11 @@ typedef struct {
  * @brief Request file transfer arguments
  */
 typedef struct {
-    const uint8_t modeOfOperation;      /*! request: one of UDS_MOOP_*. */
+    /**
+     * request:
+     * @see @ref UDS_MOOP_ "modeOfOperation values"
+     */
+    const uint8_t modeOfOperation;
     const uint16_t filePathLen;         /*! request: data length. */
     const uint8_t *filePath;            /*! request: file path or directory name (ReadDirectory). */
     const uint8_t dataFormatIdentifier; /*! request: specifier for format of data (does not apply to
