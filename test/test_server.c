@@ -3858,6 +3858,31 @@ void test_0x38_delfile_issue_116(void **state) {
     TEST_MEMORY_EQUAL(buf, RESP, sizeof(RESP));
 }
 
+void test_0x38_readdir(void **state) {
+    Env_t *e = *state;
+    uint8_t buf[8] = {0};
+
+    // When a handler is installed which always returns a positive response,
+    e->server->fn = fn_return_positive_response;
+
+    // and the ReadDir modeOfOperation is set,
+    const uint8_t REQUEST[] = {
+        0x38, // RequestFileTransfer
+        0x05, // ReadDir
+        0x00, // filePathAndNameLength MSB
+        0x04, // filePathAndNameLength LSB
+        0x2f, 0x74, 0x6d, 0x70  // '/tmp', the name of the directory to be read. 
+    };
+    UDSTpSend(e->client_tp, REQUEST, sizeof(REQUEST), NULL);
+
+    // the server should send a response
+    EXPECT_WITHIN_MS(e, UDSTpRecv(e->client_tp, buf, sizeof(buf), NULL) > 0,
+                     UDS_CLIENT_DEFAULT_P2_MS);
+
+    const uint8_t RESP[] = {0x78, 0x02};
+    TEST_MEMORY_EQUAL(buf, RESP, sizeof(RESP));
+}
+
 void test_0x3e_suppress_positive_response(void **state) {
     Env_t *e = *state;
     uint8_t buf[8] = {0};
