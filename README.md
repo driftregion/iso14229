@@ -1,4 +1,4 @@
-# iso14229
+# iso14229 - UDS Server / Client Library
 
 <p align="center">
 <a href="https://github.com/driftregion/iso14229/actions"><img src="https://github.com/driftregion/iso14229/actions/workflows/ci.yml/badge.svg" alt="Build Status"></a>
@@ -15,14 +15,15 @@ iso14229 is an implementation of UDS (ISO14229) targeting embedded systems. It i
 
 API status: Major version zero (0.y.z) **(not yet stable)**. Anything MAY change at any time.
 
-## Features
+## Features:
 
-- server and client included
-- static memory allocation. (no `malloc`, `calloc`, ...)
+- includes server and client
 - highly portable and tested
     - architectures: arm, x86-64, ppc, ppc64, risc
     - systems: linux, Windows, esp32, Arduino, NXP s32k
-- multiple transports supported: isotp-c, linux isotp sockets
+    - write your implementation once, it works everywhere
+- static memory allocation. (no `malloc`, `calloc`, ...)
+- built-in ISO-TP transport support: isotp-c, linux isotp sockets
 - examples for esp32, Arduino, NXP S32K144
 
 # Documentation

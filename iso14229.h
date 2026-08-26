@@ -288,6 +288,8 @@ UDSTpStatus_t UDSTpPoll(UDSTp_t *hdl);
 
 
 
+/** @file */
+
 /**
  * @enum UDSEvent_t
  * @brief UDS events
@@ -470,8 +472,10 @@ typedef enum {
 #define UDS_LEV_RCTP_RRR 3  // RequestRoutineResults
 
 /**
+ * @defgroup UDS_MOOP_ 0x38 RequestFileTransfer modeOfOperation
  * @brief modeOfOperation parameter used in 0x38 RequestFileTransfer
  * ISO14229-1:2020 Table G.1
+ * @{
  */
 #define UDS_MOOP_ADDFILE 1  // AddFile
 #define UDS_MOOP_DELFILE 2  // DeleteFile
@@ -479,6 +483,7 @@ typedef enum {
 #define UDS_MOOP_RDFILE 4   // ReadFile
 #define UDS_MOOP_RDDIR 5    // ReadDirectory
 #define UDS_MOOP_RSFILE 6   // ResumeFile
+/** @} */
 
 /**
  * @brief 0x85 ControlDTCSetting SubFunction = [dtcSettingType]
@@ -734,9 +739,11 @@ typedef struct UDSClient {
     uint32_t p2_timer; /**< p2 timer value */
     uint8_t state;     /**< client request state */
 
-    uint8_t options;        /**< current request options */
-    uint8_t defaultOptions; /**< default options for all requests */
-    uint8_t _options_copy;  /**< copy of options at the time a request is made */
+    uint8_t options;                        /**< current request options */
+    uint8_t defaultOptions;                 /**< default options for all requests */
+    uint8_t _options_copy;                  /**< copy of options at the time a request is made */
+    uint8_t cfg_data_format_identifier;     /**< 0x38 RequestFileTransfer dataFormatIdentifier */
+    uint8_t cfg_file_size_parameter_length; /**< 0x38 RequestFileTransfer fileSizeParameterLength */
 
     int (*fn)(struct UDSClient *client, UDSEvent_t evt, void *ev_data); /**< callback function */
     void *fn_data; /**< user-specified function data */
@@ -812,9 +819,7 @@ UDSErr_t UDSSendTransferDataStream(UDSClient_t *client, uint8_t blockSequenceCou
 UDSErr_t UDSSendRequestTransferExit(UDSClient_t *client);
 
 UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, uint8_t mode, const char *filePath,
-                                    uint8_t dataFormatIdentifier, uint8_t fileSizeParameterLength,
                                     size_t fileSizeUncompressed, size_t fileSizeCompressed);
-
 UDSErr_t UDSCtrlDTCSetting(UDSClient_t *client, uint8_t dtcSettingType,
                            uint8_t *dtcSettingControlOptionRecord, uint16_t len);
 UDSErr_t UDSUnpackRDBIResponse(UDSClient_t *client, UDSRDBIVar_t *vars, uint16_t numVars);
@@ -1132,15 +1137,27 @@ typedef struct {
  * @brief Request file transfer arguments
  */
 typedef struct {
-    const uint8_t modeOfOperation;      /*! MOOP, one of  */
-    const uint16_t filePathLen;         /*! request data length */
-    const uint8_t *filePath;            /*! requested file path and name */
-    const uint8_t dataFormatIdentifier; /*! optional specifier for format of data */
-    const size_t fileSizeUnCompressed;  /*! optional file size */
-    const size_t fileSizeCompressed;    /*! optional file size */
-    uint16_t maxNumberOfBlockLength;    /*! optional response: inform client how many data bytes to
-                                           send in each    `TransferData` request */
-    size_t filePosition;                /*! RSF*/
+    /**
+     * request:
+     * @see @ref UDS_MOOP_ "modeOfOperation values"
+     */
+    const uint8_t modeOfOperation;
+    const uint16_t filePathLen;         /*! request: data length. */
+    const uint8_t *filePath;            /*! request: file path or directory name (ReadDirectory). */
+    const uint8_t dataFormatIdentifier; /*! request: specifier for format of data (does not apply to
+                                           DeleteFile or ReadDir) */
+
+    // if MOOP is AddFile, ReplaceFile, or ResumeFile, these fields are **requests**.
+    // if MOOP is ReadFile or ReadDirectory, these fields are **responses** -- the server must set
+    // them. if MOOP is DelFile, these fields are unused.
+    size_t fileSizeUnCompressed; /*! file size or directory info len (ReadDirectory) */
+    size_t fileSizeCompressed;   /*! compressed filesize (ReadFile), otherwise zero. */
+
+    uint16_t maxNumberOfBlockLength; /*! response: Defaults to UDS_TP_MTU. Informs client how many
+                                        data bytes to send in each `TransferData` request. (unused
+                                        by DelFile). */
+    size_t filePosition; /*! response: byte position to resume from after suspended download
+                            (ResumeFile), otherwise zero. */
 } UDSRequestFileTransferArgs_t;
 
 /**

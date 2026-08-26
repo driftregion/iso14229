@@ -468,10 +468,3 @@ typedef struct {
 
 \ref UDSSendRequestTransferExit
 
----
-
-## See Also
-
-- \ref client "Client API"
-- \ref server "Server API"
-- ISO 14229-1:2020 - Road vehicles - Unified diagnostic services (UDS)

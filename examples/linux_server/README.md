@@ -1,4 +1,4 @@
-# Linux Server Example
+# Linux Server Example {#examples__linux_server}
 
 Basic UDS server example using Linux kernel ISO-TP sockets (socketcan).
 

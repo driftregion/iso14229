@@ -1,4 +1,4 @@
-# UDS Server {#server}
+# UDS Server API
 
 The UDS server API provides functionality for implementing diagnostic services that respond to UDS client requests. The server is event-driven. Incoming client requests are processed by your service handler function (called `fn` by convention).
 
