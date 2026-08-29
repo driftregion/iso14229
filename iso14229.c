@@ -1041,11 +1041,11 @@ static UDSErr_t Handle_0x10_DiagnosticSessionControl(UDSServer_t *srv, UDSReq_t 
 }
 
 static UDSErr_t Handle_0x11_ECUReset(UDSServer_t *srv, UDSReq_t *r) {
-    uint8_t resetType = r->recv_buf[1] & 0x3F;
-
     if (r->recv_len < UDS_0X11_REQ_MIN_LEN) {
         return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
+
+    uint8_t resetType = r->recv_buf[1] & 0x3F;
 
     UDSECUResetArgs_t args = {
         .type = resetType,
@@ -1991,7 +1991,6 @@ static UDSErr_t Handle_0x35_RequestUpload(UDSServer_t *srv, UDSReq_t *r) {
 
 static UDSErr_t Handle_0x36_TransferData(UDSServer_t *srv, UDSReq_t *r) {
     UDSErr_t err = UDS_PositiveResponse;
-    uint16_t request_data_len = (uint16_t)(r->recv_len - UDS_0X36_REQ_BASE_LEN);
     uint8_t blockSequenceCounter = 0;
 
     if (!srv->xferIsActive) {
@@ -2003,6 +2002,7 @@ static UDSErr_t Handle_0x36_TransferData(UDSServer_t *srv, UDSReq_t *r) {
         goto fail;
     }
 
+    uint16_t request_data_len = (uint16_t)(r->recv_len - UDS_0X36_REQ_BASE_LEN);
     blockSequenceCounter = r->recv_buf[1];
 
     if (!srv->RCRRP) {
