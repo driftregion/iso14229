@@ -1,14 +1,11 @@
-/***
 /**
  * @file iso14229.c
  * @brief ISO14229-1 (UDS) library
  * @copyright Copyright (c) Nick Kirkby
  * @see https://github.com/driftregion/iso14229
- * @detail This is the amalgamated release.
  */
 
 #include "iso14229.h"
-
 
 #ifdef UDS_LINES
 #line 1 "src/util_private.h"
@@ -3028,6 +3025,7 @@ static UDSTpStatus_t tp_poll(UDSTp_t *hdl) {
     UDSTpStatus_t status = 0;
     UDSISOTpC_t *impl = (UDSISOTpC_t *)hdl;
     isotp_poll(&impl->phys_link);
+    isotp_poll(&impl->func_link);
     if (impl->phys_link.send_status == ISOTP_SEND_STATUS_INPROGRESS) {
         status |= UDS_TP_SEND_IN_PROGRESS;
     }
@@ -3120,8 +3118,8 @@ UDSErr_t UDSISOTpCInit(UDSISOTpC_t *tp, const UDSISOTpCConfig_t *cfg) {
 
     isotp_init_link(&tp->phys_link, tp->phys_ta, tp->send_buf, sizeof(tp->send_buf), tp->recv_buf,
                     sizeof(tp->recv_buf));
-    isotp_init_link(&tp->func_link, tp->func_ta, tp->recv_buf, sizeof(tp->send_buf), tp->recv_buf,
-                    sizeof(tp->recv_buf));
+    isotp_init_link(&tp->func_link, tp->func_ta, tp->func_send_buf, sizeof(tp->func_send_buf),
+                    tp->func_recv_buf, sizeof(tp->func_recv_buf));
     return UDS_OK;
 }
 
