@@ -1,0 +1,7 @@
+/home/njames/repos/iso14229/examples/stm32g474/main.c:3:10: fatal error: stm32f4xx.h: No such file or directory
+ #include "stm32f4xx.h"
+          ^~~~~~~~~~~~~
+compilation terminated.
+gmake[2]: *** [CMakeFiles/iso14229_server.dir/build.make:76: CMakeFiles/iso14229_server.dir/main.c.obj] Error 1
+gmake[1]: *** [CMakeFiles/Makefile2:86: CMakeFiles/iso14229_server.dir/all] Error 2
+gmake: *** [Makefile:91: all] Error 2
