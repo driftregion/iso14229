@@ -22,7 +22,7 @@ static UDSServer_t srv;
 #if defined(UDS_TP_ISOTP_SOCK)
 static UDSTpIsoTpSock_t tp;
 #elif defined(UDS_TP_ISOTP_C_SOCKETCAN)
-static UDSTpISOTpC_t tp;
+static UDSTpISOTpCSocketCAN_t tp;
 #else
 #error "no transport defined"
 #endif
@@ -126,8 +126,9 @@ int main(int ac, char **av) {
         exit(-1);
     }
 #elif defined(UDS_TP_ISOTP_C_SOCKETCAN)
-    if (UDSTpISOTpCInit((UDSTpISOTpC_t *)&tp, "vcan0", 0x7E0, 0x7E8, 0x7DF, 0x7FF)) {
-        fprintf(stderr, "UDSTpISOTpCInit failed\n");
+    if (UDSTpISOTpCSocketCANInit((UDSTpISOTpCSocketCAN_t *)&tp, "vcan0", 0x7E0, 0x7E8, 0x7DF,
+                                 0x7FF)) {
+        fprintf(stderr, "UDSTpISOTpCSocketCANInit failed\n");
         exit(-1);
     }
 #else

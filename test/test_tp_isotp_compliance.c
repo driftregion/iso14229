@@ -62,14 +62,14 @@ int TeardownMockTpClientOnly(void **state) {
 int SetupIsoTpCPair(void **state) {
     Env_t *env = malloc(sizeof(Env_t));
     memset(env, 0, sizeof(Env_t));
-    UDSTpISOTpC_t *server_isotp = malloc(sizeof(UDSTpISOTpC_t));
+    UDSTpISOTpCSocketCAN_t *server_isotp = malloc(sizeof(UDSTpISOTpCSocketCAN_t));
     strcpy(server_isotp->tag, "server");
-    assert(UDS_OK == UDSTpISOTpCInit(server_isotp, "vcan0", 0x7e8, 0x7e0, 0x7df, 0));
+    assert(UDS_OK == UDSTpISOTpCSocketCANInit(server_isotp, "vcan0", 0x7e8, 0x7e0, 0x7df, 0));
     env->server_tp = (UDSTp_t *)server_isotp;
 
-    UDSTpISOTpC_t *client_isotp = malloc(sizeof(UDSTpISOTpC_t));
+    UDSTpISOTpCSocketCAN_t *client_isotp = malloc(sizeof(UDSTpISOTpCSocketCAN_t));
     strcpy(client_isotp->tag, "client");
-    assert(UDS_OK == UDSTpISOTpCInit(client_isotp, "vcan0", 0x7e0, 0x7e8, 0, 0x7df));
+    assert(UDS_OK == UDSTpISOTpCSocketCANInit(client_isotp, "vcan0", 0x7e0, 0x7e8, 0, 0x7df));
     env->client_tp = (UDSTp_t *)client_isotp;
 
     env->is_real_time = true;
@@ -79,8 +79,8 @@ int SetupIsoTpCPair(void **state) {
 
 int TeardownIsoTpCPair(void **state) {
     Env_t *env = *state;
-    UDSTpISOTpCDeinit((UDSTpISOTpC_t *)env->server_tp);
-    UDSTpISOTpCDeinit((UDSTpISOTpC_t *)env->client_tp);
+    UDSTpISOTpCSocketCANDeinit((UDSTpISOTpCSocketCAN_t *)env->server_tp);
+    UDSTpISOTpCSocketCANDeinit((UDSTpISOTpCSocketCAN_t *)env->client_tp);
     free(env->server_tp);
     free(env->client_tp);
     free(env);
@@ -90,9 +90,9 @@ int TeardownIsoTpCPair(void **state) {
 int SetupIsoTpCClientOnly(void **state) {
     Env_t *env = malloc(sizeof(Env_t));
     memset(env, 0, sizeof(Env_t));
-    UDSTpISOTpC_t *client_isotp = malloc(sizeof(UDSTpISOTpC_t));
+    UDSTpISOTpCSocketCAN_t *client_isotp = malloc(sizeof(UDSTpISOTpCSocketCAN_t));
     strcpy(client_isotp->tag, "client");
-    assert(UDS_OK == UDSTpISOTpCInit(client_isotp, "vcan0", 0x7e0, 0x7e8, 0, 0x7df));
+    assert(UDS_OK == UDSTpISOTpCSocketCANInit(client_isotp, "vcan0", 0x7e0, 0x7e8, 0, 0x7df));
     env->client_tp = (UDSTp_t *)client_isotp;
     env->is_real_time = true;
     *state = env;
@@ -101,7 +101,7 @@ int SetupIsoTpCClientOnly(void **state) {
 
 int TeardownIsoTpCClientOnly(void **state) {
     Env_t *env = *state;
-    UDSTpISOTpCDeinit((UDSTpISOTpC_t *)env->client_tp);
+    UDSTpISOTpCSocketCANDeinit((UDSTpISOTpCSocketCAN_t *)env->client_tp);
     free(env->client_tp);
     free(env);
     return 0;

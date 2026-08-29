@@ -7,6 +7,9 @@
 #include "tp.h"
 #include "tp/isotp-c/isotp.h"
 
+/**
+ * @brief isotp-c implementation of \ref UDSTp_t
+ */
 typedef struct {
     UDSTp_t hdl;
     IsoTpLink phys_link;
@@ -17,17 +20,23 @@ typedef struct {
     uint8_t func_recv_buf[8];
     uint32_t phys_sa, phys_ta;
     uint32_t func_sa, func_ta;
-} UDSISOTpC_t;
+} UDSTpISOTpC_t;
 
+/**
+ * @brief arguments for \ref UDSTpISOTpCInit
+ */
 typedef struct {
     uint32_t source_addr;
     uint32_t target_addr;
     uint32_t source_addr_func;
     uint32_t target_addr_func;
-} UDSISOTpCConfig_t;
+} UDSTpISOTpCConfig_t;
 
-UDSErr_t UDSISOTpCInit(UDSISOTpC_t *tp, const UDSISOTpCConfig_t *cfg);
+/**
+ * @brief Initialize isotp-c transport
+ */
+UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, const UDSTpISOTpCConfig_t *cfg);
 
-void UDSISOTpCDeinit(UDSISOTpC_t *tp);
+void UDSTpISOTpCDeinit(UDSTpISOTpC_t *tp);
 
 #endif

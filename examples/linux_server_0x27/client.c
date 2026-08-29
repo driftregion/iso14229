@@ -185,9 +185,10 @@ int main(int ac, char **av) {
         exit(-1);
     }
 #elif defined(UDS_TP_ISOTP_C_SOCKETCAN)
-    UDSTpISOTpC_t tp;
-    if (UDSTpISOTpCInit((UDSTpISOTpC_t *)&tp, "vcan0", 0x7E8, 0x7E0, 0x7DF, 0x7FF)) {
-        UDS_LOGE(__FILE__, "UDSTpISOTpCInit failed");
+    UDSTpISOTpCSocketCAN_t tp;
+    if (UDSTpISOTpCSocketCANInit((UDSTpISOTpCSocketCAN_t *)&tp, "vcan0", 0x7E8, 0x7E0, 0x7DF,
+                                 0x7FF)) {
+        UDS_LOGE(__FILE__, "UDSTpISOTpCSocketCANInit failed");
         exit(-1);
     }
 #else

@@ -27,7 +27,7 @@ static const twai_general_config_t g_config = {.mode = TWAI_MODE_NORMAL,
                                                .intr_flags = ESP_INTR_FLAG_LEVEL1};
 
 static UDSServer_t srv;
-static UDSISOTpC_t tp;
+static UDSTpISOTpC_t tp;
 
 int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t *data, const uint8_t size,
                         void *user_data) {
@@ -47,7 +47,7 @@ void isotp_user_debug(const char *fmt, ...) { (void)fmt; }
 
 uint32_t isotp_user_get_us(void) { return UDSMillis() * 1000; }
 
-static const UDSISOTpCConfig_t tp_cfg = {
+static const UDSTpISOTpCConfig_t tp_cfg = {
     .source_addr = 0x7E0,
     .target_addr = 0x7E8,
     .source_addr_func = 0x7DF,
@@ -115,7 +115,7 @@ void app_main(void) {
     gpio_config(&io_conf);
 
     ESP_ERROR_CHECK(UDSServerInit(&srv));
-    ESP_ERROR_CHECK(UDSISOTpCInit(&tp, &tp_cfg));
+    ESP_ERROR_CHECK(UDSTpISOTpCInit(&tp, &tp_cfg));
     srv.fn = fn;
     srv.tp = &tp.hdl;
 

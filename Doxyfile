@@ -48,7 +48,7 @@ PROJECT_NAME           = iso14229
 # could be handy for archiving the generated documentation or if some version
 # control system is used.
 
-PROJECT_NUMBER         = 0.9.0
+PROJECT_NUMBER         = "0.10.0"
 
 # Using the PROJECT_BRIEF tag one can provide an optional one line description
 # for a project that appears at the top of each page and should give viewers a
@@ -572,7 +572,7 @@ EXTRACT_PACKAGE        = NO
 # included in the documentation.
 # The default value is: NO.
 
-EXTRACT_STATIC         = NO
+EXTRACT_STATIC         = NO 
 
 # If the EXTRACT_LOCAL_CLASSES tag is set to YES, classes (and structs) defined
 # locally in source files will be included in the documentation. If set to NO,
@@ -1028,8 +1028,9 @@ WARN_LOGFILE           =
 
 INPUT                  = docs/mainpage.md \
                          docs/client.md \
+                         docs/config.md \
+                         docs/porting_guide.md \
                          docs/server.md \
-                         docs/services.md \
                          iso14229.h \
                          iso14229.c \
                          examples/arduino_server/README.md \
@@ -1037,13 +1038,8 @@ INPUT                  = docs/mainpage.md \
                          examples/linux_server/README.md \
                          examples/linux_rdbi_wdbi/README.md \
                          examples/linux_server_0x27/README.md \
-                         examples/linux_server_0x29/README.md \
                          examples/s32k144_server/README.md \
-                         examples/linux_server/main.c \
-                         examples/linux_rdbi_wdbi/server.c \
-                         examples/linux_rdbi_wdbi/client.c \
-                         examples/linux_server_0x27/server.c \
-                         examples/linux_server_0x27/client.c
+                         examples/stm32g474/README.md 
 
 # This tag can be used to specify the character encoding of the source files
 # that Doxygen parses. Internally Doxygen uses the UTF-8 encoding. Doxygen uses
@@ -1166,7 +1162,15 @@ EXCLUDE_PATTERNS       =
 # wildcard * is used, a substring. Examples: ANamespace, AClass,
 # ANamespace::AClass, ANamespace::*Test
 
-EXCLUDE_SYMBOLS        =
+# undocumented symbols from isotp-c
+EXCLUDE_SYMBOLS        = \
+    IsoTpCanMessage \
+    IsoTpConsecutiveFrame \ 
+    IsoTpFlowControl \
+    IsoTpPciType \
+    IsoTpSingleFrame \
+    IsoTpDataArray \
+    IsoTpFirstFrame
 
 # The EXAMPLE_PATH tag can be used to specify one or more files or directories
 # that contain example code fragments that are included (see the \include

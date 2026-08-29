@@ -3,7 +3,7 @@ load("@rules_cc//cc:defs.bzl", "cc_library", "cc_binary")
 
 package(default_visibility = ["//visibility:public"])
 exports_files([
-    "README.md",
+    "CHANGELOG",
     "Doxyfile",
 ])
 
@@ -121,6 +121,7 @@ genrule(
         "README.md",
         "LICENSE",
         "VERSION",
+        "CHANGELOG",
         "AUTHORS.txt",
     ],
     outs = ["iso14229.zip"],

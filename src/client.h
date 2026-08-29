@@ -18,7 +18,7 @@ typedef struct UDSClient {
     UDSTp_t *tp;         /**< transport layer handle */
 
     uint32_t p2_timer; /**< p2 timer value */
-    uint8_t state;     /**< client request state */
+    uint8_t state;     /**< client request state, @see client_request_states */
 
     uint8_t options;                        /**< current request options */
     uint8_t defaultOptions;                 /**< default options for all requests */
@@ -71,38 +71,46 @@ typedef struct {
     void *(*UnpackFn)(void *dst, const void *src, size_t n); /**< optional unpack function */
 } UDSRDBIVar_t;
 
-UDSErr_t UDSClientInit(UDSClient_t *client);
-UDSErr_t UDSClientPoll(UDSClient_t *client);
-UDSErr_t UDSSendBytes(UDSClient_t *client, const uint8_t *data, uint16_t size);
-UDSErr_t UDSSendECUReset(UDSClient_t *client, uint8_t type);
-UDSErr_t UDSSendDiagSessCtrl(UDSClient_t *client, uint8_t mode);
-UDSErr_t UDSSendSecurityAccess(UDSClient_t *client, uint8_t level, uint8_t *data, uint16_t size);
-UDSErr_t UDSSendCommCtrl(UDSClient_t *client, uint8_t ctrl, uint8_t comm);
+UDSErr_t UDSClientInit(UDSClient_t *client); ///< Call this once
+UDSErr_t UDSClientPoll(UDSClient_t *client); ///< Call at <5ms intervals
+UDSErr_t UDSSendBytes(UDSClient_t *client, const uint8_t *data,
+                      uint16_t size); ///< Send user-defined bytes to a UDS server
+UDSErr_t UDSSendECUReset(UDSClient_t *client, uint8_t type);     ///< Request ECUReset
+UDSErr_t UDSSendDiagSessCtrl(UDSClient_t *client, uint8_t mode); ///< Change the diagnostic session
+UDSErr_t UDSSendSecurityAccess(UDSClient_t *client, uint8_t level, uint8_t *data,
+                               uint16_t size); ///< Get Security Access
+UDSErr_t UDSSendCommCtrl(UDSClient_t *client, uint8_t ctrl,
+                         uint8_t comm); ///< Change communication settings
 UDSErr_t UDSSendRDBI(UDSClient_t *client, const uint16_t *didList,
-                     const uint16_t numDataIdentifiers);
+                     const uint16_t numDataIdentifiers); ///< Read Data By Identifier
 UDSErr_t UDSSendWDBI(UDSClient_t *client, uint16_t dataIdentifier, const uint8_t *data,
-                     uint16_t size);
-UDSErr_t UDSSendTesterPresent(UDSClient_t *client);
+                     uint16_t size);                ///< Write Data By Identifier
+UDSErr_t UDSSendTesterPresent(UDSClient_t *client); ///< What's up?
 UDSErr_t UDSSendRoutineCtrl(UDSClient_t *client, uint8_t type, uint16_t routineIdentifier,
-                            const uint8_t *data, uint16_t size);
+                            const uint8_t *data, uint16_t size); ///< Request to Twiddle Routines
 
 UDSErr_t UDSSendRequestDownload(UDSClient_t *client, uint8_t dataFormatIdentifier,
                                 uint8_t addressAndLengthFormatIdentifier, size_t memoryAddress,
-                                size_t memorySize);
+                                size_t memorySize); ///< Request to Download via TransferData
 
 UDSErr_t UDSSendRequestUpload(UDSClient_t *client, uint8_t dataFormatIdentifier,
                               uint8_t addressAndLengthFormatIdentifier, size_t memoryAddress,
-                              size_t memorySize);
+                              size_t memorySize); ///< Request to Upload via TransferData
 UDSErr_t UDSSendTransferData(UDSClient_t *client, uint8_t blockSequenceCounter,
-                             const uint16_t blockLength, const uint8_t *data, uint16_t size);
+                             const uint16_t blockLength, const uint8_t *data,
+                             uint16_t size); ///< Transfer Data to/from a buffer
 UDSErr_t UDSSendTransferDataStream(UDSClient_t *client, uint8_t blockSequenceCounter,
-                                   const uint16_t blockLength, FILE *fd);
-UDSErr_t UDSSendRequestTransferExit(UDSClient_t *client);
+                                   const uint16_t blockLength,
+                                   FILE *fd); ///< Transfer Data to/from a file
+UDSErr_t
+UDSSendRequestTransferExit(UDSClient_t *client); ///< Call this when finished with TransferData
 
-UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, uint8_t mode, const char *filePath,
-                                    size_t fileSizeUncompressed, size_t fileSizeCompressed);
+UDSErr_t UDSSendRequestFileTransfer(
+    UDSClient_t *client, uint8_t mode, const char *filePath, size_t fileSizeUncompressed,
+    size_t fileSizeCompressed); ///< filesystem-based frontend to TransferData
 UDSErr_t UDSCtrlDTCSetting(UDSClient_t *client, uint8_t dtcSettingType,
-                           uint8_t *dtcSettingControlOptionRecord, uint16_t len);
+                           uint8_t *dtcSettingControlOptionRecord,
+                           uint16_t len); ///< control DTC setting
 UDSErr_t UDSUnpackRDBIResponse(UDSClient_t *client, UDSRDBIVar_t *vars, uint16_t numVars);
 UDSErr_t UDSUnpackSecurityAccessResponse(const UDSClient_t *client,
                                          struct SecurityAccessResponse *resp);

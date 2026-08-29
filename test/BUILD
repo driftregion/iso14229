@@ -112,7 +112,7 @@ sh_test(
     args = ["$(locations //src:iso14229.h)"],
     data = [
         "//src:iso14229.h",
-        "//:README.md",
+        "//:CHANGELOG",
         "//:Doxyfile",
     ],
 )

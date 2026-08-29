@@ -1403,6 +1403,7 @@ static UDSErr_t Handle_0x87_LinkControl(UDSServer_t *srv, UDSReq_t *r) {
     return UDS_PositiveResponse;
 }
 
+/// signature of internal service handlers
 typedef UDSErr_t (*UDSService)(UDSServer_t *srv, UDSReq_t *r);
 
 /**

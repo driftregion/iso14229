@@ -6,11 +6,17 @@
 #include "log.h"
 #include <stdint.h>
 
-// Client request states
-#define STATE_IDLE 0
-#define STATE_SENDING 1
-#define STATE_AWAIT_SEND_COMPLETE 2
-#define STATE_AWAIT_RESPONSE 3
+/**
+ * @defgroup client_request_states valid values of UDSClient_t::state
+ * @brief internal state machine states for a single client request
+ * @see UDSClient_t::state
+ * @{
+ */
+#define STATE_IDLE 0                /**< no request in progress */
+#define STATE_SENDING 1             /**< request is being transmitted */
+#define STATE_AWAIT_SEND_COMPLETE 2 /**< waiting for the transport to finish sending */
+#define STATE_AWAIT_RESPONSE 3      /**< request sent, awaiting server response */
+/** @} */
 
 UDSErr_t UDSClientInit(UDSClient_t *client) {
     if (NULL == client) {
@@ -179,7 +185,8 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
     case STATE_SENDING: {
         {
             UDSSDU_t info = {0};
-            UDSTpSize_t len = UDSTpRecv(client->tp, client->recv_buf, sizeof(client->recv_buf), &info);
+            UDSTpSize_t len =
+                UDSTpRecv(client->tp, client->recv_buf, sizeof(client->recv_buf), &info);
             if (len < 0) {
                 UDS_LOGE(__FILE__, "transport returned error %" PRId32, len);
             } else if (len == 0) {

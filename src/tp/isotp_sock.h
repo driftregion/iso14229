@@ -4,6 +4,9 @@
 #include "tp.h"
 #include "uds.h"
 
+/**
+ * @brief linux ISO-TP socket implementation of \ref UDSTp_t
+ */
 typedef struct {
     UDSTp_t hdl;
     uint8_t recv_buf[UDS_ISOTP_MTU];

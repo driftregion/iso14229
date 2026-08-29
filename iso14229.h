@@ -13,7 +13,7 @@ extern "C" {
 #endif
 
 
-#define UDS_LIB_VERSION "0.9.0"
+#define UDS_LIB_VERSION "0.10.0"
 
 
 
@@ -234,7 +234,7 @@ typedef struct {
 #define UDS_TP_NOOP_ADDR (0xFFFFFFFF)
 
 /** @brief Signed size type used by the transport layer interface (byte count, or negative on
- *  error). Library-owned so the API doesn't depend on the POSIX `ssize_t` type. */
+ *  error). */
 typedef int32_t UDSTpSize_t;
 
 /**
@@ -574,21 +574,25 @@ enum UDSDiagnosticServiceId {
 
 
 #ifndef UDS_ASSERT
-#include <assert.h>
 #define UDS_ASSERT(x) assert(x)
 #endif
 
-/* returns true if `a` is after `b` */
+/**
+ * @brief Check whether one timestamp is after another, correctly handling wrap-around
+ * @param a: timestamp to check
+ * @param b: reference timestamp
+ * @return true if `a` is after `b`
+ */
 static inline bool UDSTimeAfter(uint32_t a, uint32_t b) { return (int32_t)(a - b) > 0; }
 
 /**
  * @brief Get time in milliseconds
  * @return current time in milliseconds
+ * @note implementers must ensure the return value is monotonically increasing between
+ * calls. The value must never go backwards.
+ * Wrap-around (overflow back to 0) is expected; this is handled by UDSTimeAfter.
  */
 uint32_t UDSMillis(void);
-
-bool UDSSecurityAccessLevelIsReserved(uint8_t securityLevel);
-bool UDSErrIsNRC(UDSErr_t err);
 
 const char *UDSErrToStr(UDSErr_t err);
 const char *UDSEventToStr(UDSEvent_t evt);
@@ -601,12 +605,18 @@ const char *UDSEventToStr(UDSEvent_t evt);
  */
 
 
-#define UDS_LOG_NONE 0    // No log output
-#define UDS_LOG_ERROR 1   // Log errors only
-#define UDS_LOG_WARN 2    // Log warnings and errors
-#define UDS_LOG_INFO 3    // Log info, warnings, and errors
-#define UDS_LOG_DEBUG 4   // Log debug, info, warnings, and errors
-#define UDS_LOG_VERBOSE 5 // Log verbose, debug, info, warnings, and errors
+/**
+ * @defgroup UDS_LOG_LEVEL_ valid values for UDS_LOG_LEVEL
+ * @brief configures logging verbosity
+ * @{
+ */
+#define UDS_LOG_NONE 0    /**< No log output */
+#define UDS_LOG_ERROR 1   /**< Log errors only */
+#define UDS_LOG_WARN 2    /**< Log warnings and errors */
+#define UDS_LOG_INFO 3    /**< Log info, warnings, and errors */
+#define UDS_LOG_DEBUG 4   /**< Log debug, info, warnings, and errors */
+#define UDS_LOG_VERBOSE 5 /**< Log verbose, debug, info, warnings, and errors */
+/** @} */
 
 typedef int UDS_LogLevel_t;
 
@@ -727,7 +737,7 @@ typedef struct UDSClient {
     UDSTp_t *tp;         /**< transport layer handle */
 
     uint32_t p2_timer; /**< p2 timer value */
-    uint8_t state;     /**< client request state */
+    uint8_t state;     /**< client request state, @see client_request_states */
 
     uint8_t options;                        /**< current request options */
     uint8_t defaultOptions;                 /**< default options for all requests */
@@ -780,38 +790,38 @@ typedef struct {
     void *(*UnpackFn)(void *dst, const void *src, size_t n); /**< optional unpack function */
 } UDSRDBIVar_t;
 
-UDSErr_t UDSClientInit(UDSClient_t *client);
-UDSErr_t UDSClientPoll(UDSClient_t *client);
-UDSErr_t UDSSendBytes(UDSClient_t *client, const uint8_t *data, uint16_t size);
-UDSErr_t UDSSendECUReset(UDSClient_t *client, uint8_t type);
-UDSErr_t UDSSendDiagSessCtrl(UDSClient_t *client, uint8_t mode);
-UDSErr_t UDSSendSecurityAccess(UDSClient_t *client, uint8_t level, uint8_t *data, uint16_t size);
-UDSErr_t UDSSendCommCtrl(UDSClient_t *client, uint8_t ctrl, uint8_t comm);
-UDSErr_t UDSSendRDBI(UDSClient_t *client, const uint16_t *didList,
-                     const uint16_t numDataIdentifiers);
+UDSErr_t UDSClientInit(UDSClient_t *client); ///< Call this once
+UDSErr_t UDSClientPoll(UDSClient_t *client); ///< Call at <5ms intervals
+UDSErr_t UDSSendBytes(UDSClient_t *client, const uint8_t *data, uint16_t size); ///< Send user-defined bytes to a UDS server
+UDSErr_t UDSSendECUReset(UDSClient_t *client, uint8_t type); ///< Request ECUReset
+UDSErr_t UDSSendDiagSessCtrl(UDSClient_t *client, uint8_t mode); ///< Change the diagnostic session
+UDSErr_t UDSSendSecurityAccess(UDSClient_t *client, uint8_t level, uint8_t *data, uint16_t size); ///< Get Security Access
+UDSErr_t UDSSendCommCtrl(UDSClient_t *client, uint8_t ctrl, uint8_t comm); ///< Change communication settings
+UDSErr_t UDSSendRDBI(UDSClient_t *client, const uint16_t *didList, 
+                     const uint16_t numDataIdentifiers); ///< Read Data By Identifier
 UDSErr_t UDSSendWDBI(UDSClient_t *client, uint16_t dataIdentifier, const uint8_t *data,
-                     uint16_t size);
-UDSErr_t UDSSendTesterPresent(UDSClient_t *client);
+                     uint16_t size); ///< Write Data By Identifier
+UDSErr_t UDSSendTesterPresent(UDSClient_t *client); ///< What's up?
 UDSErr_t UDSSendRoutineCtrl(UDSClient_t *client, uint8_t type, uint16_t routineIdentifier,
-                            const uint8_t *data, uint16_t size);
+                            const uint8_t *data, uint16_t size); ///< Request to Twiddle Routines  
 
 UDSErr_t UDSSendRequestDownload(UDSClient_t *client, uint8_t dataFormatIdentifier,
                                 uint8_t addressAndLengthFormatIdentifier, size_t memoryAddress,
-                                size_t memorySize);
+                                size_t memorySize); ///< Request to Download via TransferData
 
 UDSErr_t UDSSendRequestUpload(UDSClient_t *client, uint8_t dataFormatIdentifier,
                               uint8_t addressAndLengthFormatIdentifier, size_t memoryAddress,
-                              size_t memorySize);
+                              size_t memorySize); ///< Request to Upload via TransferData
 UDSErr_t UDSSendTransferData(UDSClient_t *client, uint8_t blockSequenceCounter,
-                             const uint16_t blockLength, const uint8_t *data, uint16_t size);
+                             const uint16_t blockLength, const uint8_t *data, uint16_t size); ///< Transfer Data to/from a buffer
 UDSErr_t UDSSendTransferDataStream(UDSClient_t *client, uint8_t blockSequenceCounter,
-                                   const uint16_t blockLength, FILE *fd);
-UDSErr_t UDSSendRequestTransferExit(UDSClient_t *client);
+                                   const uint16_t blockLength, FILE *fd); ///< Transfer Data to/from a file
+UDSErr_t UDSSendRequestTransferExit(UDSClient_t *client); ///< Call this when finished with TransferData 
 
 UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, uint8_t mode, const char *filePath,
-                                    size_t fileSizeUncompressed, size_t fileSizeCompressed);
+                                    size_t fileSizeUncompressed, size_t fileSizeCompressed); ///< filesystem-based frontend to TransferData
 UDSErr_t UDSCtrlDTCSetting(UDSClient_t *client, uint8_t dtcSettingType,
-                           uint8_t *dtcSettingControlOptionRecord, uint16_t len);
+                           uint8_t *dtcSettingControlOptionRecord, uint16_t len); ///< control DTC setting
 UDSErr_t UDSUnpackRDBIResponse(UDSClient_t *client, UDSRDBIVar_t *vars, uint16_t numVars);
 UDSErr_t UDSUnpackSecurityAccessResponse(const UDSClient_t *client,
                                          struct SecurityAccessResponse *resp);
@@ -1635,6 +1645,9 @@ int isotp_receive(IsoTpLink *link, uint8_t *payload, const uint16_t payload_size
 #if defined(UDS_TP_ISOTP_C)
 
 
+/**
+ * @brief isotp-c implementation of \ref UDSTp_t
+ */
 typedef struct {
     UDSTp_t hdl;
     IsoTpLink phys_link;
@@ -1645,18 +1658,24 @@ typedef struct {
     uint8_t func_recv_buf[8];
     uint32_t phys_sa, phys_ta;
     uint32_t func_sa, func_ta;
-} UDSISOTpC_t;
+} UDSTpISOTpC_t;
 
+/**
+ * @brief arguments for \ref UDSTpISOTpCInit
+ */
 typedef struct {
     uint32_t source_addr;
     uint32_t target_addr;
     uint32_t source_addr_func;
     uint32_t target_addr_func;
-} UDSISOTpCConfig_t;
+} UDSTpISOTpCConfig_t;
 
-UDSErr_t UDSISOTpCInit(UDSISOTpC_t *tp, const UDSISOTpCConfig_t *cfg);
+/**
+ * @brief Initialize isotp-c transport
+ */
+UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, const UDSTpISOTpCConfig_t *cfg);
 
-void UDSISOTpCDeinit(UDSISOTpC_t *tp);
+void UDSTpISOTpCDeinit(UDSTpISOTpC_t *tp);
 
 #endif
 
@@ -1665,6 +1684,10 @@ void UDSISOTpCDeinit(UDSISOTpC_t *tp);
 #if defined(UDS_TP_ISOTP_C_SOCKETCAN)
 
 
+
+/**
+ * @brief isotp-c over SocketCAN implementation of \ref UDSTp_t
+ */
 typedef struct {
     UDSTp_t hdl;
     IsoTpLink phys_link;
@@ -1675,12 +1698,12 @@ typedef struct {
     uint32_t phys_sa, phys_ta;
     uint32_t func_sa, func_ta;
     char tag[16];
-} UDSTpISOTpC_t;
+} UDSTpISOTpCSocketCAN_t;
 
-UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, const char *ifname, uint32_t source_addr,
+UDSErr_t UDSTpISOTpCSocketCANInit(UDSTpISOTpCSocketCAN_t *tp, const char *ifname, uint32_t source_addr,
                          uint32_t target_addr, uint32_t source_addr_func,
                          uint32_t target_addr_func);
-void UDSTpISOTpCDeinit(UDSTpISOTpC_t *tp);
+void UDSTpISOTpCSocketCANDeinit(UDSTpISOTpCSocketCAN_t *tp);
 
 #endif
 
@@ -1688,6 +1711,9 @@ void UDSTpISOTpCDeinit(UDSTpISOTpC_t *tp);
 #if defined(UDS_TP_ISOTP_SOCK)
 
 
+/**
+ * @brief linux ISO-TP socket implementation of \ref UDSTp_t
+ */
 typedef struct {
     UDSTp_t hdl;
     uint8_t recv_buf[UDS_ISOTP_MTU];
@@ -1710,14 +1736,10 @@ void UDSTpIsoTpSockDeinit(UDSTpIsoTpSock_t *tp);
 #endif
 
 
-/**
- * @file isotp_mock.h
- * @brief in-memory ISO15765 (ISO-TP) transport layer implementation for testing
- * @date 2023-10-21
- *
- */
 #if defined(UDS_TP_ISOTP_MOCK)
 
+
+/// \cond INTERNAL_INTERFACE
 
 
 typedef struct ISOTPMock {
@@ -1763,6 +1785,8 @@ void ISOTPMockLogToStdout(void);
  * @brief clear all transports and close the log file
  */
 void ISOTPMockReset(void);
+
+/// \endcond INTERNAL_INTERFACE
 
 #endif
 

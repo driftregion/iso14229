@@ -12,18 +12,14 @@
 #endif
 
 
-/*
- * Serializes n bytes of val to *dst in big-endian format.
- */
+/// Serializes n bytes of val to *dst in big-endian format.
 static inline void StoreBE(uint8_t *dst, uint64_t val, size_t n) {
     for (size_t i = 0; i < n; i++) {
         dst[i] = (uint8_t)(val >> (8 * (n - 1 - i)));
     }
 }
 
-/*
- * Mirror operation
- */
+/// Mirror operation to StoreBE
 static inline uint64_t LoadBE(const uint8_t *src, size_t n) {
     uint64_t val = 0;
     for (size_t i = 0; i < n; i++) {
@@ -32,17 +28,29 @@ static inline uint64_t LoadBE(const uint8_t *src, size_t n) {
     return val;
 }
 
+/// returns true if a security level is reserved per ISO14229-1:2020 Table 42
+bool UDSSecurityAccessLevelIsReserved(uint8_t securityLevel);
+
+/// returns true if err is defined in ISO14229-1:2020 as an NRC
+bool UDSErrIsNRC(UDSErr_t err);
+
 
 #ifdef UDS_LINES
 #line 1 "src/client.c"
 #endif
 #include <stdint.h>
 
-// Client request states
-#define STATE_IDLE 0
-#define STATE_SENDING 1
-#define STATE_AWAIT_SEND_COMPLETE 2
-#define STATE_AWAIT_RESPONSE 3
+/**
+ * @defgroup client_request_states valid values of UDSClient_t::state
+ * @brief internal state machine states for a single client request
+ * @see UDSClient_t::state
+ * @{
+ */
+#define STATE_IDLE 0                /**< no request in progress */
+#define STATE_SENDING 1             /**< request is being transmitted */
+#define STATE_AWAIT_SEND_COMPLETE 2 /**< waiting for the transport to finish sending */
+#define STATE_AWAIT_RESPONSE 3      /**< request sent, awaiting server response */
+/** @} */
 
 UDSErr_t UDSClientInit(UDSClient_t *client) {
     if (NULL == client) {
@@ -2360,6 +2368,7 @@ static UDSErr_t Handle_0x87_LinkControl(UDSServer_t *srv, UDSReq_t *r) {
     return UDS_PositiveResponse;
 }
 
+/// signature of internal service handlers
 typedef UDSErr_t (*UDSService)(UDSServer_t *srv, UDSReq_t *r);
 
 /**
@@ -2694,13 +2703,6 @@ uint32_t UDSMillis(void) {
 }
 #endif
 
-/**
- * @brief Check if a security level is reserved per ISO14229-1:2020 Table 42
- *
- * @param securityLevel
- * @return true
- * @return false
- */
 bool UDSSecurityAccessLevelIsReserved(uint8_t subFunction) {
     uint8_t securityLevel = subFunction & 0x3F;
     if (0u == securityLevel) {
@@ -3023,7 +3025,7 @@ void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *bu
 static UDSTpStatus_t tp_poll(UDSTp_t *hdl) {
     UDS_ASSERT(hdl);
     UDSTpStatus_t status = 0;
-    UDSISOTpC_t *impl = (UDSISOTpC_t *)hdl;
+    UDSTpISOTpC_t *impl = (UDSTpISOTpC_t *)hdl;
     isotp_poll(&impl->phys_link);
     isotp_poll(&impl->func_link);
     if (impl->phys_link.send_status == ISOTP_SEND_STATUS_INPROGRESS) {
@@ -3035,7 +3037,7 @@ static UDSTpStatus_t tp_poll(UDSTp_t *hdl) {
 static UDSTpSize_t tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     UDSTpSize_t ret = -1;
-    UDSISOTpC_t *tp = (UDSISOTpC_t *)hdl;
+    UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
     IsoTpLink *link = NULL;
     const UDSTpAddr_t ta_type = info ? info->A_TA_Type : UDS_A_TA_TYPE_PHYSICAL;
     switch (ta_type) {
@@ -3074,7 +3076,7 @@ static UDSTpSize_t tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t 
     UDS_ASSERT(hdl);
     UDS_ASSERT(buf);
     uint16_t out_size = 0;
-    UDSISOTpC_t *tp = (UDSISOTpC_t *)hdl;
+    UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
 
     int ret = isotp_receive(&tp->phys_link, buf, bufsize, &out_size);
     if (ret == ISOTP_RET_OK) {
@@ -3104,7 +3106,7 @@ static UDSTpSize_t tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t 
     return out_size;
 }
 
-UDSErr_t UDSISOTpCInit(UDSISOTpC_t *tp, const UDSISOTpCConfig_t *cfg) {
+UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, const UDSTpISOTpCConfig_t *cfg) {
     if (cfg == NULL || tp == NULL) {
         return UDS_ERR_INVALID_ARG;
     }
@@ -3199,7 +3201,7 @@ int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t *data, cons
     return ISOTP_RET_OK;
 }
 
-static void SocketCANRecv(UDSTpISOTpC_t *tp) {
+static void SocketCANRecv(UDSTpISOTpCSocketCAN_t *tp) {
     UDS_ASSERT(tp);
     struct can_frame frame = {0};
     int nbytes = 0;
@@ -3233,7 +3235,7 @@ static void SocketCANRecv(UDSTpISOTpC_t *tp) {
 static UDSTpStatus_t isotp_c_socketcan_tp_poll(UDSTp_t *hdl) {
     UDS_ASSERT(hdl);
     UDSTpStatus_t status = 0;
-    UDSTpISOTpC_t *impl = (UDSTpISOTpC_t *)hdl;
+    UDSTpISOTpCSocketCAN_t *impl = (UDSTpISOTpCSocketCAN_t *)hdl;
     SocketCANRecv(impl);
     isotp_poll(&impl->phys_link);
     if (impl->phys_link.send_status == ISOTP_SEND_STATUS_INPROGRESS) {
@@ -3248,7 +3250,7 @@ static UDSTpStatus_t isotp_c_socketcan_tp_poll(UDSTp_t *hdl) {
 static UDSTpSize_t isotp_c_socketcan_tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     UDSTpSize_t ret = -1;
-    UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
+    UDSTpISOTpCSocketCAN_t *tp = (UDSTpISOTpCSocketCAN_t *)hdl;
     IsoTpLink *link = NULL;
     const UDSTpAddr_t ta_type = info ? info->A_TA_Type : UDS_A_TA_TYPE_PHYSICAL;
     const uint32_t ta = ta_type == UDS_A_TA_TYPE_PHYSICAL ? tp->phys_ta : tp->func_ta;
@@ -3292,7 +3294,7 @@ static UDSTpSize_t isotp_c_socketcan_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t 
     UDS_ASSERT(hdl);
     UDS_ASSERT(buf);
     uint16_t out_size = 0;
-    UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
+    UDSTpISOTpCSocketCAN_t *tp = (UDSTpISOTpCSocketCAN_t *)hdl;
 
     int ret = isotp_receive(&tp->phys_link, buf, bufsize, &out_size);
     if (ret == ISOTP_RET_OK) {
@@ -3322,7 +3324,7 @@ static UDSTpSize_t isotp_c_socketcan_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t 
     return out_size;
 }
 
-UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, const char *ifname, uint32_t source_addr,
+UDSErr_t UDSTpISOTpCSocketCANInit(UDSTpISOTpCSocketCAN_t *tp, const char *ifname, uint32_t source_addr,
                          uint32_t target_addr, uint32_t source_addr_func,
                          uint32_t target_addr_func) {
     UDS_ASSERT(tp);
@@ -3347,7 +3349,7 @@ UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, const char *ifname, uint32_t source_
     return UDS_OK;
 }
 
-void UDSTpISOTpCDeinit(UDSTpISOTpC_t *tp) {
+void UDSTpISOTpCSocketCANDeinit(UDSTpISOTpCSocketCAN_t *tp) {
     UDS_ASSERT(tp);
     close(tp->fd);
     tp->fd = -1;
@@ -3642,6 +3644,8 @@ void UDSTpIsoTpSockDeinit(UDSTpIsoTpSock_t *tp) {
 #endif
 #if defined(UDS_TP_ISOTP_MOCK)
 
+/// \cond INTERNAL_INTERFACE
+
 #include <assert.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -3859,6 +3863,8 @@ void ISOTPMockFree(UDSTp_t *tp) {
     ISOTPMockDetach(tpm);
     free(tp);
 }
+
+/// \endcond INTERNAL_INTERFACE
 
 #endif
 

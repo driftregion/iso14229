@@ -131,9 +131,3 @@ Client behavior can be configured at compile-time:
 | `UDS_CLIENT_SEND_BUF_SIZE` | 4095 | Send buffer size |
 | `UDS_CLIENT_RECV_BUF_SIZE` | 4095 | Receive buffer size |
 
-## See Also
-
-- \ref server.h "Server API"
-- \ref tp.h "Transport Layer API"
-- \ref examples/linux_rdbi_wdbi/client.c "RDBI/WDBI Client Example"
-- \ref examples/linux_server_0x27/client.c "Security Access Client Example"

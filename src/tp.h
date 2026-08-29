@@ -47,7 +47,7 @@ typedef struct {
 #define UDS_TP_NOOP_ADDR (0xFFFFFFFF)
 
 /** @brief Signed size type used by the transport layer interface (byte count, or negative on
- *  error). Library-owned so the API doesn't depend on the POSIX `ssize_t` type. */
+ *  error). */
 typedef int32_t UDSTpSize_t;
 
 /**

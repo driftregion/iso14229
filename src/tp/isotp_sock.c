@@ -119,8 +119,7 @@ static UDSTpSize_t isotp_sock_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize
         }
 
         UDS_LOGD(__FILE__, "'%s' received %" PRId32 " bytes from 0x%03x (%s), ", impl->tag, ret,
-                 msg->A_TA,
-                 msg->A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
+                 msg->A_TA, msg->A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
         UDS_LOG_SDU(__FILE__, impl->recv_buf, ret, msg);
     }
 

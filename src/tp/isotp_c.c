@@ -8,7 +8,7 @@
 static UDSTpStatus_t tp_poll(UDSTp_t *hdl) {
     UDS_ASSERT(hdl);
     UDSTpStatus_t status = 0;
-    UDSISOTpC_t *impl = (UDSISOTpC_t *)hdl;
+    UDSTpISOTpC_t *impl = (UDSTpISOTpC_t *)hdl;
     isotp_poll(&impl->phys_link);
     isotp_poll(&impl->func_link);
     if (impl->phys_link.send_status == ISOTP_SEND_STATUS_INPROGRESS) {
@@ -20,7 +20,7 @@ static UDSTpStatus_t tp_poll(UDSTp_t *hdl) {
 static UDSTpSize_t tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     UDSTpSize_t ret = -1;
-    UDSISOTpC_t *tp = (UDSISOTpC_t *)hdl;
+    UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
     IsoTpLink *link = NULL;
     const UDSTpAddr_t ta_type = info ? info->A_TA_Type : UDS_A_TA_TYPE_PHYSICAL;
     switch (ta_type) {
@@ -59,7 +59,7 @@ static UDSTpSize_t tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t 
     UDS_ASSERT(hdl);
     UDS_ASSERT(buf);
     uint16_t out_size = 0;
-    UDSISOTpC_t *tp = (UDSISOTpC_t *)hdl;
+    UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
 
     int ret = isotp_receive(&tp->phys_link, buf, bufsize, &out_size);
     if (ret == ISOTP_RET_OK) {
@@ -89,7 +89,7 @@ static UDSTpSize_t tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t 
     return out_size;
 }
 
-UDSErr_t UDSISOTpCInit(UDSISOTpC_t *tp, const UDSISOTpCConfig_t *cfg) {
+UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, const UDSTpISOTpCConfig_t *cfg) {
     if (cfg == NULL || tp == NULL) {
         return UDS_ERR_INVALID_ARG;
     }

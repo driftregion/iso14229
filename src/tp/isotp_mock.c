@@ -1,5 +1,7 @@
 #if defined(UDS_TP_ISOTP_MOCK)
 
+/// \cond INTERNAL_INTERFACE
+
 #include "tp/isotp_mock.h"
 #include "iso14229.h"
 #include <assert.h>
@@ -219,5 +221,7 @@ void ISOTPMockFree(UDSTp_t *tp) {
     ISOTPMockDetach(tpm);
     free(tp);
 }
+
+/// \endcond INTERNAL_INTERFACE
 
 #endif

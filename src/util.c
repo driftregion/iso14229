@@ -26,13 +26,6 @@ uint32_t UDSMillis(void) {
 }
 #endif
 
-/**
- * @brief Check if a security level is reserved per ISO14229-1:2020 Table 42
- *
- * @param securityLevel
- * @return true
- * @return false
- */
 bool UDSSecurityAccessLevelIsReserved(uint8_t subFunction) {
     uint8_t securityLevel = subFunction & 0x3F;
     if (0u == securityLevel) {
