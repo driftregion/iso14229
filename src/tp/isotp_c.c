@@ -16,9 +16,9 @@ static UDSTpStatus_t tp_poll(UDSTp_t *hdl) {
     return status;
 }
 
-static ssize_t tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
+static UDSTpSize_t tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
     UDS_ASSERT(hdl);
-    ssize_t ret = -1;
+    UDSTpSize_t ret = -1;
     UDSISOTpC_t *tp = (UDSISOTpC_t *)hdl;
     IsoTpLink *link = NULL;
     const UDSTpAddr_t ta_type = info ? info->A_TA_Type : UDS_A_TA_TYPE_PHYSICAL;
@@ -54,7 +54,7 @@ done:
     return ret;
 }
 
-static ssize_t tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
+static UDSTpSize_t tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     UDS_ASSERT(buf);
     uint16_t out_size = 0;

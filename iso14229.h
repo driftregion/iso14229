@@ -39,17 +39,19 @@ extern "C" {
 
 #endif
 
+#include <assert.h>
+#include <inttypes.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+
 
 
 
 #if UDS_SYS == UDS_SYS_ARDUINO
 
-#include <assert.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <string.h>
-#include <stdio.h>
-#include <inttypes.h>
 #include <Arduino.h>
 
 #ifndef UDS_TP_ISOTP_C
@@ -62,13 +64,6 @@ extern "C" {
 
 #if UDS_SYS == UDS_SYS_UNIX
 
-#include <assert.h>
-#include <inttypes.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <time.h>
@@ -79,15 +74,8 @@ extern "C" {
 
 #if UDS_SYS == UDS_SYS_WINDOWS
 
-#include <stdint.h>
-#include <stdbool.h>
 #include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <inttypes.h>
 #include <time.h>
-#include <BaseTsd.h>
-typedef SSIZE_T ssize_t;
 
 #ifdef _MSC_VER
 #define strncasecmp _strnicmp
@@ -100,8 +88,6 @@ typedef SSIZE_T ssize_t;
 
 #if UDS_SYS == UDS_SYS_ESP32
 
-#include <string.h>
-#include <inttypes.h>
 #include <esp_timer.h>
 
 #define UDS_TP_ISOTP_C 1
@@ -247,6 +233,10 @@ typedef struct {
 
 #define UDS_TP_NOOP_ADDR (0xFFFFFFFF)
 
+/** @brief Signed size type used by the transport layer interface (byte count, or negative on
+ *  error). Library-owned so the API doesn't depend on the POSIX `ssize_t` type. */
+typedef int32_t UDSTpSize_t;
+
 /**
  * @brief UDS Transport layer
  * @note implementers should embed this struct at offset zero in their own transport layer handle
@@ -260,7 +250,7 @@ typedef struct UDSTp {
      * @param info: pointer to SDU info (may be NULL). If NULL, implementation should send with
      * physical addressing
      */
-    ssize_t (*send)(struct UDSTp *hdl, uint8_t *buf, size_t len, UDSSDU_t *info);
+    UDSTpSize_t (*send)(struct UDSTp *hdl, uint8_t *buf, size_t len, UDSSDU_t *info);
 
     /**
      * @brief Receive data from the transport
@@ -270,7 +260,7 @@ typedef struct UDSTp {
      * @param info: pointer to SDU info to be updated by transport implementation. May be NULL. If
      * non-NULL, the transport implementation must populate it with valid values.
      */
-    ssize_t (*recv)(struct UDSTp *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info);
+    UDSTpSize_t (*recv)(struct UDSTp *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info);
 
     /**
      * @brief Poll the transport layer.
@@ -282,8 +272,8 @@ typedef struct UDSTp {
     UDSTpStatus_t (*poll)(struct UDSTp *hdl);
 } UDSTp_t;
 
-ssize_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, ssize_t len, UDSSDU_t *info);
-ssize_t UDSTpRecv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info);
+UDSTpSize_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, UDSTpSize_t len, UDSSDU_t *info);
+UDSTpSize_t UDSTpRecv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info);
 UDSTpStatus_t UDSTpPoll(UDSTp_t *hdl);
 
 

@@ -179,13 +179,13 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
     case STATE_SENDING: {
         {
             UDSSDU_t info = {0};
-            ssize_t len = UDSTpRecv(client->tp, client->recv_buf, sizeof(client->recv_buf), &info);
+            UDSTpSize_t len = UDSTpRecv(client->tp, client->recv_buf, sizeof(client->recv_buf), &info);
             if (len < 0) {
-                UDS_LOGE(__FILE__, "transport returned error %zd", len);
+                UDS_LOGE(__FILE__, "transport returned error %" PRId32, len);
             } else if (len == 0) {
                 ; // expected
             } else {
-                UDS_LOGW(__FILE__, "received %zd unexpected bytes:", len);
+                UDS_LOGW(__FILE__, "received %" PRId32 " unexpected bytes:", len);
                 UDS_LOG_SDU(__FILE__, client->recv_buf, len, &info);
             }
         }
@@ -199,10 +199,10 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
             .A_Mtype = UDS_A_MTYPE_DIAG,
             .A_TA_Type = ta_type,
         };
-        ssize_t ret = UDSTpSend(client->tp, client->send_buf, client->send_size, &info);
+        UDSTpSize_t ret = UDSTpSend(client->tp, client->send_buf, client->send_size, &info);
         if (ret < 0) {
             err = UDS_ERR_TPORT;
-            UDS_LOGI(__FILE__, "tport err: %zd", ret);
+            UDS_LOGI(__FILE__, "tport err: %" PRId32, ret);
         } else if (0 == ret) {
             UDS_LOGI(__FILE__, "send in progress...");
             ; // Waiting for send completion
@@ -235,7 +235,7 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
     case STATE_AWAIT_RESPONSE: {
         UDSSDU_t info = {0};
 
-        ssize_t len = UDSTpRecv(client->tp, client->recv_buf, sizeof(client->recv_buf), &info);
+        UDSTpSize_t len = UDSTpRecv(client->tp, client->recv_buf, sizeof(client->recv_buf), &info);
         if (len < 0) {
             err = UDS_ERR_TPORT;
             changeState(client, STATE_IDLE);
@@ -246,8 +246,8 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
                 changeState(client, STATE_IDLE);
             }
         } else {
-            UDS_LOGD(__FILE__, "received %zd bytes. Processing...", len);
-            UDS_ASSERT(len <= (ssize_t)UINT16_MAX);
+            UDS_LOGD(__FILE__, "received %" PRId32 " bytes. Processing...", len);
+            UDS_ASSERT(len <= (UDSTpSize_t)UINT16_MAX);
             client->recv_size = (uint16_t)len;
 
             err = ValidateServerResponse(client);

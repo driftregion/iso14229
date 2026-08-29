@@ -21,7 +21,6 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stm32g4xx_hal.h"
 #include "stm32g4xx_it.h"
-#include "stm32g4xx_nucleo.h"
 
 /** @addtogroup STM32G4xx_HAL_Examples
   * @{
@@ -153,9 +152,10 @@ void SysTick_Handler(void)
   * @param  None
   * @retval None
   */
-void EXTI15_10_IRQHandler(void)
+void FDCAN1_IT0_IRQHandler(void)
 {
-  HAL_GPIO_EXTI_IRQHandler(USER_BUTTON_PIN);
+  extern FDCAN_HandleTypeDef hfdcan1;
+  HAL_FDCAN_IRQHandler(&hfdcan1);
 }
 
 

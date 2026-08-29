@@ -1642,7 +1642,7 @@ void UDSServerPoll(UDSServer_t *srv) {
         }
 
         if (UDSTimeAfter(UDSMillis(), srv->p2_timer)) {
-            ssize_t ret = 0;
+            UDSTpSize_t ret = 0;
             if (r->send_len) {
                 ret = UDSTpSend(srv->tp, r->send_buf, r->send_len, NULL);
             }
@@ -1651,7 +1651,7 @@ void UDSServerPoll(UDSServer_t *srv) {
             if (ret < 0) {
                 UDSErr_t err = UDS_ERR_TPORT;
                 EmitEvent(srv, UDS_EVT_Err, &err);
-                UDS_LOGE(__FILE__, "UDSTpSend failed with %zd\n", ret);
+                UDS_LOGE(__FILE__, "UDSTpSend failed with %" PRId32 "\n", ret);
             }
 
             if (srv->RCRRP) {
@@ -1669,7 +1669,7 @@ void UDSServerPoll(UDSServer_t *srv) {
         if (srv->notReadyToReceive) {
             return; // cannot respond to request right now
         }
-        ssize_t len = UDSTpRecv(srv->tp, r->recv_buf, sizeof(r->recv_buf), &r->info);
+        UDSTpSize_t len = UDSTpRecv(srv->tp, r->recv_buf, sizeof(r->recv_buf), &r->info);
         if (len < 0) {
             UDS_LOGE(__FILE__, "UDSTpRecv failed with %zd\n", r->recv_len);
             return;

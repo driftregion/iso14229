@@ -1,11 +1,14 @@
+/***
 /**
  * @file iso14229.c
  * @brief ISO14229-1 (UDS) library
  * @copyright Copyright (c) Nick Kirkby
  * @see https://github.com/driftregion/iso14229
+ * @detail This is the amalgamated release.
  */
 
 #include "iso14229.h"
+
 
 #ifdef UDS_LINES
 #line 1 "src/util_private.h"
@@ -211,13 +214,13 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
     case STATE_SENDING: {
         {
             UDSSDU_t info = {0};
-            ssize_t len = UDSTpRecv(client->tp, client->recv_buf, sizeof(client->recv_buf), &info);
+            UDSTpSize_t len = UDSTpRecv(client->tp, client->recv_buf, sizeof(client->recv_buf), &info);
             if (len < 0) {
-                UDS_LOGE(__FILE__, "transport returned error %zd", len);
+                UDS_LOGE(__FILE__, "transport returned error %" PRId32, len);
             } else if (len == 0) {
                 ; // expected
             } else {
-                UDS_LOGW(__FILE__, "received %zd unexpected bytes:", len);
+                UDS_LOGW(__FILE__, "received %" PRId32 " unexpected bytes:", len);
                 UDS_LOG_SDU(__FILE__, client->recv_buf, len, &info);
             }
         }
@@ -231,10 +234,10 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
             .A_Mtype = UDS_A_MTYPE_DIAG,
             .A_TA_Type = ta_type,
         };
-        ssize_t ret = UDSTpSend(client->tp, client->send_buf, client->send_size, &info);
+        UDSTpSize_t ret = UDSTpSend(client->tp, client->send_buf, client->send_size, &info);
         if (ret < 0) {
             err = UDS_ERR_TPORT;
-            UDS_LOGI(__FILE__, "tport err: %zd", ret);
+            UDS_LOGI(__FILE__, "tport err: %" PRId32, ret);
         } else if (0 == ret) {
             UDS_LOGI(__FILE__, "send in progress...");
             ; // Waiting for send completion
@@ -267,7 +270,7 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
     case STATE_AWAIT_RESPONSE: {
         UDSSDU_t info = {0};
 
-        ssize_t len = UDSTpRecv(client->tp, client->recv_buf, sizeof(client->recv_buf), &info);
+        UDSTpSize_t len = UDSTpRecv(client->tp, client->recv_buf, sizeof(client->recv_buf), &info);
         if (len < 0) {
             err = UDS_ERR_TPORT;
             changeState(client, STATE_IDLE);
@@ -278,8 +281,8 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
                 changeState(client, STATE_IDLE);
             }
         } else {
-            UDS_LOGD(__FILE__, "received %zd bytes. Processing...", len);
-            UDS_ASSERT(len <= (ssize_t)UINT16_MAX);
+            UDS_LOGD(__FILE__, "received %" PRId32 " bytes. Processing...", len);
+            UDS_ASSERT(len <= (UDSTpSize_t)UINT16_MAX);
             client->recv_size = (uint16_t)len;
 
             err = ValidateServerResponse(client);
@@ -2599,7 +2602,7 @@ void UDSServerPoll(UDSServer_t *srv) {
         }
 
         if (UDSTimeAfter(UDSMillis(), srv->p2_timer)) {
-            ssize_t ret = 0;
+            UDSTpSize_t ret = 0;
             if (r->send_len) {
                 ret = UDSTpSend(srv->tp, r->send_buf, r->send_len, NULL);
             }
@@ -2608,7 +2611,7 @@ void UDSServerPoll(UDSServer_t *srv) {
             if (ret < 0) {
                 UDSErr_t err = UDS_ERR_TPORT;
                 EmitEvent(srv, UDS_EVT_Err, &err);
-                UDS_LOGE(__FILE__, "UDSTpSend failed with %zd\n", ret);
+                UDS_LOGE(__FILE__, "UDSTpSend failed with %" PRId32 "\n", ret);
             }
 
             if (srv->RCRRP) {
@@ -2626,7 +2629,7 @@ void UDSServerPoll(UDSServer_t *srv) {
         if (srv->notReadyToReceive) {
             return; // cannot respond to request right now
         }
-        ssize_t len = UDSTpRecv(srv->tp, r->recv_buf, sizeof(r->recv_buf), &r->info);
+        UDSTpSize_t len = UDSTpRecv(srv->tp, r->recv_buf, sizeof(r->recv_buf), &r->info);
         if (len < 0) {
             UDS_LOGE(__FILE__, "UDSTpRecv failed with %zd\n", r->recv_len);
             return;
@@ -2649,13 +2652,13 @@ void UDSServerPoll(UDSServer_t *srv) {
 #line 1 "src/tp.c"
 #endif
 
-ssize_t UDSTpSend(struct UDSTp *hdl, const uint8_t *buf, ssize_t len, UDSSDU_t *info) {
+UDSTpSize_t UDSTpSend(struct UDSTp *hdl, const uint8_t *buf, UDSTpSize_t len, UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     UDS_ASSERT(hdl->send);
     return hdl->send(hdl, (uint8_t *)buf, len, info);
 }
 
-ssize_t UDSTpRecv(struct UDSTp *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
+UDSTpSize_t UDSTpRecv(struct UDSTp *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     UDS_ASSERT(hdl->recv);
     return hdl->recv(hdl, buf, bufsize, info);
@@ -3031,9 +3034,9 @@ static UDSTpStatus_t tp_poll(UDSTp_t *hdl) {
     return status;
 }
 
-static ssize_t tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
+static UDSTpSize_t tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
     UDS_ASSERT(hdl);
-    ssize_t ret = -1;
+    UDSTpSize_t ret = -1;
     UDSISOTpC_t *tp = (UDSISOTpC_t *)hdl;
     IsoTpLink *link = NULL;
     const UDSTpAddr_t ta_type = info ? info->A_TA_Type : UDS_A_TA_TYPE_PHYSICAL;
@@ -3069,7 +3072,7 @@ done:
     return ret;
 }
 
-static ssize_t tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
+static UDSTpSize_t tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     UDS_ASSERT(buf);
     uint16_t out_size = 0;
@@ -3244,9 +3247,9 @@ static UDSTpStatus_t isotp_c_socketcan_tp_poll(UDSTp_t *hdl) {
     return status;
 }
 
-static ssize_t isotp_c_socketcan_tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
+static UDSTpSize_t isotp_c_socketcan_tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
     UDS_ASSERT(hdl);
-    ssize_t ret = -1;
+    UDSTpSize_t ret = -1;
     UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
     IsoTpLink *link = NULL;
     const UDSTpAddr_t ta_type = info ? info->A_TA_Type : UDS_A_TA_TYPE_PHYSICAL;
@@ -3286,7 +3289,7 @@ done:
     return ret;
 }
 
-static ssize_t isotp_c_socketcan_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize,
+static UDSTpSize_t isotp_c_socketcan_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize,
                                          UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     UDS_ASSERT(buf);
@@ -3434,13 +3437,13 @@ static UDSTpStatus_t isotp_sock_tp_poll(UDSTp_t *hdl) {
     return status;
 }
 
-static ssize_t tp_recv_once(int fd, uint8_t *buf, size_t size) {
-    ssize_t ret = read(fd, buf, size);
+static UDSTpSize_t tp_recv_once(int fd, uint8_t *buf, size_t size) {
+    UDSTpSize_t ret = read(fd, buf, size);
     if (ret < 0) {
         if (EAGAIN == errno || EWOULDBLOCK == errno) {
             ret = 0;
         } else {
-            UDS_LOGI(__FILE__, "read failed: %ld with errno: %d\n", ret, errno);
+            UDS_LOGI(__FILE__, "read failed: %" PRId32 " with errno: %d\n", ret, errno);
             if (EILSEQ == errno) {
                 UDS_LOGI(__FILE__, "Perhaps I received multiple responses?");
             }
@@ -3449,10 +3452,10 @@ static ssize_t tp_recv_once(int fd, uint8_t *buf, size_t size) {
     return ret;
 }
 
-static ssize_t isotp_sock_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
+static UDSTpSize_t isotp_sock_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     UDS_ASSERT(buf);
-    ssize_t ret = 0;
+    UDSTpSize_t ret = 0;
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
     UDSSDU_t *msg = &impl->recv_info;
 
@@ -3475,7 +3478,8 @@ static ssize_t isotp_sock_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UD
             *info = *msg;
         }
 
-        UDS_LOGD(__FILE__, "'%s' received %ld bytes from 0x%03x (%s), ", impl->tag, ret, msg->A_TA,
+        UDS_LOGD(__FILE__, "'%s' received %" PRId32 " bytes from 0x%03x (%s), ", impl->tag, ret,
+                 msg->A_TA,
                  msg->A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
         UDS_LOG_SDU(__FILE__, impl->recv_buf, ret, msg);
     }
@@ -3483,9 +3487,9 @@ static ssize_t isotp_sock_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UD
     return ret;
 }
 
-static ssize_t isotp_sock_tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
+static UDSTpSize_t isotp_sock_tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
     UDS_ASSERT(hdl);
-    ssize_t ret = -1;
+    UDSTpSize_t ret = -1;
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
     int fd;
     const UDSTpAddr_t ta_type = info ? info->A_TA_Type : UDS_A_TA_TYPE_PHYSICAL;
@@ -3701,7 +3705,7 @@ static void NetworkPoll(void) {
     }
 }
 
-static ssize_t mock_tp_send(struct UDSTp *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
+static UDSTpSize_t mock_tp_send(struct UDSTp *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
     if (MsgCount >= NUM_MSGS) {
@@ -3742,7 +3746,7 @@ static ssize_t mock_tp_send(struct UDSTp *hdl, uint8_t *buf, size_t len, UDSSDU_
     return len;
 }
 
-static ssize_t mock_tp_recv(struct UDSTp *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
+static UDSTpSize_t mock_tp_recv(struct UDSTp *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
     if (tp->recv_len == 0) {
@@ -3752,7 +3756,7 @@ static ssize_t mock_tp_recv(struct UDSTp *hdl, uint8_t *buf, size_t bufsize, UDS
         UDS_LOGW(__FILE__, "mock_tp_recv: buffer too small: %ld < %ld", bufsize, tp->recv_len);
         return -1;
     }
-    ssize_t len = (ssize_t)tp->recv_len;
+    UDSTpSize_t len = (UDSTpSize_t)tp->recv_len;
     memmove(buf, tp->recv_buf, tp->recv_len);
     if (info) {
         *info = tp->recv_info;

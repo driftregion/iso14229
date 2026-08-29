@@ -77,13 +77,13 @@ static UDSTpStatus_t isotp_sock_tp_poll(UDSTp_t *hdl) {
     return status;
 }
 
-static ssize_t tp_recv_once(int fd, uint8_t *buf, size_t size) {
-    ssize_t ret = read(fd, buf, size);
+static UDSTpSize_t tp_recv_once(int fd, uint8_t *buf, size_t size) {
+    UDSTpSize_t ret = read(fd, buf, size);
     if (ret < 0) {
         if (EAGAIN == errno || EWOULDBLOCK == errno) {
             ret = 0;
         } else {
-            UDS_LOGI(__FILE__, "read failed: %ld with errno: %d\n", ret, errno);
+            UDS_LOGI(__FILE__, "read failed: %" PRId32 " with errno: %d\n", ret, errno);
             if (EILSEQ == errno) {
                 UDS_LOGI(__FILE__, "Perhaps I received multiple responses?");
             }
@@ -92,10 +92,10 @@ static ssize_t tp_recv_once(int fd, uint8_t *buf, size_t size) {
     return ret;
 }
 
-static ssize_t isotp_sock_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
+static UDSTpSize_t isotp_sock_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     UDS_ASSERT(buf);
-    ssize_t ret = 0;
+    UDSTpSize_t ret = 0;
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
     UDSSDU_t *msg = &impl->recv_info;
 
@@ -118,7 +118,8 @@ static ssize_t isotp_sock_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UD
             *info = *msg;
         }
 
-        UDS_LOGD(__FILE__, "'%s' received %ld bytes from 0x%03x (%s), ", impl->tag, ret, msg->A_TA,
+        UDS_LOGD(__FILE__, "'%s' received %" PRId32 " bytes from 0x%03x (%s), ", impl->tag, ret,
+                 msg->A_TA,
                  msg->A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
         UDS_LOG_SDU(__FILE__, impl->recv_buf, ret, msg);
     }
@@ -126,9 +127,9 @@ static ssize_t isotp_sock_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UD
     return ret;
 }
 
-static ssize_t isotp_sock_tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
+static UDSTpSize_t isotp_sock_tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
     UDS_ASSERT(hdl);
-    ssize_t ret = -1;
+    UDSTpSize_t ret = -1;
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
     int fd;
     const UDSTpAddr_t ta_type = info ? info->A_TA_Type : UDS_A_TA_TYPE_PHYSICAL;

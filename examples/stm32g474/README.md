@@ -29,3 +29,14 @@ and flash
 cmake --build build --target flash
 ```
 
+On the host, send a tester present in one shell
+```sh
+cansend can0 7e0#023e000000000000 
+```
+
+and receive in the other
+```sh
+candump can0 
+  can0  7E0   [8]  02 3E 00 00 00 00 00 00
+  can0  7E8   [3]  02 7E 00
+```
