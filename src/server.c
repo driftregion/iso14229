@@ -2,6 +2,7 @@
 #include "config.h"
 #include "uds.h"
 #include "util.h"
+#include "util_private.h"
 #include "log.h"
 #include <stdint.h>
 
@@ -911,6 +912,15 @@ static void ResetTransfer(UDSServer_t *srv) {
     srv->xferIsActive = false;
 }
 
+static void BeginTransfer(UDSServer_t *srv, size_t xferTotalBytes, size_t xferBlockLength) {
+    UDS_ASSERT(srv);
+    srv->xferBlockSequenceCounter = 1;
+    srv->xferByteCounter = 0;
+    srv->xferTotalBytes = xferTotalBytes;
+    srv->xferBlockLength = xferBlockLength;
+    srv->xferIsActive = true;
+}
+
 static UDSErr_t Handle_0x34_RequestDownload(UDSServer_t *srv, UDSReq_t *r) {
     UDSErr_t err = UDS_PositiveResponse;
     void *memoryAddress = 0;
@@ -947,10 +957,7 @@ static UDSErr_t Handle_0x34_RequestDownload(UDSServer_t *srv, UDSReq_t *r) {
         return NegativeResponse(r, err);
     }
 
-    ResetTransfer(srv);
-    srv->xferIsActive = true;
-    srv->xferTotalBytes = memorySize;
-    srv->xferBlockLength = args.maxNumberOfBlockLength;
+    BeginTransfer(srv, memorySize, args.maxNumberOfBlockLength);
 
     // ISO-14229-1:2013 Table 401:
     uint8_t lengthFormatIdentifier = (uint8_t)(sizeof(args.maxNumberOfBlockLength) << 4);
@@ -1013,20 +1020,14 @@ static UDSErr_t Handle_0x35_RequestUpload(UDSServer_t *srv, UDSReq_t *r) {
         return NegativeResponse(r, err);
     }
 
-    ResetTransfer(srv);
-    srv->xferIsActive = true;
-    srv->xferTotalBytes = memorySize;
-    srv->xferBlockLength = args.maxNumberOfBlockLength;
+    BeginTransfer(srv, memorySize, args.maxNumberOfBlockLength);
 
     uint8_t lengthFormatIdentifier = (uint8_t)(sizeof(args.maxNumberOfBlockLength) << 4);
 
     r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_REQUEST_UPLOAD);
     r->send_buf[1] = lengthFormatIdentifier;
-    for (uint8_t idx = 0; idx < (uint8_t)sizeof(args.maxNumberOfBlockLength); idx++) {
-        uint8_t shiftBytes = (sizeof(args.maxNumberOfBlockLength) - 1 - idx) & 0xFF;
-        uint8_t byte = (args.maxNumberOfBlockLength >> (shiftBytes * 8)) & 0xFF;
-        r->send_buf[UDS_0X35_RESP_BASE_LEN + idx] = byte;
-    }
+    StoreBE(&r->send_buf[UDS_0X35_RESP_BASE_LEN], args.maxNumberOfBlockLength,
+            sizeof(args.maxNumberOfBlockLength));
     r->send_len = UDS_0X35_RESP_BASE_LEN + (size_t)sizeof(args.maxNumberOfBlockLength);
     return UDS_PositiveResponse;
 }
@@ -1131,7 +1132,7 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
         goto done;
     }
 
-    uint8_t mode_of_operation = r->recv_buf[1];
+    const uint8_t mode_of_operation = r->recv_buf[1];
 
     switch (mode_of_operation) {
     case UDS_MOOP_ADDFILE:
@@ -1139,16 +1140,14 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
     case UDS_MOOP_REPLFILE:
     case UDS_MOOP_RDFILE:
     case UDS_MOOP_RDDIR:
-        break;
     case UDS_MOOP_RSFILE:
-        err = UDS_NRC_SubFunctionNotSupported;
-        goto done;
+        break;
     default:
         err = UDS_NRC_IncorrectMessageLengthOrInvalidFormat;
         goto done;
     }
 
-    uint16_t file_path_len = (uint16_t)(((uint16_t)r->recv_buf[2] << 8) + (uint16_t)r->recv_buf[3]);
+    const uint16_t file_path_len = (uint16_t)LoadBE(&r->recv_buf[2], 2);
     uint8_t data_format_identifier = 0;
     uint8_t file_size_parameter_length = 0; // also called "k" in ISO14229:2020
     size_t file_size_uncompressed = 0;
@@ -1160,7 +1159,7 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
         goto done;
     }
 
-    if ((mode_of_operation == UDS_MOOP_DELFILE) || (mode_of_operation == UDS_MOOP_RDDIR)) {
+    if (mode_of_operation == UDS_MOOP_DELFILE || mode_of_operation == UDS_MOOP_RDDIR) {
         // ISO14229:2020 Table 481:
         // If the modeOfOperation parameter equals to 0x02 (DeleteFile) and 0x05 (ReadDir) this
         // parameter [dataFormatIdentifier] shall not be included in the request message.
@@ -1171,14 +1170,10 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
 
     if ((mode_of_operation == UDS_MOOP_DELFILE) || (mode_of_operation == UDS_MOOP_RDFILE) ||
         (mode_of_operation == UDS_MOOP_RDDIR)) {
-        // ISO14229:2020 Table 481:
+        // Paraphrasing ISO14229:2020 Table 481:
         // If the modeOfOperation parameter equals to 0x02 (DeleteFile), 0x04 (ReadFile) or 0x05
-        // (ReadDir) this parameter [fileSizeParameterLength] shall not be included in the request
-        // message. If the modeOfOperation parameter equals to 0x02 (DeleteFile), 0x04 (ReadFile) or
-        // 0x05 (ReadDir) this parameter [fileSizeUncompressed] shall not be included in the request
-        // message. If the modeOfOperation parameter equals to 0x02 (DeleteFile), 0x04 (ReadFile) or
-        // 0x05 (ReadDir) this parameter [fileSizeCompressed] shall not be included in the request
-        // message.
+        // (ReadDir) these parameters [fileSizeParameterLength, fileSizeUncompressed,
+        // fileSizeCompressed] shall not be included in the request message.
     } else {
         file_size_parameter_length = r->recv_buf[byte_idx];
         byte_idx++;
@@ -1216,6 +1211,8 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
         .dataFormatIdentifier = data_format_identifier,
         .fileSizeUnCompressed = file_size_uncompressed,
         .fileSizeCompressed = file_size_compressed,
+        .maxNumberOfBlockLength = UDS_TP_MTU,
+        .filePosition = 0,
     };
 
     err = EmitEvent(srv, UDS_EVT_RequestFileTransfer, &args);
@@ -1225,36 +1222,66 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
     }
 
     r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_REQUEST_FILE_TRANSFER);
-    r->send_buf[1] = args.modeOfOperation;
+    r->send_buf[1] = mode_of_operation;
 
     if (mode_of_operation == UDS_MOOP_DELFILE) {
         r->send_len = 2;
         goto done;
     }
 
-    ResetTransfer(srv);
-    srv->xferIsActive = true;
-    srv->xferTotalBytes = args.fileSizeCompressed;
-    srv->xferBlockLength = args.maxNumberOfBlockLength;
-
     if (args.maxNumberOfBlockLength > UDS_TP_MTU) {
+        UDS_LOGW(__FILE__, "Clamping maxNumberOfBlockLength %hu to %hu",
+                 args.maxNumberOfBlockLength, UDS_TP_MTU);
         args.maxNumberOfBlockLength = UDS_TP_MTU;
     }
 
-    // A_Data byte 3: lengthFormatIdentifier
+    BeginTransfer(srv, args.fileSizeCompressed, args.maxNumberOfBlockLength);
+
+    // lengthFormatIdentifier: A_Data byte 3
     r->send_buf[2] = (uint8_t)sizeof(args.maxNumberOfBlockLength);
     r->send_len = 3;
 
     // A_Data bytes 4 to 4+m-1: maxNumberOfBlockLength
-    for (uint8_t idx = 0; idx < (uint8_t)sizeof(args.maxNumberOfBlockLength); idx++) {
-        uint8_t shiftBytes = (uint8_t)(sizeof(args.maxNumberOfBlockLength) - 1 - idx);
-        uint8_t byte = (uint8_t)(args.maxNumberOfBlockLength >> (shiftBytes * 8));
-        r->send_buf[3 + idx] = byte;
+    StoreBE(&r->send_buf[r->send_len], args.maxNumberOfBlockLength,
+            sizeof(args.maxNumberOfBlockLength));
+    r->send_len += (size_t)sizeof(args.maxNumberOfBlockLength);
+
+    // daataFormatIdentifier: 0 if ReadDir
+    r->send_buf[r->send_len] = UDS_MOOP_RDDIR ? 0x00 : args.dataFormatIdentifier;
+    r->send_len += 1;
+
+    if (mode_of_operation == UDS_MOOP_ADDFILE || mode_of_operation == UDS_MOOP_DELFILE ||
+        mode_of_operation == UDS_MOOP_REPLFILE || mode_of_operation == UDS_MOOP_RSFILE) {
+        ;
+    } else {
+        // fileSizeOrDirInfoParameterLength
+        StoreBE(&r->send_buf[r->send_len], sizeof(args.fileSizeUnCompressed), 2);
+        r->send_len += 2;
+
+        // fileSizeUncompressedOrDirInfoLength
+        StoreBE(&r->send_buf[r->send_len], args.fileSizeUnCompressed,
+                sizeof(args.fileSizeUnCompressed));
+        r->send_len += sizeof(args.fileSizeUnCompressed);
+
+        if (mode_of_operation == UDS_MOOP_RDDIR) {
+            ;
+        } else {
+            // fileSizeCompressed
+            StoreBE(&r->send_buf[r->send_len], args.fileSizeCompressed,
+                    sizeof(args.fileSizeCompressed));
+            r->send_len += sizeof(args.fileSizeCompressed);
+        }
     }
 
-    r->send_buf[3 + (size_t)sizeof(args.maxNumberOfBlockLength)] = args.dataFormatIdentifier;
-
-    r->send_len = 3 + (size_t)sizeof(args.maxNumberOfBlockLength);
+    if (mode_of_operation == UDS_MOOP_ADDFILE || mode_of_operation == UDS_MOOP_DELFILE ||
+        mode_of_operation == UDS_MOOP_REPLFILE || mode_of_operation == UDS_MOOP_RDFILE ||
+        mode_of_operation == UDS_MOOP_RDDIR) {
+        ;
+    } else {
+        // filePosition
+        StoreBE(&r->send_buf[r->send_len], args.filePosition, sizeof(args.filePosition));
+        r->send_len += sizeof(args.filePosition);
+    }
 
 done:
     return err;

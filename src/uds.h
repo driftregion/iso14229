@@ -1,5 +1,7 @@
 #pragma once
 
+/** @file */
+
 /**
  * @enum UDSEvent_t
  * @brief UDS events
@@ -182,8 +184,10 @@ typedef enum {
 #define UDS_LEV_RCTP_RRR 3  // RequestRoutineResults
 
 /**
+ * @defgroup UDS_MOOP_ 0x38 RequestFileTransfer modeOfOperation
  * @brief modeOfOperation parameter used in 0x38 RequestFileTransfer
  * ISO14229-1:2020 Table G.1
+ * @{
  */
 #define UDS_MOOP_ADDFILE 1  // AddFile
 #define UDS_MOOP_DELFILE 2  // DeleteFile
@@ -191,6 +195,7 @@ typedef enum {
 #define UDS_MOOP_RDFILE 4   // ReadFile
 #define UDS_MOOP_RDDIR 5    // ReadDirectory
 #define UDS_MOOP_RSFILE 6   // ResumeFile
+/** @} */
 
 /**
  * @brief 0x85 ControlDTCSetting SubFunction = [dtcSettingType]
