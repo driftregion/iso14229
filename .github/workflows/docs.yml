@@ -29,7 +29,16 @@ jobs:
     - name: Install Doxygen
       run: |
         sudo apt-get update
-        sudo apt-get install -y doxygen graphviz
+        sudo apt-get install -y graphviz
+        # ubuntu-latest's apt repo only carries doxygen 1.9.8, which predates many tags
+        # this Doxyfile uses (PROJECT_ICON, GENERATE_REQUIREMENTS, the Mermaid options,
+        # etc.), producing a wall of "ignoring unsupported tag" warnings. Install a
+        # pinned recent release from upstream instead, matching local dev usage.
+        DOXYGEN_VERSION=1.18.0
+        curl -fsSL "https://github.com/doxygen/doxygen/releases/download/Release_${DOXYGEN_VERSION//./_}/doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz" -o doxygen.tar.gz
+        tar -xzf doxygen.tar.gz
+        sudo install -m755 "doxygen-${DOXYGEN_VERSION}/bin/doxygen" /usr/local/bin/doxygen
+        doxygen --version
 
     - name: Build documentation
       run: |
