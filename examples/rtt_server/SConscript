@@ -1,0 +1,54 @@
+from building import *
+import rtconfig
+import os
+
+cwd     = GetCurrentDir()
+
+# --- 1. 修复路径 (加上缺失的斜杠) ---
+# 之前是 cwd + 'main'，导致路径变成 .../rtt_servermain (错误的)
+path    = [cwd] 
+path    += [cwd + '/main'] 
+
+# --- 2. 调试：打印当前目录结构 ---
+print("DEBUG: Current Dir: " + cwd)
+try:
+    # 打印 main 目录下的真实文件列表，看看 SCons 到底能看到什么
+    files_in_main = os.listdir(os.path.join(cwd, 'main'))
+    print("DEBUG: Files in 'main' directory: " + str(files_in_main))
+except Exception as e:
+    print("DEBUG: Error listing 'main' directory: " + str(e))
+
+# --- 3. 获取源文件 ---
+# 尝试获取 main 下的所有 .c 文件
+src = Glob('main/*.c')
+
+# 调试：打印 Glob 找到的结果
+# 如果这里打印是空列表 []，说明 Glob 没匹配到文件
+print("DEBUG: Glob('main/*.c') found: " + str([str(s) for s in src]))
+
+# --- 4. 容错处理 ---
+# 如果 Glob 失败（可能是因为软链接问题），我们手动指定一下文件名试试
+if len(src) == 0:
+    print("DEBUG: Glob failed! Trying manual list...")
+    # 强制手动添加文件名，确保至少编译一个文件
+    # 注意：这里假设你的文件名是这些，请根据实际情况调整
+    manual_src = ['main/rtt_uds_example.c', 'main/iso14229.c']
+    for f in manual_src:
+        if os.path.exists(os.path.join(cwd, f)):
+            print("DEBUG: Found manual file: " + f)
+            src += [f]
+        else:
+            print("DEBUG: Manual file NOT found: " + f)
+
+# --- 5. 定义编译组 ---
+if GetDepend('PKG_USING_ISO14229'):
+    print("DEBUG: Compiling ISO14229 Group with " + str(len(src)) + " files.")
+    group = DefineGroup('can_uds', src, depend = ['PKG_USING_ISO14229'], CPPPATH = path,
+                        # [关键修复] 强制使用 C11 标准，并定义 __RTTHREAD__ 宏
+                        LOCAL_CCFLAGS = ['-std=c11'],
+                        CPPDEFINES = ['__RTTHREAD__'])
+else:
+    print("DEBUG: ISO14229 Disabled (depend check failed).")
+    group = []
+
+Return('group')

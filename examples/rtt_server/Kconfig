@@ -1,0 +1,111 @@
+menuconfig PKG_USING_ISO14229
+    bool "Enable iso14229 (UDS) library"
+    default n
+    help
+        ISO14229-1 (UDS) library for RT-Thread.
+        This library provides a platform-agnostic UDS client and server implementation.
+
+if PKG_USING_ISO14229
+
+    menu "Logging Configuration"
+        config UDS_LOG_LEVEL
+            int "Log level"
+            range 0 5
+            default 3
+            help
+                Set the log level for the UDS library.
+                0: No log output
+                1: Errors only
+                2: Warnings and errors
+                3: Info, warnings, and errors
+                4: Debug, info, warnings, and errors
+                5: Verbose, debug, info, warnings, and errors
+
+        config UDS_RTTHREAD_ULOG_ENABLED
+            bool "Use ULOG for logging"
+            default y
+            depends on RT_USING_ULOG
+            help
+                If enabled, the library will use RT-Thread's ULOG component.
+                Otherwise, it will fall back to rt_kprintf.
+
+        config UDS_CONFIG_LOG_COLORS
+            bool "Enable colorized log output (when not using ULOG)"
+            default y
+            depends on !UDS_RTTHREAD_ULOG_ENABLED
+            help
+                Enables ANSI color codes in the log output.
+                This option is only effective when ULOG is disabled, as ULOG
+                has its own color configuration (ULOG_OUTPUT_COLOR).
+
+        config UDS_RTTHREAD_LOG_BUFFER_SIZE
+            int "Buffer size for a single log message (if not using ULOG)"
+            default 256
+            depends on !UDS_RTTHREAD_ULOG_ENABLED
+            help
+                Specifies the size of the temporary buffer used to format
+                a single log message before printing. This is only active
+                when ULOG is disabled.
+    endmenu
+
+    config UDS_USING_EXAMPLE
+        bool "Enable UDS server example with Finsh/MSH commands"
+        default n
+        help
+            This option compiles the rtt_uds_example.c file, which provides
+            'uds_example start' and 'uds_example stop' commands in the shell.
+            Disable this if you only need the core library and want to write
+            your own application logic.
+
+    if UDS_USING_EXAMPLE
+        menu "UDS Server Example Configuration"
+            config UDS_EXAMPLE_CAN_DEVICE_NAME
+                string "CAN device name for the example"
+                default "can1"
+                help
+                    Specify the name of the CAN device to be used by the UDS server example.
+
+            config UDS_EXAMPLE_THREAD_PRIO
+                int "UDS task thread priority"
+                default 10
+                help
+                    Priority for the main UDS processing thread.
+
+            config UDS_EXAMPLE_THREAD_STACK_SIZE
+                int "UDS task thread stack size (in bytes)"
+                default 4096
+
+            config UDS_EXAMPLE_ENABLE_DEBUG_LOG
+                bool "Enable debug logs in the example"
+                default y
+                help
+                    Enable verbose logging like CAN frame hex dumps in the
+                    uds_rtt_port.c example file.
+
+            config UDS_EXAMPLE_LED_CTRL_DID
+                hex "DID for LED control"
+                default 0x0001
+                help
+                    The Data Identifier (DID) used in the example to control LEDs.
+
+            config UDS_EXAMPLE_PIN_LED_R
+                int "GPIO Pin for Red LED"
+                default -1
+                help
+                    Set the GPIO pin number for the Red LED. -1 to disable.
+
+            config UDS_EXAMPLE_PIN_LED_G
+                int "GPIO Pin for Green LED"
+                default -1
+                help
+                    Set the GPIO pin number for the Green LED. -1 to disable.
+
+            config UDS_EXAMPLE_PIN_LED_B
+                int "GPIO Pin for Blue LED"
+                default -1
+                help
+                    Set the GPIO pin number for the Blue LED. -1 to disable.
+        endmenu
+    endif
+
+endif

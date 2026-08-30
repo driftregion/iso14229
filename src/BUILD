@@ -26,6 +26,7 @@ filegroup(
         "server.h",
         "sys_arduino.h",
         "sys_esp32.h",
+        "sys_rtt.h",
         "sys_unix.h",
         "sys_win32.h",
         "sys.h",
