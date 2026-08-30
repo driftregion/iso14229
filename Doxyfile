@@ -1035,9 +1035,8 @@ INPUT                  = docs/mainpage.md \
                          iso14229.c \
                          examples/arduino_server/README.md \
                          examples/esp32_server/README.md \
-                         examples/linux_server/README.md \
                          examples/linux_rdbi_wdbi/README.md \
-                         examples/linux_server_0x27/README.md \
+                         examples/linux_security_access/README.md \
                          examples/s32k144_server/README.md \
                          examples/stm32g474/README.md 
 

@@ -722,11 +722,10 @@ static_assert(UDS_LOG_LEVEL == UDS_LOG_NONE || UDS_LOG_LEVEL == UDS_LOG_ERROR ||
                   UDS_LOG_LEVEL == UDS_LOG_DEBUG || UDS_LOG_LEVEL == UDS_LOG_VERBOSE,
               "unknown log level");
 
-
 #if UDS_LOG_LEVEL >= UDS_LOG_ERROR && UDS_LOG_LEVEL != UDS_LOG_NONE
 #define UDS_LOGE(tag, format, ...)                                                                 \
     UDS_LogWrite(UDS_LOG_ERROR, tag, UDS_LOG_FORMAT(E, format), UDSMillis(), tag, ##__VA_ARGS__)
-#else 
+#else
 #define UDS_LOGE(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
 #endif
 
@@ -751,16 +750,15 @@ static_assert(UDS_LOG_LEVEL == UDS_LOG_NONE || UDS_LOG_LEVEL == UDS_LOG_ERROR ||
 #define UDS_LOGD(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
 #endif
 
-#if UDS_LOG_LEVEL >= UDS_LOG_VERBOSE 
+#if UDS_LOG_LEVEL >= UDS_LOG_VERBOSE
 #define UDS_LOGV(tag, format, ...)                                                                 \
     UDS_LogWrite(UDS_LOG_VERBOSE, tag, UDS_LOG_FORMAT(V, format), UDSMillis(), tag, ##__VA_ARGS__)
 #define UDS_LOG_SDU(tag, buffer, buff_len, info)                                                   \
     UDS_LogSDUInternal(UDS_LOG_DEBUG, tag, buffer, buff_len, info)
-#else 
+#else
 #define UDS_LOGV(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
 #define UDS_LOG_SDU(tag, buffer, buff_len, info) UDS_LogSDUDummy(tag, buffer, buff_len, info)
 #endif
-
 
 #if defined(__GNUC__) || defined(__clang__)
 #define UDS_PRINTF_FORMAT(fmt_index, first_arg)                                                    \
