@@ -1,6 +1,6 @@
 # iso14229 {#mainpage}
 
-iso14229 is a UDS (ISO14229) library for writing servers and clients. 
+iso14229 is a UDS (ISO14229) library for writing servers and clients.
 
 **Source Code:** https://github.com/driftregion/iso14229
 
@@ -23,6 +23,7 @@ To access the examples, clone or download the repository from https://github.com
 | \ref examples/arduino_server/README.md "arduino_server" | Arduino server |
 | \ref examples/esp32_server/README.md "esp32_server" | ESP32 server |
 | \ref examples/s32k144_server/README.md "s32k144_server" | NXP S32K144 server |
+| \ref examples/doip_client/README.md "doip_client" | DoIP client |
 
 ---
 
@@ -44,6 +45,7 @@ Configure the library at compilation time with preprocessor defines:
 | **isotp_c_socketcan** | `-DUDS_TP_ISOTP_C_SOCKETCAN` | isotp-c over SocketCAN | Linux newer than 2.6.25 | \ref examples/linux_server_0x27/README.md "linux_server_0x27" |
 | **isotp_c** | `-DUDS_TP_ISOTP_C` | Software ISO-TP | Everything else | \ref examples/arduino_server/README.md "arduino_server" \ref examples/esp32_server/README.md "esp32_server" \ref examples/s32k144_server/README.md "s32k144_server" |
 | **isotp_mock** | `-DUDS_TP_ISOTP_MOCK` | In-memory transport for testing | platform-independent unit tests | see unit tests |
+| **doip** | `-DUDS_TP_DOIP` | DoIP (iso 13400) client | platform-independent unit tests | \ref examples/linux_rdbi_wdbi/README.md |
 
 ### System Selection Override
 

@@ -105,6 +105,12 @@ jobs:
             cd examples/linux_server_0x27
             ./test.sh
 
+      - run:
+          name: Build and test DoIP client example
+          command: |
+            cd examples/doip_client
+            ./test.sh
+
 workflows:
   version: 2
   build:

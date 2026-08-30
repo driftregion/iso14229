@@ -1758,6 +1758,375 @@ void ISOTPMockReset(void);
 #endif
 
 
+#ifndef DOIP_DEFINES_H
+#define DOIP_DEFINES_H
+
+#include <stdint.h>
+
+/* DoIP Protocol Constants */
+#define DOIP_PROTOCOL_VERSION           0x03
+#define DOIP_PROTOCOL_VERSION_INV       0xFC
+#define DOIP_TCP_PORT                   13400
+#define DOIP_HEADER_SIZE                8
+
+/* Header size for diagnostic message (source address + target address) */
+#define DOIP_DIAG_HEADER_SIZE                4
+
+/* DoIP Payload Types (table 17)*/
+#define DOIP_PAYLOAD_TYPE_ROUTING_ACTIVATION_REQ    0x0005
+#define DOIP_PAYLOAD_TYPE_ROUTING_ACTIVATION_RES    0x0006
+#define DOIP_PAYLOAD_TYPE_ALIVE_CHECK_REQ           0x0007
+#define DOIP_PAYLOAD_TYPE_ALIVE_CHECK_RES           0x0008
+#define DOIP_PAYLOAD_TYPE_DIAG_MESSAGE              0x8001
+#define DOIP_PAYLOAD_TYPE_DIAG_MESSAGE_POS_ACK      0x8002
+#define DOIP_PAYLOAD_TYPE_DIAG_MESSAGE_NEG_ACK      0x8003
+
+/* DoIP Routing Activation Response Codes (table 56)*/
+#define DOIP_ROUTING_ACTIVATION_RES_SUCCESS         0x10
+#define DOIP_ROUTING_ACTIVATION_RES_UNKNOWN_SA      0x00
+#define DOIP_ROUTING_ACTIVATION_RES_ALREADY_ACTIVE  0x01
+
+/* DoIP Diagnostic Message NACK Codes (table 26) */
+#define DOIP_DIAG_NACK_INVALID_SA                   0x02
+#define DOIP_DIAG_NACK_UNKNOWN_TA                   0x03
+#define DOIP_DIAG_NACK_MESSAGE_TOO_LARGE            0x04
+#define DOIP_DIAG_NACK_OUT_OF_MEMORY                0x05
+#define DOIP_DIAG_NACK_TARGET_UNREACHABLE           0x06
+
+/* Configuration */
+#define DOIP_BUFFER_SIZE                4096
+#define DOIP_ROUTING_ACTIVATION_TYPE    0x00
+#define DOIP_DEFAULT_TIMEOUT_MS         5000
+
+
+/* DoIP Header Structure */
+typedef struct {
+    uint8_t protocol_version;       /**< DoIP protocol version (table 16). 1=2010, 2=2012, 3=2019, 4=2019-Amd1,2025 */
+    uint8_t protocol_version_inv;   /**< Inverse of protocol version */
+    uint16_t payload_type;          /**< Payload type (table 17) */
+    uint32_t payload_length;        /**< Payload length */
+} DoIPHeader_t;
+
+
+/* UDP ports (ISO 13400-2 Table 48) */
+#define DOIP_UDP_DISCOVERY_PORT                    13400
+#define DOIP_UDP_TEST_EQUIPMENT_REQUEST_PORT       13401
+
+
+
+#endif  /* DOIP_DEFINES_H */
+
+
+#ifndef DOIP_TRANSPORT_H
+#define DOIP_TRANSPORT_H
+#if defined(UDS_TP_DOIP)
+
+#include <stdint.h>
+#include <stddef.h>
+#include <stdbool.h>
+
+/* Forward declaration */
+typedef struct DoIPTcpTransport DoIPTcpTransport;
+typedef struct DoIPUdpTransport DoIPUdpTransport;
+
+#ifdef DOIP_MOCK_TP
+/* Mock transport functions for testing. For now these method do nothing and return
+ * success.
+ */
+
+int doip_tp_mock_init(DoIPTcpTransport *tcp, const char *ip, uint16_t port);
+int doip_tp_mock_connect(DoIPTcpTransport *tcp);
+ssize_t doip_tp_mock_send(DoIPTcpTransport *tcp, const uint8_t *buf, size_t len);
+ssize_t doip_tp_mock_recv(DoIPTcpTransport *tcp, uint8_t *buf, size_t len, int timeout_ms);
+void doip_tp_mock_close(DoIPTcpTransport *tcp);
+
+int doip_tp_mock_udp_init(DoIPUdpTransport *t, uint16_t port, bool loopback);
+ssize_t doip_tp_mock_udp_recv(DoIPUdpTransport *t, uint8_t *buf, size_t len, int timeout_ms);
+ssize_t doip_tp_mock_udp_recvfrom(DoIPUdpTransport *t, uint8_t *buf, size_t len, int timeout_ms,
+                                  char *src_ip_out, size_t src_ip_out_sz, uint16_t *src_port_out);
+void doip_tp_mock_udp_close(DoIPUdpTransport *t);
+ssize_t doip_tp_mock_udp_sendto(DoIPUdpTransport *t, const uint8_t *buf, size_t len,
+                                const char *dst_ip, uint16_t dst_port, int timeout_ms);
+
+int doip_tp_mock_udp_join_default_multicast(DoIPUdpTransport *t);
+#else
+
+/**
+ * @brief Initialize DoIP TCP transport
+ *
+ * @param t Transport context
+ * @param ip Remote IP address
+ * @param port Remote port
+ * @retval 0 success
+ * @retval -1 error
+ */
+int doip_tp_tcp_init(DoIPTcpTransport *tcp, const char *ip, uint16_t port);
+
+/**
+ * @brief Connect DoIP TCP transport
+ *
+ * @param t Transport context
+ * @retval 0 success
+ * @retval -1 error
+ */
+int doip_tp_tcp_connect(DoIPTcpTransport *tcp);
+
+/**
+ * @brief Send data over DoIP TCP transport
+ *
+ * @param t Transport context
+ * @param buf Data buffer to send
+ * @param len Length of data to send
+ * @return ssize_t Number of bytes sent, or -1 on error
+ */
+ssize_t doip_tp_tcp_send(const DoIPTcpTransport *tcp, const uint8_t *buf, size_t len);
+
+/**
+ * @brief Receive data over DoIP TCP transport
+ *
+ * @param t Transport context
+ * @param buf Buffer to receive data into
+ * @param len Length of buffer
+ * @param timeout_ms Receive timeout in milliseconds
+ * @return ssize_t Number of bytes received, 0 on timeout, or -1 on error
+ */
+ssize_t doip_tp_tcp_recv(DoIPTcpTransport *tcp, uint8_t *buf, size_t len, int timeout_ms);
+
+/**
+ * @brief Close DoIP TCP transport
+ *
+ * @param t Transport context
+ */
+void doip_tp_tcp_close(DoIPTcpTransport *tcp);
+
+/* Optional: configure timeouts on the transport */
+/**
+ * @brief Set timeouts for DoIP transport
+ * @param t Transport context
+ * @param connect_timeout_ms Connect timeout in milliseconds (<=0 for default)
+ * @param send_timeout_ms Send timeout in milliseconds (<=0 for default)
+ */
+void doip_tp_set_timeouts(DoIPTcpTransport *tcp, int connect_timeout_ms, int send_timeout_ms);
+
+/* UDP transport helpers (vehicle discovery) */
+
+/**
+ * @brief Initialize DoIP UDP transport
+ *
+ * @param t Transport context
+ * @param port Local port
+ * @param loopback Enable loopback mode (instead of multicast)
+ * @retval 0 success
+ * @retval -1 error
+ */
+int doip_tp_udp_init(DoIPUdpTransport *t, uint16_t port, bool loopback);
+
+/**
+ * @brief Join default DoIP multicast group for discovery
+ *
+ * @param t Transport context
+ * @retval 0 success
+ * @retval -1 error
+ */
+int doip_tp_udp_join_default_multicast(DoIPUdpTransport *t);
+
+/**
+ * @brief Receive data over DoIP UDP transport
+ *
+ * @param t Transport context
+ * @param buf Buffer to receive data into
+ * @param len Length of buffer
+ * @param timeout_ms Receive timeout in milliseconds
+ * @return ssize_t Number of bytes received, 0 on timeout, or -1 on error
+ */
+ssize_t doip_tp_udp_recv(DoIPUdpTransport *t, uint8_t *buf, size_t len, int timeout_ms);
+
+/**
+ * @brief Receive data over DoIP UDP transport with source address info
+ *
+ * @param t Transport context
+ * @param buf Buffer to receive data into
+ * @param len Length of buffer
+ * @param timeout_ms Receive timeout in milliseconds
+ * @param src_ip_out Output buffer for source IP address
+ * @param src_ip_out_sz Size of source IP output buffer
+ * @param src_port_out Output for source port
+ * @return ssize_t Number of bytes received, 0 on timeout, or -1 on error
+ */
+ssize_t doip_tp_udp_recvfrom(DoIPUdpTransport *t, uint8_t *buf, size_t len, int timeout_ms,
+                             char *src_ip_out, size_t src_ip_out_sz, uint16_t *src_port_out);
+
+/**
+ * @brief Close DoIP UDP transport
+ *
+ * @param t Transport context
+ */
+void doip_tp_udp_close(DoIPUdpTransport *t);
+
+/* UDP send helper */
+/**
+ * @brief Send data over DoIP UDP transport
+ *
+ * @param t Transport context
+ * @param buf Data buffer to send
+ * @param len Length of data to send
+ * @param dst_ip Destination IP address
+ * @param dst_port Destination port
+ * @param timeout_ms Send timeout in milliseconds
+ * @return ssize_t Number of bytes sent, or -1 on error
+ */
+ssize_t doip_tp_udp_sendto(DoIPUdpTransport *t, const uint8_t *buf, size_t len, const char *dst_ip,
+                           uint16_t dst_port, int timeout_ms);
+
+#endif /* DOIP_MOCK_TP */
+
+/* TCP transport function pointers */
+typedef int (*tcp_init)(DoIPTcpTransport *tcp, const char *ip, uint16_t port);
+typedef int (*tcp_connect)(DoIPTcpTransport *tcp);
+typedef ssize_t (*tcp_send)(const DoIPTcpTransport *tcp, const uint8_t *buf, size_t len);
+typedef ssize_t (*tcp_recv)(DoIPTcpTransport *tcp, uint8_t *buf, size_t len, int timeout_ms);
+typedef void (*tcp_close)(DoIPTcpTransport *tcp);
+
+/* UDP transport function pointers */
+typedef int (*udp_init)(DoIPUdpTransport *t, uint16_t port, bool loopback);
+typedef ssize_t (*udp_recv)(DoIPUdpTransport *t, uint8_t *buf, size_t len, int timeout_ms);
+typedef ssize_t (*udp_recvfrom)(DoIPUdpTransport *t, uint8_t *buf, size_t len, int timeout_ms,
+                                char *src_ip_out, size_t src_ip_out_sz, uint16_t *src_port_out);
+typedef ssize_t (*udp_sendto)(DoIPUdpTransport *t, const uint8_t *buf, size_t len, const char *dst_ip,
+                              uint16_t dst_port, int timeout_ms);
+typedef void (*udp_close)(DoIPUdpTransport *t);
+typedef int (*udp_join_multicast)(DoIPUdpTransport *t);
+
+
+typedef struct DoIPTcpTransport {
+    int fd;
+    int connect_timeout_ms; /* connect timeout (ms), <=0 uses default */
+    int send_timeout_ms;    /* send timeout (ms), <=0 uses default */
+    char ip[64];   /* remote IP (for TCP) */
+    uint16_t port; /* local or remote port */
+    tcp_init init;
+    tcp_connect connect;
+    tcp_send send;
+    tcp_recv recv;
+    tcp_close close;
+} DoIPTcpTransport;
+
+typedef struct DoIPUdpTransport {
+    int fd;
+    uint16_t port; /* local or remote port */
+    udp_init init;
+    udp_recv recv;
+    udp_recvfrom recvfrom;
+    udp_sendto sendto;
+    udp_close close;
+    udp_join_multicast join_multicast;
+    bool loopback; /* UDP loopback mode */
+} DoIPUdpTransport;
+
+#endif /* UDS_TP_DOIP */
+
+#endif /* DOIP_TRANSPORT_H */
+
+
+#if defined(UDS_TP_DOIP)
+
+
+
+#define DOIP_ACK_TIMEOUT_MS 1000 /* 1 second for Diagnostic ACK (0x8002 or 0x8003)*/
+
+/* DoIP Client State */
+typedef enum {
+    DOIP_STATE_DISCONNECTED,
+    DOIP_STATE_CONNECTED,
+    DOIP_STATE_ROUTING_ACTIVATION_PENDING,
+    DOIP_STATE_READY_FOR_DIAG_REQUEST,
+    // Diag message states for tracking ACK/NACK and responses
+    DOIP_STATE_DIAG_MESSAGE_SEND_PENDING,
+    DOIP_STATE_DIAG_MESSAGE_ACK_PENDING,
+    DOIP_STATE_DIAG_MESSAGE_RESPONSE_PENDING,
+    DOIP_STATE_ERROR
+} DoIPClientState_t;
+
+/* DoIP Client Context */
+typedef struct {
+    UDSTp_t hdl;    /* Must be the first entry! */
+    //DoIPTransport tcp;        /* TCP transport for diagnostics */
+    //DoIPTransport udp;        /* UDP transport for discovery */
+    DoIPTcpTransport tcp;        /* TCP transport for diagnostics */
+    DoIPUdpTransport udp;        /* UDP transport for discovery */
+    DoIPClientState_t state;
+
+    uint16_t source_address;        /* Client logical address */
+    uint16_t target_address;        /* Server logical address */
+
+    char server_ip[64];
+    uint16_t server_port;
+    //bool udp_loopback;        /* discovery via loopback instead of multicast */
+
+    uint8_t rx_buffer[DOIP_BUFFER_SIZE];  /* Raw socket receive buffer */
+    size_t rx_offset;
+
+    uint8_t uds_response[DOIP_BUFFER_SIZE]; /* Processed UDS response data */
+    size_t uds_response_len;
+
+    uint8_t tx_buffer[DOIP_BUFFER_SIZE];  /* Reusable transmit buffer (eliminates stack allocations) */
+
+    bool routing_activated;
+    bool diag_ack_received;
+    bool diag_nack_received;
+    uint8_t diag_nack_code;
+} DoIPClient_t;
+
+/* Discovery info (minimal set) */
+typedef struct {
+    char ip[64];
+    uint16_t remote_port;
+    uint16_t logical_address; /* if known */
+    char vin[18];             /* 17-char VIN plus NUL if parsed */
+    char eid[13];             /* 6-byte EID as hex string */
+    char gid[13];             /* 6-byte GID as hex string */
+} DoIPDiscoveryInfo;
+
+/* Optional selection callback */
+typedef bool (*DoIPSelectServerFn)(const DoIPDiscoveryInfo *info, void *user);
+
+void UDSDoIPSetSelectionCallback(DoIPClient_t *tp, DoIPSelectServerFn fn, void *user);
+/* Discovery options */
+void UDSDoIPSetDiscoveryOptions(bool request_only, bool dump_raw);
+
+/**
+ * @brief Initialize DoIP client transport layer
+ *
+ * @param tp Pointer to DoIP client context
+ * @param ipaddress Server IP address as a string
+ * @param port Server port number
+ * @param source_addr Client logical address (range 0x0E00 - 0x0FFF)
+ * @param target_addr Server logical address
+ * @return UDSErr_t UDS_OK on success, error code otherwise
+ */
+UDSErr_t UDSDoIPInitClient(DoIPClient_t *tp, const char *ipaddress, uint16_t port, uint16_t source_addr, uint16_t target_addr);
+
+/**
+ * @brief Deinitialize DoIP client transport layer
+ *
+ * @param tp Pointer to DoIP client context
+ */
+void UDSDoIPDeinit(DoIPClient_t *tp);
+
+/**
+ * @brief Discover vehicles using UDP DoIP
+ * @param tp DoIP client context
+ * @param timeout_ms Receive timeout in ms
+ * @param loopback If true, use loopback instead of multicast
+ * @return number of discovery frames observed (>=0), or negative on error
+ */
+int UDSDoIPDiscoverVehicles(DoIPClient_t *tp, int timeout_ms, bool loopback);
+/* Extended: allow overriding UDP port (0 = default 13400) */
+int UDSDoIPDiscoverVehiclesEx(DoIPClient_t *tp, int timeout_ms, bool loopback, uint16_t port);
+
+#endif
+
+
 #ifdef __cplusplus
 }
 #endif

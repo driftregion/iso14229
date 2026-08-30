@@ -14,6 +14,9 @@ filegroup(
         "tp/isotp_mock.c",
         "tp/isotp_sock.c",
         "tp/isotp-c/isotp.c",
+        "tp/doip/doip_client.c",
+        "tp/doip/doip_tp_tcp.c",
+        "tp/doip/doip_tp_udp.c",
     ]
 )
 
@@ -41,6 +44,9 @@ filegroup(
         "tp/isotp-c/isotp_defines.h",
         "tp/isotp-c/isotp_user.h",
         "tp/isotp-c/isotp.h",
+        "tp/doip/doip_defines.h",
+        "tp/doip/doip_client.h",
+        "tp/doip/doip_transport.h",
     ]
 )
 

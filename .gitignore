@@ -40,3 +40,6 @@ cppcheck_reports
 .venv
 tools/cppcheck/misra_c_2023__headlines_for_cppcheck.txt
 latex/
+# Ignore binaries of doip example
+examples/doip_client/doip_server
+examples/doip_client/doip_client
