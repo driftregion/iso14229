@@ -212,7 +212,7 @@ void test_send_functional_larger_than_single_frame_fails(void **state) {
     // When a functional request is sent with more than 7 bytes
     const uint8_t MSG[] = {1, 2, 3, 4, 5, 6, 7, 8};
     UDSTpSize_t ret = UDSTpSend(e->client_tp, MSG, sizeof(MSG),
-                            &(UDSSDU_t){.A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL});
+                                &(UDSSDU_t){.A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL});
 
     // it should fail
     assert_true(ret < 0);

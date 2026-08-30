@@ -65,7 +65,8 @@ static void NetworkPoll(void) {
     }
 }
 
-static UDSTpSize_t mock_tp_send(struct UDSTp *hdl, const uint8_t *buf, size_t len, const UDSSDU_t *info) {
+static UDSTpSize_t mock_tp_send(struct UDSTp *hdl, const uint8_t *buf, size_t len,
+                                const UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
     if (MsgCount >= NUM_MSGS) {
