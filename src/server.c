@@ -1252,7 +1252,7 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
 
     if (mode_of_operation == UDS_MOOP_ADDFILE || mode_of_operation == UDS_MOOP_DELFILE ||
         mode_of_operation == UDS_MOOP_REPLFILE || mode_of_operation == UDS_MOOP_RSFILE) {
-        ;
+        // pass
     } else {
         // fileSizeOrDirInfoParameterLength
         StoreBE(&r->send_buf[r->send_len], sizeof(args.fileSizeUnCompressed), 2);
@@ -1264,7 +1264,7 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
         r->send_len += sizeof(args.fileSizeUnCompressed);
 
         if (mode_of_operation == UDS_MOOP_RDDIR) {
-            ;
+            // pass
         } else {
             // fileSizeCompressed
             StoreBE(&r->send_buf[r->send_len], args.fileSizeCompressed,
@@ -1276,7 +1276,7 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
     if (mode_of_operation == UDS_MOOP_ADDFILE || mode_of_operation == UDS_MOOP_DELFILE ||
         mode_of_operation == UDS_MOOP_REPLFILE || mode_of_operation == UDS_MOOP_RDFILE ||
         mode_of_operation == UDS_MOOP_RDDIR) {
-        ;
+        // pass
     } else {
         // filePosition
         StoreBE(&r->send_buf[r->send_len], args.filePosition, sizeof(args.filePosition));

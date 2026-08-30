@@ -114,7 +114,7 @@ UDSErr_t UDSServerTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t source_addr, uint32_t
     return UDSTpISOTpCInit(tp, source_addr, target_addr, source_addr_func, UDS_TP_NOOP_ADDR);
 }
 
-UDSErr_t UDSClientTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t source_addr, uint32_t target_addr,
+UDSErr_t UDSClientTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t target_addr, uint32_t source_addr,
                                uint32_t target_addr_func) {
     return UDSTpISOTpCInit(tp, source_addr, target_addr, UDS_TP_NOOP_ADDR, target_addr_func);
 }
