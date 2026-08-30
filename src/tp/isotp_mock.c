@@ -103,7 +103,7 @@ static UDSTpSize_t mock_tp_send(struct UDSTp *hdl, uint8_t *buf, size_t len, UDS
              m->info.A_TA, m->info.A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "PHYSICAL" : "FUNCTIONAL");
     UDS_LOG_SDU(__FILE__, buf, len, &m->info);
 
-    return len;
+    return (UDSTpSize_t)len;
 }
 
 static UDSTpSize_t mock_tp_recv(struct UDSTp *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {

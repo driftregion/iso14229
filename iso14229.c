@@ -2611,7 +2611,7 @@ void UDSServerPoll(UDSServer_t *srv) {
         if (UDSTimeAfter(UDSMillis(), srv->p2_timer)) {
             UDSTpSize_t ret = 0;
             if (r->send_len) {
-                ret = UDSTpSend(srv->tp, r->send_buf, r->send_len, NULL);
+                ret = UDSTpSend(srv->tp, r->send_buf, (UDSTpSize_t)r->send_len, NULL);
             }
 
             // TODO test injection of transport errors:
@@ -2700,7 +2700,7 @@ uint32_t UDSMillis(void) {
 #elif UDS_SYS == UDS_SYS_ESP32
     return esp_timer_get_time() / 1000;
 #else
-# error "UDSMillis not implemented for this UDS_SYS"
+#error "UDSMillis not implemented for this UDS_SYS"
 #endif
 }
 #endif // defined(UDS_CUSTOM_MILLIS)
@@ -3758,7 +3758,7 @@ static UDSTpSize_t mock_tp_send(struct UDSTp *hdl, uint8_t *buf, size_t len, UDS
              m->info.A_TA, m->info.A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "PHYSICAL" : "FUNCTIONAL");
     UDS_LOG_SDU(__FILE__, buf, len, &m->info);
 
-    return len;
+    return (UDSTpSize_t)len;
 }
 
 static UDSTpSize_t mock_tp_recv(struct UDSTp *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
