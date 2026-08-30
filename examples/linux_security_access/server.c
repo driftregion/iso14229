@@ -134,19 +134,15 @@ int main(int ac, char **av) {
 #else
 #error "no transport defined"
 #endif
-
-    if (UDSServerInit(&srv)) {
-        fprintf(stderr, "UDSServerInit failed\n");
-    }
-
+    UDSServerInit(&srv);
     srv.tp = (UDSTp_t *)&tp;
     srv.fn = fn;
 
-    printf("server up, polling . . .\n");
+    UDS_LOGI(__FILE__, "server up, polling . . .");
     while (!done) {
         UDSServerPoll(&srv);
         sleep_ms(1);
     }
-    printf("server exiting\n");
+    UDS_LOGI(__FILE__, "server exiting");
     return 0;
 }

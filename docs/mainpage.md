@@ -16,9 +16,8 @@
 
 | Example | Description |
 |---------|-------------|
-| [`linux_server`](examples/linux_server/README.md) | UDS Server on Linux using socketcan ISO-TP |
 | [`linux_rdbi_wdbi`](examples/linux_rdbi_wdbi/README.md) | UDS Server on Linux implementing Read/Write Data By Identifier (0x22/0x2E) |
-| [`linux_server_0x27`](examples/linux_server_0x27/README.md) | UDS Server on Linux implementing Security Access (0x27) |
+| [`linux_security_access`](examples/linux_security_access/README.md) | UDS Server on Linux implementing Security Access (0x27) |
 | [`arduino_server`](examples/arduino_server/README.md) | UDS Server on Arduino MKR-WIFI 1010 with MKR CAN Shield |
 |  [`esp32_server`](examples/esp32_server/README.md ) | UDS Server on ESP32-C3-32S with Waveshare SN65HVD230 CAN Transciever |
 |  [`s32k144_server`](examples/s32k144_server/README.md) | UDS Server on NXP S32K144 eval board with Waveshare SN65HVD230 CAN Transciever | 

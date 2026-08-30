@@ -3107,7 +3107,8 @@ static UDSTpSize_t tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t 
     return out_size;
 }
 
-static UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t sa, uint32_t ta, uint32_t sa_func, uint32_t ta_func) {
+static UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t sa, uint32_t ta, uint32_t sa_func,
+                                uint32_t ta_func) {
     if (tp == NULL) {
         return UDS_ERR_INVALID_ARG;
     }
@@ -3126,17 +3127,13 @@ static UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t sa, uint32_t ta, uin
     return UDS_OK;
 }
 
-UDSErr_t UDSServerTpISOTpCInit(UDSTpISOTpC_t *tp, 
-    uint32_t source_addr,
-    uint32_t target_addr,
-    uint32_t source_addr_func) {
+UDSErr_t UDSServerTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t source_addr, uint32_t target_addr,
+                               uint32_t source_addr_func) {
     return UDSTpISOTpCInit(tp, source_addr, target_addr, source_addr_func, UDS_TP_NOOP_ADDR);
 }
 
-UDSErr_t UDSClientTpISOTpCInit(UDSTpISOTpC_t *tp, 
-    uint32_t source_addr,
-    uint32_t target_addr,
-    uint32_t target_addr_func) {
+UDSErr_t UDSClientTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t source_addr, uint32_t target_addr,
+                               uint32_t target_addr_func) {
     return UDSTpISOTpCInit(tp, source_addr, target_addr, UDS_TP_NOOP_ADDR, target_addr_func);
 }
 
@@ -3555,7 +3552,6 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool
     memset(&opts, 0, sizeof(opts));
 
     if (functional) {
-        UDS_LOGI(__FILE__, "configuring fd: %d as functional", fd);
         // configure the socket as listen-only to avoid sending FC frames
         opts.flags |= CAN_ISOTP_LISTEN_MODE;
     }

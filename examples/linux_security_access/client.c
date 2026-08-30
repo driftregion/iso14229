@@ -87,7 +87,7 @@ exit:
 UDSErr_t fn(UDSClient_t *client, UDSEvent_t evt, void *ev_data) {
     SequenceContext_t *c = (SequenceContext_t *)client->fn_data;
     if (evt != UDS_EVT_Poll) {
-        UDS_LOGI(__FILE__, "%s (%d)", UDSEventToStr(evt), evt);
+        UDS_LOGD(__FILE__, "%s (%d)", UDSEventToStr(evt), evt);
     }
     if (UDS_EVT_Err == evt) {
         UDS_LOGE(__FILE__, "Exiting on step %d with error: %s", c->step,
@@ -116,7 +116,7 @@ UDSErr_t fn(UDSClient_t *client, UDSEvent_t evt, void *ev_data) {
                 break;
             }
 
-            printf("seed: ");
+            UDS_LOGI(__FILE__, "got seed: ");
             for (int i = 0; i < sar.securitySeedLength; i++) {
                 printf("%02X ", sar.securitySeed[i]);
             }
@@ -146,13 +146,14 @@ UDSErr_t fn(UDSClient_t *client, UDSEvent_t evt, void *ev_data) {
     }
     case Step_2_SendKey: {
         uint8_t key[512] = {0};
+        UDS_LOGI(__FILE__, "Signing key...");
         if (sign(c->seed, c->seed_len, key, sizeof(key))) {
             UDS_LOGE(__FILE__, "sign failed");
             c->err = UDS_FAIL;
             c->step = Step_DONE;
             break;
         }
-
+        UDS_LOGI(__FILE__, "Requesting Security Access...");
         c->err = UDSSendSecurityAccess(client, 4, key, sizeof(key));
         if (c->err) {
             UDS_LOGE(__FILE__, "UDSSendSecurityAccess failed with err: %s", UDSErrToStr(c->err));
@@ -164,7 +165,7 @@ UDSErr_t fn(UDSClient_t *client, UDSEvent_t evt, void *ev_data) {
     }
     case Step_3_ReceiveKeyResponse: {
         if (UDS_EVT_ResponseReceived == evt) {
-            UDS_LOGI(__FILE__, "Security access unlocked");
+            UDS_LOGI(__FILE__, "Security Access Obtained");
             c->step = Step_DONE;
         }
         break;
@@ -201,6 +202,8 @@ int main(int ac, char **av) {
 
     client.tp = (UDSTp_t *)&tp;
     client.fn = fn;
+    client.p2_ms = 500;
+    client.p2_star_ms = 1000;
 
     SequenceContext_t ctx = {0};
     client.fn_data = &ctx;

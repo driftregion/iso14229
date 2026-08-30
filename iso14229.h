@@ -717,47 +717,50 @@ typedef int UDS_LogLevel_t; ///< one of @ref uds_log_level_
 #define UDS_LOG_FORMAT(letter, format)                                                             \
     UDS_LOG_COLOR_##letter #letter " (%" PRIu32 ") %s: " format UDS_LOG_RESET_COLOR "\n"
 
-#if (UDS_LOG_LEVEL >= UDS_LOG_ERROR) && (UDS_LOG_LEVEL > UDS_LOG_NONE)
+static_assert(UDS_LOG_LEVEL == UDS_LOG_NONE || UDS_LOG_LEVEL == UDS_LOG_ERROR ||
+                  UDS_LOG_LEVEL == UDS_LOG_WARN || UDS_LOG_LEVEL == UDS_LOG_INFO ||
+                  UDS_LOG_LEVEL == UDS_LOG_DEBUG || UDS_LOG_LEVEL == UDS_LOG_VERBOSE,
+              "unknown log level");
+
+
+#if UDS_LOG_LEVEL >= UDS_LOG_ERROR && UDS_LOG_LEVEL != UDS_LOG_NONE
 #define UDS_LOGE(tag, format, ...)                                                                 \
     UDS_LogWrite(UDS_LOG_ERROR, tag, UDS_LOG_FORMAT(E, format), UDSMillis(), tag, ##__VA_ARGS__)
-#else
+#else 
 #define UDS_LOGE(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
 #endif
 
-#if UDS_LOG_LEVEL >= UDS_LOG_WARN && UDS_LOG_LEVEL > UDS_LOG_NONE
+#if UDS_LOG_LEVEL >= UDS_LOG_WARN && UDS_LOG_LEVEL != UDS_LOG_NONE
 #define UDS_LOGW(tag, format, ...)                                                                 \
     UDS_LogWrite(UDS_LOG_WARN, tag, UDS_LOG_FORMAT(W, format), UDSMillis(), tag, ##__VA_ARGS__)
 #else
 #define UDS_LOGW(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
 #endif
 
-#if UDS_LOG_LEVEL >= UDS_LOG_INFO && UDS_LOG_LEVEL > UDS_LOG_NONE
+#if UDS_LOG_LEVEL >= UDS_LOG_INFO && UDS_LOG_LEVEL != UDS_LOG_NONE
 #define UDS_LOGI(tag, format, ...)                                                                 \
     UDS_LogWrite(UDS_LOG_INFO, tag, UDS_LOG_FORMAT(I, format), UDSMillis(), tag, ##__VA_ARGS__)
 #else
 #define UDS_LOGI(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
 #endif
 
-#if UDS_LOG_LEVEL >= UDS_LOG_DEBUG && UDS_LOG_LEVEL > UDS_LOG_NONE
+#if UDS_LOG_LEVEL >= UDS_LOG_DEBUG && UDS_LOG_LEVEL != UDS_LOG_NONE
 #define UDS_LOGD(tag, format, ...)                                                                 \
     UDS_LogWrite(UDS_LOG_DEBUG, tag, UDS_LOG_FORMAT(D, format), UDSMillis(), tag, ##__VA_ARGS__)
 #else
 #define UDS_LOGD(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
 #endif
 
-#if UDS_LOG_LEVEL >= UDS_LOG_VERBOSE && UDS_LOG_LEVEL > UDS_LOG_NONE
+#if UDS_LOG_LEVEL >= UDS_LOG_VERBOSE 
 #define UDS_LOGV(tag, format, ...)                                                                 \
     UDS_LogWrite(UDS_LOG_VERBOSE, tag, UDS_LOG_FORMAT(V, format), UDSMillis(), tag, ##__VA_ARGS__)
-#else
-#define UDS_LOGV(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
-#endif
-
-#if UDS_LOG_LEVEL >= UDS_LOG_DEBUG && UDS_LOG_LEVEL > UDS_LOG_NONE
 #define UDS_LOG_SDU(tag, buffer, buff_len, info)                                                   \
     UDS_LogSDUInternal(UDS_LOG_DEBUG, tag, buffer, buff_len, info)
-#else
+#else 
+#define UDS_LOGV(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
 #define UDS_LOG_SDU(tag, buffer, buff_len, info) UDS_LogSDUDummy(tag, buffer, buff_len, info)
 #endif
+
 
 #if defined(__GNUC__) || defined(__clang__)
 #define UDS_PRINTF_FORMAT(fmt_index, first_arg)                                                    \
@@ -1015,25 +1018,26 @@ typedef struct {
 
     union {
         struct {
-            uint8_t mask; /**< DTC status mask */
+            uint8_t mask;           /**< DTC status mask */
         } numOfDTCByStatusMaskArgs, /**< args for number of DTCs by status mask */
             dtcStatusByMaskArgs;    /**< args for DTCs by status mask */
         struct {
-            uint32_t dtc;        /**< DTC Mask Record */
-            uint8_t snapshotNum; /**< DTC Snaphot Record Number */
-            uint8_t memory;      /**< Memory Selection (only used when type == 0x18) */
+            uint32_t dtc;                /**< DTC Mask Record */
+            uint8_t snapshotNum;         /**< DTC Snaphot Record Number */
+            uint8_t memory;              /**< Memory Selection (only used when type == 0x18) */
         } dtcSnapshotRecordbyDTCNumArgs, /**< args for DTC snapshot record by DTC number */
             userDefMemDTCSnapshotRecordByDTCNumArgs; /**< args for user-defined-memory DTC snapshot
                                                          record by DTC number */
         struct {
-            uint8_t recordNum; /**< DTC Data Record Number */
-        } dtcStoredDataByRecordNumArgs,    /**< args for DTC stored data by record number */
-            dtcExtDataRecordByRecordNumArgs, /**< args for DTC extended data record by record number */
+            uint8_t recordNum;               /**< DTC Data Record Number */
+        } dtcStoredDataByRecordNumArgs,      /**< args for DTC stored data by record number */
+            dtcExtDataRecordByRecordNumArgs, /**< args for DTC extended data record by record number
+                                              */
             dtcExtDataRecordIdArgs;          /**< args for supported DTC extended data record ID */
         struct {
-            uint32_t dtc;          /**< DTC Mask Record */
-            uint8_t extDataRecNum; /**< DTC Extended Data Record Number */
-            uint8_t memory;        /**< Memory Selection (only used when type == 0x19) */
+            uint32_t dtc;              /**< DTC Mask Record */
+            uint8_t extDataRecNum;     /**< DTC Extended Data Record Number */
+            uint8_t memory;            /**< Memory Selection (only used when type == 0x19) */
         } dtcExtDtaRecordByDTCNumArgs, /**< args for DTC extended data record by DTC number */
             userDefMemDTCExtDataRecordByDTCNumArgs; /**< args for user-defined-memory DTC extended
                                                         data record by DTC number */
@@ -1046,18 +1050,18 @@ typedef struct {
             dtcBySeverityMaskArgs,    /**< args for DTCs by severity mask */
             wwhobdDTCByMaskArgs;      /**< args for WWH-OBD DTCs by mask */
         struct {
-            uint32_t dtc; /**< DTC Mask Record */
+            uint32_t dtc;        /**< DTC Mask Record */
         } severityInfoOfDTCArgs; /**< args for severity information of a DTC */
         struct {
-            uint8_t mask;   /**< DTC status mask */
-            uint8_t memory; /**< Memory Selection */
+            uint8_t mask;                   /**< DTC status mask */
+            uint8_t memory;                 /**< Memory Selection */
         } userDefMemoryDTCByStatusMaskArgs; /**< args for user-defined-memory DTCs by status mask */
         struct {
             uint8_t functionalGroup; /**< Functional Group Identifier */
             uint8_t
                 readinessGroup; /**< DTC Readiness Group Identifier (only used when type == 0x56) */
-        } wwhobdDTCWithPermStatusArgs,             /**< args for WWH-OBD DTCs with permanent status */
-            dtcInfoByDTCReadinessGroupIdArgs;      /**< args for DTCs by readiness group */
+        } wwhobdDTCWithPermStatusArgs,        /**< args for WWH-OBD DTCs with permanent status */
+            dtcInfoByDTCReadinessGroupIdArgs; /**< args for DTCs by readiness group */
     } subFuncArgs; /**< subfunction-specific arguments, selected by \ref type */
 } UDSRDTCIArgs_t;
 
@@ -1074,7 +1078,7 @@ typedef struct {
  * @brief Read memory by address arguments
  */
 typedef struct {
-    const void *memAddr; /**< requested server memory address */
+    const void *memAddr;  /**< requested server memory address */
     const size_t memSize; /**< requested size */
     uint8_t (*copy)(UDSServer_t *srv, const void *src,
                     uint16_t count); /**< function for copying data to response */
@@ -1143,10 +1147,10 @@ typedef struct {
             uint8_t size;          /**< number of bytes to be copied */
         } defineById; /**< args when defining from an existing source data identifier */
         struct {
-            void *memAddr;  /**< memory address to read from */
-            size_t memSize; /**< number of bytes to read */
+            void *memAddr;    /**< memory address to read from */
+            size_t memSize;   /**< number of bytes to read */
         } defineByMemAddress; /**< args when defining from a memory address */
-    } subFuncArgs; /**< subfunction-specific arguments, selected by \ref type */
+    } subFuncArgs;            /**< subfunction-specific arguments, selected by \ref type */
 } UDSDDDIArgs_t;
 
 /**
@@ -1226,10 +1230,10 @@ typedef struct {
      * @see @ref uds_moop_ "modeOfOperation values"
      */
     const uint8_t modeOfOperation;
-    const uint16_t filePathLen;         /**< request: data length. */
-    const uint8_t *filePath;            /**< request: file path or directory name (ReadDirectory). */
-    const uint8_t dataFormatIdentifier; /**< request: specifier for format of data (does not apply to
-                                           DeleteFile or ReadDir) */
+    const uint16_t filePathLen; /**< request: data length. */
+    const uint8_t *filePath;    /**< request: file path or directory name (ReadDirectory). */
+    const uint8_t dataFormatIdentifier; /**< request: specifier for format of data (does not apply
+                                           to DeleteFile or ReadDir) */
 
     // if MOOP is AddFile, ReplaceFile, or ResumeFile, these fields are **requests**.
     // if MOOP is ReadFile or ReadDirectory, these fields are **responses** -- the server must set
@@ -1738,7 +1742,7 @@ int isotp_receive(IsoTpLink *link, uint8_t *payload, const uint16_t payload_size
  * @brief isotp-c implementation of \ref UDSTp_t
  */
 typedef struct {
-/// \cond DOXYGEN_SHOULD_SKIP_THIS
+    /// \cond DOXYGEN_SHOULD_SKIP_THIS
     UDSTp_t hdl;
     IsoTpLink phys_link;
     IsoTpLink func_link;
@@ -1748,32 +1752,28 @@ typedef struct {
     uint8_t func_recv_buf[8];
     uint32_t phys_sa, phys_ta;
     uint32_t func_sa, func_ta;
-/// \endcond
+    /// \endcond
 } UDSTpISOTpC_t;
 
 /**
- * @brief Initialize isotp-c transport for \ref UDSServer_t 
+ * @brief Initialize isotp-c transport for \ref UDSServer_t
  * @param tp \ref UDSTpISOTpC_t instance.
  * @param source_addr Server listens for physical transmissions on this address.
  * @param target_addr Server sends responses to this address.
- * @param source_addr_func Server listens for functional transmissions on this address. 
+ * @param source_addr_func Server listens for functional transmissions on this address.
  */
-UDSErr_t UDSServerTpISOTpCInit(UDSTpISOTpC_t *tp, 
-    uint32_t source_addr,
-    uint32_t target_addr,
-    uint32_t source_addr_func);
+UDSErr_t UDSServerTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t source_addr, uint32_t target_addr,
+                               uint32_t source_addr_func);
 
 /**
  * @brief Initialize isotp-c transport for \ref UDSClient_t
  * @param tp \ref UDSTpISOTpC_t instance.
  * @param target_addr Client sends physical requests to this address.
  * @param source_addr Client listens for responses at this address.
- * @param target_addr_func Client sends functional transmissions to this address. 
+ * @param target_addr_func Client sends functional transmissions to this address.
  */
-UDSErr_t UDSClientTpISOTpCInit(UDSTpISOTpC_t *tp, 
-    uint32_t target_addr,
-    uint32_t source_addr,
-    uint32_t target_addr_func);
+UDSErr_t UDSClientTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t target_addr, uint32_t source_addr,
+                               uint32_t target_addr_func);
 
 #endif
 
@@ -1786,7 +1786,7 @@ UDSErr_t UDSClientTpISOTpCInit(UDSTpISOTpC_t *tp,
  * @brief isotp-c over SocketCAN implementation of \ref UDSTp_t
  */
 typedef struct {
-/// \cond DOXYGEN_SHOULD_SKIP_THIS
+    /// \cond DOXYGEN_SHOULD_SKIP_THIS
     UDSTp_t hdl;
     IsoTpLink phys_link;
     IsoTpLink func_link;
@@ -1796,7 +1796,7 @@ typedef struct {
     uint32_t phys_sa, phys_ta;
     uint32_t func_sa, func_ta;
     char tag[16];
-/// \endcond
+    /// \endcond
 } UDSTpISOTpCSocketCAN_t;
 
 /**
@@ -1823,7 +1823,7 @@ void UDSTpISOTpCSocketCANDeinit(UDSTpISOTpCSocketCAN_t *tp); ///< release socket
  * @brief linux ISO-TP socket implementation of \ref UDSTp_t
  */
 typedef struct {
-/// \cond DOXYGEN_SHOULD_SKIP_THIS
+    /// \cond DOXYGEN_SHOULD_SKIP_THIS
     UDSTp_t hdl;
     uint8_t recv_buf[UDS_ISOTP_MTU];
     uint8_t send_buf[UDS_ISOTP_MTU];
@@ -1834,7 +1834,7 @@ typedef struct {
     uint32_t phys_sa, phys_ta;
     uint32_t func_sa, func_ta;
     char tag[16];
-/// \endcond
+    /// \endcond
 } UDSTpIsoTpSock_t;
 
 UDSErr_t UDSServerTpIsoTpSockInit(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
