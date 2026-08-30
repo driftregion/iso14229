@@ -107,16 +107,9 @@ void setup() {
     while(1);
   }
 
-  const UDSTpISOTpCConfig_t tp_cfg = {
-      .source_addr=0x7E0,
-      .target_addr=0x7E8,
-      .source_addr_func=0x7DF,
-      .target_addr_func=UDS_TP_NOOP_ADDR,
-  };
-
-  err = UDSTpISOTpCInit(&tp, &tp_cfg);
+  err = UDSServerTpISOTpCInit(&tp, 0x7E0, 0x7E8, 0x7DF);
   if (UDS_OK != err) {
-    Serial.print("UDSTpISOTpCInit failed with err: ");
+    Serial.print("UDSServerTpISOTpCInit failed with err: ");
     Serial.println(UDSErrToStr(err));
     while(1);
   }

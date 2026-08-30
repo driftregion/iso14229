@@ -9,6 +9,7 @@
  * @brief isotp-c over SocketCAN implementation of \ref UDSTp_t
  */
 typedef struct {
+    /// \cond DOXYGEN_SHOULD_SKIP_THIS
     UDSTp_t hdl;
     IsoTpLink phys_link;
     IsoTpLink func_link;
@@ -18,6 +19,7 @@ typedef struct {
     uint32_t phys_sa, phys_ta;
     uint32_t func_sa, func_ta;
     char tag[16];
+    /// \endcond
 } UDSTpISOTpCSocketCAN_t;
 
 /**

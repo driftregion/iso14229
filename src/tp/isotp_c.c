@@ -89,23 +89,34 @@ static UDSTpSize_t tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t 
     return out_size;
 }
 
-UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, const UDSTpISOTpCConfig_t *cfg) {
-    if (cfg == NULL || tp == NULL) {
+static UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t sa, uint32_t ta, uint32_t sa_func,
+                                uint32_t ta_func) {
+    if (tp == NULL) {
         return UDS_ERR_INVALID_ARG;
     }
     tp->hdl.poll = tp_poll;
     tp->hdl.send = tp_send;
     tp->hdl.recv = tp_recv;
-    tp->phys_sa = cfg->source_addr;
-    tp->phys_ta = cfg->target_addr;
-    tp->func_sa = cfg->source_addr_func;
-    tp->func_ta = cfg->target_addr_func;
+    tp->phys_sa = sa;
+    tp->phys_ta = ta;
+    tp->func_sa = sa_func;
+    tp->func_ta = ta_func;
 
     isotp_init_link(&tp->phys_link, tp->phys_ta, tp->send_buf, sizeof(tp->send_buf), tp->recv_buf,
                     sizeof(tp->recv_buf));
     isotp_init_link(&tp->func_link, tp->func_ta, tp->func_send_buf, sizeof(tp->func_send_buf),
                     tp->func_recv_buf, sizeof(tp->func_recv_buf));
     return UDS_OK;
+}
+
+UDSErr_t UDSServerTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t source_addr, uint32_t target_addr,
+                               uint32_t source_addr_func) {
+    return UDSTpISOTpCInit(tp, source_addr, target_addr, source_addr_func, UDS_TP_NOOP_ADDR);
+}
+
+UDSErr_t UDSClientTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t source_addr, uint32_t target_addr,
+                               uint32_t target_addr_func) {
+    return UDSTpISOTpCInit(tp, source_addr, target_addr, UDS_TP_NOOP_ADDR, target_addr_func);
 }
 
 #endif

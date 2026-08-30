@@ -3107,23 +3107,37 @@ static UDSTpSize_t tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t 
     return out_size;
 }
 
-UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, const UDSTpISOTpCConfig_t *cfg) {
-    if (cfg == NULL || tp == NULL) {
+static UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t sa, uint32_t ta, uint32_t sa_func, uint32_t ta_func) {
+    if (tp == NULL) {
         return UDS_ERR_INVALID_ARG;
     }
     tp->hdl.poll = tp_poll;
     tp->hdl.send = tp_send;
     tp->hdl.recv = tp_recv;
-    tp->phys_sa = cfg->source_addr;
-    tp->phys_ta = cfg->target_addr;
-    tp->func_sa = cfg->source_addr_func;
-    tp->func_ta = cfg->target_addr_func;
+    tp->phys_sa = sa;
+    tp->phys_ta = ta;
+    tp->func_sa = sa_func;
+    tp->func_ta = ta_func;
 
     isotp_init_link(&tp->phys_link, tp->phys_ta, tp->send_buf, sizeof(tp->send_buf), tp->recv_buf,
                     sizeof(tp->recv_buf));
     isotp_init_link(&tp->func_link, tp->func_ta, tp->func_send_buf, sizeof(tp->func_send_buf),
                     tp->func_recv_buf, sizeof(tp->func_recv_buf));
     return UDS_OK;
+}
+
+UDSErr_t UDSServerTpISOTpCInit(UDSTpISOTpC_t *tp, 
+    uint32_t source_addr,
+    uint32_t target_addr,
+    uint32_t source_addr_func) {
+    return UDSTpISOTpCInit(tp, source_addr, target_addr, source_addr_func, UDS_TP_NOOP_ADDR);
+}
+
+UDSErr_t UDSClientTpISOTpCInit(UDSTpISOTpC_t *tp, 
+    uint32_t source_addr,
+    uint32_t target_addr,
+    uint32_t target_addr_func) {
+    return UDSTpISOTpCInit(tp, source_addr, target_addr, UDS_TP_NOOP_ADDR, target_addr_func);
 }
 
 #endif
@@ -3568,13 +3582,13 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool
     addr.can_ifindex = ifr.ifr_ifindex;
 
     if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-        UDS_LOGI(__FILE__, "Bind: %s %s\n", strerror(errno), if_name);
+        UDS_LOGI(__FILE__, "Bind: %s %s", strerror(errno), if_name);
         return -1;
     }
     return fd;
 }
 
-UDSErr_t UDSTpIsoTpSockInitServer(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
+UDSErr_t UDSServerTpIsoTpSockInit(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
                                   uint32_t target_addr, uint32_t source_addr_func) {
     UDS_ASSERT(tp);
     memset(tp, 0, sizeof(*tp));
@@ -3586,10 +3600,11 @@ UDSErr_t UDSTpIsoTpSockInitServer(UDSTpIsoTpSock_t *tp, const char *ifname, uint
     tp->func_sa = source_addr_func;
 
     tp->phys_fd = LinuxSockBind(ifname, source_addr, target_addr, false);
+    if (tp->phys_fd < 0) {
+        return UDS_FAIL;
+    }
     tp->func_fd = LinuxSockBind(ifname, source_addr_func, 0, true);
-    if (tp->phys_fd < 0 || tp->func_fd < 0) {
-        UDS_LOGI(__FILE__, "foo\n");
-        (void)fflush(stdout);
+    if (tp->func_fd < 0) {
         return UDS_FAIL;
     }
     const char *tag = "server";
@@ -3600,7 +3615,7 @@ UDSErr_t UDSTpIsoTpSockInitServer(UDSTpIsoTpSock_t *tp, const char *ifname, uint
     return UDS_OK;
 }
 
-UDSErr_t UDSTpIsoTpSockInitClient(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
+UDSErr_t UDSClientTpIsoTpSockInit(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
                                   uint32_t target_addr, uint32_t target_addr_func) {
     UDS_ASSERT(tp);
     memset(tp, 0, sizeof(*tp));

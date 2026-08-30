@@ -28,7 +28,7 @@ typedef struct {
 UDSErr_t fn(UDSClient_t *client, UDSEvent_t evt, void *ev_data) {
     SequenceContext_t *c = (SequenceContext_t *)client->fn_data;
     if (evt != UDS_EVT_Poll) {
-        UDS_LOGI(__FILE__, "%s (%d)", UDSEventToStr(evt), evt);
+        UDS_LOGD(__FILE__, "%s (%d)", UDSEventToStr(evt), evt);
     }
     if (UDS_EVT_Err == evt) {
         UDS_LOGE(__FILE__, "Exiting on step %d with error: %s", c->step,
@@ -39,6 +39,8 @@ UDSErr_t fn(UDSClient_t *client, UDSEvent_t evt, void *ev_data) {
     switch (c->step) {
     case Step_0_RDBI_Send: {
         const uint16_t dids[] = {0xf190};
+        UDS_LOGI(__FILE__, "Sending Read Data By Identifier (RDBI) for data identifier 0x%x",
+                 dids[0]);
         c->err = UDSSendRDBI(client, dids, 1);
         if (c->err) {
             UDS_LOGE(__FILE__, "UDSSendRDBI failed with err: %d", c->err);
@@ -58,7 +60,8 @@ UDSErr_t fn(UDSClient_t *client, UDSEvent_t evt, void *ev_data) {
                          UDSErrToStr(c->err));
                 c->step = Step_DONE;
             }
-            UDS_LOGI(__FILE__, "0xf190 has value %d", c->rdbi_f190);
+            UDS_LOGI(__FILE__, "Received Positive Response to RDBI. 0xf190 has value %d",
+                     c->rdbi_f190);
             c->step = Step_2_WDBI_Send;
         }
         break;
@@ -69,6 +72,10 @@ UDSErr_t fn(UDSClient_t *client, UDSEvent_t evt, void *ev_data) {
             (val & 0xff00) >> 8,
             val & 0x00ff,
         };
+        UDS_LOGI(
+            __FILE__,
+            "Sending Write Data By Identifier (WDBI) for data identifier 0x%x, writing value: %d",
+            0xf190, val);
         c->err = UDSSendWDBI(client, 0xf190, data, sizeof(data));
         if (c->err) {
             UDS_LOGE(__FILE__, "UDSSendWDBI failed with err: %s", UDSErrToStr(c->err));
@@ -79,7 +86,7 @@ UDSErr_t fn(UDSClient_t *client, UDSEvent_t evt, void *ev_data) {
     }
     case Step_3_WDBI_Recv: {
         if (UDS_EVT_ResponseReceived == evt) {
-            UDS_LOGI(__FILE__, "WDBI response received");
+            UDS_LOGI(__FILE__, "Received Positive Response to WDBI. Exiting.");
             c->step = Step_DONE;
         }
     default:
@@ -93,8 +100,8 @@ int main(int ac, char **av) {
     UDSClient_t client;
     UDSTpIsoTpSock_t tp;
 
-    if (UDSTpIsoTpSockInitClient(&tp, "vcan0", 0x7E8, 0x7E0, 0x7DF)) {
-        UDS_LOGE(__FILE__, "UDSTpIsoTpSockInitClient failed");
+    if (UDSClientTpIsoTpSockInit(&tp, "vcan0", 0x7E8, 0x7E0, 0x7DF)) {
+        UDS_LOGE(__FILE__, "UDSClientTpIsoTpSockInit failed");
         exit(-1);
     }
 

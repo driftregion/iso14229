@@ -60,8 +60,8 @@ int main(int ac, char **av) {
     UDSClient_t client;
     UDSTpIsoTpSock_t tp;
 
-    if (UDSTpIsoTpSockInitClient(&tp, "can0", 0x7E8, 0x7E0, 0x7DF)) {
-        UDS_LOGE(__FILE__, "UDSTpIsoTpSockInitClient failed");
+    if (UDSClientTpIsoTpSockInit(&tp, "can0", 0x7E8, 0x7E0, 0x7DF)) {
+        UDS_LOGE(__FILE__, "UDSClientTpIsoTpSockInit failed");
         exit(-1);
     }
 

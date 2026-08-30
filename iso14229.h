@@ -23,8 +23,8 @@ extern "C" {
  * @see UDS_SYS
  * @{
  */
-#define UDS_SYS_CUSTOM 0    /**< bare metal or unsupported targets */
-#define UDS_SYS_UNIX 1      
+#define UDS_SYS_CUSTOM 0 /**< bare metal or unsupported targets */
+#define UDS_SYS_UNIX 1
 #define UDS_SYS_WINDOWS 2
 #define UDS_SYS_ARDUINO 3
 #define UDS_SYS_ESP32 4
@@ -41,7 +41,8 @@ extern "C" {
 #elif defined(ESP_PLATFORM)
 #define UDS_SYS UDS_SYS_ESP32
 #else
-#warning "UDS_SYS was not detected, defaulting to UDS_SYS_CUSTOM. Remove this warning by defining UDS_SYS=UDS_SYS_CUSTOM in your build configuration"
+#warning                                                                                           \
+    "UDS_SYS was not detected, defaulting to UDS_SYS_CUSTOM. Remove this warning by defining UDS_SYS=UDS_SYS_CUSTOM in your build configuration"
 #define UDS_SYS UDS_SYS_CUSTOM
 #endif
 
@@ -94,7 +95,7 @@ extern "C" {
  * @see uds_sys_ for the list of valid values
  */
 
-/** 
+/**
  * @def UDS_TP_ISOTP_C
  * @brief if defined, build the @ref UDSTpISOTpC_t transport
  */
@@ -121,7 +122,8 @@ extern "C" {
 
 /**
  * @def UDS_SERVER_SEND_BUF_SIZE
- * @brief reduce this at your own risk to save RAM. Fuzz testing is done with the default of @ref UDS_TP_MTU.
+ * @brief reduce this at your own risk to save RAM. Fuzz testing is done with the default of @ref
+ * UDS_TP_MTU.
  */
 #ifndef UDS_SERVER_SEND_BUF_SIZE
 #define UDS_SERVER_SEND_BUF_SIZE (UDS_TP_MTU)
@@ -161,7 +163,8 @@ static_assert(UDS_CLIENT_DEFAULT_P2_STAR_MS > UDS_CLIENT_DEFAULT_P2_MS, "");
 #endif
 
 #ifndef UDS_SERVER_DEFAULT_S3_MS
-#define UDS_SERVER_DEFAULT_S3_MS (5100) ///< default S3 duration (ISO14229-2 2013 Table 5: 5000 -0/+200 ms)
+#define UDS_SERVER_DEFAULT_S3_MS                                                                   \
+    (5100) ///< default S3 duration (ISO14229-2 2013 Table 5: 5000 -0/+200 ms)
 #endif
 
 static_assert((0 < UDS_SERVER_DEFAULT_P2_MS) &&
@@ -290,8 +293,10 @@ typedef struct UDSTp {
     UDSTpStatus_t (*poll)(struct UDSTp *hdl);
 } UDSTp_t;
 
-UDSTpSize_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, UDSTpSize_t len, UDSSDU_t *info); ///< Send to transport
-UDSTpSize_t UDSTpRecv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info); ///< Receive from transport
+UDSTpSize_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, UDSTpSize_t len,
+                      UDSSDU_t *info); ///< Send to transport
+UDSTpSize_t UDSTpRecv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize,
+                      UDSSDU_t *info); ///< Receive from transport
 UDSTpStatus_t UDSTpPoll(UDSTp_t *hdl); ///< call this at <5ms intervals
 
 
@@ -482,9 +487,10 @@ typedef enum {
  * @see UDSSendCommCtrl UDS_EVT_CommCtrl
  * @{
  */
-#define UDS_CTP_NCM 1       ///< NormalCommunicationMessages
-#define UDS_CTP_NWMCM 2     ///< NetworkManagementCommunicationMessages
-#define UDS_CTP_NWMCM_NCM 3 ///< NetworkManagementCommunicationMessagesAndNormalCommunicationMessages
+#define UDS_CTP_NCM 1   ///< NormalCommunicationMessages
+#define UDS_CTP_NWMCM 2 ///< NetworkManagementCommunicationMessages
+#define UDS_CTP_NWMCM_NCM                                                                          \
+    3 ///< NetworkManagementCommunicationMessagesAndNormalCommunicationMessages
 /** @} */
 
 /**
@@ -499,7 +505,7 @@ typedef enum {
 /** @} */
 
 /**
- * @defgroup uds_moop_ Mode of Operation for RequestFileTransfer 
+ * @defgroup uds_moop_ Mode of Operation for RequestFileTransfer
  * @brief ISO14229-1:2020 Table G.1
  * @see UDSSendRequestFileTransfer UDS_EVT_RequestFileTransfer
  * @{
@@ -518,7 +524,7 @@ typedef enum {
  * @see UDSSendControlDTCSetting UDS_EVT_ControlDTCSetting
  * @{
  */
-#define UDS_LEV_DTCSTP_ON 1 ///< Resume updating DTCs 
+#define UDS_LEV_DTCSTP_ON 1  ///< Resume updating DTCs
 #define UDS_LEV_DTCSTP_OFF 2 ///< Stop updating DTCs
 /** @} */
 
@@ -536,8 +542,10 @@ typedef enum {
 /// ISO-14229-1:2013 Table 2
 #define UDS_MAX_DIAGNOSTIC_SERVICES 0x7F
 
-#define UDS_RESPONSE_SID_OF(request_sid) ((request_sid) + 0x40) ///< Convert request SID to response SID
-#define UDS_REQUEST_SID_OF(response_sid) ((response_sid) - 0x40) ///< Convert response SID to request SID
+#define UDS_RESPONSE_SID_OF(request_sid)                                                           \
+    ((request_sid) + 0x40) ///< Convert request SID to response SID
+#define UDS_REQUEST_SID_OF(response_sid)                                                           \
+    ((response_sid) - 0x40) ///< Convert response SID to request SID
 
 /// \cond DOXYGEN_SHOULD_SKIP_THIS
 #define UDS_NEG_RESP_LEN 3U
@@ -618,11 +626,10 @@ enum UDSDiagnosticServiceId {
 
 
 
-
 /**
  * @def UDS_ASSERT(x)
- * @brief define this during library development. 
- * It is a no-op by default for library users. 
+ * @brief define this during library development.
+ * It is a no-op by default for library users.
  * API misuse is expected to be covered by runtime checks, not by UDS_ASSERT
  */
 #ifndef UDS_ASSERT
@@ -889,14 +896,17 @@ UDSErr_t UDSSendRequestFileTransfer(
 UDSErr_t UDSCtrlDTCSetting(UDSClient_t *client, uint8_t dtcSettingType,
                            uint8_t *dtcSettingControlOptionRecord,
                            uint16_t len); ///< control DTC setting
-UDSErr_t UDSUnpackRDBIResponse(UDSClient_t *client, UDSRDBIVar_t *vars, uint16_t numVars); ///< Parse server's response to RDBI 
-UDSErr_t UDSUnpackSecurityAccessResponse(const UDSClient_t *client,
-                                         struct SecurityAccessResponse *resp); ///< Parse server's response to SecurityAccess 
-UDSErr_t UDSUnpackRequestDownloadResponse(const UDSClient_t *client,
-                                          struct RequestDownloadResponse *resp); ///< Parse server's response to RequestDownload 
-UDSErr_t UDSUnpackRoutineControlResponse(const UDSClient_t *client,
-                                         struct RoutineControlResponse *resp); ///< Parse server's response to RoutineControl
-
+UDSErr_t UDSUnpackRDBIResponse(UDSClient_t *client, UDSRDBIVar_t *vars,
+                               uint16_t numVars); ///< Parse server's response to RDBI
+UDSErr_t UDSUnpackSecurityAccessResponse(
+    const UDSClient_t *client,
+    struct SecurityAccessResponse *resp); ///< Parse server's response to SecurityAccess
+UDSErr_t UDSUnpackRequestDownloadResponse(
+    const UDSClient_t *client,
+    struct RequestDownloadResponse *resp); ///< Parse server's response to RequestDownload
+UDSErr_t UDSUnpackRoutineControlResponse(
+    const UDSClient_t *client,
+    struct RoutineControlResponse *resp); ///< Parse server's response to RoutineControl
 
 
 
@@ -972,9 +982,9 @@ typedef struct UDSServer {
  * @brief Diagnostic session control arguments
  */
 typedef struct {
-    const uint8_t type;  /*! requested diagnostic session type */
-    uint16_t p2_ms;      /*! optional: p2 timing override */
-    uint32_t p2_star_ms; /*! optional: p2* timing override */
+    const uint8_t type;  /**< requested diagnostic session type */
+    uint16_t p2_ms;      /**< optional: p2 timing override */
+    uint32_t p2_star_ms; /**< optional: p2* timing override */
 } UDSDiagSessCtrlArgs_t;
 
 /**
@@ -990,177 +1000,187 @@ typedef struct {
  * @brief Clear diagnostic information arguments
  */
 typedef struct {
-    const uint32_t groupOfDTC;     /*! lower 3 bytes describe the groupOfDTC */
-    const bool hasMemorySelection; /*! `true` when a memory selection byte is present */
-    const uint8_t memorySelection; /*! memorySelection byte (optional) */
+    const uint32_t groupOfDTC;     /**< lower 3 bytes describe the groupOfDTC */
+    const bool hasMemorySelection; /**< `true` when a memory selection byte is present */
+    const uint8_t memorySelection; /**<  memorySelection byte (optional) */
 } UDSCDIArgs_t;
 
 /**
  * @brief Read DTC information arguments
  */
 typedef struct {
-    const uint8_t type; /*! invoked subfunction */
+    const uint8_t type; /**< invoked subfunction */
     uint8_t (*copy)(UDSServer_t *srv, const void *src,
-                    uint16_t count); /*! function for copying data */
+                    uint16_t count); /**< function for copying data */
 
     union {
         struct {
-            uint8_t mask; /*! DTC status mask */
-        } numOfDTCByStatusMaskArgs, dtcStatusByMaskArgs;
+            uint8_t mask; /**< DTC status mask */
+        } numOfDTCByStatusMaskArgs, /**< args for number of DTCs by status mask */
+            dtcStatusByMaskArgs;    /**< args for DTCs by status mask */
         struct {
-            uint32_t dtc;        /*! DTC Mask Record */
-            uint8_t snapshotNum; /*! DTC Snaphot Record Number */
-            uint8_t memory;      /*! Memory Selection (only used when type == 0x18) */
-        } dtcSnapshotRecordbyDTCNumArgs, userDefMemDTCSnapshotRecordByDTCNumArgs;
+            uint32_t dtc;        /**< DTC Mask Record */
+            uint8_t snapshotNum; /**< DTC Snaphot Record Number */
+            uint8_t memory;      /**< Memory Selection (only used when type == 0x18) */
+        } dtcSnapshotRecordbyDTCNumArgs, /**< args for DTC snapshot record by DTC number */
+            userDefMemDTCSnapshotRecordByDTCNumArgs; /**< args for user-defined-memory DTC snapshot
+                                                         record by DTC number */
         struct {
-            uint8_t recordNum; /*! DTC Data Record Number */
-        } dtcStoredDataByRecordNumArgs, dtcExtDataRecordByRecordNumArgs, dtcExtDataRecordIdArgs;
+            uint8_t recordNum; /**< DTC Data Record Number */
+        } dtcStoredDataByRecordNumArgs,    /**< args for DTC stored data by record number */
+            dtcExtDataRecordByRecordNumArgs, /**< args for DTC extended data record by record number */
+            dtcExtDataRecordIdArgs;          /**< args for supported DTC extended data record ID */
         struct {
-            uint32_t dtc;          /*! DTC Mask Record */
-            uint8_t extDataRecNum; /*! DTC Extended Data Record Number */
-            uint8_t memory;        /*! Memory Selection (only used when type == 0x19) */
-        } dtcExtDtaRecordByDTCNumArgs, userDefMemDTCExtDataRecordByDTCNumArgs;
+            uint32_t dtc;          /**< DTC Mask Record */
+            uint8_t extDataRecNum; /**< DTC Extended Data Record Number */
+            uint8_t memory;        /**< Memory Selection (only used when type == 0x19) */
+        } dtcExtDtaRecordByDTCNumArgs, /**< args for DTC extended data record by DTC number */
+            userDefMemDTCExtDataRecordByDTCNumArgs; /**< args for user-defined-memory DTC extended
+                                                        data record by DTC number */
         struct {
             uint8_t
-                functionalGroup;  /*! Functional Group Identifier (only used when type == 0x42) */
-            uint8_t severityMask; /*! DTC Severity Mask */
-            uint8_t statusMask;   /*! DTC Status Mask */
-        } numOfDTCBySeverityMaskArgs, dtcBySeverityMaskArgs, wwhobdDTCByMaskArgs;
+                functionalGroup;  /**< Functional Group Identifier (only used when type == 0x42) */
+            uint8_t severityMask; /**< DTC Severity Mask */
+            uint8_t statusMask;   /**< DTC Status Mask */
+        } numOfDTCBySeverityMaskArgs, /**< args for number of DTCs by severity mask */
+            dtcBySeverityMaskArgs,    /**< args for DTCs by severity mask */
+            wwhobdDTCByMaskArgs;      /**< args for WWH-OBD DTCs by mask */
         struct {
-            uint32_t dtc; /*! DTC Mask Record */
-        } severityInfoOfDTCArgs;
+            uint32_t dtc; /**< DTC Mask Record */
+        } severityInfoOfDTCArgs; /**< args for severity information of a DTC */
         struct {
-            uint8_t mask;   /*! DTC status mask */
-            uint8_t memory; /*! Memory Selection */
-        } userDefMemoryDTCByStatusMaskArgs;
+            uint8_t mask;   /**< DTC status mask */
+            uint8_t memory; /**< Memory Selection */
+        } userDefMemoryDTCByStatusMaskArgs; /**< args for user-defined-memory DTCs by status mask */
         struct {
-            uint8_t functionalGroup; /*! Functional Group Identifier */
+            uint8_t functionalGroup; /**< Functional Group Identifier */
             uint8_t
-                readinessGroup; /*! DTC Readiness Group Identifier (only used when type == 0x56) */
-        } wwhobdDTCWithPermStatusArgs, dtcInfoByDTCReadinessGroupIdArgs;
-    } subFuncArgs;
+                readinessGroup; /**< DTC Readiness Group Identifier (only used when type == 0x56) */
+        } wwhobdDTCWithPermStatusArgs,             /**< args for WWH-OBD DTCs with permanent status */
+            dtcInfoByDTCReadinessGroupIdArgs;      /**< args for DTCs by readiness group */
+    } subFuncArgs; /**< subfunction-specific arguments, selected by \ref type */
 } UDSRDTCIArgs_t;
 
 /**
  * @brief Read data by identifier arguments
  */
 typedef struct {
-    const uint16_t dataId; /*! RDBI Data Identifier */
+    const uint16_t dataId; /**< RDBI Data Identifier */
     uint8_t (*copy)(UDSServer_t *srv, const void *src,
-                    uint16_t count); /*! function for copying data */
+                    uint16_t count); /**< function for copying data */
 } UDSRDBIArgs_t;
 
 /**
  * @brief Read memory by address arguments
  */
 typedef struct {
-    const void *memAddr;
-    const size_t memSize;
+    const void *memAddr; /**< requested server memory address */
+    const size_t memSize; /**< requested size */
     uint8_t (*copy)(UDSServer_t *srv, const void *src,
-                    uint16_t count); /*! function for copying data */
+                    uint16_t count); /**< function for copying data to response */
 } UDSReadMemByAddrArgs_t;
 
 /**
  * @brief Communication control arguments
  */
 typedef struct {
-    uint8_t ctrlType; /*! ControlType */
-    uint8_t commType; /*! CommunicationType */
-    uint16_t nodeId;  /*! NodeIdentificationNumber (only used when ctrlType is 0x04 or 0x05) */
+    uint8_t ctrlType; /**< ControlType */
+    uint8_t commType; /**< CommunicationType */
+    uint16_t nodeId;  /**< NodeIdentificationNumber (only used when ctrlType is 0x04 or 0x05) */
 } UDSCommCtrlArgs_t;
 
 /**
  * @brief Security access request seed arguments
  */
 typedef struct {
-    const uint8_t level;             /*! requested security level */
-    const uint8_t *const dataRecord; /*! pointer to request data */
-    const uint16_t len;              /*! size of request data */
+    const uint8_t level;             /**< requested security level */
+    const uint8_t *const dataRecord; /**< pointer to request data */
+    const uint16_t len;              /**< size of request data */
     uint8_t (*copySeed)(UDSServer_t *srv, const void *src,
-                        uint16_t len); /*! function for copying data */
+                        uint16_t len); /**< function for copying data */
 } UDSSecAccessRequestSeedArgs_t;
 
 /**
  * @brief Security access validate key arguments
  */
 typedef struct {
-    const uint8_t level;      /*! security level to be validated */
-    const uint8_t *const key; /*! key sent by client */
-    const uint16_t len;       /*! length of key */
+    const uint8_t level;      /**< security level to be validated */
+    const uint8_t *const key; /**< key sent by client */
+    const uint16_t len;       /**< length of key */
 } UDSSecAccessValidateKeyArgs_t;
 
 /**
  * @brief Write data by identifier arguments
  */
 typedef struct {
-    const uint16_t dataId;     /*! WDBI Data Identifier */
-    const uint8_t *const data; /*! pointer to data */
-    const uint16_t len;        /*! length of data */
+    const uint16_t dataId;     /**< WDBI Data Identifier */
+    const uint8_t *const data; /**< pointer to data */
+    const uint16_t len;        /**< length of data */
 } UDSWDBIArgs_t;
 
 /**
  * @brief Write memory by address arguments
  */
 typedef struct {
-    const void *memAddr;       /*! pointer to memory address */
-    const size_t memSize;      /*! size of memory */
-    const uint8_t *const data; /*! pointer to data */
+    const void *memAddr;       /**< pointer to memory address */
+    const size_t memSize;      /**< size of memory */
+    const uint8_t *const data; /**< pointer to data */
 } UDSWriteMemByAddrArgs_t;
 
 /**
  * @brief Dynamically define data identifier arguments
  */
 typedef struct {
-    const uint8_t type;     /*! invoked subfunction */
-    bool allDataIds;        /*! is true when request is for all data identifiers (only relevant for
+    const uint8_t type;     /**< invoked subfunction */
+    bool allDataIds;        /**< is true when request is for all data identifiers (only relevant for
                               subFunc 0x03) */
-    uint16_t dynamicDataId; /*! dynamicallyDefinedDataIdentifier */
+    uint16_t dynamicDataId; /**< dynamicallyDefinedDataIdentifier */
 
     union {
         struct {
-            uint16_t sourceDataId; /*! source DataIdentifier */
-            uint8_t position;      /*! position in source data record */
-            uint8_t size;          /*! number of bytes to be copied */
-        } defineById;
+            uint16_t sourceDataId; /**< source DataIdentifier */
+            uint8_t position;      /**< position in source data record */
+            uint8_t size;          /**< number of bytes to be copied */
+        } defineById; /**< args when defining from an existing source data identifier */
         struct {
-            void *memAddr;
-            size_t memSize;
-        } defineByMemAddress;
-    } subFuncArgs;
+            void *memAddr;  /**< memory address to read from */
+            size_t memSize; /**< number of bytes to read */
+        } defineByMemAddress; /**< args when defining from a memory address */
+    } subFuncArgs; /**< subfunction-specific arguments, selected by \ref type */
 } UDSDDDIArgs_t;
 
 /**
  * @brief Input/output control by identifier arguments
  */
 typedef struct {
-    const uint16_t dataId;              /*! Data Identifier */
-    const uint8_t ioCtrlParam;          /*! inputOutputControlParameter */
-    const void *const ctrlStateAndMask; /*! controlState bytes and controlMask (optional) */
-    const size_t ctrlStateAndMaskLen;   /*! number of bytes in `ctrlStateAndMask` */
+    const uint16_t dataId;              /**< Data Identifier */
+    const uint8_t ioCtrlParam;          /**< inputOutputControlParameter */
+    const void *const ctrlStateAndMask; /**< controlState bytes and controlMask (optional) */
+    const size_t ctrlStateAndMaskLen;   /**< number of bytes in `ctrlStateAndMask` */
     uint8_t (*copy)(UDSServer_t *srv, const void *src,
-                    uint16_t count); /*! function for copying data */
+                    uint16_t count); /**< function for copying data */
 } UDSIOCtrlArgs_t;
 
 /**
  * @brief Routine control arguments
  */
 typedef struct {
-    const uint8_t ctrlType;      /*! routineControlType */
-    const uint16_t id;           /*! routineIdentifier */
-    const uint8_t *optionRecord; /*! optional data */
-    const uint16_t len;          /*! length of optional data */
+    const uint8_t ctrlType;      /**< routineControlType */
+    const uint16_t id;           /**< routineIdentifier */
+    const uint8_t *optionRecord; /**< optional data */
+    const uint16_t len;          /**< length of optional data */
     uint8_t (*copyStatusRecord)(UDSServer_t *srv, const void *src,
-                                uint16_t len); /*! function for copying response data */
+                                uint16_t len); /**< function for copying response data */
 } UDSRoutineCtrlArgs_t;
 
 /**
  * @brief Request download arguments
  */
 typedef struct {
-    const void *addr;                   /*! requested address */
-    const size_t size;                  /*! requested download size */
-    const uint8_t dataFormatIdentifier; /*! optional specifier for format of data */
-    uint16_t maxNumberOfBlockLength;    /*! optional response: inform client how many data bytes to
+    const void *addr;                   /**< requested address */
+    const size_t size;                  /**< requested download size */
+    const uint8_t dataFormatIdentifier; /**< optional specifier for format of data */
+    uint16_t maxNumberOfBlockLength;    /**< optional response: inform client how many data bytes to
                                            send in each    `TransferData` request */
 } UDSRequestDownloadArgs_t;
 
@@ -1168,10 +1188,10 @@ typedef struct {
  * @brief Request upload arguments
  */
 typedef struct {
-    const void *addr;                   /*! requested address */
-    const size_t size;                  /*! requested download size */
-    const uint8_t dataFormatIdentifier; /*! optional specifier for format of data */
-    uint16_t maxNumberOfBlockLength;    /*! optional response: inform client how many data bytes to
+    const void *addr;                   /**< requested address */
+    const size_t size;                  /**< requested download size */
+    const uint8_t dataFormatIdentifier; /**< optional specifier for format of data */
+    uint16_t maxNumberOfBlockLength;    /**< optional response: inform client how many data bytes to
                                            send in each    `TransferData` request */
 } UDSRequestUploadArgs_t;
 
@@ -1179,22 +1199,22 @@ typedef struct {
  * @brief Transfer data arguments
  */
 typedef struct {
-    const uint8_t *const data; /*! transfer data */
-    const uint16_t len;        /*! transfer data length */
-    const uint16_t maxRespLen; /*! don't send more than this many bytes with copyResponse */
+    const uint8_t *const data; /**< transfer data */
+    const uint16_t len;        /**< transfer data length */
+    const uint16_t maxRespLen; /**< don't send more than this many bytes with copyResponse */
     uint8_t (*copyResponse)(
         UDSServer_t *srv, const void *src,
-        uint16_t len); /*! function for copying transfer data response data (optional) */
+        uint16_t len); /**< function for copying transfer data response data (optional) */
 } UDSTransferDataArgs_t;
 
 /**
  * @brief Request transfer exit arguments
  */
 typedef struct {
-    const uint8_t *const data; /*! request data */
-    const uint16_t len;        /*! request data length */
+    const uint8_t *const data; /**< request data */
+    const uint16_t len;        /**< request data length */
     uint8_t (*copyResponse)(UDSServer_t *srv, const void *src,
-                            uint16_t len); /*! function for copying response data (optional) */
+                            uint16_t len); /**< function for copying response data (optional) */
 } UDSRequestTransferExitArgs_t;
 
 /**
@@ -1206,21 +1226,21 @@ typedef struct {
      * @see @ref uds_moop_ "modeOfOperation values"
      */
     const uint8_t modeOfOperation;
-    const uint16_t filePathLen;         /*! request: data length. */
-    const uint8_t *filePath;            /*! request: file path or directory name (ReadDirectory). */
-    const uint8_t dataFormatIdentifier; /*! request: specifier for format of data (does not apply to
+    const uint16_t filePathLen;         /**< request: data length. */
+    const uint8_t *filePath;            /**< request: file path or directory name (ReadDirectory). */
+    const uint8_t dataFormatIdentifier; /**< request: specifier for format of data (does not apply to
                                            DeleteFile or ReadDir) */
 
     // if MOOP is AddFile, ReplaceFile, or ResumeFile, these fields are **requests**.
     // if MOOP is ReadFile or ReadDirectory, these fields are **responses** -- the server must set
     // them. if MOOP is DelFile, these fields are unused.
-    size_t fileSizeUnCompressed; /*! file size or directory info len (ReadDirectory) */
-    size_t fileSizeCompressed;   /*! compressed filesize (ReadFile), otherwise zero. */
+    size_t fileSizeUnCompressed; /**< file size or directory info len (ReadDirectory) */
+    size_t fileSizeCompressed;   /**< compressed filesize (ReadFile), otherwise zero. */
 
-    uint16_t maxNumberOfBlockLength; /*! response: Defaults to UDS_TP_MTU. Informs client how many
+    uint16_t maxNumberOfBlockLength; /**< response: Defaults to UDS_TP_MTU. Informs client how many
                                         data bytes to send in each `TransferData` request. (unused
                                         by DelFile). */
-    size_t filePosition; /*! response: byte position to resume from after suspended download
+    size_t filePosition; /**< response: byte position to resume from after suspended download
                             (ResumeFile), otherwise zero. */
 } UDSRequestFileTransferArgs_t;
 
@@ -1228,19 +1248,19 @@ typedef struct {
  * @brief Control DTC setting arguments
  */
 typedef struct {
-    uint8_t type; /*! invoked subfunction */
-    size_t len;   /*! length of data */
-    void *data;   /*! DTCSettingControlOptionRecord */
+    uint8_t type; /**< invoked subfunction */
+    size_t len;   /**< length of data */
+    void *data;   /**< DTCSettingControlOptionRecord */
 } UDSControlDTCSettingArgs_t;
 
 /**
  * @brief Link control arguments
  */
 typedef struct {
-    const uint8_t type; /*! invoked subfunction */
+    const uint8_t type; /**< invoked subfunction */
     /* purposefully left generic to allow vehicle- and supplier specific data of different sizes */
-    const size_t len; /*! length of data */
-    const void *data; /*! data used in the subfunction. E.g. on SubFunction 0x01 this is the
+    const size_t len; /**< length of data */
+    const void *data; /**< data used in the subfunction. E.g. on SubFunction 0x01 this is the
                          linkControlModelIdentifier, on SubFunction 0x02 this is the linkRecord */
 } UDSLinkCtrlArgs_t;
 
@@ -1248,15 +1268,15 @@ typedef struct {
  * @brief Custom service arguments
  */
 typedef struct {
-    const uint16_t sid;          /*! serviceIdentifier */
-    const uint8_t *optionRecord; /*! optional data */
-    const uint16_t len;          /*! length of optional data */
+    const uint16_t sid;          /**< serviceIdentifier */
+    const uint8_t *optionRecord; /**< optional data */
+    const uint16_t len;          /**< length of optional data */
     uint8_t (*copyResponse)(UDSServer_t *srv, const void *src,
-                            uint16_t len); /*! function for copying response data (optional) */
+                            uint16_t len); /**< function for copying response data (optional) */
 } UDSCustomArgs_t;
 
 UDSErr_t UDSServerInit(UDSServer_t *srv); ///< call this once
-void UDSServerPoll(UDSServer_t *srv); ///< Call this at <5ms intervals
+void UDSServerPoll(UDSServer_t *srv);     ///< Call this at <5ms intervals
 
 #if defined(UDS_TP_ISOTP_C)
 /// \cond DOXYGEN_SHOULD_SKIP_THIS
@@ -1718,6 +1738,7 @@ int isotp_receive(IsoTpLink *link, uint8_t *payload, const uint16_t payload_size
  * @brief isotp-c implementation of \ref UDSTp_t
  */
 typedef struct {
+/// \cond DOXYGEN_SHOULD_SKIP_THIS
     UDSTp_t hdl;
     IsoTpLink phys_link;
     IsoTpLink func_link;
@@ -1727,22 +1748,32 @@ typedef struct {
     uint8_t func_recv_buf[8];
     uint32_t phys_sa, phys_ta;
     uint32_t func_sa, func_ta;
+/// \endcond
 } UDSTpISOTpC_t;
 
 /**
- * @brief arguments for \ref UDSTpISOTpCInit
+ * @brief Initialize isotp-c transport for \ref UDSServer_t 
+ * @param tp \ref UDSTpISOTpC_t instance.
+ * @param source_addr Server listens for physical transmissions on this address.
+ * @param target_addr Server sends responses to this address.
+ * @param source_addr_func Server listens for functional transmissions on this address. 
  */
-typedef struct {
-    uint32_t source_addr;
-    uint32_t target_addr;
-    uint32_t source_addr_func;
-    uint32_t target_addr_func;
-} UDSTpISOTpCConfig_t;
+UDSErr_t UDSServerTpISOTpCInit(UDSTpISOTpC_t *tp, 
+    uint32_t source_addr,
+    uint32_t target_addr,
+    uint32_t source_addr_func);
 
 /**
- * @brief Initialize isotp-c transport
+ * @brief Initialize isotp-c transport for \ref UDSClient_t
+ * @param tp \ref UDSTpISOTpC_t instance.
+ * @param target_addr Client sends physical requests to this address.
+ * @param source_addr Client listens for responses at this address.
+ * @param target_addr_func Client sends functional transmissions to this address. 
  */
-UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, const UDSTpISOTpCConfig_t *cfg);
+UDSErr_t UDSClientTpISOTpCInit(UDSTpISOTpC_t *tp, 
+    uint32_t target_addr,
+    uint32_t source_addr,
+    uint32_t target_addr_func);
 
 #endif
 
@@ -1755,6 +1786,7 @@ UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, const UDSTpISOTpCConfig_t *cfg);
  * @brief isotp-c over SocketCAN implementation of \ref UDSTp_t
  */
 typedef struct {
+/// \cond DOXYGEN_SHOULD_SKIP_THIS
     UDSTp_t hdl;
     IsoTpLink phys_link;
     IsoTpLink func_link;
@@ -1764,10 +1796,11 @@ typedef struct {
     uint32_t phys_sa, phys_ta;
     uint32_t func_sa, func_ta;
     char tag[16];
+/// \endcond
 } UDSTpISOTpCSocketCAN_t;
 
 /**
- * @brief Initialize the transport 
+ * @brief Initialize the transport
  * @param tp transport
  * @param ifname can0, vcan0
  * @param source_addr
@@ -1790,6 +1823,7 @@ void UDSTpISOTpCSocketCANDeinit(UDSTpISOTpCSocketCAN_t *tp); ///< release socket
  * @brief linux ISO-TP socket implementation of \ref UDSTp_t
  */
 typedef struct {
+/// \cond DOXYGEN_SHOULD_SKIP_THIS
     UDSTp_t hdl;
     uint8_t recv_buf[UDS_ISOTP_MTU];
     uint8_t send_buf[UDS_ISOTP_MTU];
@@ -1800,13 +1834,16 @@ typedef struct {
     uint32_t phys_sa, phys_ta;
     uint32_t func_sa, func_ta;
     char tag[16];
+/// \endcond
 } UDSTpIsoTpSock_t;
 
-UDSErr_t UDSTpIsoTpSockInitServer(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
-                                  uint32_t target_addr, uint32_t source_addr_func); ///< for UDSServer_t 
-UDSErr_t UDSTpIsoTpSockInitClient(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
-                                  uint32_t target_addr, uint32_t target_addr_func); ///< for UDSClient_t
-void UDSTpIsoTpSockDeinit(UDSTpIsoTpSock_t *tp); ///< release sockets
+UDSErr_t UDSServerTpIsoTpSockInit(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
+                                  uint32_t target_addr,
+                                  uint32_t source_addr_func); ///< for UDSServer_t
+UDSErr_t UDSClientTpIsoTpSockInit(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
+                                  uint32_t target_addr,
+                                  uint32_t target_addr_func); ///< for UDSClient_t
+void UDSTpIsoTpSockDeinit(UDSTpIsoTpSock_t *tp);              ///< release sockets
 
 #endif
 

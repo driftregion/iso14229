@@ -2,6 +2,7 @@
 
 - breaking API changes:
     - replaced Posix-specific ssize_t with UDSTpSize_t. 
+    - replaced `UDSTpISOTpCInit` with server and client specific functions: `UDSServerTpISOTpCInit` and `UDSClientTpISOTpCInit`
 
 ## 0.9.0
 - breaking API changes:

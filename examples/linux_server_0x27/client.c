@@ -180,8 +180,8 @@ int main(int ac, char **av) {
     UDSClient_t client;
 #if defined(UDS_TP_ISOTP_SOCK)
     UDSTpIsoTpSock_t tp;
-    if (UDSTpIsoTpSockInitClient(&tp, "vcan0", 0x7E8, 0x7E0, 0x7DF)) {
-        UDS_LOGE(__FILE__, "UDSTpIsoTpSockInitClient failed");
+    if (UDSClientTpIsoTpSockInit(&tp, "vcan0", 0x7E8, 0x7E0, 0x7DF)) {
+        UDS_LOGE(__FILE__, "UDSClientTpIsoTpSockInit failed");
         exit(-1);
     }
 #elif defined(UDS_TP_ISOTP_C_SOCKETCAN)

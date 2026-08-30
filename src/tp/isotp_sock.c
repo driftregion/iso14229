@@ -179,7 +179,6 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool
     memset(&opts, 0, sizeof(opts));
 
     if (functional) {
-        UDS_LOGI(__FILE__, "configuring fd: %d as functional", fd);
         // configure the socket as listen-only to avoid sending FC frames
         opts.flags |= CAN_ISOTP_LISTEN_MODE;
     }
@@ -206,13 +205,13 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool
     addr.can_ifindex = ifr.ifr_ifindex;
 
     if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-        UDS_LOGI(__FILE__, "Bind: %s %s\n", strerror(errno), if_name);
+        UDS_LOGI(__FILE__, "Bind: %s %s", strerror(errno), if_name);
         return -1;
     }
     return fd;
 }
 
-UDSErr_t UDSTpIsoTpSockInitServer(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
+UDSErr_t UDSServerTpIsoTpSockInit(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
                                   uint32_t target_addr, uint32_t source_addr_func) {
     UDS_ASSERT(tp);
     memset(tp, 0, sizeof(*tp));
@@ -224,10 +223,11 @@ UDSErr_t UDSTpIsoTpSockInitServer(UDSTpIsoTpSock_t *tp, const char *ifname, uint
     tp->func_sa = source_addr_func;
 
     tp->phys_fd = LinuxSockBind(ifname, source_addr, target_addr, false);
+    if (tp->phys_fd < 0) {
+        return UDS_FAIL;
+    }
     tp->func_fd = LinuxSockBind(ifname, source_addr_func, 0, true);
-    if (tp->phys_fd < 0 || tp->func_fd < 0) {
-        UDS_LOGI(__FILE__, "foo\n");
-        (void)fflush(stdout);
+    if (tp->func_fd < 0) {
         return UDS_FAIL;
     }
     const char *tag = "server";
@@ -238,7 +238,7 @@ UDSErr_t UDSTpIsoTpSockInitServer(UDSTpIsoTpSock_t *tp, const char *ifname, uint
     return UDS_OK;
 }
 
-UDSErr_t UDSTpIsoTpSockInitClient(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
+UDSErr_t UDSClientTpIsoTpSockInit(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
                                   uint32_t target_addr, uint32_t target_addr_func) {
     UDS_ASSERT(tp);
     memset(tp, 0, sizeof(*tp));

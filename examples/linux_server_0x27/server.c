@@ -121,8 +121,8 @@ int main(int ac, char **av) {
     sigaction(SIGINT, &sa, NULL);
 
 #if defined(UDS_TP_ISOTP_SOCK)
-    if (UDSTpIsoTpSockInitServer(&tp, "vcan0", 0x7E0, 0x7E8, 0x7DF)) {
-        fprintf(stderr, "UDSTpIsoTpSockInitServer failed\n");
+    if (UDSServerTpIsoTpSockInit(&tp, "vcan0", 0x7E0, 0x7E8, 0x7DF)) {
+        fprintf(stderr, "UDSServerTpIsoTpSockInit failed\n");
         exit(-1);
     }
 #elif defined(UDS_TP_ISOTP_C_SOCKETCAN)

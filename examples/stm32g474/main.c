@@ -33,13 +33,7 @@ int main(void) {
     UDSServerInit(&server);
     server.fn = fn;
     server.tp = &tp.hdl;
-    const UDSTpISOTpCConfig_t tp_cfg = {
-        .source_addr = 0x7E0,
-        .target_addr = 0x7E8,
-        .source_addr_func = 0x7DF,
-        .target_addr_func = UDS_TP_NOOP_ADDR,
-    };
-    UDSTpISOTpCInit(&tp, &tp_cfg);
+    UDSServerTpISOTpCInit(&tp, 0x7E0, 0x7E8, 0x7DF);
 
     while (1) {
         if (canRxPending) {

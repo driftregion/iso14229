@@ -13,7 +13,7 @@ static UDSErr_t fn(UDSServer_t *srv, UDSEvent_t ev, void *arg)
 }
 
 int main() {
-    UDSTpIsoTpSockInitServer(&tp, "vcan0", 0x7E0, 0x7E8, 0x7DF); // initialize transport for linux; see \ref examples for more platforms
+    UDSServerTpIsoTpSockInit(&tp, "vcan0", 0x7E0, 0x7E8, 0x7DF); // initialize transport for linux; see \ref examples for more platforms
     UDSServerInit(&server);
     server.tp = tp;
     server.fn = fn; 

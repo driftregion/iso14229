@@ -112,12 +112,12 @@ int SetupIsoTpSockPair(void **state) {
     memset(env, 0, sizeof(Env_t));
     UDSTpIsoTpSock_t *server_isotp = malloc(sizeof(UDSTpIsoTpSock_t));
     strcpy(server_isotp->tag, "server");
-    assert(UDS_OK == UDSTpIsoTpSockInitServer(server_isotp, "vcan0", 0x7e8, 0x7e0, 0x7df));
+    assert(UDS_OK == UDSServerTpIsoTpSockInit(server_isotp, "vcan0", 0x7e8, 0x7e0, 0x7df));
     env->server_tp = (UDSTp_t *)server_isotp;
 
     UDSTpIsoTpSock_t *client_isotp = malloc(sizeof(UDSTpIsoTpSock_t));
     strcpy(client_isotp->tag, "client");
-    assert(UDS_OK == UDSTpIsoTpSockInitClient(client_isotp, "vcan0", 0x7e0, 0x7e8, 0x7df));
+    assert(UDS_OK == UDSClientTpIsoTpSockInit(client_isotp, "vcan0", 0x7e0, 0x7e8, 0x7df));
     env->client_tp = (UDSTp_t *)client_isotp;
 
     env->is_real_time = true;
@@ -140,7 +140,7 @@ int SetupIsoTpSockClientOnly(void **state) {
     memset(env, 0, sizeof(Env_t));
     UDSTpIsoTpSock_t *client_isotp = malloc(sizeof(UDSTpIsoTpSock_t));
     strcpy(client_isotp->tag, "client");
-    assert(UDS_OK == UDSTpIsoTpSockInitClient(client_isotp, "vcan0", 0x7e0, 0x7e8, 0x7df));
+    assert(UDS_OK == UDSClientTpIsoTpSockInit(client_isotp, "vcan0", 0x7e0, 0x7e8, 0x7df));
     env->client_tp = (UDSTp_t *)client_isotp;
     env->is_real_time = true;
     *state = env;
