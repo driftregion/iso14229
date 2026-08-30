@@ -22,8 +22,9 @@ uint32_t UDSMillis(void) {
 #elif UDS_SYS == UDS_SYS_ESP32
     return esp_timer_get_time() / 1000;
 #else
-}
+#error "UDSMillis not implemented for this UDS_SYS"
 #endif
+}
 #endif // defined(UDS_CUSTOM_MILLIS)
 
 bool UDSSecurityAccessLevelIsReserved(uint8_t subFunction) {

@@ -85,7 +85,6 @@ extern "C" {
 
 
 
-
 /**
  * @def UDS_SYS
  * @brief Selects the host system iso14229 is compiled for.
