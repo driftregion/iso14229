@@ -1,8 +1,11 @@
 # common --toolchain_resolution_debug='@bazel_tools//tools/cpp:toolchain_type'
+common --announce_rc
+common --show_timestamps
 
 build --strip=never
 build --workspace_status_command=tools/workspace_status.sh
 build --stamp
+build --verbose_failures
 
 # Hermetic LLVM toolchain with Debian Bullseye sysroot (includes isotp headers)
 common:hermetic-llvm --extra_toolchains @llvm_toolchain//:cc-toolchain-x86_64-linux

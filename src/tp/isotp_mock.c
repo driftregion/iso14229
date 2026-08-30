@@ -1,5 +1,7 @@
 #if defined(UDS_TP_ISOTP_MOCK)
 
+/// \cond INTERNAL_INTERFACE
+
 #include "tp/isotp_mock.h"
 #include "iso14229.h"
 #include <assert.h>
@@ -63,7 +65,8 @@ static void NetworkPoll(void) {
     }
 }
 
-static ssize_t mock_tp_send(struct UDSTp *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
+static UDSTpSize_t mock_tp_send(struct UDSTp *hdl, const uint8_t *buf, size_t len,
+                                const UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
     if (MsgCount >= NUM_MSGS) {
@@ -101,10 +104,10 @@ static ssize_t mock_tp_send(struct UDSTp *hdl, uint8_t *buf, size_t len, UDSSDU_
              m->info.A_TA, m->info.A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "PHYSICAL" : "FUNCTIONAL");
     UDS_LOG_SDU(__FILE__, buf, len, &m->info);
 
-    return len;
+    return (UDSTpSize_t)len;
 }
 
-static ssize_t mock_tp_recv(struct UDSTp *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
+static UDSTpSize_t mock_tp_recv(struct UDSTp *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
     if (tp->recv_len == 0) {
@@ -114,7 +117,7 @@ static ssize_t mock_tp_recv(struct UDSTp *hdl, uint8_t *buf, size_t bufsize, UDS
         UDS_LOGW(__FILE__, "mock_tp_recv: buffer too small: %ld < %ld", bufsize, tp->recv_len);
         return -1;
     }
-    ssize_t len = (ssize_t)tp->recv_len;
+    UDSTpSize_t len = (UDSTpSize_t)tp->recv_len;
     memmove(buf, tp->recv_buf, tp->recv_len);
     if (info) {
         *info = tp->recv_info;
@@ -219,5 +222,7 @@ void ISOTPMockFree(UDSTp_t *tp) {
     ISOTPMockDetach(tpm);
     free(tp);
 }
+
+/// \endcond INTERNAL_INTERFACE
 
 #endif

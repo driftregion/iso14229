@@ -100,7 +100,18 @@ jobs:
 
     - name: Generate SARIF report
       run: |
+        # CodeChecker parse exit codes: 0 = no findings, 2 = findings present (both OK here
+        # since the SARIF file is uploaded either way); only a real error (1) should fail CI.
+        # `set +e` is needed to capture the real exit code below: GitHub Actions runs steps
+        # with `bash -e` by default, which would otherwise abort on the non-zero exit before
+        # `code=$?` is reached.
+        set +e
         CodeChecker parse reports --export sarif -o results.sarif
+        code=$?
+        set -e
+        if [ "$code" -ne 0 ] && [ "$code" -ne 2 ]; then
+          exit "$code"
+        fi
 
     - name: Upload SARIF results to GitHub Code Scanning
       uses: github/codeql-action/upload-sarif@v3

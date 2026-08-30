@@ -3,7 +3,8 @@
 #include "util.h"
 #include "uds.h"
 
-#if UDS_CUSTOM_MILLIS
+#if defined(UDS_CUSTOM_MILLIS)
+// the user is expected to provide a UDSMillis implementation
 #else
 uint32_t UDSMillis(void) {
 #if UDS_SYS == UDS_SYS_UNIX
@@ -21,18 +22,11 @@ uint32_t UDSMillis(void) {
 #elif UDS_SYS == UDS_SYS_ESP32
     return esp_timer_get_time() / 1000;
 #else
-#error "UDSMillis() undefined!"
+#error "UDSMillis not implemented for this UDS_SYS"
 #endif
 }
-#endif
+#endif // defined(UDS_CUSTOM_MILLIS)
 
-/**
- * @brief Check if a security level is reserved per ISO14229-1:2020 Table 42
- *
- * @param securityLevel
- * @return true
- * @return false
- */
 bool UDSSecurityAccessLevelIsReserved(uint8_t subFunction) {
     uint8_t securityLevel = subFunction & 0x3F;
     if (0u == securityLevel) {

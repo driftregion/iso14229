@@ -20,32 +20,48 @@ def strip_includes(src):
     src = re.sub(r'#pragma once\n', "", src)
     return src
 
-isotp_c_wrapped_c = "#if defined(UDS_TP_ISOTP_C)\n" + \
-    "#ifndef ISO_TP_USER_SEND_CAN_ARG\n" + \
-    '#error\n' + \
-    "#endif\n" + \
-    strip_includes(open("src/tp/isotp-c/isotp.c").read()) + \
-    "#endif\n"
+isotp_c_wrapped_c = \
+"""#if defined(UDS_TP_ISOTP_C)
+/// \cond DOXYGEN_SHOULD_SKIP_THIS
 
-isotp_c_wrapped_h = "#if defined(UDS_TP_ISOTP_C)\n" + \
-    "#define ISO_TP_USER_SEND_CAN_ARG 1\n" + \
-    "\n".join([strip_includes(open("src/tp/isotp-c/" + h).read()) for h in [
+#ifndef ISO_TP_USER_SEND_CAN_ARG
+#error
+#endif
+
+""" + \
+strip_includes(open("src/tp/isotp-c/isotp.c").read()) + \
+"""
+/// \endcond
+#endif // if defined(UDS_TP_ISOTP_C)
+"""
+
+isotp_c_wrapped_h = \
+"""#if defined(UDS_TP_ISOTP_C)
+/// \cond DOXYGEN_SHOULD_SKIP_THIS
+
+#define ISO_TP_USER_SEND_CAN_ARG 1 
+
+""" + "\n".join([strip_includes(open("src/tp/isotp-c/" + h).read()) for h in [
         "isotp_config.h",
         "isotp_defines.h",
         "isotp_user.h",
         "isotp.h",
     ]]) + \
-    "#endif\n"
+"""
+/// \endcond
+#endif // if defined(UDS_TP_ISOTP_C)
+"""
 
 with open(args.out_c, "w", encoding="utf-8") as f:
-    f.write("/**\n")
-    f.write(" * @file iso14229.c\n")
-    f.write(" * @brief ISO14229-1 (UDS) library\n")
-    f.write(" * @copyright Copyright (c) Nick Kirkby\n")
-    f.write(" * @see https://github.com/driftregion/iso14229\n")
-    f.write(" */\n")
-    f.write("\n")
-    f.write("#include \"iso14229.h\"\n")
+    f.write("""/**
+ * @file iso14229.c
+ * @brief ISO14229-1 (UDS) library
+ * @copyright Copyright (c) Nick Kirkby
+ * @see https://github.com/driftregion/iso14229
+ */
+
+#include "iso14229.h"
+""")
     for src in [
         "src/util_private.h",
         "src/client.c",
@@ -58,41 +74,38 @@ with open(args.out_c, "w", encoding="utf-8") as f:
         "src/tp/isotp_sock.c",
         "src/tp/isotp_mock.c",
     ]:
-        f.write("\n")
-        f.write("#ifdef UDS_LINES\n")
-        f.write(f'#line 1 "{src}"' + "\n")
-        f.write("#endif\n")
+        f.write(f"""
+#ifdef UDS_LINES
+#line 1 "{src}"
+#endif
+""")
         with open(src, "r", encoding="utf-8") as src_file:
             stripped = strip_includes(src_file.read())
             f.write(stripped)
             f.write("\n")
 
-    f.write(isotp_c_wrapped_c)
-    f.write("\n")
+    f.write(isotp_c_wrapped_c + "\n")
 
 
 with open(args.out_h, "w", encoding="utf-8") as f:
-    f.write("#ifndef ISO14229_H\n")
-    f.write("#define ISO14229_H\n")
-    f.write("\n")
-    f.write("/**\n")
-    f.write(" * @file iso14229.h\n")
-    f.write(" * @brief ISO14229-1 (UDS) library\n")
-    f.write(" * @copyright Copyright (c) Nick Kirkby\n")
-    f.write(" * @see https://github.com/driftregion/iso14229\n")
-    f.write(" */\n")
-    f.write("\n")
-    f.write("#ifdef __cplusplus\n")
-    f.write("extern \"C\" {\n")
-    f.write("#endif\n")
-    f.write("\n")
+    f.write("""#ifndef ISO14229_H
+#define ISO14229_H
+
+/**
+ * @file iso14229.h
+ * @brief ISO14229-1 (UDS) library
+ * @copyright Copyright (c) Nick Kirkby
+ * @see https://github.com/driftregion/iso14229
+ */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+""")
     for src in [
         "src/version.h",
         "src/sys.h",
-        "src/sys_arduino.h",
-        "src/sys_unix.h",
-        "src/sys_win32.h",
-        "src/sys_esp32.h",
         "src/config.h",
         "src/tp.h",
         "src/uds.h",
@@ -101,12 +114,10 @@ with open(args.out_h, "w", encoding="utf-8") as f:
         "src/client.h",
         "src/server.h",
     ]:
-        f.write("\n")
         src_path = next((s for s in args.srcs if src in s))
         with open(src_path, "r", encoding="utf-8") as src_file:
             stripped = strip_includes(src_file.read())
-            f.write(stripped)
-            f.write("\n")
+            f.write("\n" + stripped + "\n")
 
     f.write(isotp_c_wrapped_h)
 
@@ -117,17 +128,16 @@ with open(args.out_h, "w", encoding="utf-8") as f:
         "src/tp/isotp_sock.h",
         "src/tp/isotp_mock.h",
     ]:
-        f.write("\n")
         with open(src) as src_file:
-            f.write(strip_includes(src_file.read()))
-            f.write("\n")
+            f.write("\n" + strip_includes(src_file.read()) + "\n")
 
-    f.write("\n")
-    f.write("#ifdef __cplusplus\n")
-    f.write("}\n")
-    f.write("#endif\n")
-    f.write("\n")
-    f.write("#endif\n")
+    f.write("""
+#ifdef __cplusplus
+}
+#endif
+
+#endif
+""")
 
 # os.chmod(iso14229_h, 0o444)
 # os.chmod(iso14229_c, 0o444)

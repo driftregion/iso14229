@@ -14,7 +14,10 @@ cc_library(
     copts = select({
         "@platforms//os:windows": [],
         "//conditions:default": [ "-g", ],
-    })
+    }),
+    defines = [
+        "UDS_ASSERT=assert",
+    ]
 )
 
 cc_test(
@@ -112,7 +115,7 @@ sh_test(
     args = ["$(locations //src:iso14229.h)"],
     data = [
         "//src:iso14229.h",
-        "//:README.md",
+        "//:CHANGELOG",
         "//:Doxyfile",
     ],
 )

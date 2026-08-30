@@ -71,7 +71,7 @@ int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t *data, cons
     return ISOTP_RET_OK;
 }
 
-static void SocketCANRecv(UDSTpISOTpC_t *tp) {
+static void SocketCANRecv(UDSTpISOTpCSocketCAN_t *tp) {
     UDS_ASSERT(tp);
     struct can_frame frame = {0};
     int nbytes = 0;
@@ -105,7 +105,7 @@ static void SocketCANRecv(UDSTpISOTpC_t *tp) {
 static UDSTpStatus_t isotp_c_socketcan_tp_poll(UDSTp_t *hdl) {
     UDS_ASSERT(hdl);
     UDSTpStatus_t status = 0;
-    UDSTpISOTpC_t *impl = (UDSTpISOTpC_t *)hdl;
+    UDSTpISOTpCSocketCAN_t *impl = (UDSTpISOTpCSocketCAN_t *)hdl;
     SocketCANRecv(impl);
     isotp_poll(&impl->phys_link);
     if (impl->phys_link.send_status == ISOTP_SEND_STATUS_INPROGRESS) {
@@ -117,10 +117,11 @@ static UDSTpStatus_t isotp_c_socketcan_tp_poll(UDSTp_t *hdl) {
     return status;
 }
 
-static ssize_t isotp_c_socketcan_tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
+static UDSTpSize_t isotp_c_socketcan_tp_send(UDSTp_t *hdl, const uint8_t *buf, size_t len,
+                                             const UDSSDU_t *info) {
     UDS_ASSERT(hdl);
-    ssize_t ret = -1;
-    UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
+    UDSTpSize_t ret = -1;
+    UDSTpISOTpCSocketCAN_t *tp = (UDSTpISOTpCSocketCAN_t *)hdl;
     IsoTpLink *link = NULL;
     const UDSTpAddr_t ta_type = info ? info->A_TA_Type : UDS_A_TA_TYPE_PHYSICAL;
     const uint32_t ta = ta_type == UDS_A_TA_TYPE_PHYSICAL ? tp->phys_ta : tp->func_ta;
@@ -159,12 +160,12 @@ done:
     return ret;
 }
 
-static ssize_t isotp_c_socketcan_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize,
-                                         UDSSDU_t *info) {
+static UDSTpSize_t isotp_c_socketcan_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize,
+                                             UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     UDS_ASSERT(buf);
     uint16_t out_size = 0;
-    UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
+    UDSTpISOTpCSocketCAN_t *tp = (UDSTpISOTpCSocketCAN_t *)hdl;
 
     int ret = isotp_receive(&tp->phys_link, buf, bufsize, &out_size);
     if (ret == ISOTP_RET_OK) {
@@ -194,9 +195,9 @@ static ssize_t isotp_c_socketcan_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufs
     return out_size;
 }
 
-UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, const char *ifname, uint32_t source_addr,
-                         uint32_t target_addr, uint32_t source_addr_func,
-                         uint32_t target_addr_func) {
+UDSErr_t UDSTpISOTpCSocketCANInit(UDSTpISOTpCSocketCAN_t *tp, const char *ifname,
+                                  uint32_t source_addr, uint32_t target_addr,
+                                  uint32_t source_addr_func, uint32_t target_addr_func) {
     UDS_ASSERT(tp);
     UDS_ASSERT(ifname);
     tp->hdl.poll = isotp_c_socketcan_tp_poll;
@@ -219,7 +220,7 @@ UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, const char *ifname, uint32_t source_
     return UDS_OK;
 }
 
-void UDSTpISOTpCDeinit(UDSTpISOTpC_t *tp) {
+void UDSTpISOTpCSocketCANDeinit(UDSTpISOTpCSocketCAN_t *tp) {
     UDS_ASSERT(tp);
     close(tp->fd);
     tp->fd = -1;

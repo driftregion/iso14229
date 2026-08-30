@@ -1,14 +1,11 @@
-/**
- * @file isotp_mock.h
- * @brief in-memory ISO15765 (ISO-TP) transport layer implementation for testing
- * @date 2023-10-21
- *
- */
 #if defined(UDS_TP_ISOTP_MOCK)
 
 #pragma once
 
-#include "iso14229.h"
+/// \cond INTERNAL_INTERFACE
+
+#include "uds.h"
+#include "tp.h"
 
 typedef struct ISOTPMock {
     UDSTp_t hdl;
@@ -53,5 +50,7 @@ void ISOTPMockLogToStdout(void);
  * @brief clear all transports and close the log file
  */
 void ISOTPMockReset(void);
+
+/// \endcond INTERNAL_INTERFACE
 
 #endif

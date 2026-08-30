@@ -84,11 +84,11 @@ static UDSErr_t Handle_0x10_DiagnosticSessionControl(UDSServer_t *srv, UDSReq_t 
 }
 
 static UDSErr_t Handle_0x11_ECUReset(UDSServer_t *srv, UDSReq_t *r) {
-    uint8_t resetType = r->recv_buf[1] & 0x3F;
-
     if (r->recv_len < UDS_0X11_REQ_MIN_LEN) {
         return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
+
+    uint8_t resetType = r->recv_buf[1] & 0x3F;
 
     UDSECUResetArgs_t args = {
         .type = resetType,
@@ -1034,7 +1034,6 @@ static UDSErr_t Handle_0x35_RequestUpload(UDSServer_t *srv, UDSReq_t *r) {
 
 static UDSErr_t Handle_0x36_TransferData(UDSServer_t *srv, UDSReq_t *r) {
     UDSErr_t err = UDS_PositiveResponse;
-    uint16_t request_data_len = (uint16_t)(r->recv_len - UDS_0X36_REQ_BASE_LEN);
     uint8_t blockSequenceCounter = 0;
 
     if (!srv->xferIsActive) {
@@ -1046,6 +1045,7 @@ static UDSErr_t Handle_0x36_TransferData(UDSServer_t *srv, UDSReq_t *r) {
         goto fail;
     }
 
+    uint16_t request_data_len = (uint16_t)(r->recv_len - UDS_0X36_REQ_BASE_LEN);
     blockSequenceCounter = r->recv_buf[1];
 
     if (!srv->RCRRP) {
@@ -1252,7 +1252,7 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
 
     if (mode_of_operation == UDS_MOOP_ADDFILE || mode_of_operation == UDS_MOOP_DELFILE ||
         mode_of_operation == UDS_MOOP_REPLFILE || mode_of_operation == UDS_MOOP_RSFILE) {
-        ;
+        // pass
     } else {
         // fileSizeOrDirInfoParameterLength
         StoreBE(&r->send_buf[r->send_len], sizeof(args.fileSizeUnCompressed), 2);
@@ -1264,7 +1264,7 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
         r->send_len += sizeof(args.fileSizeUnCompressed);
 
         if (mode_of_operation == UDS_MOOP_RDDIR) {
-            ;
+            // pass
         } else {
             // fileSizeCompressed
             StoreBE(&r->send_buf[r->send_len], args.fileSizeCompressed,
@@ -1276,7 +1276,7 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
     if (mode_of_operation == UDS_MOOP_ADDFILE || mode_of_operation == UDS_MOOP_DELFILE ||
         mode_of_operation == UDS_MOOP_REPLFILE || mode_of_operation == UDS_MOOP_RDFILE ||
         mode_of_operation == UDS_MOOP_RDDIR) {
-        ;
+        // pass
     } else {
         // filePosition
         StoreBE(&r->send_buf[r->send_len], args.filePosition, sizeof(args.filePosition));
@@ -1403,6 +1403,7 @@ static UDSErr_t Handle_0x87_LinkControl(UDSServer_t *srv, UDSReq_t *r) {
     return UDS_PositiveResponse;
 }
 
+/// signature of internal service handlers
 typedef UDSErr_t (*UDSService)(UDSServer_t *srv, UDSReq_t *r);
 
 /**
@@ -1642,16 +1643,16 @@ void UDSServerPoll(UDSServer_t *srv) {
         }
 
         if (UDSTimeAfter(UDSMillis(), srv->p2_timer)) {
-            ssize_t ret = 0;
+            UDSTpSize_t ret = 0;
             if (r->send_len) {
-                ret = UDSTpSend(srv->tp, r->send_buf, r->send_len, NULL);
+                ret = UDSTpSend(srv->tp, r->send_buf, (UDSTpSize_t)r->send_len, NULL);
             }
 
             // TODO test injection of transport errors:
             if (ret < 0) {
                 UDSErr_t err = UDS_ERR_TPORT;
                 EmitEvent(srv, UDS_EVT_Err, &err);
-                UDS_LOGE(__FILE__, "UDSTpSend failed with %zd\n", ret);
+                UDS_LOGE(__FILE__, "UDSTpSend failed with %" PRId32 "\n", ret);
             }
 
             if (srv->RCRRP) {
@@ -1669,7 +1670,7 @@ void UDSServerPoll(UDSServer_t *srv) {
         if (srv->notReadyToReceive) {
             return; // cannot respond to request right now
         }
-        ssize_t len = UDSTpRecv(srv->tp, r->recv_buf, sizeof(r->recv_buf), &r->info);
+        UDSTpSize_t len = UDSTpRecv(srv->tp, r->recv_buf, sizeof(r->recv_buf), &r->info);
         if (len < 0) {
             UDS_LOGE(__FILE__, "UDSTpRecv failed with %zd\n", r->recv_len);
             return;

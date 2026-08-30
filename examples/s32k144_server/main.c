@@ -4,7 +4,7 @@
 #include "tp/isotp_c.h"
 
 UDSServer_t server;
-UDSTpISOTpC_t tp;
+UDSTpISOTpCSocketCAN_t tp;
 
 static int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t *data,
                                const uint8_t size, void *user_data) {
@@ -27,15 +27,15 @@ int main() {
     server.fn = fn;
     server.tp = &tp.hdl;
 
-    UDSTpISOTpCInit(&tp, &(UDSTpISOTpCConfig_t){
-                             .source_addr = 0x7E8,
-                             .target_addr = 0x7E0,
-                             .source_addr_func = 0x7DF,
-                             .target_addr_func = 0,
-                             .user_data = NULL,
-                             .isotp_user_send_can = isotp_user_send_can,
-                             .isotp_user_debug = isotp_debug,
-                         });
+    UDSTpISOTpCSocketCANInit(&tp, &(UDSTpISOTpCSocketCANConfig_t){
+                                      .source_addr = 0x7E8,
+                                      .target_addr = 0x7E0,
+                                      .source_addr_func = 0x7DF,
+                                      .target_addr_func = 0,
+                                      .user_data = NULL,
+                                      .isotp_user_send_can = isotp_user_send_can,
+                                      .isotp_user_debug = isotp_debug,
+                                  });
 
     uint8_t data[] = {0xf0, 0xf0};
     while (1) {

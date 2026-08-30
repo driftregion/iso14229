@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 static UDSServer_t srv;
-static UDSISOTpC_t tp;
+static UDSTpISOTpC_t tp;
 
 extern "C" uint32_t isotp_user_get_us(void) { return UDSMillis() * 1000; }
 
@@ -35,7 +35,7 @@ extern "C" void isotp_user_debug(const char *fmt, ...) {
   (void)fmt;
 }
 
-static void CANRecv(UDSISOTpC_t *tp) {
+static void CANRecv(UDSTpISOTpC_t *tp) {
     assert(tp);
     uint8_t buf[8];
     int len = CAN.parsePacket();
@@ -107,16 +107,9 @@ void setup() {
     while(1);
   }
 
-  const UDSISOTpCConfig_t tp_cfg = {
-      .source_addr=0x7E0,
-      .target_addr=0x7E8,
-      .source_addr_func=0x7DF,
-      .target_addr_func=UDS_TP_NOOP_ADDR,
-  };
-
-  err = UDSISOTpCInit(&tp, &tp_cfg);
+  err = UDSServerTpISOTpCInit(&tp, 0x7E0, 0x7E8, 0x7DF);
   if (UDS_OK != err) {
-    Serial.print("UDSISOTpCInit failed with err: ");
+    Serial.print("UDSServerTpISOTpCInit failed with err: ");
     Serial.println(UDSErrToStr(err));
     while(1);
   }

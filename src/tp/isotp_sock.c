@@ -77,13 +77,13 @@ static UDSTpStatus_t isotp_sock_tp_poll(UDSTp_t *hdl) {
     return status;
 }
 
-static ssize_t tp_recv_once(int fd, uint8_t *buf, size_t size) {
-    ssize_t ret = read(fd, buf, size);
+static UDSTpSize_t tp_recv_once(int fd, uint8_t *buf, size_t size) {
+    UDSTpSize_t ret = read(fd, buf, size);
     if (ret < 0) {
         if (EAGAIN == errno || EWOULDBLOCK == errno) {
             ret = 0;
         } else {
-            UDS_LOGI(__FILE__, "read failed: %ld with errno: %d\n", ret, errno);
+            UDS_LOGI(__FILE__, "read failed: %" PRId32 " with errno: %d\n", ret, errno);
             if (EILSEQ == errno) {
                 UDS_LOGI(__FILE__, "Perhaps I received multiple responses?");
             }
@@ -92,10 +92,10 @@ static ssize_t tp_recv_once(int fd, uint8_t *buf, size_t size) {
     return ret;
 }
 
-static ssize_t isotp_sock_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
+static UDSTpSize_t isotp_sock_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     UDS_ASSERT(buf);
-    ssize_t ret = 0;
+    UDSTpSize_t ret = 0;
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
     UDSSDU_t *msg = &impl->recv_info;
 
@@ -118,17 +118,18 @@ static ssize_t isotp_sock_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UD
             *info = *msg;
         }
 
-        UDS_LOGD(__FILE__, "'%s' received %ld bytes from 0x%03x (%s), ", impl->tag, ret, msg->A_TA,
-                 msg->A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
+        UDS_LOGD(__FILE__, "'%s' received %" PRId32 " bytes from 0x%03x (%s), ", impl->tag, ret,
+                 msg->A_TA, msg->A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
         UDS_LOG_SDU(__FILE__, impl->recv_buf, ret, msg);
     }
 
     return ret;
 }
 
-static ssize_t isotp_sock_tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
+static UDSTpSize_t isotp_sock_tp_send(UDSTp_t *hdl, const uint8_t *buf, size_t len,
+                                      const UDSSDU_t *info) {
     UDS_ASSERT(hdl);
-    ssize_t ret = -1;
+    UDSTpSize_t ret = -1;
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
     int fd;
     const UDSTpAddr_t ta_type = info ? info->A_TA_Type : UDS_A_TA_TYPE_PHYSICAL;
@@ -179,7 +180,6 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool
     memset(&opts, 0, sizeof(opts));
 
     if (functional) {
-        UDS_LOGI(__FILE__, "configuring fd: %d as functional", fd);
         // configure the socket as listen-only to avoid sending FC frames
         opts.flags |= CAN_ISOTP_LISTEN_MODE;
     }
@@ -206,13 +206,13 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool
     addr.can_ifindex = ifr.ifr_ifindex;
 
     if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-        UDS_LOGI(__FILE__, "Bind: %s %s\n", strerror(errno), if_name);
+        UDS_LOGI(__FILE__, "Bind: %s %s", strerror(errno), if_name);
         return -1;
     }
     return fd;
 }
 
-UDSErr_t UDSTpIsoTpSockInitServer(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
+UDSErr_t UDSServerTpIsoTpSockInit(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
                                   uint32_t target_addr, uint32_t source_addr_func) {
     UDS_ASSERT(tp);
     memset(tp, 0, sizeof(*tp));
@@ -224,10 +224,11 @@ UDSErr_t UDSTpIsoTpSockInitServer(UDSTpIsoTpSock_t *tp, const char *ifname, uint
     tp->func_sa = source_addr_func;
 
     tp->phys_fd = LinuxSockBind(ifname, source_addr, target_addr, false);
+    if (tp->phys_fd < 0) {
+        return UDS_FAIL;
+    }
     tp->func_fd = LinuxSockBind(ifname, source_addr_func, 0, true);
-    if (tp->phys_fd < 0 || tp->func_fd < 0) {
-        UDS_LOGI(__FILE__, "foo\n");
-        (void)fflush(stdout);
+    if (tp->func_fd < 0) {
         return UDS_FAIL;
     }
     const char *tag = "server";
@@ -238,7 +239,7 @@ UDSErr_t UDSTpIsoTpSockInitServer(UDSTpIsoTpSock_t *tp, const char *ifname, uint
     return UDS_OK;
 }
 
-UDSErr_t UDSTpIsoTpSockInitClient(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
+UDSErr_t UDSClientTpIsoTpSockInit(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
                                   uint32_t target_addr, uint32_t target_addr_func) {
     UDS_ASSERT(tp);
     memset(tp, 0, sizeof(*tp));

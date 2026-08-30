@@ -66,7 +66,7 @@ void MockServerPoll(MockServer_t *srv) {
     UDSTpPoll(srv->tp);
     uint8_t buf[UDS_TP_MTU] = {0};
     UDSSDU_t info = {0};
-    ssize_t len = UDSTpRecv(srv->tp, buf, sizeof(buf), &info);
+    UDSTpSize_t len = UDSTpRecv(srv->tp, buf, sizeof(buf), &info);
     UDS_ASSERT(len >= 0);
     size_t recv_len = (size_t)len;
     if (recv_len > 0) {

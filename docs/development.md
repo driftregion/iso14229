@@ -15,17 +15,3 @@ bazel test //...
 ```
 
 See [test/README.md](test/README.md)
-
-## Release
-
-```sh
-bazel build //:release
-```
-
-### Release Checklist
-
-- [ ] branch is rebased on main `git fetch && git merge origin main`
-- [ ] push branch, all checks pass in CI `git push`
-- [ ] update changelog in README.md, commit
-- [ ] build release `bazel build //:release`
-- [ ] `./.github/release.sh`

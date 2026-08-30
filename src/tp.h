@@ -8,6 +8,8 @@
 #endif
 #endif
 
+/** private: Status flags set by the transport implementation.
+ */
 enum UDSTpStatusFlags {
     UDS_TP_IDLE = 0x0000,
     UDS_TP_SEND_IN_PROGRESS = 0x0001,
@@ -15,8 +17,10 @@ enum UDSTpStatusFlags {
     UDS_TP_ERR = 0x0004,
 };
 
-typedef uint32_t UDSTpStatus_t;
+typedef uint32_t UDSTpStatus_t; ///< private: bitfield of @ref UDSTpStatusFlags
 
+/** private: transport message type
+ */
 typedef enum {
     UDS_A_MTYPE_DIAG = 0,
     UDS_A_MTYPE_REMOTE_DIAG,
@@ -24,16 +28,19 @@ typedef enum {
     UDS_A_MTYPE_SECURE_REMOTE_DIAG,
 } UDS_A_Mtype_t;
 
+/** private: transmission type
+ */
 typedef enum {
     UDS_A_TA_TYPE_PHYSICAL = 0, // unicast (1:1)
     UDS_A_TA_TYPE_FUNCTIONAL,   // multicast
 } UDS_A_TA_Type_t;
 
-typedef uint8_t UDSTpAddr_t;
+typedef uint8_t UDSTpAddr_t; ///< private: oneof @ref UDS_A_TA_Type_t
 
 /**
  * @brief Service data unit (SDU)
- * @details data interface between the application layer and the transport layer
+ * @details Service data unit (SDU): data interface between the application layer and the
+ * transport layer
  */
 typedef struct {
     UDS_A_Mtype_t A_Mtype;     /**< message type (diagnostic, remote diagnostic, secure diagnostic,
@@ -44,7 +51,11 @@ typedef struct {
     uint32_t A_AE;             /**< application layer remote address */
 } UDSSDU_t;
 
-#define UDS_TP_NOOP_ADDR (0xFFFFFFFF)
+#define UDS_TP_NOOP_ADDR (0xFFFFFFFF) ///< flags A_SA / A_TA as unused
+
+/** @brief Signed size type used by the transport layer interface (byte count, or negative on
+ *  error). */
+typedef int32_t UDSTpSize_t;
 
 /**
  * @brief UDS Transport layer
@@ -59,7 +70,7 @@ typedef struct UDSTp {
      * @param info: pointer to SDU info (may be NULL). If NULL, implementation should send with
      * physical addressing
      */
-    ssize_t (*send)(struct UDSTp *hdl, uint8_t *buf, size_t len, UDSSDU_t *info);
+    UDSTpSize_t (*send)(struct UDSTp *hdl, const uint8_t *buf, size_t len, const UDSSDU_t *info);
 
     /**
      * @brief Receive data from the transport
@@ -69,7 +80,7 @@ typedef struct UDSTp {
      * @param info: pointer to SDU info to be updated by transport implementation. May be NULL. If
      * non-NULL, the transport implementation must populate it with valid values.
      */
-    ssize_t (*recv)(struct UDSTp *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info);
+    UDSTpSize_t (*recv)(struct UDSTp *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info);
 
     /**
      * @brief Poll the transport layer.
@@ -81,6 +92,8 @@ typedef struct UDSTp {
     UDSTpStatus_t (*poll)(struct UDSTp *hdl);
 } UDSTp_t;
 
-ssize_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, ssize_t len, UDSSDU_t *info);
-ssize_t UDSTpRecv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info);
-UDSTpStatus_t UDSTpPoll(UDSTp_t *hdl);
+UDSTpSize_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, UDSTpSize_t len,
+                      const UDSSDU_t *info); ///< Send to transport
+UDSTpSize_t UDSTpRecv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize,
+                      UDSSDU_t *info); ///< Receive from transport
+UDSTpStatus_t UDSTpPoll(UDSTp_t *hdl); ///< call this at <5ms intervals

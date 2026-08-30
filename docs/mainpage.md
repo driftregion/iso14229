@@ -1,71 +1,55 @@
-# iso14229 {#mainpage}
-
-iso14229 is a UDS (ISO14229) library for writing servers and clients. 
-
-**Source Code:** https://github.com/driftregion/iso14229
+# iso14229 - UDS Server / Client Library Documentation {#mainpage}
 
 ## Quick Start {#quickstart}
 
 1. Download the sources `iso14229.c` and `iso14229.h` from the [releases page](https://github.com/driftregion/iso14229/releases) and add them to your project.
-2. Use the \ref examples_sec to guide your implementation.
+2. See the quickstart example in the [Server](docs/server.md) or [Client](docs/client.md) documentation. 
 
----
+## Index
+
+- [Server Documentation](docs/server.md) 
+- [Client Documentation](docs/client.md)
+- [Compile-Time Configuration Options](docs/config.md)
+- [Porting Guide](docs/porting_guide.md)
 
 ## Examples {#examples_sec}
 
-To access the examples, clone or download the repository from https://github.com/driftregion/iso14229
-
 | Example | Description |
 |---------|-------------|
-| \ref examples/linux_server/README.md "linux_server" | Basic Linux server using socketcan ISO-TP |
-| \ref examples/linux_rdbi_wdbi/README.md "linux_rdbi_wdbi" | Read/Write Data By Identifier (0x22/0x2E) |
-| \ref examples/linux_server_0x27/README.md "linux_server_0x27" | Security Access (0x27) |
-| \ref examples/arduino_server/README.md "arduino_server" | Arduino server |
-| \ref examples/esp32_server/README.md "esp32_server" | ESP32 server |
-| \ref examples/s32k144_server/README.md "s32k144_server" | NXP S32K144 server |
+| [`linux_rdbi_wdbi`](examples/linux_rdbi_wdbi/README.md) | UDS Server and Client on Linux implementing Read/Write Data By Identifier (0x22/0x2E). |
+| [`linux_security_access`](examples/linux_security_access/README.md) | UDS Server and Client on Linux implementing Security Access (0x27) with a cryptographic challenge-response. |
+| [`arduino_server`](examples/arduino_server/README.md) | UDS Server on Arduino MKR-WIFI 1010 with MKR CAN Shield. |
+|  [`esp32_server`](examples/esp32_server/README.md ) | UDS Server on ESP32-C3-32S with Waveshare SN65HVD230 CAN Transciever. |
+|  [`s32k144_server`](examples/s32k144_server/README.md) | UDS Server on NXP S32K144 eval board with Waveshare SN65HVD230 CAN Transciever. | 
+|  [`stm32g474`](examples/stm32g474/README.md) | UDS Server on STM NUCLEO-G474RE eval board with Waveshare SN65HVD230 CAN Transciever. | 
 
----
+## Supported Services {#supported-services}
 
-## API Documentation
-
-- \ref server "Server API"
-- \ref client "Client API"
-- \ref services "UDS Services"
-
-## Configuration {#configuration}
-
-Configure the library at compilation time with preprocessor defines:
-
-### Transport Selection {#transport_layers}
-
-| Transport | Define | Description | Suitable For Targets | Example Implementations |
-|-----------|--------|-------------|-------------|------------|
-| **isotp_sock** | `-DUDS_TP_ISOTP_SOCK` | Linux kernel ISO-TP socket | Linux newer than 5.10  |  \ref examples/linux_server_0x27/README.md "linux_server_0x27" |
-| **isotp_c_socketcan** | `-DUDS_TP_ISOTP_C_SOCKETCAN` | isotp-c over SocketCAN | Linux newer than 2.6.25 | \ref examples/linux_server_0x27/README.md "linux_server_0x27" |
-| **isotp_c** | `-DUDS_TP_ISOTP_C` | Software ISO-TP | Everything else | \ref examples/arduino_server/README.md "arduino_server" \ref examples/esp32_server/README.md "esp32_server" \ref examples/s32k144_server/README.md "s32k144_server" |
-| **isotp_mock** | `-DUDS_TP_ISOTP_MOCK` | In-memory transport for testing | platform-independent unit tests | see unit tests |
-
-### System Selection Override
-
-The system is usually detected by default, but can be overridden with the following options:
-
-| Define | Values |
-|--------|--------|
-| `-DUDS_SYS=` | `UDS_SYS_UNIX`, `UDS_SYS_WINDOWS`, `UDS_SYS_ARDUINO`, `UDS_SYS_ESP32`, `UDS_SYS_CUSTOM` |
-
-For examples of `UDS_SYS_CUSTOM`, see \ref examples/arduino_server/README.md "arduino_server", \ref examples/esp32_server/README.md "esp32_server", \ref examples/s32k144_server/README.md "s32k144_server".
-
-### Logging
-
-Logging is disabled by default. However, it is very helpful to identify problems during initial server/client bringup.
-
-| Define | Values |
-|--------|--------|
-| `-DUDS_LOG_LEVEL=` | `UDS_LOG_NONE`, `UDS_LOG_ERROR`, `UDS_LOG_WARN`, `UDS_LOG_INFO`, `UDS_LOG_DEBUG`, `UDS_LOG_VERBOSE` |
-
-### Other Options
-
-- `-DUDS_SERVER_...` - Server configuration options (see \ref server_configuration)
-- `-DUDS_CLIENT_...` - Client configuration options (see \ref client_configuration)
-
----
+| Service ID | Service Name | Server | Client | 
+|------------|--------------|--------|--------|
+| 0x10 | Diagnostic Session Control | Y | Y |
+| 0x11 | ECU Reset | Y | Y | 
+| 0x14 | Clear Diagnostic Information | Y | N |
+| 0x19 | Read DTC Information | N | N |
+| 0x22 | Read Data By Identifier | Y | Y |
+| 0x23 | Read Memory By Address | N | N | 
+| 0x24 | Read Scaling Data By Identifier | N | N | 
+| 0x27 | Security Access | Y | Y | 
+| 0x28 | Communication Control | Y | Y | 
+| 0x2A | Read Periodic Data By Identifier | N | N | 
+| 0x2C | Dynamically Define Data Identifier | N | N | 
+| 0x2E | Write Data By Identifier | Y | Y | 
+| 0x2F | Input/Output Control By Identifier | Y | N | 
+| 0x31 | Routine Control | Y | Y |
+| 0x34 | Request Download | Y | Y |
+| 0x35 | Request Upload | Y | Y | 
+| 0x36 | Transfer Data | Y | Y | 
+| 0x37 | Request Transfer Exit | Y | Y | 
+| 0x38 | Request File Transfer | Y | Y | 
+| 0x3D | Write Memory By Address | Y | N | 
+| 0x3E | Tester Present | Y | Y | 
+| 0x83 | Access Timing Parameter | N | N | 
+| 0x84 | Secured Data Transmission | N | N | 
+| 0x85 | Control DTC Setting | Y | Y | 
+| 0x86 | Response On Event | N | N | 
+| 0x87 | Link Control | Y | N | 
