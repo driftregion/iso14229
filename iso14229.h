@@ -77,10 +77,12 @@ extern "C" {
 
 #if UDS_SYS == UDS_SYS_ARDUINO
 #include <Arduino.h>
+#define UDS_TP_ISOTP_C
 #endif // if UDS_SYS == UDS_SYS_ARDUINO
 
 #if UDS_SYS == UDS_SYS_ESP32
 #include <esp_timer.h>
+#define UDS_TP_ISOTP_C
 #endif // if UDS_SYS == UDS_SYS_ESP32
 
 
