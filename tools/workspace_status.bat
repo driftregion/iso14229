@@ -15,10 +15,10 @@ if errorlevel 1 (
 )
 
 REM Extract version from README.md
-for /f "tokens=2" %%i in ('findstr /r "^## [0-9]*\.[0-9]*\.[0-9]*" README.md 2^>nul') do (
+for /f "tokens=2" %%i in ('findstr /r "^## [0-9]*\.[0-9]*\.[0-9]*" CHANGELOG 2^>nul') do (
     set version=%%i
     goto :version_found
 )
 set version=
 :version_found
-echo STABLE_README_VERSION %version%
+echo STABLE_CHANGELOG_VERSION %version%
