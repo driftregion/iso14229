@@ -17,11 +17,18 @@ extern "C" {
 
 
 
-#define UDS_SYS_CUSTOM 0
-#define UDS_SYS_UNIX 1
+/**
+ * @defgroup uds_sys_ valid values of UDS_SYS
+ * @brief iso14229 host system selection
+ * @see UDS_SYS
+ * @{
+ */
+#define UDS_SYS_CUSTOM 0    /**< bare metal or unsupported targets */
+#define UDS_SYS_UNIX 1      
 #define UDS_SYS_WINDOWS 2
 #define UDS_SYS_ARDUINO 3
 #define UDS_SYS_ESP32 4
+/** @} */
 
 #if !defined(UDS_SYS)
 
@@ -34,6 +41,7 @@ extern "C" {
 #elif defined(ESP_PLATFORM)
 #define UDS_SYS UDS_SYS_ESP32
 #else
+#warning "UDS_SYS was not detected, defaulting to UDS_SYS_CUSTOM. Remove this warning by defining UDS_SYS=UDS_SYS_CUSTOM in your build configuration"
 #define UDS_SYS UDS_SYS_CUSTOM
 #endif
 
@@ -47,106 +55,113 @@ extern "C" {
 #include <stdio.h>
 #include <string.h>
 
-
-
-
-#if UDS_SYS == UDS_SYS_ARDUINO
-
-#include <Arduino.h>
-
-#ifndef UDS_TP_ISOTP_C
-#define UDS_TP_ISOTP_C
-#endif
-
-#endif
-
-
+#if UDS_SYS == UDS_SYS_CUSTOM
+#define UDS_CUSTOM_MILLIS
+#endif // UDS_SYS == UDS_SYS_CUSTOM
 
 #if UDS_SYS == UDS_SYS_UNIX
-
 #include <sys/time.h>
 #include <sys/types.h>
 #include <time.h>
-
-#endif
-
-
+#endif // if UDS_SYS == UDS_SYS_UNIX
 
 #if UDS_SYS == UDS_SYS_WINDOWS
-
 #include <stdlib.h>
 #include <time.h>
-
 #ifdef _MSC_VER
 #define strncasecmp _strnicmp
 #define strcasecmp _stricmp
-#endif
+#endif // ifdef _MSC_VER
+#endif // if UDS_SYS == UDS_SYS_WINDOWS
 
-#endif
-
-
+#if UDS_SYS == UDS_SYS_ARDUINO
+#include <Arduino.h>
+#ifndef UDS_TP_ISOTP_C
+#define UDS_TP_ISOTP_C
+#endif // ifndef UDS_TP_ISOTP_C
+#endif // if UDS_SYS == UDS_SYS_ARDUINO
 
 #if UDS_SYS == UDS_SYS_ESP32
-
 #include <esp_timer.h>
+#define UDS_TP_ISOTP_C
+#endif // if UDS_SYS == UDS_SYS_ESP32
 
-#define UDS_TP_ISOTP_C 1
 
+
+/**
+ * @def UDS_SYS
+ * @brief Selects the host system iso14229 is compiled for.
+ * @see uds_sys_ for the list of valid values
+ */
+
+/** 
+ * @def UDS_TP_ISOTP_C
+ * @brief if defined, build the @ref UDSTpISOTpC_t transport
+ */
+
+/**
+ * @def UDS_CUSTOM_MILLIS
+ * @brief bring your own UDSMillis implementation
+ * @details Bring your own UDSMillis implementation. Valid values:
+ * - `0` (default): iso14229 provides UDSMillis() for the detected @ref UDS_SYS platform
+ * - `1`: the user must provide their own UDSMillis() implementation
+ *
+ * @see UDSMillis
+ */
+#ifndef UDS_CUSTOM_MILLIS
+#define UDS_CUSTOM_MILLIS 0
 #endif
 
-
-
-/** ISO-TP Maximum Transmissiable Unit (ISO-15764-2-2004 section 5.3.3) */
-#define UDS_ISOTP_MTU (4095)
+#define UDS_ISOTP_MTU (4095) ///< ISO-TP Maximum Transmission Unit (ISO-15764-2-2004 section 5.3.3)
 
 #ifndef UDS_TP_MTU
+/// ISOTP is the only supported tp type, so UDS inherits its MTU
 #define UDS_TP_MTU UDS_ISOTP_MTU
 #endif
 
+/**
+ * @def UDS_SERVER_SEND_BUF_SIZE
+ * @brief reduce this at your own risk to save RAM. Fuzz testing is done with the default of @ref UDS_TP_MTU.
+ */
 #ifndef UDS_SERVER_SEND_BUF_SIZE
 #define UDS_SERVER_SEND_BUF_SIZE (UDS_TP_MTU)
 #endif
 
+/** @copydoc UDS_SERVER_SEND_BUF_SIZE */
 #ifndef UDS_SERVER_RECV_BUF_SIZE
 #define UDS_SERVER_RECV_BUF_SIZE (UDS_TP_MTU)
 #endif
 
+/** @copydoc UDS_SERVER_SEND_BUF_SIZE */
 #ifndef UDS_CLIENT_SEND_BUF_SIZE
 #define UDS_CLIENT_SEND_BUF_SIZE (UDS_TP_MTU)
 #endif
 
+/** @copydoc UDS_SERVER_SEND_BUF_SIZE */
 #ifndef UDS_CLIENT_RECV_BUF_SIZE
 #define UDS_CLIENT_RECV_BUF_SIZE (UDS_TP_MTU)
 #endif
 
 #ifndef UDS_CLIENT_DEFAULT_P2_MS
-#define UDS_CLIENT_DEFAULT_P2_MS (150U)
+#define UDS_CLIENT_DEFAULT_P2_MS (150U) ///< default P2 timeout
 #endif
 
 #ifndef UDS_CLIENT_DEFAULT_P2_STAR_MS
-#define UDS_CLIENT_DEFAULT_P2_STAR_MS (1500U)
-#endif
-
-// Default value from ISO14229-2 2013 Table 5: 2000 ms
-#ifndef UDS_CLIENT_DEFAULT_S3_MS
-#define UDS_CLIENT_DEFAULT_S3_MS (2000)
+#define UDS_CLIENT_DEFAULT_P2_STAR_MS (1500U) ///< default P2* timeout
 #endif
 
 static_assert(UDS_CLIENT_DEFAULT_P2_STAR_MS > UDS_CLIENT_DEFAULT_P2_MS, "");
 
-// Default value from ISO14229-2 2013 Table 4: 50 ms
 #ifndef UDS_SERVER_DEFAULT_P2_MS
-#define UDS_SERVER_DEFAULT_P2_MS (50)
+#define UDS_SERVER_DEFAULT_P2_MS (50) ///< default P2 duration
 #endif
 
-// Default value from ISO14229-2 2013 Table 4: 5000 ms
 #ifndef UDS_SERVER_DEFAULT_P2_STAR_MS
-#define UDS_SERVER_DEFAULT_P2_STAR_MS (5000)
+#define UDS_SERVER_DEFAULT_P2_STAR_MS (5000) ///< default P2* duration
 #endif
 
-// Default value from ISO14229-2 2013 Table 5: 5000 -0/+200 ms
 #ifndef UDS_SERVER_DEFAULT_S3_MS
-#define UDS_SERVER_DEFAULT_S3_MS (5100)
+#define UDS_SERVER_DEFAULT_S3_MS (5100) ///< default S3 duration (ISO14229-2 2013 Table 5: 5000 -0/+200 ms)
 #endif
 
 static_assert((0 < UDS_SERVER_DEFAULT_P2_MS) &&
@@ -154,9 +169,9 @@ static_assert((0 < UDS_SERVER_DEFAULT_P2_MS) &&
                   (UDS_SERVER_DEFAULT_P2_STAR_MS < UDS_SERVER_DEFAULT_S3_MS),
               "");
 
-// Duration between the server sending a positive response to an ECU reset request and the emission
-// of a UDS_EVT_DoScheduledReset event. This should be set to a duration adequate for the server
-// transport layer to finish responding to the ECU reset request.
+/// Duration between the server sending a positive response to an ECU reset request and the emission
+/// of a UDS_EVT_DoScheduledReset event. This should be set to a duration adequate for the server
+/// transport layer to finish responding to the ECU reset request.
 #ifndef UDS_SERVER_DEFAULT_POWER_DOWN_TIME_MS
 #define UDS_SERVER_DEFAULT_POWER_DOWN_TIME_MS (60)
 #endif
@@ -165,12 +180,12 @@ static_assert((0 < UDS_SERVER_DEFAULT_P2_MS) &&
 #error "The server shall have adequate time to respond before reset"
 #endif
 
-// Amount of time to wait after boot before accepting 0x27 requests.
+/// Amount of time to wait after boot before accepting 0x27 requests.
 #ifndef UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_BOOT_DELAY_MS
 #define UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_BOOT_DELAY_MS (1000)
 #endif
 
-// Amount of time to wait after an authentication failure before accepting another 0x27 request.
+/// Amount of time to wait after an authentication failure before accepting another 0x27 request.
 #ifndef UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_AUTH_FAIL_DELAY_MS
 #define UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_AUTH_FAIL_DELAY_MS (1000)
 #endif
@@ -182,10 +197,6 @@ TransferData request message from the client. */
 #define UDS_SERVER_DEFAULT_XFER_DATA_MAX_BLOCKLENGTH (UDS_TP_MTU)
 #endif
 
-#ifndef UDS_CUSTOM_MILLIS
-#define UDS_CUSTOM_MILLIS 0
-#endif
-
 
 
 
@@ -195,6 +206,8 @@ TransferData request message from the client. */
 #endif
 #endif
 
+/** private: Status flags set by the transport implementation.
+ */
 enum UDSTpStatusFlags {
     UDS_TP_IDLE = 0x0000,
     UDS_TP_SEND_IN_PROGRESS = 0x0001,
@@ -202,8 +215,10 @@ enum UDSTpStatusFlags {
     UDS_TP_ERR = 0x0004,
 };
 
-typedef uint32_t UDSTpStatus_t;
+typedef uint32_t UDSTpStatus_t; ///< private: bitfield of @ref UDSTpStatusFlags
 
+/** private: transport message type
+ */
 typedef enum {
     UDS_A_MTYPE_DIAG = 0,
     UDS_A_MTYPE_REMOTE_DIAG,
@@ -211,16 +226,19 @@ typedef enum {
     UDS_A_MTYPE_SECURE_REMOTE_DIAG,
 } UDS_A_Mtype_t;
 
+/** private: transmission type
+ */
 typedef enum {
     UDS_A_TA_TYPE_PHYSICAL = 0, // unicast (1:1)
     UDS_A_TA_TYPE_FUNCTIONAL,   // multicast
 } UDS_A_TA_Type_t;
 
-typedef uint8_t UDSTpAddr_t;
+typedef uint8_t UDSTpAddr_t; ///< private: oneof @ref UDS_A_TA_Type_t
 
 /**
  * @brief Service data unit (SDU)
- * @details data interface between the application layer and the transport layer
+ * @details Service data unit (SDU): data interface between the application layer and the
+ * transport layer
  */
 typedef struct {
     UDS_A_Mtype_t A_Mtype;     /**< message type (diagnostic, remote diagnostic, secure diagnostic,
@@ -231,7 +249,7 @@ typedef struct {
     uint32_t A_AE;             /**< application layer remote address */
 } UDSSDU_t;
 
-#define UDS_TP_NOOP_ADDR (0xFFFFFFFF)
+#define UDS_TP_NOOP_ADDR (0xFFFFFFFF) ///< flags A_SA / A_TA as unused
 
 /** @brief Signed size type used by the transport layer interface (byte count, or negative on
  *  error). */
@@ -272,9 +290,9 @@ typedef struct UDSTp {
     UDSTpStatus_t (*poll)(struct UDSTp *hdl);
 } UDSTp_t;
 
-UDSTpSize_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, UDSTpSize_t len, UDSSDU_t *info);
-UDSTpSize_t UDSTpRecv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info);
-UDSTpStatus_t UDSTpPoll(UDSTp_t *hdl);
+UDSTpSize_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, UDSTpSize_t len, UDSSDU_t *info); ///< Send to transport
+UDSTpSize_t UDSTpRecv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info); ///< Receive from transport
+UDSTpStatus_t UDSTpPoll(UDSTp_t *hdl); ///< call this at <5ms intervals
 
 
 
@@ -323,6 +341,10 @@ typedef enum UDSEvent {
     UDS_EVT_MAX, /**< Unused sentinel value */
 } UDSEvent_t;
 
+/**
+ * @brief Error Codes, including NRCs defined by the standard.
+ * @see UDSErrToStr
+ */
 typedef enum {
     UDS_FAIL = -1, // General error
     UDS_OK = 0,    // Success
@@ -417,85 +439,107 @@ typedef enum {
     UDS_ERR_MISUSE,               // The library is used incorrectly
 } UDSErr_t;
 
-// ISO14229-1:2020 Table 25
-// UDS Level Diagnostic Session
-#define UDS_LEV_DS_DS 1    // Default Session
-#define UDS_LEV_DS_PRGS 2  // Programming Session
-#define UDS_LEV_DS_EXTDS 3 // Extended Diagnostic Session
-#define UDS_LEV_DS_SSDS 4  // Safety System Diagnostic Session
-
 /**
- * @brief 0x11 ECU Reset SubFunction = [resetType]
- * ISO14229-1:2020 Table 34
- * UDS Level Reset Type
- */
-#define UDS_LEV_RT_HR 1      // Hard Reset
-#define UDS_LEV_RT_KOFFONR 2 // Key Off On Reset
-#define UDS_LEV_RT_SR 3      // Soft Reset
-#define UDS_LEV_RT_ERPSD 4   // Enable Rapid Power Shut Down
-#define UDS_LEV_RT_DRPSD 5   // Disable Rapid Power Shut Down
-
-/**
- * @brief 0x28 Communication Control SubFunction = [controlType]
- * ISO14229-1:2020 Table 54
- * UDS Level Control Type
- */
-#define UDS_LEV_CTRLTP_ERXTX 0  // EnableRxAndTx
-#define UDS_LEV_CTRLTP_ERXDTX 1 // EnableRxAndDisableTx
-#define UDS_LEV_CTRLTP_DRXETX 2 // DisableRxAndEnableTx
-#define UDS_LEV_CTRLTP_DRXTX 3  // DisableRxAndTx
-
-/**
- * @brief 0x28 Communication Control communicationType
- * ISO14229-1:2020 Table B.1
- */
-#define UDS_CTP_NCM 1       // NormalCommunicationMessages
-#define UDS_CTP_NWMCM 2     // NetworkManagementCommunicationMessages
-#define UDS_CTP_NWMCM_NCM 3 // NetworkManagementCommunicationMessagesAndNormalCommunicationMessages
-
-/**
- * @brief 0x31 RoutineControl SubFunction = [routineControlType]
- * ISO14229-1:2020 Table 426
- */
-#define UDS_LEV_RCTP_STR 1  // StartRoutine
-#define UDS_LEV_RCTP_STPR 2 // StopRoutine
-#define UDS_LEV_RCTP_RRR 3  // RequestRoutineResults
-
-/**
- * @defgroup UDS_MOOP_ 0x38 RequestFileTransfer modeOfOperation
- * @brief modeOfOperation parameter used in 0x38 RequestFileTransfer
- * ISO14229-1:2020 Table G.1
+ * @defgroup uds_lev_ds_ Diagnostic Session Levels
+ * @brief ISO14229-1:2020 Table 25
+ * @see UDSSendDiagSessCtrl UDS_EVT_DiagSessCtrl
  * @{
  */
-#define UDS_MOOP_ADDFILE 1  // AddFile
-#define UDS_MOOP_DELFILE 2  // DeleteFile
-#define UDS_MOOP_REPLFILE 3 // ReplaceFile
-#define UDS_MOOP_RDFILE 4   // ReadFile
-#define UDS_MOOP_RDDIR 5    // ReadDirectory
-#define UDS_MOOP_RSFILE 6   // ResumeFile
+#define UDS_LEV_DS_DS 1    ///< Default Session
+#define UDS_LEV_DS_PRGS 2  ///< Programming Session
+#define UDS_LEV_DS_EXTDS 3 ///< Extended Diagnostic Session
+#define UDS_LEV_DS_SSDS 4  ///< Safety System Diagnostic Session
 /** @} */
 
 /**
- * @brief 0x85 ControlDTCSetting SubFunction = [dtcSettingType]
- * ISO14229-1:2020 Table 128
+ * @defgroup uds_lev_rt_ Reset Types
+ * @brief ISO14229-1:2020 Table 34
+ * @see UDSSendECUReset UDS_EVT_ECUReset
+ * @{
  */
-#define UDS_LEV_DTCSTP_ON 1
-#define UDS_LEV_DTCSTP_OFF 2
+#define UDS_LEV_RT_HR 1      ///< Hard Reset
+#define UDS_LEV_RT_KOFFONR 2 ///< Key Off On Reset
+#define UDS_LEV_RT_SR 3      ///< Soft Reset
+#define UDS_LEV_RT_ERPSD 4   ///< Enable Rapid Power Shut Down
+#define UDS_LEV_RT_DRPSD 5   ///< Disable Rapid Power Shut Down
+/** @} */
 
 /**
- * @brief 0x87 LinkControl SubFunction = [linkControlType]
- * ISO14229-1:2020 Table 171
+ * @defgroup uds_lev_ctrlp_ Communication Control Levels
+ * @brief ISO14229-1:2020 Table 54
+ * @see UDSSendCommCtrl UDS_EVT_CommCtrl
+ * @{
  */
-#define UDS_LEV_LCTP_VMTWFP 1 // VerifyModeTransitionWithFixedParameter
-#define UDS_LEV_LCTP_VMTWSP 2 // VerifyModeTransitionWithSpecificParameter
-#define UDS_LEV_LCTP_TM 3     // TransitionMode
+#define UDS_LEV_CTRLTP_ERXTX 0  ///< EnableRxAndTx
+#define UDS_LEV_CTRLTP_ERXDTX 1 ///< EnableRxAndDisableTx
+#define UDS_LEV_CTRLTP_DRXETX 2 ///< DisableRxAndEnableTx
+#define UDS_LEV_CTRLTP_DRXTX 3  ///< DisableRxAndTx
+/** @} */
 
-// ISO-14229-1:2013 Table 2
+/**
+ * @defgroup uds_ctp_ Communication Types
+ * @brief ISO14229-1:2020 Table B.1
+ * @see UDSSendCommCtrl UDS_EVT_CommCtrl
+ * @{
+ */
+#define UDS_CTP_NCM 1       ///< NormalCommunicationMessages
+#define UDS_CTP_NWMCM 2     ///< NetworkManagementCommunicationMessages
+#define UDS_CTP_NWMCM_NCM 3 ///< NetworkManagementCommunicationMessagesAndNormalCommunicationMessages
+/** @} */
+
+/**
+ * @defgroup uds_lev_rctp_ Routine Control Levels
+ * @brief ISO14229-1:2020 Table 426
+ * @see UDSSendRoutineCtrl UDS_EVT_RoutineCtrl
+ * @{
+ */
+#define UDS_LEV_RCTP_STR 1  ///< StartRoutine
+#define UDS_LEV_RCTP_STPR 2 ///< StopRoutine
+#define UDS_LEV_RCTP_RRR 3  ///< RequestRoutineResults
+/** @} */
+
+/**
+ * @defgroup uds_moop_ Mode of Operation for RequestFileTransfer 
+ * @brief ISO14229-1:2020 Table G.1
+ * @see UDSSendRequestFileTransfer UDS_EVT_RequestFileTransfer
+ * @{
+ */
+#define UDS_MOOP_ADDFILE 1  ///< AddFile
+#define UDS_MOOP_DELFILE 2  ///< DeleteFile
+#define UDS_MOOP_REPLFILE 3 ///< ReplaceFile
+#define UDS_MOOP_RDFILE 4   ///< ReadFile
+#define UDS_MOOP_RDDIR 5    ///< ReadDirectory
+#define UDS_MOOP_RSFILE 6   ///< ResumeFile
+/** @} */
+
+/**
+ * @defgroup uds_lev_dtcstp_ Diagnostic Trouble Code Control Level
+ * @brief ISO14229-1:2020 Table 128
+ * @see UDSSendControlDTCSetting UDS_EVT_ControlDTCSetting
+ * @{
+ */
+#define UDS_LEV_DTCSTP_ON 1 ///< Resume updating DTCs 
+#define UDS_LEV_DTCSTP_OFF 2 ///< Stop updating DTCs
+/** @} */
+
+/**
+ * @defgroup uds_lev_lctp_ Link Control Level
+ * @brief ISO14229-1:2020 Table 171
+ * @see UDSSendLinkControl UDS_EVT_LinkControl
+ * @{
+ */
+#define UDS_LEV_LCTP_VMTWFP 1 ///< VerifyModeTransitionWithFixedParameter
+#define UDS_LEV_LCTP_VMTWSP 2 ///< VerifyModeTransitionWithSpecificParameter
+#define UDS_LEV_LCTP_TM 3     ///< TransitionMode
+/** @} */
+
+/// ISO-14229-1:2013 Table 2
 #define UDS_MAX_DIAGNOSTIC_SERVICES 0x7F
 
-#define UDS_RESPONSE_SID_OF(request_sid) ((request_sid) + 0x40)
-#define UDS_REQUEST_SID_OF(response_sid) ((response_sid) - 0x40)
+#define UDS_RESPONSE_SID_OF(request_sid) ((request_sid) + 0x40) ///< Convert request SID to response SID
+#define UDS_REQUEST_SID_OF(response_sid) ((response_sid) - 0x40) ///< Convert response SID to request SID
 
+/// \cond DOXYGEN_SHOULD_SKIP_THIS
 #define UDS_NEG_RESP_LEN 3U
 #define UDS_0X10_REQ_LEN 2U
 #define UDS_0X10_RESP_LEN 6U
@@ -569,12 +613,20 @@ enum UDSDiagnosticServiceId {
     kSID_RESPONSE_ON_EVENT = 0x86,
     kSID_LINK_CONTROL = 0x87,
 };
+/// \endcond
 
 
 
 
+
+/**
+ * @def UDS_ASSERT(x)
+ * @brief define this during library development. 
+ * It is a no-op by default for library users. 
+ * API misuse is expected to be covered by runtime checks, not by UDS_ASSERT
+ */
 #ifndef UDS_ASSERT
-#define UDS_ASSERT(x) assert(x)
+#define UDS_ASSERT(x)
 #endif
 
 /**
@@ -606,7 +658,7 @@ const char *UDSEventToStr(UDSEvent_t evt);
 
 
 /**
- * @defgroup UDS_LOG_LEVEL_ valid values for UDS_LOG_LEVEL
+ * @defgroup uds_log_level_ valid values for UDS_LOG_LEVEL
  * @brief configures logging verbosity
  * @{
  */
@@ -618,12 +670,18 @@ const char *UDSEventToStr(UDSEvent_t evt);
 #define UDS_LOG_VERBOSE 5 /**< Log verbose, debug, info, warnings, and errors */
 /** @} */
 
-typedef int UDS_LogLevel_t;
+typedef int UDS_LogLevel_t; ///< one of @ref uds_log_level_
 
+/**
+ * @def UDS_LOG_LEVEL
+ * @brief sets the logging level
+ * @see uds_log_level_ for valid values
+ */
 #ifndef UDS_LOG_LEVEL
 #define UDS_LOG_LEVEL UDS_LOG_NONE
 #endif
 
+/// \cond DOXYGEN_SHOULD_SKIP_THIS
 #if UDS_CONFIG_LOG_COLORS
 #define UDS_LOG_COLOR_BLACK "30"
 #define UDS_LOG_COLOR_RED "31"
@@ -720,13 +778,14 @@ static inline void UDS_LogSDUDummy(const char *tag, const uint8_t *buffer, size_
     (void)buff_len;
     (void)info;
 }
+/// \endcond
 
 
 
 
-#define UDS_SUPPRESS_POS_RESP 0x1  // set the suppress positive response bit
-#define UDS_FUNCTIONAL 0x2         // send the request as a functional request
-#define UDS_IGNORE_SRV_TIMINGS 0x8 // ignore the server-provided p2 and p2_star
+#define UDS_SUPPRESS_POS_RESP 0x1  ///< set the suppress positive response bit
+#define UDS_FUNCTIONAL 0x2         ///< send the request as a functional request
+#define UDS_IGNORE_SRV_TIMINGS 0x8 ///< ignore the server-provided p2 and p2_star
 
 /**
  * @brief UDS client structure
@@ -792,18 +851,21 @@ typedef struct {
 
 UDSErr_t UDSClientInit(UDSClient_t *client); ///< Call this once
 UDSErr_t UDSClientPoll(UDSClient_t *client); ///< Call at <5ms intervals
-UDSErr_t UDSSendBytes(UDSClient_t *client, const uint8_t *data, uint16_t size); ///< Send user-defined bytes to a UDS server
-UDSErr_t UDSSendECUReset(UDSClient_t *client, uint8_t type); ///< Request ECUReset
+UDSErr_t UDSSendBytes(UDSClient_t *client, const uint8_t *data,
+                      uint16_t size); ///< Send user-defined bytes to a UDS server
+UDSErr_t UDSSendECUReset(UDSClient_t *client, uint8_t type);     ///< Request ECUReset
 UDSErr_t UDSSendDiagSessCtrl(UDSClient_t *client, uint8_t mode); ///< Change the diagnostic session
-UDSErr_t UDSSendSecurityAccess(UDSClient_t *client, uint8_t level, uint8_t *data, uint16_t size); ///< Get Security Access
-UDSErr_t UDSSendCommCtrl(UDSClient_t *client, uint8_t ctrl, uint8_t comm); ///< Change communication settings
-UDSErr_t UDSSendRDBI(UDSClient_t *client, const uint16_t *didList, 
+UDSErr_t UDSSendSecurityAccess(UDSClient_t *client, uint8_t level, uint8_t *data,
+                               uint16_t size); ///< Get Security Access
+UDSErr_t UDSSendCommCtrl(UDSClient_t *client, uint8_t ctrl,
+                         uint8_t comm); ///< Change communication settings
+UDSErr_t UDSSendRDBI(UDSClient_t *client, const uint16_t *didList,
                      const uint16_t numDataIdentifiers); ///< Read Data By Identifier
 UDSErr_t UDSSendWDBI(UDSClient_t *client, uint16_t dataIdentifier, const uint8_t *data,
-                     uint16_t size); ///< Write Data By Identifier
+                     uint16_t size);                ///< Write Data By Identifier
 UDSErr_t UDSSendTesterPresent(UDSClient_t *client); ///< What's up?
 UDSErr_t UDSSendRoutineCtrl(UDSClient_t *client, uint8_t type, uint16_t routineIdentifier,
-                            const uint8_t *data, uint16_t size); ///< Request to Twiddle Routines  
+                            const uint8_t *data, uint16_t size); ///< Request to Twiddle Routines
 
 UDSErr_t UDSSendRequestDownload(UDSClient_t *client, uint8_t dataFormatIdentifier,
                                 uint8_t addressAndLengthFormatIdentifier, size_t memoryAddress,
@@ -813,26 +875,28 @@ UDSErr_t UDSSendRequestUpload(UDSClient_t *client, uint8_t dataFormatIdentifier,
                               uint8_t addressAndLengthFormatIdentifier, size_t memoryAddress,
                               size_t memorySize); ///< Request to Upload via TransferData
 UDSErr_t UDSSendTransferData(UDSClient_t *client, uint8_t blockSequenceCounter,
-                             const uint16_t blockLength, const uint8_t *data, uint16_t size); ///< Transfer Data to/from a buffer
+                             const uint16_t blockLength, const uint8_t *data,
+                             uint16_t size); ///< Transfer Data to/from a buffer
 UDSErr_t UDSSendTransferDataStream(UDSClient_t *client, uint8_t blockSequenceCounter,
-                                   const uint16_t blockLength, FILE *fd); ///< Transfer Data to/from a file
-UDSErr_t UDSSendRequestTransferExit(UDSClient_t *client); ///< Call this when finished with TransferData 
+                                   const uint16_t blockLength,
+                                   FILE *fd); ///< Transfer Data to/from a file
+UDSErr_t
+UDSSendRequestTransferExit(UDSClient_t *client); ///< Call this when finished with TransferData
 
-UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, uint8_t mode, const char *filePath,
-                                    size_t fileSizeUncompressed, size_t fileSizeCompressed); ///< filesystem-based frontend to TransferData
+UDSErr_t UDSSendRequestFileTransfer(
+    UDSClient_t *client, uint8_t mode, const char *filePath, size_t fileSizeUncompressed,
+    size_t fileSizeCompressed); ///< filesystem-based frontend to TransferData
 UDSErr_t UDSCtrlDTCSetting(UDSClient_t *client, uint8_t dtcSettingType,
-                           uint8_t *dtcSettingControlOptionRecord, uint16_t len); ///< control DTC setting
-UDSErr_t UDSUnpackRDBIResponse(UDSClient_t *client, UDSRDBIVar_t *vars, uint16_t numVars);
+                           uint8_t *dtcSettingControlOptionRecord,
+                           uint16_t len); ///< control DTC setting
+UDSErr_t UDSUnpackRDBIResponse(UDSClient_t *client, UDSRDBIVar_t *vars, uint16_t numVars); ///< Parse server's response to RDBI 
 UDSErr_t UDSUnpackSecurityAccessResponse(const UDSClient_t *client,
-                                         struct SecurityAccessResponse *resp);
+                                         struct SecurityAccessResponse *resp); ///< Parse server's response to SecurityAccess 
 UDSErr_t UDSUnpackRequestDownloadResponse(const UDSClient_t *client,
-                                          struct RequestDownloadResponse *resp);
+                                          struct RequestDownloadResponse *resp); ///< Parse server's response to RequestDownload 
 UDSErr_t UDSUnpackRoutineControlResponse(const UDSClient_t *client,
-                                         struct RoutineControlResponse *resp);
+                                         struct RoutineControlResponse *resp); ///< Parse server's response to RoutineControl
 
-UDSErr_t UDSConfigDownload(UDSClient_t *client, uint8_t dataFormatIdentifier,
-                           uint8_t addressAndLengthFormatIdentifier, size_t memoryAddress,
-                           size_t memorySize, FILE *fd);
 
 
 
@@ -1139,7 +1203,7 @@ typedef struct {
 typedef struct {
     /**
      * request:
-     * @see @ref UDS_MOOP_ "modeOfOperation values"
+     * @see @ref uds_moop_ "modeOfOperation values"
      */
     const uint8_t modeOfOperation;
     const uint16_t filePathLen;         /*! request: data length. */
@@ -1191,11 +1255,14 @@ typedef struct {
                             uint16_t len); /*! function for copying response data (optional) */
 } UDSCustomArgs_t;
 
-UDSErr_t UDSServerInit(UDSServer_t *srv);
-void UDSServerPoll(UDSServer_t *srv);
+UDSErr_t UDSServerInit(UDSServer_t *srv); ///< call this once
+void UDSServerPoll(UDSServer_t *srv); ///< Call this at <5ms intervals
 
 #if defined(UDS_TP_ISOTP_C)
-#define ISO_TP_USER_SEND_CAN_ARG 1
+/// \cond DOXYGEN_SHOULD_SKIP_THIS
+
+#define ISO_TP_USER_SEND_CAN_ARG 1 
+
 #ifndef ISOTPC_CONFIG_H
 #define ISOTPC_CONFIG_H
 
@@ -1640,7 +1707,9 @@ int isotp_receive(IsoTpLink *link, uint8_t *payload, const uint16_t payload_size
 
 #endif // ISOTPC_H
 
-#endif
+
+/// \endcond
+#endif // if defined(UDS_TP_ISOTP_C)
 
 #if defined(UDS_TP_ISOTP_C)
 
@@ -1675,14 +1744,11 @@ typedef struct {
  */
 UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, const UDSTpISOTpCConfig_t *cfg);
 
-void UDSTpISOTpCDeinit(UDSTpISOTpC_t *tp);
-
 #endif
 
 
 
 #if defined(UDS_TP_ISOTP_C_SOCKETCAN)
-
 
 
 /**
@@ -1700,10 +1766,19 @@ typedef struct {
     char tag[16];
 } UDSTpISOTpCSocketCAN_t;
 
-UDSErr_t UDSTpISOTpCSocketCANInit(UDSTpISOTpCSocketCAN_t *tp, const char *ifname, uint32_t source_addr,
-                         uint32_t target_addr, uint32_t source_addr_func,
-                         uint32_t target_addr_func);
-void UDSTpISOTpCSocketCANDeinit(UDSTpISOTpCSocketCAN_t *tp);
+/**
+ * @brief Initialize the transport 
+ * @param tp transport
+ * @param ifname can0, vcan0
+ * @param source_addr
+ * @param target_addr
+ * @param source_addr_func
+ * @param target_addr_func
+ */
+UDSErr_t UDSTpISOTpCSocketCANInit(UDSTpISOTpCSocketCAN_t *tp, const char *ifname,
+                                  uint32_t source_addr, uint32_t target_addr,
+                                  uint32_t source_addr_func, uint32_t target_addr_func);
+void UDSTpISOTpCSocketCANDeinit(UDSTpISOTpCSocketCAN_t *tp); ///< release socket
 
 #endif
 
@@ -1728,10 +1803,10 @@ typedef struct {
 } UDSTpIsoTpSock_t;
 
 UDSErr_t UDSTpIsoTpSockInitServer(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
-                                  uint32_t target_addr, uint32_t source_addr_func);
+                                  uint32_t target_addr, uint32_t source_addr_func); ///< for UDSServer_t 
 UDSErr_t UDSTpIsoTpSockInitClient(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
-                                  uint32_t target_addr, uint32_t target_addr_func);
-void UDSTpIsoTpSockDeinit(UDSTpIsoTpSock_t *tp);
+                                  uint32_t target_addr, uint32_t target_addr_func); ///< for UDSClient_t
+void UDSTpIsoTpSockDeinit(UDSTpIsoTpSock_t *tp); ///< release sockets
 
 #endif
 

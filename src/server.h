@@ -307,7 +307,7 @@ typedef struct {
 typedef struct {
     /**
      * request:
-     * @see @ref UDS_MOOP_ "modeOfOperation values"
+     * @see @ref uds_moop_ "modeOfOperation values"
      */
     const uint8_t modeOfOperation;
     const uint16_t filePathLen;         /*! request: data length. */
@@ -359,5 +359,5 @@ typedef struct {
                             uint16_t len); /*! function for copying response data (optional) */
 } UDSCustomArgs_t;
 
-UDSErr_t UDSServerInit(UDSServer_t *srv);
-void UDSServerPoll(UDSServer_t *srv);
+UDSErr_t UDSServerInit(UDSServer_t *srv); ///< call this once
+void UDSServerPoll(UDSServer_t *srv);     ///< Call this at <5ms intervals

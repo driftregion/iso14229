@@ -14,7 +14,10 @@ cc_library(
     copts = select({
         "@platforms//os:windows": [],
         "//conditions:default": [ "-g", ],
-    })
+    }),
+    defines = [
+        "UDS_ASSERT=assert",
+    ]
 )
 
 cc_test(

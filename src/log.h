@@ -11,7 +11,7 @@
 #include "tp.h"
 
 /**
- * @defgroup UDS_LOG_LEVEL_ valid values for UDS_LOG_LEVEL
+ * @defgroup uds_log_level_ valid values for UDS_LOG_LEVEL
  * @brief configures logging verbosity
  * @{
  */
@@ -23,12 +23,18 @@
 #define UDS_LOG_VERBOSE 5 /**< Log verbose, debug, info, warnings, and errors */
 /** @} */
 
-typedef int UDS_LogLevel_t;
+typedef int UDS_LogLevel_t; ///< one of @ref uds_log_level_
 
+/**
+ * @def UDS_LOG_LEVEL
+ * @brief sets the logging level
+ * @see uds_log_level_ for valid values
+ */
 #ifndef UDS_LOG_LEVEL
 #define UDS_LOG_LEVEL UDS_LOG_NONE
 #endif
 
+/// \cond DOXYGEN_SHOULD_SKIP_THIS
 #if UDS_CONFIG_LOG_COLORS
 #define UDS_LOG_COLOR_BLACK "30"
 #define UDS_LOG_COLOR_RED "31"
@@ -125,3 +131,4 @@ static inline void UDS_LogSDUDummy(const char *tag, const uint8_t *buffer, size_
     (void)buff_len;
     (void)info;
 }
+/// \endcond

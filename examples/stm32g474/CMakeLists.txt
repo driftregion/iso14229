@@ -8,7 +8,6 @@ add_compile_definitions(
     USE_HAL_DRIVER
     UDS_SYS=UDS_SYS_CUSTOM
     UDS_TP_ISOTP_C
-    UDS_CUSTOM_MILLIS
 )
 add_compile_options(-g3 -O0) # Global compile flags
 

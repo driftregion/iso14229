@@ -37,6 +37,4 @@ typedef struct {
  */
 UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, const UDSTpISOTpCConfig_t *cfg);
 
-void UDSTpISOTpCDeinit(UDSTpISOTpC_t *tp);
-
 #endif

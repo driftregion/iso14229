@@ -45,6 +45,10 @@ typedef enum UDSEvent {
     UDS_EVT_MAX, /**< Unused sentinel value */
 } UDSEvent_t;
 
+/**
+ * @brief Error Codes, including NRCs defined by the standard.
+ * @see UDSErrToStr
+ */
 typedef enum {
     UDS_FAIL = -1, // General error
     UDS_OK = 0,    // Success
@@ -139,85 +143,110 @@ typedef enum {
     UDS_ERR_MISUSE,               // The library is used incorrectly
 } UDSErr_t;
 
-// ISO14229-1:2020 Table 25
-// UDS Level Diagnostic Session
-#define UDS_LEV_DS_DS 1    // Default Session
-#define UDS_LEV_DS_PRGS 2  // Programming Session
-#define UDS_LEV_DS_EXTDS 3 // Extended Diagnostic Session
-#define UDS_LEV_DS_SSDS 4  // Safety System Diagnostic Session
-
 /**
- * @brief 0x11 ECU Reset SubFunction = [resetType]
- * ISO14229-1:2020 Table 34
- * UDS Level Reset Type
- */
-#define UDS_LEV_RT_HR 1      // Hard Reset
-#define UDS_LEV_RT_KOFFONR 2 // Key Off On Reset
-#define UDS_LEV_RT_SR 3      // Soft Reset
-#define UDS_LEV_RT_ERPSD 4   // Enable Rapid Power Shut Down
-#define UDS_LEV_RT_DRPSD 5   // Disable Rapid Power Shut Down
-
-/**
- * @brief 0x28 Communication Control SubFunction = [controlType]
- * ISO14229-1:2020 Table 54
- * UDS Level Control Type
- */
-#define UDS_LEV_CTRLTP_ERXTX 0  // EnableRxAndTx
-#define UDS_LEV_CTRLTP_ERXDTX 1 // EnableRxAndDisableTx
-#define UDS_LEV_CTRLTP_DRXETX 2 // DisableRxAndEnableTx
-#define UDS_LEV_CTRLTP_DRXTX 3  // DisableRxAndTx
-
-/**
- * @brief 0x28 Communication Control communicationType
- * ISO14229-1:2020 Table B.1
- */
-#define UDS_CTP_NCM 1       // NormalCommunicationMessages
-#define UDS_CTP_NWMCM 2     // NetworkManagementCommunicationMessages
-#define UDS_CTP_NWMCM_NCM 3 // NetworkManagementCommunicationMessagesAndNormalCommunicationMessages
-
-/**
- * @brief 0x31 RoutineControl SubFunction = [routineControlType]
- * ISO14229-1:2020 Table 426
- */
-#define UDS_LEV_RCTP_STR 1  // StartRoutine
-#define UDS_LEV_RCTP_STPR 2 // StopRoutine
-#define UDS_LEV_RCTP_RRR 3  // RequestRoutineResults
-
-/**
- * @defgroup UDS_MOOP_ 0x38 RequestFileTransfer modeOfOperation
- * @brief modeOfOperation parameter used in 0x38 RequestFileTransfer
- * ISO14229-1:2020 Table G.1
+ * @defgroup uds_lev_ds_ Diagnostic Session Levels
+ * @brief ISO14229-1:2020 Table 25
+ * @see UDSSendDiagSessCtrl UDS_EVT_DiagSessCtrl
  * @{
  */
-#define UDS_MOOP_ADDFILE 1  // AddFile
-#define UDS_MOOP_DELFILE 2  // DeleteFile
-#define UDS_MOOP_REPLFILE 3 // ReplaceFile
-#define UDS_MOOP_RDFILE 4   // ReadFile
-#define UDS_MOOP_RDDIR 5    // ReadDirectory
-#define UDS_MOOP_RSFILE 6   // ResumeFile
+#define UDS_LEV_DS_DS 1    ///< Default Session
+#define UDS_LEV_DS_PRGS 2  ///< Programming Session
+#define UDS_LEV_DS_EXTDS 3 ///< Extended Diagnostic Session
+#define UDS_LEV_DS_SSDS 4  ///< Safety System Diagnostic Session
 /** @} */
 
 /**
- * @brief 0x85 ControlDTCSetting SubFunction = [dtcSettingType]
- * ISO14229-1:2020 Table 128
+ * @defgroup uds_lev_rt_ Reset Types
+ * @brief ISO14229-1:2020 Table 34
+ * @see UDSSendECUReset UDS_EVT_ECUReset
+ * @{
  */
-#define UDS_LEV_DTCSTP_ON 1
-#define UDS_LEV_DTCSTP_OFF 2
+#define UDS_LEV_RT_HR 1      ///< Hard Reset
+#define UDS_LEV_RT_KOFFONR 2 ///< Key Off On Reset
+#define UDS_LEV_RT_SR 3      ///< Soft Reset
+#define UDS_LEV_RT_ERPSD 4   ///< Enable Rapid Power Shut Down
+#define UDS_LEV_RT_DRPSD 5   ///< Disable Rapid Power Shut Down
+/** @} */
 
 /**
- * @brief 0x87 LinkControl SubFunction = [linkControlType]
- * ISO14229-1:2020 Table 171
+ * @defgroup uds_lev_ctrlp_ Communication Control Levels
+ * @brief ISO14229-1:2020 Table 54
+ * @see UDSSendCommCtrl UDS_EVT_CommCtrl
+ * @{
  */
-#define UDS_LEV_LCTP_VMTWFP 1 // VerifyModeTransitionWithFixedParameter
-#define UDS_LEV_LCTP_VMTWSP 2 // VerifyModeTransitionWithSpecificParameter
-#define UDS_LEV_LCTP_TM 3     // TransitionMode
+#define UDS_LEV_CTRLTP_ERXTX 0  ///< EnableRxAndTx
+#define UDS_LEV_CTRLTP_ERXDTX 1 ///< EnableRxAndDisableTx
+#define UDS_LEV_CTRLTP_DRXETX 2 ///< DisableRxAndEnableTx
+#define UDS_LEV_CTRLTP_DRXTX 3  ///< DisableRxAndTx
+/** @} */
 
-// ISO-14229-1:2013 Table 2
+/**
+ * @defgroup uds_ctp_ Communication Types
+ * @brief ISO14229-1:2020 Table B.1
+ * @see UDSSendCommCtrl UDS_EVT_CommCtrl
+ * @{
+ */
+#define UDS_CTP_NCM 1   ///< NormalCommunicationMessages
+#define UDS_CTP_NWMCM 2 ///< NetworkManagementCommunicationMessages
+#define UDS_CTP_NWMCM_NCM                                                                          \
+    3 ///< NetworkManagementCommunicationMessagesAndNormalCommunicationMessages
+/** @} */
+
+/**
+ * @defgroup uds_lev_rctp_ Routine Control Levels
+ * @brief ISO14229-1:2020 Table 426
+ * @see UDSSendRoutineCtrl UDS_EVT_RoutineCtrl
+ * @{
+ */
+#define UDS_LEV_RCTP_STR 1  ///< StartRoutine
+#define UDS_LEV_RCTP_STPR 2 ///< StopRoutine
+#define UDS_LEV_RCTP_RRR 3  ///< RequestRoutineResults
+/** @} */
+
+/**
+ * @defgroup uds_moop_ Mode of Operation for RequestFileTransfer
+ * @brief ISO14229-1:2020 Table G.1
+ * @see UDSSendRequestFileTransfer UDS_EVT_RequestFileTransfer
+ * @{
+ */
+#define UDS_MOOP_ADDFILE 1  ///< AddFile
+#define UDS_MOOP_DELFILE 2  ///< DeleteFile
+#define UDS_MOOP_REPLFILE 3 ///< ReplaceFile
+#define UDS_MOOP_RDFILE 4   ///< ReadFile
+#define UDS_MOOP_RDDIR 5    ///< ReadDirectory
+#define UDS_MOOP_RSFILE 6   ///< ResumeFile
+/** @} */
+
+/**
+ * @defgroup uds_lev_dtcstp_ Diagnostic Trouble Code Control Level
+ * @brief ISO14229-1:2020 Table 128
+ * @see UDSSendControlDTCSetting UDS_EVT_ControlDTCSetting
+ * @{
+ */
+#define UDS_LEV_DTCSTP_ON 1  ///< Resume updating DTCs
+#define UDS_LEV_DTCSTP_OFF 2 ///< Stop updating DTCs
+/** @} */
+
+/**
+ * @defgroup uds_lev_lctp_ Link Control Level
+ * @brief ISO14229-1:2020 Table 171
+ * @see UDSSendLinkControl UDS_EVT_LinkControl
+ * @{
+ */
+#define UDS_LEV_LCTP_VMTWFP 1 ///< VerifyModeTransitionWithFixedParameter
+#define UDS_LEV_LCTP_VMTWSP 2 ///< VerifyModeTransitionWithSpecificParameter
+#define UDS_LEV_LCTP_TM 3     ///< TransitionMode
+/** @} */
+
+/// ISO-14229-1:2013 Table 2
 #define UDS_MAX_DIAGNOSTIC_SERVICES 0x7F
 
-#define UDS_RESPONSE_SID_OF(request_sid) ((request_sid) + 0x40)
-#define UDS_REQUEST_SID_OF(response_sid) ((response_sid) - 0x40)
+#define UDS_RESPONSE_SID_OF(request_sid)                                                           \
+    ((request_sid) + 0x40) ///< Convert request SID to response SID
+#define UDS_REQUEST_SID_OF(response_sid)                                                           \
+    ((response_sid) - 0x40) ///< Convert response SID to request SID
 
+/// \cond DOXYGEN_SHOULD_SKIP_THIS
 #define UDS_NEG_RESP_LEN 3U
 #define UDS_0X10_REQ_LEN 2U
 #define UDS_0X10_RESP_LEN 6U
@@ -291,3 +320,4 @@ enum UDSDiagnosticServiceId {
     kSID_RESPONSE_ON_EVENT = 0x86,
     kSID_LINK_CONTROL = 0x87,
 };
+/// \endcond

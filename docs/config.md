@@ -1,37 +1,25 @@
-This page documents compile-time configuration options of iso14229.
+# Compile-Time Configuration {#config}
 
-### System Selection 
+This page lists the public compile-time configuration API
 
-The system is detected by default for supported platforms, and can be overridden with the following options:
+| Define | Default | Valid Range | Description |
+|--------|---------|-------------|-------------|
+| \ref UDS_SYS | auto-detected | \ref uds_sys_ | target system |
+| UDS_TP_ISOTP_SOCK | * | defined or undefined | builds transport: Linux kernel ISO-TP socket. Suitable for linux newer than 5.10. See \ref UDSTpIsoTpSock_t  |
+| UDS_TP_ISOTP_C_SOCKETCAN | | defined or undefined | builds transport: isotp-c over SocketCAN. Suitable for Linux newer than 2.6.25. See \ref UDSTpISOTpCSocketCAN_t |
+| UDS_TP_ISOTP_C | * | defined or undefined | builds transport: isotp-c. Suitable for *everything* but you must bring your own CAN interface. See \ref porting-guide. |
+| \ref UDS_LOG_LEVEL | \ref UDS_LOG_NONE | \ref uds_log_level_ | iso14229 internal log level. Set UDS_LOG_LEVEL=UDS_LOG_DEBUG for a pleasant first-time bringup experience, then turn it off when you're finished. |
+| \ref UDS_SERVER_DEFAULT_P2_MS | 50 | - | Default P2 timeout (ms) |
+| \ref UDS_SERVER_DEFAULT_P2_STAR_MS | 5000 | - | Default P2* timeout (ms) |
+| `UDS_SERVER_DEFAULT_S3_MS` | 5100 | - | Session timeout (ms) |
+| `UDS_SERVER_DEFAULT_POWER_DOWN_TIME_MS` | 60 | - | Delay before ECU reset (ms) |
+| `UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_BOOT_DELAY_MS` | 1000 | - | Boot delay for security access (ms) |
+| `UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_AUTH_FAIL_DELAY_MS` | 1000 | - | Delay after auth failure (ms) |
+| `UDS_SERVER_SEND_BUF_SIZE` | 4095 | - | Send buffer size |
+| `UDS_SERVER_RECV_BUF_SIZE` | 4095 | - |  Receive buffer size |
+| `UDS_CLIENT_DEFAULT_P2_MS` | 150 | - | Default P2 timeout (ms) |
+| `UDS_CLIENT_DEFAULT_P2_STAR_MS` | 1500  | - | Default P2* timeout (ms) |
+| `UDS_CLIENT_SEND_BUF_SIZE` | 4095 | - | Send buffer size |
+| `UDS_CLIENT_RECV_BUF_SIZE` | 4095 | - | Receive buffer size |
 
-| Define | Values |
-|--------|--------|
-| `-DUDS_SYS=` | `UDS_SYS_UNIX`, `UDS_SYS_WINDOWS`, `UDS_SYS_ARDUINO`, `UDS_SYS_ESP32`, `UDS_SYS_CUSTOM` |
-
-This guide is oriented towards unsupported systems, which use `UDS_SYS_CUSTOM`.
-See an example here: \ref examples/s32k144_server/README.md "s32k144_server".
-
-### Transport Selection {#transport_layers}
-
-Embedded targets will use the `isotp_c` transport layer, enabled with `-DUDS_TP_ISOTP_C`.
-
-| Transport | Define | Description | Suitable For Targets | Example Implementations |
-|-----------|--------|-------------|-------------|------------|
-| **isotp_sock** | `-DUDS_TP_ISOTP_SOCK` | Linux kernel ISO-TP socket | Linux newer than 5.10  |  \ref examples/linux_server_0x27/README.md "linux_server_0x27" |
-| **isotp_c_socketcan** | `-DUDS_TP_ISOTP_C_SOCKETCAN` | isotp-c over SocketCAN | Linux newer than 2.6.25 | \ref examples/linux_server_0x27/README.md "linux_server_0x27" |
-| **isotp_c** | `-DUDS_TP_ISOTP_C` | Software ISO-TP | Everything else | \ref examples/arduino_server/README.md "arduino_server" \ref examples/esp32_server/README.md "esp32_server" \ref examples/s32k144_server/README.md "s32k144_server" |
-| **isotp_mock** | `-DUDS_TP_ISOTP_MOCK` | In-memory transport for testing | platform-independent unit tests | see unit tests |
-
-### Logging
-| Define | Values |
-|--------|--------|
-| `-DUDS_LOG_LEVEL=` | `UDS_LOG_NONE`, `UDS_LOG_ERROR`, `UDS_LOG_WARN`, `UDS_LOG_INFO`, `UDS_LOG_DEBUG`, `UDS_LOG_VERBOSE` |
-
-
-### Server Configuration 
-
-- `-DUDS_SERVER_...` - Server configuration options (see \ref server_configuration)
-
-### Client Configuration
-
-- `-DUDS_CLIENT_...` - Client configuration options (see \ref client_configuration)
+- * target system specific

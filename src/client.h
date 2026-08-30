@@ -5,9 +5,9 @@
 #include "tp.h"
 #include "uds.h"
 
-#define UDS_SUPPRESS_POS_RESP 0x1  // set the suppress positive response bit
-#define UDS_FUNCTIONAL 0x2         // send the request as a functional request
-#define UDS_IGNORE_SRV_TIMINGS 0x8 // ignore the server-provided p2 and p2_star
+#define UDS_SUPPRESS_POS_RESP 0x1  ///< set the suppress positive response bit
+#define UDS_FUNCTIONAL 0x2         ///< send the request as a functional request
+#define UDS_IGNORE_SRV_TIMINGS 0x8 ///< ignore the server-provided p2 and p2_star
 
 /**
  * @brief UDS client structure
@@ -111,14 +111,14 @@ UDSErr_t UDSSendRequestFileTransfer(
 UDSErr_t UDSCtrlDTCSetting(UDSClient_t *client, uint8_t dtcSettingType,
                            uint8_t *dtcSettingControlOptionRecord,
                            uint16_t len); ///< control DTC setting
-UDSErr_t UDSUnpackRDBIResponse(UDSClient_t *client, UDSRDBIVar_t *vars, uint16_t numVars);
-UDSErr_t UDSUnpackSecurityAccessResponse(const UDSClient_t *client,
-                                         struct SecurityAccessResponse *resp);
-UDSErr_t UDSUnpackRequestDownloadResponse(const UDSClient_t *client,
-                                          struct RequestDownloadResponse *resp);
-UDSErr_t UDSUnpackRoutineControlResponse(const UDSClient_t *client,
-                                         struct RoutineControlResponse *resp);
-
-UDSErr_t UDSConfigDownload(UDSClient_t *client, uint8_t dataFormatIdentifier,
-                           uint8_t addressAndLengthFormatIdentifier, size_t memoryAddress,
-                           size_t memorySize, FILE *fd);
+UDSErr_t UDSUnpackRDBIResponse(UDSClient_t *client, UDSRDBIVar_t *vars,
+                               uint16_t numVars); ///< Parse server's response to RDBI
+UDSErr_t UDSUnpackSecurityAccessResponse(
+    const UDSClient_t *client,
+    struct SecurityAccessResponse *resp); ///< Parse server's response to SecurityAccess
+UDSErr_t UDSUnpackRequestDownloadResponse(
+    const UDSClient_t *client,
+    struct RequestDownloadResponse *resp); ///< Parse server's response to RequestDownload
+UDSErr_t UDSUnpackRoutineControlResponse(
+    const UDSClient_t *client,
+    struct RoutineControlResponse *resp); ///< Parse server's response to RoutineControl

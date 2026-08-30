@@ -4,8 +4,14 @@
 #include "config.h"
 #include "uds.h"
 
+/**
+ * @def UDS_ASSERT(x)
+ * @brief define this during library development.
+ * It is a no-op by default for library users.
+ * API misuse is expected to be covered by runtime checks, not by UDS_ASSERT
+ */
 #ifndef UDS_ASSERT
-#define UDS_ASSERT(x) assert(x)
+#define UDS_ASSERT(x)
 #endif
 
 /**

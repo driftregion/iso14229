@@ -14,8 +14,6 @@ UDSClientInit(&client);
 client.tp = transport;
 ```
 
-For transport initialization, see \ref transport_layers.
-
 ### Sending Requests
 
 ```c
@@ -41,7 +39,7 @@ while (client.state != UDS_CLIENT_IDLE) {
 
 ## Client Structure
 
-The \ref UDSClient structure contains:
+The \ref UDSClient_t structure contains:
 
 - **Timeouts**: `p2_ms`, `p2_star_ms` - Server response timing parameters
 - **Transport**: `tp` - Pointer to ISO-TP transport layer
@@ -92,10 +90,6 @@ int fn(UDSClient_t *client, UDSEvent_t evt, void *ev_data) {
 client.fn = client_callback;
 ```
 
-## Supported Services
-
-See \ref services "UDS Services".
-
 ## Unpacking Responses
 
 Helper functions are provided to parse complex responses:
@@ -120,14 +114,4 @@ UDSRDBIVar_t vars[] = {
 UDSUnpackRDBIResponse(&client, vars, 1);
 ```
 
-## Configuration {#client_configuration}
-
-Client behavior can be configured at compile-time:
-
-| Define | Default | Description |
-|--------|---------|-------------|
-| `UDS_CLIENT_DEFAULT_P2_MS` | 150 | Default P2 timeout (ms) |
-| `UDS_CLIENT_DEFAULT_P2_STAR_MS` | 1500 | Default P2* timeout (ms) |
-| `UDS_CLIENT_SEND_BUF_SIZE` | 4095 | Send buffer size |
-| `UDS_CLIENT_RECV_BUF_SIZE` | 4095 | Receive buffer size |
-
+Some configuration options are set at compile-time. See : \ref config.

@@ -135,7 +135,7 @@ BRIEF_MEMBER_DESC      = YES
 # brief descriptions will be completely suppressed.
 # The default value is: YES.
 
-REPEAT_BRIEF           = YES
+REPEAT_BRIEF           = NO
 
 # This tag implements a quasi-intelligent brief description abbreviator that is
 # used to form the text in various listings. Each string in this list, if found
@@ -1162,15 +1162,17 @@ EXCLUDE_PATTERNS       =
 # wildcard * is used, a substring. Examples: ANamespace, AClass,
 # ANamespace::AClass, ANamespace::*Test
 
-# undocumented symbols from isotp-c
 EXCLUDE_SYMBOLS        = \
-    IsoTpCanMessage \
-    IsoTpConsecutiveFrame \ 
-    IsoTpFlowControl \
-    IsoTpPciType \
-    IsoTpSingleFrame \
-    IsoTpDataArray \
-    IsoTpFirstFrame
+    isotp_user_get_us \
+    isotp_user_debug \
+    isotp_user_send_can \
+    UDSErrToStr \
+    UDSEventToStr \
+    UDS_LIB_VERSION \
+    UDS_SYS_UNIX \
+    UDS_SYS_WINDOWS \
+    UDS_SYS_ARDUINO \
+    UDS_SYS_ESP32
 
 # The EXAMPLE_PATH tag can be used to specify one or more files or directories
 # that contain example code fragments that are included (see the \include
@@ -2555,7 +2557,7 @@ ENABLE_PREPROCESSING   = YES
 # The default value is: NO.
 # This tag requires that the tag ENABLE_PREPROCESSING is set to YES.
 
-MACRO_EXPANSION        = NO
+MACRO_EXPANSION        = YES
 
 # If the EXPAND_ONLY_PREDEF and MACRO_EXPANSION tags are both set to YES then
 # the macro expansion is limited to the macros specified with the PREDEFINED and
@@ -2563,7 +2565,7 @@ MACRO_EXPANSION        = NO
 # The default value is: NO.
 # This tag requires that the tag ENABLE_PREPROCESSING is set to YES.
 
-EXPAND_ONLY_PREDEF     = NO
+EXPAND_ONLY_PREDEF     = YES
 
 # If the SEARCH_INCLUDES tag is set to YES, the include files in the
 # INCLUDE_PATH will be searched if a #include is found.
@@ -2599,7 +2601,9 @@ INCLUDE_FILE_PATTERNS  =
 PREDEFINED             = UDS_TP_ISOTP_MOCK \
                          UDS_TP_ISOTP_C \
                          UDS_TP_ISOTP_SOCK \
-                         UDS_TP_ISOTP_C_SOCKETCAN
+                         UDS_TP_ISOTP_C_SOCKETCAN \
+                         ISO_TP_USER_SEND_CAN_ARG=1 \
+                         __attribute__(x)=
 
 # If the MACRO_EXPANSION and EXPAND_ONLY_PREDEF tags are set to YES then this
 # tag can be used to specify a list of macro names that should be expanded. The

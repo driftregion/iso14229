@@ -20,9 +20,18 @@ typedef struct {
     char tag[16];
 } UDSTpISOTpCSocketCAN_t;
 
+/**
+ * @brief Initialize the transport
+ * @param tp transport
+ * @param ifname can0, vcan0
+ * @param source_addr
+ * @param target_addr
+ * @param source_addr_func
+ * @param target_addr_func
+ */
 UDSErr_t UDSTpISOTpCSocketCANInit(UDSTpISOTpCSocketCAN_t *tp, const char *ifname,
                                   uint32_t source_addr, uint32_t target_addr,
                                   uint32_t source_addr_func, uint32_t target_addr_func);
-void UDSTpISOTpCSocketCANDeinit(UDSTpISOTpCSocketCAN_t *tp);
+void UDSTpISOTpCSocketCANDeinit(UDSTpISOTpCSocketCAN_t *tp); ///< release socket
 
 #endif

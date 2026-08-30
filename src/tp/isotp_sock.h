@@ -21,9 +21,11 @@ typedef struct {
 } UDSTpIsoTpSock_t;
 
 UDSErr_t UDSTpIsoTpSockInitServer(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
-                                  uint32_t target_addr, uint32_t source_addr_func);
+                                  uint32_t target_addr,
+                                  uint32_t source_addr_func); ///< for UDSServer_t
 UDSErr_t UDSTpIsoTpSockInitClient(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
-                                  uint32_t target_addr, uint32_t target_addr_func);
-void UDSTpIsoTpSockDeinit(UDSTpIsoTpSock_t *tp);
+                                  uint32_t target_addr,
+                                  uint32_t target_addr_func); ///< for UDSClient_t
+void UDSTpIsoTpSockDeinit(UDSTpIsoTpSock_t *tp);              ///< release sockets
 
 #endif

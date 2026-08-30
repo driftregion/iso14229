@@ -9,7 +9,7 @@
 
 - [Server](docs/server.md) 
 - [Client](docs/client.md)
-- [Configuration Options](docs/config.md)
+- [Compile-Time Configuration Options](docs/config.md)
 - [Porting Guide](docs/porting_guide.md)
 
 ## Examples {#examples_sec}
@@ -28,24 +28,24 @@
 
 | Service ID | Service Name | Server | Client | 
 |------------|--------------|--------|--------|
-| 0x10 | \ref service_0x10 "Diagnostic Session Control" | Y | Y |
-| 0x11 | \ref service_0x11 "ECU Reset" | Y | Y | 
-| 0x14 | \ref service_0x14 "Clear Diagnostic Information" | Y | N |
+| 0x10 | Diagnostic Session Control | Y | Y |
+| 0x11 | ECU Reset | Y | Y | 
+| 0x14 | Clear Diagnostic Information | Y | N |
 | 0x19 | Read DTC Information | N | N |
-| 0x22 | \ref service_0x22 "Read Data By Identifier" | Y | Y |
+| 0x22 | Read Data By Identifier | Y | Y |
 | 0x23 | Read Memory By Address | N | N | 
 | 0x24 | Read Scaling Data By Identifier | N | N | 
-| 0x27 | \ref service_0x27 "Security Access" | Y | Y | 
-| 0x28 | \ref service_0x28 "Communication Control" | Y | Y | 
+| 0x27 | Security Access | Y | Y | 
+| 0x28 | Communication Control | Y | Y | 
 | 0x2A | Read Periodic Data By Identifier | N | N | 
 | 0x2C | Dynamically Define Data Identifier | N | N | 
-| 0x2E | \ref service_0x2e "Write Data By Identifier" | Y | Y | 
+| 0x2E | Write Data By Identifier | Y | Y | 
 | 0x2F | Input/Output Control By Identifier | Y | N | 
-| 0x31 | \ref service_0x31 "Routine Control" | Y | Y |
-| 0x34 | \ref service_0x34 "Request Download" | Y | Y |
+| 0x31 | Routine Control | Y | Y |
+| 0x34 | Request Download | Y | Y |
 | 0x35 | Request Upload | Y | Y | 
-| 0x36 | \ref service_0x36 "Transfer Data" | Y | Y | 
-| 0x37 | \ref service_0x37 "Request Transfer Exit" | Y | Y | 
+| 0x36 | Transfer Data | Y | Y | 
+| 0x37 | Request Transfer Exit | Y | Y | 
 | 0x38 | Request File Transfer | Y | Y | 
 | 0x3D | Write Memory By Address | Y | N | 
 | 0x3E | Tester Present | Y | Y | 

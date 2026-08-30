@@ -1,4 +1,4 @@
-# Porting Guide
+# Porting Guide {#porting-guide}
 
 iso14229 can be configured to run on most targets without modifying the source files `iso14229.c/.h`.
 This guide describes porting: setting up iso14229 to run on a new target for the first time.
@@ -34,7 +34,6 @@ Set the following preprocessor directives in your build system or command line:
 ```txt
 UDS_SYS=UDS_SYS_CUSTOM
 UDS_TP_ISOTP_C
-UDS_CUSTOM_MILLIS
 ```
 
 ## Logging
@@ -54,8 +53,6 @@ New targets will need to implement the following hooks:
 
 - `uint32_t UDSMillis(void)`
 - `int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t* data, const uint8_t size)`
-
-See the documentation for each function, and the example here: \ref examples/s32k144_server/README.md "s32k144_server".
 
 ### Polling
 The polling functions `UDSServerPoll()` and `UDSClientPoll()` need to be called regularly at intervals of 5 ms or less. 
