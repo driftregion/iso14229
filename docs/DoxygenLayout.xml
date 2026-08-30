@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doxygenlayout version="2.0">
+  <!-- Partial layout: only tabs overridden from the built-in default are listed here.
+       C has no classes, and there aren't enough standalone pages to justify an index. -->
+  <navindex>
+    <tab type="mainpage" visible="yes"/>
+    <tab type="topics" visible="yes"/>
+    <tab type="files" visible="yes"/>
+  </navindex>
+</doxygenlayout>
