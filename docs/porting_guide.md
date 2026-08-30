@@ -36,32 +36,47 @@ UDS_SYS=UDS_SYS_CUSTOM
 UDS_TP_ISOTP_C
 ```
 
-## Logging
-
-Logging is disabled by default with `-DUDS_LOG_LEVEL=UDS_LOG_NONE`. 
-However, logging can help to quickly identify problems during initial server/client bringup.
-To use logging, your target system must have `printf` support.
-
-## Integrating 
-
-Now that iso14229 compiles, it can be integrated with the target system. 
-
-### Hooks
+If your target has `printf` support, then you can enable logging which will help during bringup. 
+```txt
+DUDS_LOG_LEVEL=UDS_LOG_VERBOSE
+```
 
 iso14229 calls into the target system via hooks.
 New targets will need to implement the following hooks:
 
-- `uint32_t UDSMillis(void)`
-- `int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t* data, const uint8_t size)`
+1. `UDSMillis`. Example for STM32:
+```c
+uint32_t UDSMillis(void) { return HAL_GetTick(); }
+```
+
+
+2. `isotp_user_send_can`. Example for STM32:
+```c
+int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t *data, const uint8_t size,
+                        void *user_data) {
+    (void)user_data;
+    FDCAN_TxHeaderTypeDef TxHeader = {0};
+    TxHeader.Identifier = arbitration_id;
+    TxHeader.DataLength = size;
+    if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &TxHeader, (uint8_t *)data) != HAL_OK) {
+        return ISOTP_RET_ERROR;
+    }
+    return ISOTP_RET_OK;
+}
+```
+See also: isotp-c documentation.
 
 ### Polling
 The polling functions `UDSServerPoll()` and `UDSClientPoll()` need to be called regularly at intervals of 5 ms or less. 
 
-### Thread Safety
+> [!NOTE]
+> **Thread Safety**
+> The iso14229 API is not designed to be called from separate threads or interrupt contexts. 
+Either keep everything in the main context or in a dedicated RTOS task/thread.
 
-The iso14229 API is not designed to be called from multiple thread or interrupt contexts.
+### Example Ports
 
-### Message Queues
-
-On bare-metal targets where CAN frames are handled in ISR context, 
+- [`esp32_server`](examples/esp32_server/README.md )
+- [`s32k144_server`](examples/s32k144_server/README.md) 
+- [`stm32g474`](examples/stm32g474/README.md) 
 

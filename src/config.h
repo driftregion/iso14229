@@ -7,11 +7,6 @@
  */
 
 /**
- * @def UDS_TP_ISOTP_C
- * @brief if defined, build the @ref UDSTpISOTpC_t transport
- */
-
-/**
  * @def UDS_CUSTOM_MILLIS
  * @brief bring your own UDSMillis implementation
  * @details Bring your own UDSMillis implementation. Valid values:
@@ -20,9 +15,6 @@
  *
  * @see UDSMillis
  */
-#ifndef UDS_CUSTOM_MILLIS
-#define UDS_CUSTOM_MILLIS 0
-#endif
 
 #define UDS_ISOTP_MTU (4095) ///< ISO-TP Maximum Transmission Unit (ISO-15764-2-2004 section 5.3.3)
 

@@ -77,15 +77,12 @@ extern "C" {
 
 #if UDS_SYS == UDS_SYS_ARDUINO
 #include <Arduino.h>
-#ifndef UDS_TP_ISOTP_C
-#define UDS_TP_ISOTP_C
-#endif // ifndef UDS_TP_ISOTP_C
 #endif // if UDS_SYS == UDS_SYS_ARDUINO
 
 #if UDS_SYS == UDS_SYS_ESP32
 #include <esp_timer.h>
-#define UDS_TP_ISOTP_C
 #endif // if UDS_SYS == UDS_SYS_ESP32
+
 
 
 
@@ -93,11 +90,6 @@ extern "C" {
  * @def UDS_SYS
  * @brief Selects the host system iso14229 is compiled for.
  * @see uds_sys_ for the list of valid values
- */
-
-/**
- * @def UDS_TP_ISOTP_C
- * @brief if defined, build the @ref UDSTpISOTpC_t transport
  */
 
 /**
@@ -109,9 +101,6 @@ extern "C" {
  *
  * @see UDSMillis
  */
-#ifndef UDS_CUSTOM_MILLIS
-#define UDS_CUSTOM_MILLIS 0
-#endif
 
 #define UDS_ISOTP_MTU (4095) ///< ISO-TP Maximum Transmission Unit (ISO-15764-2-2004 section 5.3.3)
 

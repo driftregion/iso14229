@@ -7,8 +7,8 @@
 
 ## Index
 
-- [Server](docs/server.md) 
-- [Client](docs/client.md)
+- [Server Documentation](docs/server.md) 
+- [Client Documentation](docs/client.md)
 - [Compile-Time Configuration Options](docs/config.md)
 - [Porting Guide](docs/porting_guide.md)
 
@@ -16,12 +16,12 @@
 
 | Example | Description |
 |---------|-------------|
-| [`linux_rdbi_wdbi`](examples/linux_rdbi_wdbi/README.md) | UDS Server on Linux implementing Read/Write Data By Identifier (0x22/0x2E) |
-| [`linux_security_access`](examples/linux_security_access/README.md) | UDS Server on Linux implementing Security Access (0x27) |
-| [`arduino_server`](examples/arduino_server/README.md) | UDS Server on Arduino MKR-WIFI 1010 with MKR CAN Shield |
-|  [`esp32_server`](examples/esp32_server/README.md ) | UDS Server on ESP32-C3-32S with Waveshare SN65HVD230 CAN Transciever |
-|  [`s32k144_server`](examples/s32k144_server/README.md) | UDS Server on NXP S32K144 eval board with Waveshare SN65HVD230 CAN Transciever | 
-|  [`stm32g474`](examples/stm32g474/README.md) | UDS Server on STM NUCLEO-G474RE eval board with Waveshare SN65HVD230 CAN Transciever | 
+| [`linux_rdbi_wdbi`](examples/linux_rdbi_wdbi/README.md) | UDS Server and Client on Linux implementing Read/Write Data By Identifier (0x22/0x2E). |
+| [`linux_security_access`](examples/linux_security_access/README.md) | UDS Server and Client on Linux implementing Security Access (0x27) with a cryptographic challenge-response. |
+| [`arduino_server`](examples/arduino_server/README.md) | UDS Server on Arduino MKR-WIFI 1010 with MKR CAN Shield. |
+|  [`esp32_server`](examples/esp32_server/README.md ) | UDS Server on ESP32-C3-32S with Waveshare SN65HVD230 CAN Transciever. |
+|  [`s32k144_server`](examples/s32k144_server/README.md) | UDS Server on NXP S32K144 eval board with Waveshare SN65HVD230 CAN Transciever. | 
+|  [`stm32g474`](examples/stm32g474/README.md) | UDS Server on STM NUCLEO-G474RE eval board with Waveshare SN65HVD230 CAN Transciever. | 
 
 ## Supported Services {#supported-services}
 
