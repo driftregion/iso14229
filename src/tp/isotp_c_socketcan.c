@@ -117,8 +117,8 @@ static UDSTpStatus_t isotp_c_socketcan_tp_poll(UDSTp_t *hdl) {
     return status;
 }
 
-static UDSTpSize_t isotp_c_socketcan_tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len,
-                                             UDSSDU_t *info) {
+static UDSTpSize_t isotp_c_socketcan_tp_send(UDSTp_t *hdl, const uint8_t *buf, size_t len,
+                                             const UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     UDSTpSize_t ret = -1;
     UDSTpISOTpCSocketCAN_t *tp = (UDSTpISOTpCSocketCAN_t *)hdl;

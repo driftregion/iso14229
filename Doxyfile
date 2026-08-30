@@ -1171,7 +1171,8 @@ EXCLUDE_SYMBOLS        = \
     UDS_SYS_UNIX \
     UDS_SYS_WINDOWS \
     UDS_SYS_ARDUINO \
-    UDS_SYS_ESP32
+    UDS_SYS_ESP32 \
+    UDS_TP_ISOTP_C
 
 # The EXAMPLE_PATH tag can be used to specify one or more files or directories
 # that contain example code fragments that are included (see the \include

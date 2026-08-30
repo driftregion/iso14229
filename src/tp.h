@@ -70,7 +70,7 @@ typedef struct UDSTp {
      * @param info: pointer to SDU info (may be NULL). If NULL, implementation should send with
      * physical addressing
      */
-    UDSTpSize_t (*send)(struct UDSTp *hdl, uint8_t *buf, size_t len, UDSSDU_t *info);
+    UDSTpSize_t (*send)(struct UDSTp *hdl, const uint8_t *buf, size_t len, const UDSSDU_t *info);
 
     /**
      * @brief Receive data from the transport
@@ -93,7 +93,7 @@ typedef struct UDSTp {
 } UDSTp_t;
 
 UDSTpSize_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, UDSTpSize_t len,
-                      UDSSDU_t *info); ///< Send to transport
+                      const UDSSDU_t *info); ///< Send to transport
 UDSTpSize_t UDSTpRecv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize,
                       UDSSDU_t *info); ///< Receive from transport
 UDSTpStatus_t UDSTpPoll(UDSTp_t *hdl); ///< call this at <5ms intervals

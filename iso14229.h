@@ -261,7 +261,7 @@ typedef struct UDSTp {
      * @param info: pointer to SDU info (may be NULL). If NULL, implementation should send with
      * physical addressing
      */
-    UDSTpSize_t (*send)(struct UDSTp *hdl, uint8_t *buf, size_t len, UDSSDU_t *info);
+    UDSTpSize_t (*send)(struct UDSTp *hdl, const uint8_t *buf, size_t len, const UDSSDU_t *info);
 
     /**
      * @brief Receive data from the transport
@@ -284,7 +284,7 @@ typedef struct UDSTp {
 } UDSTp_t;
 
 UDSTpSize_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, UDSTpSize_t len,
-                      UDSSDU_t *info); ///< Send to transport
+                      const UDSSDU_t *info); ///< Send to transport
 UDSTpSize_t UDSTpRecv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize,
                       UDSSDU_t *info); ///< Receive from transport
 UDSTpStatus_t UDSTpPoll(UDSTp_t *hdl); ///< call this at <5ms intervals
@@ -761,7 +761,7 @@ static_assert(UDS_LOG_LEVEL == UDS_LOG_NONE || UDS_LOG_LEVEL == UDS_LOG_ERROR ||
 void UDS_LogWrite(UDS_LogLevel_t level, const char *tag, const char *format, ...)
     UDS_PRINTF_FORMAT(3, 4);
 void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *buffer,
-                        size_t buff_len, UDSSDU_t *info);
+                        size_t buff_len, const UDSSDU_t *info);
 #endif
 
 // Dummy function that consumes arguments but does nothing
@@ -770,7 +770,7 @@ static inline void UDS_LogDummy(const char *tag, const char *format, ...) {
     (void)format;
 }
 static inline void UDS_LogSDUDummy(const char *tag, const uint8_t *buffer, size_t buff_len,
-                                   void *info) {
+                                   const UDSSDU_t *info) {
     (void)tag;
     (void)buffer;
     (void)buff_len;

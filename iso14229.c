@@ -2659,7 +2659,7 @@ void UDSServerPoll(UDSServer_t *srv) {
 #line 1 "src/tp.c"
 #endif
 
-UDSTpSize_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, UDSTpSize_t len, UDSSDU_t *info) {
+UDSTpSize_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, UDSTpSize_t len, const UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     UDS_ASSERT(hdl->send);
     return hdl->send(hdl, (uint8_t *)buf, len, info);
@@ -3008,7 +3008,7 @@ void UDS_LogWrite(UDS_LogLevel_t level, const char *tag, const char *format, ...
 }
 
 void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *buffer,
-                        size_t buff_len, UDSSDU_t *info) {
+                        size_t buff_len, const UDSSDU_t *info) {
     (void)info;
     for (unsigned i = 0; i < buff_len; i++) {
         UDS_LogWrite(level, tag, "%02x ", buffer[i]);
@@ -3036,7 +3036,7 @@ static UDSTpStatus_t tp_poll(UDSTp_t *hdl) {
     return status;
 }
 
-static UDSTpSize_t tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
+static UDSTpSize_t tp_send(UDSTp_t *hdl, const uint8_t *buf, size_t len, const UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     UDSTpSize_t ret = -1;
     UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
@@ -3260,8 +3260,8 @@ static UDSTpStatus_t isotp_c_socketcan_tp_poll(UDSTp_t *hdl) {
     return status;
 }
 
-static UDSTpSize_t isotp_c_socketcan_tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len,
-                                             UDSSDU_t *info) {
+static UDSTpSize_t isotp_c_socketcan_tp_send(UDSTp_t *hdl, const uint8_t *buf, size_t len,
+                                             const UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     UDSTpSize_t ret = -1;
     UDSTpISOTpCSocketCAN_t *tp = (UDSTpISOTpCSocketCAN_t *)hdl;
@@ -3500,7 +3500,7 @@ static UDSTpSize_t isotp_sock_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize
     return ret;
 }
 
-static UDSTpSize_t isotp_sock_tp_send(UDSTp_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
+static UDSTpSize_t isotp_sock_tp_send(UDSTp_t *hdl, const uint8_t *buf, size_t len, const UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     UDSTpSize_t ret = -1;
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
@@ -3720,7 +3720,7 @@ static void NetworkPoll(void) {
     }
 }
 
-static UDSTpSize_t mock_tp_send(struct UDSTp *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
+static UDSTpSize_t mock_tp_send(struct UDSTp *hdl, const uint8_t *buf, size_t len, const UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
     if (MsgCount >= NUM_MSGS) {
