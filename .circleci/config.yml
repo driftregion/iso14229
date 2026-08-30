@@ -94,15 +94,9 @@ jobs:
             ./test.sh
 
       - run:
-          name: Build linux_server
+          name: Build and test linux_security_access
           command: |
-            cd examples/linux_server
-            make
-
-      - run:
-          name: Build and test linux_server_0x27
-          command: |
-            cd examples/linux_server_0x27
+            cd examples/linux_security_access
             ./test.sh
 
 workflows:

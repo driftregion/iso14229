@@ -211,7 +211,7 @@ void test_send_functional_larger_than_single_frame_fails(void **state) {
 
     // When a functional request is sent with more than 7 bytes
     const uint8_t MSG[] = {1, 2, 3, 4, 5, 6, 7, 8};
-    ssize_t ret = UDSTpSend(e->client_tp, MSG, sizeof(MSG),
+    UDSTpSize_t ret = UDSTpSend(e->client_tp, MSG, sizeof(MSG),
                             &(UDSSDU_t){.A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL});
 
     // it should fail
@@ -242,7 +242,7 @@ void test_flow_control_frame_timeout(void **state) {
     // sending multiframe to wait for Flow Control frame
     // which will not arrive since no server is running
     const uint8_t MSG[] = {1, 2, 3, 4, 5, 6, 7, 8};
-    ssize_t ret = UDSTpSend(e->client_tp, MSG, sizeof(MSG), NULL);
+    UDSTpSize_t ret = UDSTpSend(e->client_tp, MSG, sizeof(MSG), NULL);
     TEST_INT_EQUAL(ret, 8);
 
     UDSTpStatus_t status = 0;

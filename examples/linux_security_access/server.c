@@ -1,5 +1,5 @@
 /**
- * @file examples/linux_server_0x27/server.c
+ * @file examples/linux_security_access/server.c
  * @brief UDS server demonstrating Security Access (0x27)
  */
 #include "iso14229.h"
