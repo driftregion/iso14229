@@ -1,0 +1,34 @@
+name: Bug Report
+description: File a bug report.
+body:
+  - type: textarea
+    attributes:
+      label: "Bug Description"
+      description: "What happened?"
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: "Expected Behavior"
+      description: "What did you expect to happen?"
+    validations:
+      required: true
+  - type: input 
+    attributes:
+      label: "UDS_LIB_VERSION"
+      description: "Copy the library version here. It is at the top of iso14229.h"
+      placeholder: "x.y.z"
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: "Attachments"
+      description: "Attach code, CAN logs, and/or console output which demonstrates the bug"
+    validations:
+      required: false
+  - type: textarea
+    attributes:
+      label: "Additional Context"
+      description: "target environment, host environment"
+    validations:
+      required: false

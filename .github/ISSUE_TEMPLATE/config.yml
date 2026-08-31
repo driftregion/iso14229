@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Ask a question
+    url: https://github.com/driftregion/iso14229/discussions/categories/q-a
+    about: Please use GitHub Discussions for Q&A instead of opening an issue.
