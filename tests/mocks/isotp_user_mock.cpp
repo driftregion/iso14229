@@ -4,7 +4,11 @@
 #include <cstdio>
 #include <string>
 
-#include "isotp.h"
+#ifdef isotpc_USE_INCLUDE_DIR
+    #include "isotp_c/isotp.h"
+#else
+    #include "isotp.h"
+#endif // isotpc_USE_INCLUDE_DIR
 
 namespace {
 IsoTpUserMock* active_mock = nullptr;

@@ -65,6 +65,47 @@ jobs:
         working-directory: build
         run: ctest -C ${{ env.BUILD_TYPE }} --output-on-failure --timeout 120
 
+  fuzz:
+    name: Fuzz receive path
+    needs: coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Install fuzzing dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang clang-format ninja-build
+
+      - name: Check fuzzer formatting
+        run: clang-format --dry-run --Werror fuzz/isotp_receive_fuzzer.c
+
+      - name: Configure fuzz build
+        run: cmake -S . -B build-fuzz -G Ninja -DCMAKE_C_COMPILER=clang -DCMAKE_BUILD_TYPE=Debug -Disotpc_ENABLE_FUZZING=ON
+
+      - name: Build receive fuzzer
+        run: cmake --build build-fuzz --target isotp_fuzz_receive
+
+      - name: Prepare seed corpus
+        run: |
+          mkdir -p build-fuzz/corpus-run
+          cp fuzz/corpus/isotp_receive/* build-fuzz/corpus-run/
+
+      - name: Run receive fuzzer
+        timeout-minutes: 5
+        env:
+          ASAN_OPTIONS: halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |
+          ./build-fuzz/fuzz/isotp_fuzz_receive \
+            build-fuzz/corpus-run \
+            -runs=5000 \
+            -seed=1
+
   cmake_windows:
     name: Windows CMake (${{ matrix.name }})
     needs: coverage

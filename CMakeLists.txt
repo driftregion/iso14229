@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.10)
 ###
 # Project definition
 ###
-project(isotp LANGUAGES C VERSION 1.9.0 DESCRIPTION "A platform-agnostic ISOTP implementation in C for embedded devices.")
+project(isotp LANGUAGES C VERSION 1.9.1 DESCRIPTION "A platform-agnostic ISOTP implementation in C for embedded devices.")
 
 option(isotpc_USE_INCLUDE_DIR "Copy header files to separate include directory in current binary dir for better separation of header files to combat potential naming conflicts." OFF)
 option(isotpc_STATIC_LIBRARY "Compile libisotpc as a static library, instead of a shared library." OFF)
@@ -22,6 +22,7 @@ option(isotpc_ENABLE_STREAMING "Enable chunked reception of messages larger than
 option(isotpc_NO_FORMATTED_ERRORS "Omit the formatted error messages, dropping the library's only dependency on snprintf." OFF)
 option(isotpc_ENABLE_TESTING "Enable building of test suite." OFF)
 option(isotpc_ENABLE_COVERAGE "Instrument the unit-test subjects for gcovr coverage reporting." OFF)
+option(isotpc_ENABLE_FUZZING "Enable building of libFuzzer targets." OFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -157,6 +158,10 @@ if (isotpc_USE_INCLUDE_DIR)
     file(COPY ${HEADERS} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/include/isotp_c/)
 
     target_include_directories(isotp PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include)
+    target_compile_definitions(
+        isotp PUBLIC
+        ISOTP_USE_INCLUDE_DIR=1
+    )
 
 else()
     target_include_directories(isotp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -184,4 +189,8 @@ if (isotpc_ENABLE_TESTING)
     add_subdirectory(tests)
 elseif (isotpc_ENABLE_COVERAGE)
     message(FATAL_ERROR "[isotp-c] isotpc_ENABLE_COVERAGE requires isotpc_ENABLE_TESTING")
+endif()
+
+if (isotpc_ENABLE_FUZZING)
+    add_subdirectory(fuzz)
 endif()
