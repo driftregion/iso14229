@@ -32,10 +32,12 @@ https://driftregion.github.io/iso14229/
 - [B&R Automation Runtime](https://github.com/driftregion/iso14229/compare/main...br-automation-community:can-uds-ar-iso14229:main)
 - [Comparing Open-Source UDS Implementations Through Fuzz Testing](https://saemobilus.sae.org/papers/comparing-open-source-uds-implementations-fuzz-testing-2024-01-2799)
 
-
 # Acknowledgements
 
 - [`isotp-c`](https://github.com/SimonCahill/isotp-c) which iso14229 embeds.
 - The [NLnet NGI0 Core Fund](https://nlnet.nl/project/iso14229/) which funded some work on iso14229 in 2025.
 
+# Contributing
 
+Contributions are welcome. 
+See [CONTRIBUTING](./CONTRIBUTING.md)

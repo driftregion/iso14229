@@ -1,6 +1,15 @@
 name: Bug Report
 description: File a bug report.
 body:
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      description: |
+        Please complete this checklist. 
+      options:
+        - label: I've read the [**No AI / No LLM Policy**](https://github.com/driftregion/iso14229/blob/master/CONTRIBUTING.md#no-ai--no-llm-policy) and understand I may be blocked from the repository if it is violated
+          required: true
   - type: textarea
     attributes:
       label: "Bug Description"
