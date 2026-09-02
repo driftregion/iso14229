@@ -13,13 +13,12 @@ body:
   - type: textarea
     attributes:
       label: "Bug Description"
-      description: "What happened?"
-    validations:
-      required: true
-  - type: textarea
-    attributes:
-      label: "Expected Behavior"
-      description: "What did you expect to happen?"
+      description: "Provide a clear summary of the issue. What happened? What did you expect would happen? Attach code, CAN logs, console output which demonstrates the bug."
+      value: |
+        # What Happened:
+
+        # What I Expected:
+
     validations:
       required: true
   - type: input 
@@ -29,15 +28,3 @@ body:
       placeholder: "x.y.z"
     validations:
       required: true
-  - type: textarea
-    attributes:
-      label: "Attachments"
-      description: "Attach code, CAN logs, and/or console output which demonstrates the bug"
-    validations:
-      required: false
-  - type: textarea
-    attributes:
-      label: "Additional Context"
-      description: "target environment, host environment"
-    validations:
-      required: false
