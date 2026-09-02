@@ -1,495 +1,317 @@
-ISO-TP (ISO 15765-2) Support Library in C
-================================
-
-**This project is inspired by [openxc isotp-c](https://github.com/openxc/isotp-c), but the code has been completely re-written.**
-
-This is a platform agnostic C library that implements the [ISO 15765-2](https://en.wikipedia.org/wiki/ISO_15765-2) (also known as ISO-TP) protocol, which runs over a CAN bus. Quoting Wikipedia:
-
->ISO 15765-2, or ISO-TP, is an international standard for sending data packets over a CAN-Bus.
->The protocol allows for the transport of messages that exceed the eight byte maximum payload of CAN frames. 
->ISO-TP segments longer messages into multiple frames, adding metadata that allows the interpretation of individual frames and reassembly 
->into a complete message packet by the recipient. It can carry up to 4095 bytes of payload per message packet.
-
-This library doesn't assume anything about the source of the ISO-TP messages or the underlying interface to CAN. It uses dependency injection to give you complete control.
-
-**The current version supports [ISO-15765-2](https://en.wikipedia.org/wiki/ISO_15765-2) single and multiple frame transmition, and works in Full-duplex mode.**
-
-**CAN FD frames (up to 64 bytes per frame) are supported as of version 1.7.0; see [CAN FD support](#can-fd-support).**
-
-## Builds
+# isotp-c
 
 [![CI](https://github.com/SimonCahill/isotp-c/actions/workflows/ci.yml/badge.svg)](https://github.com/SimonCahill/isotp-c/actions/workflows/ci.yml)
 
-## Contributors
+isotp-c is a small, platform-independent implementation of ISO 15765-2 (ISO-TP)
+for embedded C applications. It segments and reassembles payloads transported
+over Classical CAN or CAN FD while leaving CAN I/O, timing, and logging to the
+application.
 
-It's at this point where I'd like to point out all the fantastic contributions made to this fork by the amazing people using it!
-[List of contributors](https://github.com/SimonCahill/isotp-c/blob/master/CONTRIBUTORS.md)
+The library is full duplex, performs no dynamic allocation, and supports:
 
-Thank you all!
+- Classical CAN and CAN FD data lengths up to 64 bytes
+- 12-bit and escaped 32-bit First Frame lengths
+- Per-link transmit data length (`TX_DL`)
+- Polling and optional completion callbacks
+- Optional chunked reception for payloads larger than the receive buffer
+- Multiple CAN controllers through a per-link user argument
+- Optional CAN FD and bit-rate-switch flags for the driver shim
 
-## Building ISOTP-C
+The project was inspired by
+[openxc/isotp-c](https://github.com/openxc/isotp-c), but its implementation has
+been rewritten.
 
-This library may be built using either straight Makefiles, or using CMake.
+## Requirements
 
-### make
-To build this library using Make, simply call:
+The library requires a C99 compiler and three application-provided functions:
 
-```bash
-$ make all
+- `isotp_user_send_can()` sends one CAN or CAN FD frame.
+- `isotp_user_get_us()` returns a wrapping, monotonically increasing 32-bit
+  microsecond tick.
+- `isotp_user_debug()` receives diagnostic messages. It may be a no-op.
+
+No operating system or heap is required. The implementation uses `memcpy`,
+`memset`, assertions, and, by default, `snprintf` for two diagnostics. Define
+`ISO_TP_NO_FORMATTED_ERRORS` to remove `snprintf`, and use `NDEBUG` in builds
+that intentionally disable runtime assertions.
+
+## Quick start
+
+Add `isotp.c` and the public headers to the application, or add this repository
+as a CMake subdirectory and link the exported target:
+
+```cmake
+add_subdirectory(path/to/isotp-c)
+target_link_libraries(my_app PRIVATE simon_cahill::isotp_c)
 ```
+
+Create one `IsoTpLink` and persistent transmit and receive buffers for each
+independent ISO-TP conversation. Initialise it with the CAN identifier used for
+outgoing frames:
+
+```c
+static IsoTpLink link;
+static uint8_t tx_buffer[4095];
+static uint8_t rx_buffer[4095];
+
+isotp_init_link(&link, 0x7E0, tx_buffer, sizeof(tx_buffer),
+                rx_buffer, sizeof(rx_buffer));
+```
+
+Filter received CAN frames in the application and pass frames for this link to
+`isotp_on_can_message()`. Call `isotp_poll()` regularly to advance segmented
+transmissions and enforce protocol timeouts. Completed messages can then be
+removed with `isotp_receive()`:
+
+```c
+if (can_id == 0x7E8) {
+    isotp_on_can_message(&link, frame_data, frame_size);
+}
+
+isotp_poll(&link);
+
+uint32_t received_size;
+if (isotp_receive(&link, payload, sizeof(payload), &received_size) == ISOTP_RET_OK) {
+    process_message(payload, received_size);
+}
+```
+
+Send a payload with `isotp_send()`. A successful return means the Single Frame
+or First Frame was accepted by the CAN driver. Multi-frame transmission
+continues from later calls to `isotp_poll()`; it is not complete merely because
+`isotp_send()` returned `ISOTP_RET_OK`.
+
+In a polling-only integration, completion can be observed through
+`link.send_status`: it changes from `ISOTP_SEND_STATUS_INPROGRESS` to
+`ISOTP_SEND_STATUS_IDLE` on success or `ISOTP_SEND_STATUS_ERROR` on failure.
+Inspect `link.send_protocol_result` for the protocol outcome.
+
+See the compile-checked [polling example](https://github.com/SimonCahill/isotp-c/blob/master/examples/isotp_example_polling.c) for
+a complete integration skeleton.
+
+### Buffer and call lifetime
+
+- `IsoTpLink` and both buffers must remain valid until the link is destroyed.
+- The send buffer must fit the largest payload the application will transmit.
+- Without streaming, the receive buffer must fit the entire incoming payload.
+  An oversized First Frame is rejected with an Overflow Flow Control frame.
+- `isotp_send()` copies the payload before returning, so the caller may reuse
+  its source buffer immediately.
+- `isotp_receive()` copies at most `payload_size` bytes and then releases the
+  message. If the destination is too small, the remainder is discarded.
+- Calls operating on the same link must be serialised. Separate links may be
+  used independently.
+
+## Platform hooks
+
+The default shim declarations are:
+
+```c
+int isotp_user_send_can(uint32_t arbitration_id, const uint8_t* data,
+                        uint8_t size);
+uint32_t isotp_user_get_us(void);
+void isotp_user_debug(const char* message, ...);
+```
+
+`isotp_user_send_can()` must return `ISOTP_RET_OK` after accepting a frame,
+`ISOTP_RET_NOSPACE` when a transient driver queue condition should be retried,
+or `ISOTP_RET_ERROR` for a permanent failure. Its `data` pointer is only valid
+during the call.
+
+The microsecond tick may wrap at `UINT32_MAX`; the library's timeout comparisons
+account for wraparound. It must advance independently of how often the function
+is called.
+
+## Building
 
 ### CMake
 
-The CMake build system allows for more flexibility at generation and build time, so it is recommended you use this for building this library.  
-Of course, if your project does not use CMake, you don't *have* to use it.
-If your projects use a different build system, you are more than welcome to include it in this repository.
-
-The Makefile generator for isotpc will automatically detect whether or not your build system is using the `Debug` or `Release` build type and will adjust compiler parameters accordingly.
-
-#### Unit tests
-
-The unit suite includes mocked CAN transmission, timing, debugging, and
-receive-callback shims. Enable it with CMake and run it through CTest:
-
 ```bash
-cmake -S . -B build -Disotpc_ENABLE_TESTING=ON
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
-ctest --test-dir build --output-on-failure
 ```
 
-The streaming test subject enables streaming and receive callbacks
-independently of the options used for the normal library target, but follows the
-configured frame size, so that streaming is also covered on CAN FD builds.
-
-The framing suite next to it is compiled once per configuration — Classical CAN
-and CAN FD, with and without frame padding, as well as with the optional
-callbacks, the additional `isotp_user_send_can` argument, the frame flags and
-streaming — and covers segmentation, reassembly, chunked reception and the
-handling of malformed frames.
-
-#### Debug Build
-If your project is configured to build as `Debug`, then the library will be compiled with **no** optimisations and **with** debug symbols.  
-`-DCMAKE_BUILD_TYPE=Debug`
-
-#### Release Build
-If your project is configured to build as `Release`, then the library code will be **optimised** using `-O2` and will be **stripped**.  
-`-DCMAKE_BUILD_TYPE=Release`
-
-#### External Include Directories
-It is generally considered good practice to segregate header files from each other, depending on the project. For this reason, you may opt in to this behaviour for this library.  
-
-If you pass `-Disotpc_USE_INCLUDE_DIR=ON` on the command-line, or you set `set(isotpc_USE_INCLUDE_DIR ON CACHE BOOL "Use external include dir for isotp-c")` in your CMakeLists.txt, then a separate `include/` directory will
-be added to the project.  
-This happens at generation time, and the CMake project will automatically reference `${CMAKE_CURRENT_BINARY_DIR}/include` as the include directory for the project. This will be propagated to your projects, too.
-
-In your code:
-
-```c
-// if -Disotpc_USE_INCLUDE_DIR=ON
-#include <isotp/isotp.h>
-
-// else
-#include <isotp.h>
-```
-
-#### Static Library
-In some cases, it is required that a static library be used instead of a shared library.
-isotp-c supports this also, via options.
-
-> ![NOTE] This option is enabled by default when building using MSVC.
-
-Either pass `-Disotpc_STATIC_LIBRARY=ON` via command-line or `set(isotpc_STATIC_LIBRARY ON CACHE BOOL "Enable static library for isotp-c")` in your CMakeLists.txt and the library will be built as a static library (`*.a|*.lib`) for your project to include.
-
-#### CAN FD support
-
-By default the library only emits Classical CAN frames of up to 8 bytes. CAN FD support is enabled by raising the maximum CAN frame data length (CAN_DL) the library is compiled for:
+The default target is a shared library except on MSVC. For a static library:
 
 ```bash
-# 8 (default, Classical CAN) or one of 12, 16, 20, 24, 32, 48, 64
-$ cmake -B build -Disotpc_MAX_CAN_FRAME_SIZE=64
+cmake -S . -B build -Disotpc_STATIC_LIBRARY=ON
 ```
 
-The same value may be set when building with Make (`make MAX_CAN_FRAME_SIZE=64 all`), or by defining `ISO_TP_MAX_CAN_FRAME_SIZE` in `isotp_config.h` if you compile the sources yourself.
+When `isotpc_USE_INCLUDE_DIR=OFF` (the default), include `<isotp.h>`. When it is
+enabled, CMake stages the headers beneath an include namespace and consumers
+include `<isotp_c/isotp.h>`.
 
-This value determines the size of the internal frame buffers and therefore the largest frame the library is able to send and receive. Frames larger than the configured maximum are ignored on reception.
+### Make
 
-Once enabled, the following ISO 15765-2:2016 behaviour applies:
+The native Make build uses the matching uppercase variables from the
+configuration table below:
 
-* Single frames carrying more than 7 bytes use the `SF_DL` escape sequence, which allows up to `TX_DL - 2` bytes (62 bytes at a `TX_DL` of 64) to be transmitted in one frame.
-* First frames are always transmitted using the full frame length, and consecutive frames carry up to `TX_DL - 1` bytes.
-* Frames larger than 8 bytes are always padded up to the next transmittable CAN FD length (8, 12, 16, 20, 24, 32, 48, 64) using `ISO_TP_FRAME_PADDING_VALUE`, since CAN FD only supports these discrete lengths. Frames of up to 8 bytes are only padded when `ISO_TP_FRAME_PADDING` is enabled.
-* Reception adapts to the sender: the frame length of an incoming first frame defines the length expected from the following consecutive frames (`RX_DL`), so a CAN FD link happily receives Classical CAN messages, too.
+```bash
+make all
+make USE_STATIC_LIBRARY=ON MAX_CAN_FRAME_SIZE=64 all
+```
 
-The frame length used for transmission (`TX_DL`) is a per-link property, which defaults to `ISO_TP_DEFAULT_TX_DL` (the configured maximum) and may be lowered at runtime — useful when talking to a peer which is limited to Classical CAN frames:
+`make tests` configures and runs the CMake unit suite. `make fuzzing` builds the
+libFuzzer receive target with Clang; see the [fuzzing guide](https://github.com/SimonCahill/isotp-c/blob/master/fuzz/README.md).
+
+## Configuration
+
+Use CMake options when the library is a CMake dependency, Make variables with
+the native build, or define the corresponding `ISO_TP_*` macros consistently
+for both the library and every consumer when compiling the sources directly.
+
+| Capability | CMake | Make | Compile-time definition |
+| --- | --- | --- | --- |
+| Namespaced staged headers | `isotpc_USE_INCLUDE_DIR` | `USE_INCLUDE_DIR` | — |
+| Static library | `isotpc_STATIC_LIBRARY` | `USE_STATIC_LIBRARY` | — |
+| PIC static library | `isotpc_STATIC_LIBRARY_PIC` | `ENABLE_STATIC_LIBRARY_PIC` | — |
+| Frame padding | `isotpc_PAD_CAN_FRAMES` | `ENABLE_FRAME_PADDING` | `ISO_TP_FRAME_PADDING` |
+| Padding byte | `isotpc_CAN_FRAME_PAD_VALUE` | `CAN_FRAME_PAD_VALUE` | `ISO_TP_FRAME_PADDING_VALUE` |
+| Maximum CAN data length | `isotpc_MAX_CAN_FRAME_SIZE` | `MAX_CAN_FRAME_SIZE` | `ISO_TP_MAX_CAN_FRAME_SIZE` |
+| Initial per-link TX_DL | `isotpc_DEFAULT_TX_DL` | `DEFAULT_TX_DL` | `ISO_TP_DEFAULT_TX_DL` |
+| CAN driver user argument | `isotpc_ENABLE_CAN_SEND_ARG` | `ENABLE_CAN_SEND_ARG` | `ISO_TP_USER_SEND_CAN_ARG` |
+| CAN frame flags | `isotpc_ENABLE_CAN_SEND_FLAGS` | `ENABLE_CAN_SEND_FLAGS` | `ISO_TP_USER_SEND_CAN_FLAGS` |
+| CAN FD bit-rate switch | `isotpc_ENABLE_CAN_FD_BRS` | `ENABLE_CAN_FD_BRS` | `ISO_TP_CAN_FD_USE_BRS` |
+| Transmit/receive callbacks | `isotpc_ENABLE_TRANSCEIVE_EVENTS` | `ENABLE_TRANSCEIVE_EVENTS` | callback macros below |
+| Chunked receive | `isotpc_ENABLE_STREAMING` | `ENABLE_STREAMING` | `ISO_TP_ENABLE_STREAMING` |
+| No formatted diagnostics | `isotpc_NO_FORMATTED_ERRORS` | `NO_FORMATTED_ERRORS` | `ISO_TP_NO_FORMATTED_ERRORS` |
+
+The callback feature can be narrowed with
+`isotpc_ENABLE_TRANSMIT_COMPLETE_CALLBACK` and
+`isotpc_ENABLE_RECEIVE_COMPLETE_CALLBACK`, or the Make equivalents. Direct
+builds use `ISO_TP_TRANSMIT_COMPLETE_CALLBACK` and
+`ISO_TP_RECEIVE_COMPLETE_CALLBACK`.
+
+Protocol timing and flow-control defaults can also be overridden before
+including the headers: `ISO_TP_DEFAULT_BLOCK_SIZE`,
+`ISO_TP_DEFAULT_ST_MIN_US`, `ISO_TP_MAX_WFT_NUMBER`, and
+`ISO_TP_DEFAULT_RESPONSE_TIMEOUT_US`.
+
+## CAN FD
+
+Set the compiled maximum CAN data length to one of 12, 16, 20, 24, 32, 48, or
+64 bytes. The default is 8-byte Classical CAN:
+
+```bash
+cmake -S . -B build-fd -Disotpc_MAX_CAN_FRAME_SIZE=64
+```
+
+This maximum affects public structure sizes and must therefore be identical in
+the library and its consumers. Each new link initially uses
+`ISO_TP_DEFAULT_TX_DL`; select a smaller supported value at runtime when a peer
+requires it:
 
 ```c
-isotp_init_link(&link, 0x7TT, sendbuf, sizeof(sendbuf), recvbuf, sizeof(recvbuf));
-
-/* transmit Classical CAN frames on this link, even though the library supports CAN FD */
-if (ISOTP_RET_OK != isotp_set_tx_dl(&link, 8)) {
-    /* the requested length is not a valid CAN_DL, or exceeds ISO_TP_MAX_CAN_FRAME_SIZE */
+if (isotp_set_tx_dl(&link, 8) != ISOTP_RET_OK) {
+    /* Invalid length or a segmented transmission is active. */
 }
 ```
 
-Note that `isotp_user_send_can` is handed frames of up to `TX_DL` bytes once CAN FD is enabled, so the CAN driver behind it must be set up to send CAN FD frames.
+For `TX_DL > 8`, Single Frames use the `SF_DL` escape format when necessary,
+First Frames use the full transmit data length, and longer frames are padded to
+a legal CAN FD data length. Incoming First Frames establish `RX_DL`, allowing a
+CAN FD build to receive both Classical CAN and CAN FD traffic.
 
-CAN FD combines with the [streaming receive mode](#streaming-receive-mode-optional): a receive buffer smaller than a single CAN FD frame is supported, as the remainder of a frame crossing a chunk boundary is carried over to the next chunk.
-
-##### Signalling CAN FD frames to the CAN driver
-
-Frames of more than 8 bytes can only be CAN FD frames, so a driver may derive the frame format from the length it is given. If it needs to be told explicitly, enable `-Disotpc_ENABLE_CAN_SEND_FLAGS=ON` (`ISO_TP_USER_SEND_CAN_FLAGS`) to add a flags argument to the shim, following the same pattern as the additional CAN argument described below:
+Drivers that cannot infer the frame format from its length can enable
+`isotpc_ENABLE_CAN_SEND_FLAGS`. The shim then receives `ISOTP_CAN_FRAME_FLAG_FD`
+and, when configured, `ISOTP_CAN_FRAME_FLAG_BRS`. If the per-link user argument
+is also enabled, the signature is:
 
 ```c
-int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t* data, const uint8_t size, const uint8_t flags) {
-    if (flags & ISOTP_CAN_FRAME_FLAG_FD) {
-        return CAN_SEND_FD(arbitration_id, data, size, (flags & ISOTP_CAN_FRAME_FLAG_BRS) != 0)
-                   ? ISOTP_RET_ERROR
-                   : ISOTP_RET_OK;
-    }
-
-    return CAN_SEND(arbitration_id, data, size) ? ISOTP_RET_ERROR : ISOTP_RET_OK;
-}
+int isotp_user_send_can(uint32_t id, const uint8_t* data, uint8_t size,
+                        uint8_t flags, void* user_arg);
 ```
 
-Every frame of a link whose `TX_DL` exceeds 8 bytes carries `ISOTP_CAN_FRAME_FLAG_FD`, including short single frames and flow control frames, so a link either speaks CAN FD or it doesn't. `ISOTP_CAN_FRAME_FLAG_BRS` is added on top of that if `-Disotpc_ENABLE_CAN_FD_BRS=ON` (`ISO_TP_CAN_FD_USE_BRS`) is set, asking the driver to transmit the data phase at the higher CAN FD bit rate.
+See the compile-checked [CAN FD example](https://github.com/SimonCahill/isotp-c/blob/master/examples/isotp_example_can_fd.c).
 
-If both this option and `ISO_TP_USER_SEND_CAN_ARG` are enabled, the flags precede the user argument: `isotp_user_send_can(id, data, size, flags, arg)`.
+## Multiple CAN interfaces
 
-#### Use of multiple CAN interfaces
-For applications requiring multiple CAN interfaces, it is necessary to specify the interface in `isotp_user_send_can`. 
+Enable `isotpc_ENABLE_CAN_SEND_ARG` to append a `void*` argument to
+`isotp_user_send_can()`. After initialisation, assign the driver or controller
+handle to `link.user_send_can_arg`. The value is passed back on every frame sent
+for that link. With frame flags enabled, flags precede the user argument.
 
-In this case the config option `-DISO_TP_USER_SEND_CAN_ARG` may be enabled. The library may then be used as follows:
+Incoming arbitration identifiers are intentionally not passed to the library.
+The application remains responsible for routing each received frame to the
+correct link.
 
-```c
-// Objects representing two CAN interfaces: a and b.
-CAN_IFACE_t can_a, can_b;
-
-void init() {
-    // Two IsoTpLinks assumed to be bound to different CAN interfaces.
-    IsoTpLink link_a, link_b;
-
-    isotp_init_link(&link_a, ...);
-    isotp_init_link(&link_b, ...);
-
-    // After link initialization, the relevant CAN interface may be
-    // attached to the link. 
-    link_a.user_send_can_arg = &can_a;
-    link_a.user_send_can_arg = &can_b;
-}
-
-int isotp_user_send_can(
-    const uint32_t arbitration_id, 
-    const uint8_t *data, 
-    const uint8_t size,
-    void *user_send_can_arg) 
-{
-    // It is then available for use inside isotp_user_send_can
-    int err = CAN_SEND((CAN_IFACE_t *)(user_send_can_arg), arbitration_id, data, size);
-    if (err) {
-        return ISOTP_RET_ERROR;
-    } else {
-        return ISOTP_RET_OK;
-    }
-}
-
-```
-
-#### Enable event-driven messaging
-
-Version 1.6.0 features a new event-driven messaging model, which is **disabled by default**.  
-In order to enable this feature, the following CMake option(s) must be passed:
-
-```cmake
-set(isotpc_ENABLE_TRANSCEIVE_EVENTS ON CACHE BOOL "Enable message events in isotp-c")
-
-# Optionally enable/disable send/receive events:
-# set(isotpc_ENABLE_TRANSMIT_COMPLETE_CALLBACK OFF CACHE BOOL "Optionally enables or disables sending/receiving events")
-# set(isotpc_ENABLE_RECEIVE_COMPLETE_CALLBACK OFF CACHE BOOL "Optionally enables or disables sending/receiving events")
-```
-
-These options can also be passed via the command-line: `-Disotpc_ENABLE_TRANSCEIVE_EVENTS=ON`.
-
-##### Enabling these options using Makefiles
-
-If you're still using Makefiles (**NOT** recommended for this project!), then you will have to modify the `isotp_config.h` header file and enable the options manually.  
-This is **NOT RECOMMENDED**, however, as this file will be overwritten by new versions of the library.
-
-#### Inclusion in your CMake project
-```cmake
-###
-# Set your desired options
-###
-set(isotpc_USE_INCLUDE_DIR ON CACHE BOOL "Use external include directory for isotp-c") # optional
-set(isotpc_STATIC_LIBRARY ON CACHE BOOL "Build isotp-c as a static library instead of shared") # optional
-
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/path/to/isotp-c) # add to current project
-
-target_link_libraries(
-    mytarget
-
-    # ... other libs
-    simon_cahill::isotp_c
-)
-```
-
-
-## Usage
-
-First, create some [shim](https://en.wikipedia.org/wiki/Shim_(computing)) functions to let this library use your lower level system:
-
-```C
-    /* required, this must send a single CAN message with the given arbitration
-     * ID (i.e. the CAN message ID) and data. The size will never be more than 8
-     * bytes, or more than the link's TX_DL if CAN FD is enabled; sizes of more
-     * than 8 bytes have to be sent as a CAN FD frame.
-     * Should return ISOTP_RET_OK if frame sent successfully.
-     * May return ISOTP_RET_NOSPACE if the frame could not be sent but may be
-     * retried later. Should return ISOTP_RET_ERROR in case frame could not be sent.
-     */
-    int  isotp_user_send_can(const uint32_t arbitration_id,
-                             const uint8_t* data, const uint8_t size) {
-        // ...
-    }
-
-    /* required, return system tick, unit is micro-second */
-    uint32_t isotp_user_get_us(void) {
-        // ...
-    }
-    
-    /* optional, provide to receive debugging log messages */
-    void isotp_user_debug(const char* message, ...) {
-        // ...
-    }
-```
-
-### API
-
-You can use isotp-c in the following way:
-
-#### Traditional polling mode
-
-```C
-    /* Alloc IsoTpLink statically in RAM */
-    static IsoTpLink g_link;
-
-	/* Alloc send and receive buffer statically in RAM */
-    static uint8_t g_isotpRecvBuf[ISOTP_BUFSIZE];
-    static uint8_t g_isotpSendBuf[ISOTP_BUFSIZE];
-	
-    int main(void) {
-        /* Initialize CAN and other peripherals */
-        
-        /* Initialize link, 0x7TT is the CAN ID you send with */
-        isotp_init_link(&g_link, 0x7TT,
-						g_isotpSendBuf, sizeof(g_isotpSendBuf), 
-						g_isotpRecvBuf, sizeof(g_isotpRecvBuf));
-        
-        while(1) {
-        
-            /* If receive any interested can message, call isotp_on_can_message to handle message */
-            ret = can_receive(&id, &data, &len);
-            
-            /* 0x7RR is CAN ID you want to receive */
-            if (RET_OK == ret && 0x7RR == id) {
-                isotp_on_can_message(&g_link, data, len);
-            }
-            
-            /* Poll link to handle multiple frame transmition */
-            isotp_poll(&g_link);
-            
-            /* You can receive message with isotp_receive.
-               payload is upper layer message buffer, usually UDS;
-               payload_size is payload buffer size;
-               out_size is the actuall read size;
-               */
-            ret = isotp_receive(&g_link, payload, payload_size, &out_size);
-            if (ISOTP_RET_OK == ret) {
-                /* Handle received message */
-            }
-            
-            /* And send message with isotp_send */
-            ret = isotp_send(&g_link, payload, payload_size);
-            if (ISOTP_RET_OK == ret) {
-                /* Send ok */
-            } else {
-                /* An error occured */
-            }
-            
-            /* In case you want to send data w/ functional addressing, use isotp_send_with_id */
-            ret = isotp_send_with_id(&g_link, 0x7df, payload, payload_size);
-            if (ISOTP_RET_OK == ret) {
-                /* Send ok */
-            } else {
-                /* Error occur */
-            }
-        }
-
-        return;
-    }
-```
-    
-You can call isotp_poll as frequently as you want, as it internally uses isotp_user_get_ms to measure timeout occurences.
-If you need handle functional addressing, you must use two separate links, one for each.
-
-#### Streaming receive mode (optional)
+## Streaming receive mode
 
 Enable `isotpc_ENABLE_STREAMING` to receive a message larger than the link's
-receive buffer without allocating space for the complete message:
+receive buffer. The library pauses the sender with flow control whenever the
+buffer fills. Consume the available chunk with `isotp_receive_streaming()` to
+allow reception to continue:
 
-```cmake
-set(isotpc_ENABLE_STREAMING ON CACHE BOOL "Enable chunked ISO-TP reception")
-```
-
-Call `isotp_receive_streaming()` in the same polling loop used for
-`isotp_receive()`. Each successful call returns the next chunk. The library
-uses flow control to pause the sender whenever the internal receive buffer is
-full, and resumes reception after the application consumes that chunk.
-
-```C
-bool message_complete;
+```c
 uint32_t chunk_size;
+bool complete;
 
-ret = isotp_receive_streaming(&g_link, chunk, sizeof(chunk),
-                              &chunk_size, &message_complete);
-if (ret == ISOTP_RET_OK) {
-    write_chunk_to_flash(chunk, chunk_size);
-    if (message_complete) {
-        finish_update();
-    }
+int result = isotp_receive_streaming(&link, chunk, sizeof(chunk),
+                                     &chunk_size, &complete);
+if (result == ISOTP_RET_OK) {
+    store_chunk(chunk, chunk_size, complete);
 }
 ```
 
-When building without CMake, define `ISO_TP_ENABLE_STREAMING` in
-`isotp_config.h`. The feature is disabled by default and does not change the
-link structure or public API unless enabled. Oversized messages use the
-streaming polling API even when receive callbacks are configured.
+The destination must fit the entire currently available chunk. Otherwise the
+function returns `ISOTP_RET_NOSPACE` and retains it for a later call. Use the
+streaming function consistently for a streaming message; `isotp_receive()`
+returns `ISOTP_RET_ERROR` while one is active.
 
-```C
-    /* Alloc IsoTpLink statically in RAM */
-    static IsoTpLink g_phylink;
-    static IsoTpLink g_funclink;
+See the compile-checked [streaming example](https://github.com/SimonCahill/isotp-c/blob/master/examples/isotp_example_streaming.c).
 
-	/* Allocate send and receive buffer statically in RAM */
-	static uint8_t g_isotpPhyRecvBuf[512];
-	static uint8_t g_isotpPhySendBuf[512];
-	/* currently functional addressing is not supported with multi-frame messages */
-	static uint8_t g_isotpFuncRecvBuf[8];
-	static uint8_t g_isotpFuncSendBuf[8];	
-	
-    int main(void) {
-        /* Initialize CAN and other peripherals */
-        
-        /* Initialize link, 0x7TT is the CAN ID you send with */
-        isotp_init_link(&g_phylink, 0x7TT,
-						g_isotpPhySendBuf, sizeof(g_isotpPhySendBuf), 
-						g_isotpPhyRecvBuf, sizeof(g_isotpPhyRecvBuf));
-        isotp_init_link(&g_funclink, 0x7TT,
-						g_isotpFuncSendBuf, sizeof(g_isotpFuncSendBuf), 
-						g_isotpFuncRecvBuf, sizeof(g_isotpFuncRecvBuf));
-        
-        while(1) {
-        
-            /* If any CAN messages are received, which are of interest, call isotp_on_can_message to handle the message */
-            ret = can_receive(&id, &data, &len);
-            
-            /* 0x7RR is CAN ID you want to receive */
-            if (RET_OK == ret) {
-                if (0x7RR == id) {
-                    isotp_on_can_message(&g_phylink, data, len);
-                } else if (0x7df == id) {
-                    isotp_on_can_message(&g_funclink, data, len);
-                }
-            } 
-            
-            /* Poll link to handle multiple frame transmition */
-            isotp_poll(&g_phylink);
-            isotp_poll(&g_funclink);
-            
-            /* You can receive message with isotp_receive.
-               payload is upper layer message buffer, usually UDS;
-               payload_size is payload buffer size;
-               out_size is the actuall read size;
-               */
-            ret = isotp_receive(&g_phylink, payload, payload_size, &out_size);
-            if (ISOTP_RET_OK == ret) {
-                /* Handle physical addressing message */
-            }
-            
-            ret = isotp_receive(&g_funclink, payload, payload_size, &out_size);
-            if (ISOTP_RET_OK == ret) {
-                /* Handle functional addressing message */
-            }            
-            
-            /* And send message with isotp_send */
-            ret = isotp_send(&g_phylink, payload, payload_size);
-            if (ISOTP_RET_OK == ret) {
-                /* Send ok */
-            } else {
-                /* An error occured */
-            }
-        }
+## Completion callbacks
 
-        return;
-    }
+Enable `isotpc_ENABLE_TRANSCEIVE_EVENTS` and register callbacks after link
+initialisation. A transmit callback runs synchronously from `isotp_send()` for a
+Single Frame, or from `isotp_poll()` after the final Consecutive Frame. A
+receive callback runs synchronously from `isotp_on_can_message()` when the
+message completes.
+
+Registering a receive callback transfers complete-message delivery to the
+callback; `isotp_receive()` then returns `ISOTP_RET_ERROR`. The callback data
+points into the link's receive buffer and is valid only for the duration of the
+callback. Oversized messages still use the streaming API rather than the
+receive callback when streaming is enabled.
+
+Callbacks do not remove the need to call `isotp_poll()` for segmented sends and
+timeouts. See the compile-checked
+[callback example](https://github.com/SimonCahill/isotp-c/blob/master/examples/isotp_example_callbacks.c).
+
+## Functional addressing
+
+`isotp_send_with_id()` overrides the link's configured transmit identifier for
+one send and is useful for functional requests. ISO-TP functional addressing is
+limited to Single Frames, so the caller must keep the payload within
+`ISOTP_SF_MAX_PAYLOAD(isotp_get_tx_dl(&link))`. Use separate links when physical
+and functional traffic can have independent receive state.
+
+## Tests, fuzzing, and documentation
+
+Run the unit suite with:
+
+```bash
+cmake -S . -B build-tests -DCMAKE_BUILD_TYPE=Debug -Disotpc_ENABLE_TESTING=ON
+cmake --build build-tests
+ctest --test-dir build-tests --output-on-failure
 ```
 
+Compile every integration example with strict warnings:
 
-#### Event-driven mode (optional)
-
-If you enabled callback support during build, you can use event-driven programming instead of polling:
-
-```C
-    /* Optional: Set up callbacks for event-driven programming */
-    void on_message_sent(void* link, uint32_t size, void* user_arg) {
-        printf("Message transmission complete: %u bytes\n", size);
-        // Handle transmission complete event
-    }
-    
-    void on_message_received(void* link, const uint8_t* data, uint32_t size, void* user_arg) {
-        printf("Message received: %u bytes\n", size);
-        // Process received data directly - no need to call isotp_receive()
-        process_isotp_message(data, size);
-    }
-    
-    int main(void) {
-        /* Initialize CAN and other peripherals */
-        
-        /* Initialize link */
-        isotp_init_link(&g_link, 0x7TT,
-						g_isotpSendBuf, sizeof(g_isotpSendBuf), 
-						g_isotpRecvBuf, sizeof(g_isotpRecvBuf));
-        
-        /* Set callbacks (optional - if callbacks not set, use traditional polling) */
-        isotp_set_tx_done_cb(&g_link, on_message_sent, &g_link);
-        isotp_set_rx_done_cb(&g_link, on_message_received, &g_link);
-        
-        while(1) {
-            /* Handle incoming CAN messages */
-            ret = can_receive(&id, &data, &len);
-            if (RET_OK == ret && 0x7RR == id) {
-                isotp_on_can_message(&g_link, data, len);
-            }
-            
-            /* Poll link - callbacks will be called automatically when complete */
-            isotp_poll(&g_link);
-            
-            /* Send message */
-            ret = isotp_send(&g_link, payload, payload_size);
-            if (ISOTP_RET_OK == ret) {
-                /* Send initiated - on_message_sent will be called when complete */
-            }
-            
-            /* Note: No need to poll isotp_receive() when using rx callback */
-        }
-
-        return;
-    }
+```bash
+cmake -S . -B build-examples -Disotpc_BUILD_EXAMPLES=ON
+cmake --build build-examples --target isotpc_examples
 ```
 
-## Authors
+Generate the Doxygen API reference with `make docs`. The entry point is
+`html/index.html`; Doxygen and Graphviz must be installed, and the bundled
+stylesheet submodule must be present (`git submodule update --init --recursive`).
 
-Please view [Contributors](#contributors) to see a list of all contributors.
+## Contributors
 
-## License
+See [CONTRIBUTORS.md](https://github.com/SimonCahill/isotp-c/blob/master/CONTRIBUTORS.md) for the people who have contributed to
+the project.
 
-Licensed under the MIT license.
+## Licence
+
+isotp-c is licensed under the [MIT Licence](https://github.com/SimonCahill/isotp-c/blob/master/LICENSE).

@@ -12,6 +12,7 @@ CMAKE ?= cmake
 CMAKE_CONFIGURE_ARGS ?=
 CTEST ?= ctest
 CLANG ?= clang
+DOXYGEN ?= doxygen
 
 LIB_BASENAME := $(call unquote,$(LIB_NAME))
 LIB_MAJOR := $(call unquote,$(MAJOR_VER))
@@ -129,7 +130,7 @@ CMAKE_OPTION_ARGS := \
 	-Disotpc_ENABLE_STREAMING=$(ENABLE_STREAMING) \
 	-Disotpc_NO_FORMATTED_ERRORS=$(NO_FORMATTED_ERRORS)
 
-.PHONY: all native-all clean fPIC no_opt install cmake tests fuzzing version-gate static-analysis FORCE
+.PHONY: all native-all clean fPIC no_opt install cmake tests fuzzing docs version-gate static-analysis FORCE
 
 ifeq ($(CMAKE_BUILD_BY_DEFAULT),ON)
 all: cmake
@@ -200,5 +201,8 @@ tests:
 fuzzing:
 	$(CMAKE) -S . -B $(FUZZ_BUILD_DIR) -DCMAKE_C_COMPILER=$(CLANG) -DCMAKE_BUILD_TYPE=Debug -Disotpc_ENABLE_FUZZING=ON $(CMAKE_OPTION_ARGS) $(CMAKE_CONFIGURE_ARGS)
 	$(CMAKE) --build $(FUZZ_BUILD_DIR) --config Debug --target isotp_fuzz_receive
+
+docs:
+	$(DOXYGEN) Doxyfile
 
 FORCE:

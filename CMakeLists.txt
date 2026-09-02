@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.10)
 ###
 # Project definition
 ###
-project(isotp LANGUAGES C VERSION 1.9.1 DESCRIPTION "A platform-agnostic ISOTP implementation in C for embedded devices.")
+project(isotp LANGUAGES C VERSION 1.9.2 DESCRIPTION "A platform-agnostic ISOTP implementation in C for embedded devices.")
 
 option(isotpc_USE_INCLUDE_DIR "Copy header files to separate include directory in current binary dir for better separation of header files to combat potential naming conflicts." OFF)
 option(isotpc_STATIC_LIBRARY "Compile libisotpc as a static library, instead of a shared library." OFF)
@@ -23,6 +23,7 @@ option(isotpc_NO_FORMATTED_ERRORS "Omit the formatted error messages, dropping t
 option(isotpc_ENABLE_TESTING "Enable building of test suite." OFF)
 option(isotpc_ENABLE_COVERAGE "Instrument the unit-test subjects for gcovr coverage reporting." OFF)
 option(isotpc_ENABLE_FUZZING "Enable building of libFuzzer targets." OFF)
+option(isotpc_BUILD_EXAMPLES "Compile the integration examples." OFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -193,4 +194,8 @@ endif()
 
 if (isotpc_ENABLE_FUZZING)
     add_subdirectory(fuzz)
+endif()
+
+if (isotpc_BUILD_EXAMPLES)
+    add_subdirectory(examples)
 endif()

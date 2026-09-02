@@ -28,6 +28,37 @@ jobs:
       - name: Check version gate
         run: make version-gate
 
+  documentation:
+    name: Documentation and examples
+    needs: version_gate
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Install documentation dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y doxygen graphviz
+
+      - name: Compile integration examples
+        run: |
+          cmake -S . -B build-examples -DCMAKE_BUILD_TYPE=Release -Disotpc_BUILD_EXAMPLES=ON
+          cmake --build build-examples --target isotpc_examples --parallel
+
+      - name: Generate warning-free API documentation
+        run: make docs
+
+      - name: Upload API documentation
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-documentation
+          path: html
+          if-no-files-found: error
+
   cmake_linux:
     name: Linux CMake (${{ matrix.name }})
     needs: coverage

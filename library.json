@@ -1,6 +1,6 @@
 {
   "name": "isotp-c",
-  "version": "v1.9.1",
+  "version": "v1.9.2",
   "description": "ISO 15765-2 Support Library in C",
   "keywords": "c,windows,linux,c-plus-plus,arm,multi-platform,microcontroller,embedded,mips,can,x86,ppc,powerpc,uds,embedded-c,controller-area-network,iso-tp,unified-diagnostics-services,iso-15765-2,15765-2",
   "authors": {
