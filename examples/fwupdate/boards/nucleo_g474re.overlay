@@ -1,0 +1,9 @@
+&i2c1 {
+	status = "disabled";
+};
+
+&fdcan1 {
+	pinctrl-0 = <&fdcan1_rx_pb8 &fdcan1_tx_pb9>;
+	bitrate = <500000>;
+	sample-point = <792>;
+};
