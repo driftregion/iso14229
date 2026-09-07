@@ -19,7 +19,7 @@ source ~/zephyrproject/zephyr/zephyr-env.sh
 
 ## Nucleo G474RE
 ```sh
-west build -b nucleo_g474re .
+west build -b nucleo_g474re -d build/nucleo
 west flash --runner pyocd
 ```
 
@@ -33,8 +33,8 @@ sudo ip link set up vcan0
 ```
 
 ```sh
-west build -b native_sim . 
-./build/zephyr/zephyr.exe -rt
+west build -b native_sim -d build/native
+./build/native/zephyr/zephyr.exe -rt
 ```
 
 then, on the host,

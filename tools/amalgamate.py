@@ -73,7 +73,6 @@ with open(args.out_c, "w", encoding="utf-8") as f:
         "src/tp/isotp_c_socketcan.c",
         "src/tp/isotp_sock.c",
         "src/tp/isotp_mock.c",
-        "src/tp/isotp_zephyr.c",
     ]:
         f.write(f"""
 #ifdef UDS_LINES
@@ -128,7 +127,6 @@ extern "C" {
         "src/tp/isotp_c_socketcan.h",
         "src/tp/isotp_sock.h",
         "src/tp/isotp_mock.h",
-        "src/tp/isotp_zephyr.h",
     ]:
         with open(src) as src_file:
             f.write("\n" + strip_includes(src_file.read()) + "\n")
