@@ -13,7 +13,6 @@ filegroup(
         "tp/isotp_c.c",
         "tp/isotp_mock.c",
         "tp/isotp_sock.c",
-        "tp/isotp_zephyr.c",
         "tp/isotp-c/isotp.c",
     ]
 )
@@ -34,7 +33,6 @@ filegroup(
         "tp/isotp_c.h",
         "tp/isotp_mock.h",
         "tp/isotp_sock.h",
-        "tp/isotp_zephyr.h",
         "tp/isotp-c/isotp_config.h",
         "tp/isotp-c/isotp_defines.h",
         "tp/isotp-c/isotp_user.h",

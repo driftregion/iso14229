@@ -73,7 +73,5 @@
 
 #if UDS_SYS == UDS_SYS_ZEPHYR
 #include <zephyr/kernel.h>
-#include <zephyr/drivers/can.h>
-#include <zephyr/canbus/isotp.h>
-#define UDS_TP_ISOTP_ZEPHYR
+#define UDS_TP_ISOTP_C
 #endif // if UDS_SYS == UDS_SYS_ZEPHYR

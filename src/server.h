@@ -76,7 +76,7 @@ typedef struct UDSServer {
  * @brief Diagnostic session control arguments
  */
 typedef struct {
-    const uint8_t type;  /**< requested diagnostic session type */
+    const uint8_t type;  /**< oneof @ref uds_lev_ds_ */
     uint16_t p2_ms;      /**< optional: p2 timing override */
     uint32_t p2_star_ms; /**< optional: p2* timing override */
 } UDSDiagSessCtrlArgs_t;
