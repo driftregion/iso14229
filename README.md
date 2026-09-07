@@ -22,9 +22,12 @@
 
 API status: Major version zero (0.y.z) **(not yet stable)**. Anything MAY change at any time.
 
-# Documentation
+# [Documentation](https://driftregion.github.io/iso14229/)
 
-https://driftregion.github.io/iso14229/
+See: https://driftregion.github.io/iso14229/
+
+# [Security](./SECURITY.md)
+See [SECURITY.md](./SECURITY.md)
 
 # Used / Cited by
 
@@ -40,4 +43,5 @@ https://driftregion.github.io/iso14229/
 # Contributing
 
 Contributions are welcome. 
-See [CONTRIBUTING](./CONTRIBUTING.md)
+Use of AI tools for verification of code, or for communication is strongly discouraged.
+See [CONTRIBUTING.md](./CONTRIBUTING.md)
