@@ -74,7 +74,7 @@ int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t *data, cons
 static void SocketCANRecv(UDSTpISOTpCSocketCAN_t *tp) {
     UDS_ASSERT(tp);
     struct can_frame frame = {0};
-    int nbytes = 0;
+    ssize_t nbytes = 0;
 
     for (;;) {
         nbytes = read(tp->fd, &frame, sizeof(struct can_frame));
@@ -117,21 +117,23 @@ static UDSTpStatus_t isotp_c_socketcan_tp_poll(UDSTp_t *hdl) {
     return status;
 }
 
-static UDSTpSize_t isotp_c_socketcan_tp_send(UDSTp_t *hdl, const uint8_t *buf, size_t len,
+static UDSTpSsize_t isotp_c_socketcan_tp_send(UDSTp_t *hdl, const uint8_t *buf, size_t len,
                                              const UDSSDU_t *info) {
     UDS_ASSERT(hdl);
-    UDSTpSize_t ret = -1;
+    UDSTpSsize_t ret = -1;
     UDSTpISOTpCSocketCAN_t *tp = (UDSTpISOTpCSocketCAN_t *)hdl;
     IsoTpLink *link = NULL;
-    const UDSTpAddr_t ta_type = info ? info->A_TA_Type : UDS_A_TA_TYPE_PHYSICAL;
+    const UDS_A_TA_Type_t ta_type = info ? info->A_TA_Type : UDS_A_TA_TYPE_PHYSICAL;
     const uint32_t ta = ta_type == UDS_A_TA_TYPE_PHYSICAL ? tp->phys_ta : tp->func_ta;
+    UDS_ASSERT(len <= UINT16_MAX);
+    const uint16_t u16len = len > UINT16_MAX ? UINT16_MAX : (uint16_t)len;
     switch (ta_type) {
     case UDS_A_TA_TYPE_PHYSICAL:
         link = &tp->phys_link;
         break;
     case UDS_A_TA_TYPE_FUNCTIONAL:
         link = &tp->func_link;
-        if (len > 7) {
+        if (u16len > 7) {
             UDS_LOGI(__FILE__, "Cannot send more than 7 bytes via functional addressing");
             ret = -3;
             goto done;
@@ -142,10 +144,10 @@ static UDSTpSize_t isotp_c_socketcan_tp_send(UDSTp_t *hdl, const uint8_t *buf, s
         goto done;
     }
 
-    int send_status = isotp_send(link, buf, len);
+    int send_status = isotp_send(link, buf, u16len);
     switch (send_status) {
     case ISOTP_RET_OK:
-        ret = len;
+        ret = u16len;
         goto done;
     case ISOTP_RET_INPROGRESS:
     case ISOTP_RET_OVERFLOW:
@@ -154,20 +156,21 @@ static UDSTpSize_t isotp_c_socketcan_tp_send(UDSTp_t *hdl, const uint8_t *buf, s
         goto done;
     }
 done:
-    UDS_LOGD(__FILE__, "'%s' sends %ld bytes to 0x%03x (%s)", tp->tag, len, ta,
+    UDS_LOGD(__FILE__, "'%s' sends %d bytes to 0x%03x (%s)", tp->tag, u16len, ta,
              ta_type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
-    UDS_LOG_SDU(__FILE__, buf, len, info);
+    UDS_LOG_SDU(__FILE__, buf, u16len, info);
     return ret;
 }
 
-static UDSTpSize_t isotp_c_socketcan_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize,
+static UDSTpSsize_t isotp_c_socketcan_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t len,
                                              UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     UDS_ASSERT(buf);
     uint16_t out_size = 0;
     UDSTpISOTpCSocketCAN_t *tp = (UDSTpISOTpCSocketCAN_t *)hdl;
+    uint16_t u16len = len > UINT16_MAX ? UINT16_MAX: (uint16_t)len;
 
-    int ret = isotp_receive(&tp->phys_link, buf, bufsize, &out_size);
+    int ret = isotp_receive(&tp->phys_link, buf, u16len, &out_size);
     if (ret == ISOTP_RET_OK) {
         UDS_LOGI(__FILE__, "phys link received %d bytes", out_size);
         if (NULL != info) {
@@ -176,7 +179,7 @@ static UDSTpSize_t isotp_c_socketcan_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t 
             info->A_TA_Type = UDS_A_TA_TYPE_PHYSICAL;
         }
     } else if (ret == ISOTP_RET_NO_DATA) {
-        ret = isotp_receive(&tp->func_link, buf, bufsize, &out_size);
+        ret = isotp_receive(&tp->func_link, buf, u16len, &out_size);
         if (ret == ISOTP_RET_OK) {
             UDS_LOGI(__FILE__, "func link received %d bytes", out_size);
             if (NULL != info) {

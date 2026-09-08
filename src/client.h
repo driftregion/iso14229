@@ -48,7 +48,7 @@ struct SecurityAccessResponse {
  * @brief Request download response structure
  */
 struct RequestDownloadResponse {
-    size_t maxNumberOfBlockLength; /**< maximum number of block length */
+    uint32_t maxBlockLength; /**< server's maximum block length for TransferData requests */
 };
 
 /**

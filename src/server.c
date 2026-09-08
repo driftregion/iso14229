@@ -1,5 +1,6 @@
 #include "server.h"
 #include "config.h"
+#include "iso14229.h"
 #include "uds.h"
 #include "util.h"
 #include "util_private.h"
@@ -465,9 +466,8 @@ static UDSErr_t Handle_0x22_ReadDataByIdentifier(UDSServer_t *srv, UDSReq_t *r) 
 }
 
 /**
- * @brief decode the addressAndLengthFormatIdentifier that appears in
- * DynamicallyDefineDataIdentifier (0x2C). This must be handled separatedly because the
- * format identifier is not directly above the memory address and length.
+ * @brief decodes addressAndLength at a nonzero offset within the receive buffer.
+ * @see ISO 14229-1:2020(E) Annex H
  *
  * @param srv
  * @param buf pointer to addressAndDataLengthFormatIdentifier in recv_buf
@@ -476,7 +476,7 @@ static UDSErr_t Handle_0x22_ReadDataByIdentifier(UDSServer_t *srv, UDSReq_t *r) 
  * @param offset how many elements (addres and size pairs) away from the format identifier
  * @return uint8_t
  */
-static UDSErr_t decodeAddressAndLengthWithOffset(UDSReq_t *r, uint8_t *const buf,
+static UDSErr_t decodeAddressAndLengthAt(UDSReq_t *r, uint8_t *const buf,
                                                  void **memoryAddress, size_t *memorySize,
                                                  size_t offset) {
     UDS_ASSERT(r);
@@ -509,24 +509,22 @@ static UDSErr_t decodeAddressAndLengthWithOffset(UDSReq_t *r, uint8_t *const buf
         return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
-    for (int byteIdx = 0; byteIdx < memoryAddressLength; byteIdx++) {
-        long long unsigned int byte = buf[1 + offsetBytes + byteIdx];
-        uint8_t shiftBytes = (uint8_t)(memoryAddressLength - 1 - byteIdx);
-        tmp |= byte << (8 * shiftBytes);
+    UDSErr_t err = UnpackBEuintptr(&buf[1 + offsetBytes], &tmp, memoryAddressLength);
+    if (err) {
+        return err;
     }
     *memoryAddress = (void *)tmp;
 
-    for (int byteIdx = 0; byteIdx < memorySizeLength; byteIdx++) {
-        uint8_t byte = buf[1 + offsetBytes + memoryAddressLength + byteIdx];
-        uint8_t shiftBytes = (uint8_t)(memorySizeLength - 1 - byteIdx);
-        *memorySize |= (size_t)byte << (8 * shiftBytes);
+    err = UnpackBEsize(&buf[1 + offsetBytes + memoryAddressLength], memorySize, memorySizeLength);
+    if (err) {
+        return err;
     }
+
     return UDS_PositiveResponse;
 }
 
 /**
- * @brief decode the addressAndLengthFormatIdentifier that appears in ReadMemoryByAddress (0x23)
- * and RequestDownload (0X34)
+ * @brief decode the addressAndLengthFormatIdentifier 
  *
  * @param srv
  * @param buf pointer to addressAndDataLengthFormatIdentifier in recv_buf
@@ -536,7 +534,7 @@ static UDSErr_t decodeAddressAndLengthWithOffset(UDSReq_t *r, uint8_t *const buf
  */
 static UDSErr_t decodeAddressAndLength(UDSReq_t *r, uint8_t *const buf, void **memoryAddress,
                                        size_t *memorySize) {
-    return decodeAddressAndLengthWithOffset(r, buf, memoryAddress, memorySize, 0);
+    return decodeAddressAndLengthAt(r, buf, memoryAddress, memorySize, 0);
 }
 
 static UDSErr_t Handle_0x23_ReadMemoryByAddress(UDSServer_t *srv, UDSReq_t *r) {
@@ -768,7 +766,7 @@ static UDSErr_t Handle_0x2C_DynamicDefineDataIdentifier(UDSServer_t *srv, UDSReq
         size_t numAddrs = (r->recv_len - 5) / bytesPerAddrAndSize;
 
         for (size_t i = 0; i < numAddrs; i++) {
-            ret = decodeAddressAndLengthWithOffset(r, &r->recv_buf[4],
+            ret = decodeAddressAndLengthAt(r, &r->recv_buf[4],
                                                    &args.subFuncArgs.defineByMemAddress.memAddr,
                                                    &args.subFuncArgs.defineByMemAddress.memSize, i);
 
@@ -1026,7 +1024,7 @@ static UDSErr_t Handle_0x35_RequestUpload(UDSServer_t *srv, UDSReq_t *r) {
 
     r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_REQUEST_UPLOAD);
     r->send_buf[1] = lengthFormatIdentifier;
-    StoreBE(&r->send_buf[UDS_0X35_RESP_BASE_LEN], args.maxNumberOfBlockLength,
+    PackBE(&r->send_buf[UDS_0X35_RESP_BASE_LEN], args.maxNumberOfBlockLength,
             sizeof(args.maxNumberOfBlockLength));
     r->send_len = UDS_0X35_RESP_BASE_LEN + (size_t)sizeof(args.maxNumberOfBlockLength);
     return UDS_PositiveResponse;
@@ -1147,12 +1145,12 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
         goto done;
     }
 
-    const uint16_t file_path_len = (uint16_t)LoadBE(&r->recv_buf[2], 2);
+    const uint16_t file_path_len = (uint16_t)((r->recv_buf[2] << 8) + (r->recv_buf[3]));
     uint8_t data_format_identifier = 0;
     uint8_t file_size_parameter_length = 0; // also called "k" in ISO14229:2020
     size_t file_size_uncompressed = 0;
     size_t file_size_compressed = 0;
-    uint16_t byte_idx = 4 + file_path_len;
+    size_t byte_idx = 4 + file_path_len;
 
     if (byte_idx > r->recv_len) {
         err = UDS_NRC_IncorrectMessageLengthOrInvalidFormat;
@@ -1242,7 +1240,7 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
     r->send_len = 3;
 
     // A_Data bytes 4 to 4+m-1: maxNumberOfBlockLength
-    StoreBE(&r->send_buf[r->send_len], args.maxNumberOfBlockLength,
+    PackBE(&r->send_buf[r->send_len], args.maxNumberOfBlockLength,
             sizeof(args.maxNumberOfBlockLength));
     r->send_len += (size_t)sizeof(args.maxNumberOfBlockLength);
 
@@ -1255,11 +1253,11 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
         // pass
     } else {
         // fileSizeOrDirInfoParameterLength
-        StoreBE(&r->send_buf[r->send_len], sizeof(args.fileSizeUnCompressed), 2);
+        PackBE(&r->send_buf[r->send_len], sizeof(args.fileSizeUnCompressed), 2);
         r->send_len += 2;
 
         // fileSizeUncompressedOrDirInfoLength
-        StoreBE(&r->send_buf[r->send_len], args.fileSizeUnCompressed,
+        PackBE(&r->send_buf[r->send_len], args.fileSizeUnCompressed,
                 sizeof(args.fileSizeUnCompressed));
         r->send_len += sizeof(args.fileSizeUnCompressed);
 
@@ -1267,7 +1265,7 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
             // pass
         } else {
             // fileSizeCompressed
-            StoreBE(&r->send_buf[r->send_len], args.fileSizeCompressed,
+            PackBE(&r->send_buf[r->send_len], args.fileSizeCompressed,
                     sizeof(args.fileSizeCompressed));
             r->send_len += sizeof(args.fileSizeCompressed);
         }
@@ -1279,7 +1277,7 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
         // pass
     } else {
         // filePosition
-        StoreBE(&r->send_buf[r->send_len], args.filePosition, sizeof(args.filePosition));
+        PackBE(&r->send_buf[r->send_len], args.filePosition, sizeof(args.filePosition));
         r->send_len += sizeof(args.filePosition);
     }
 
@@ -1643,9 +1641,9 @@ void UDSServerPoll(UDSServer_t *srv) {
         }
 
         if (UDSTimeAfter(UDSMillis(), srv->p2_timer)) {
-            UDSTpSize_t ret = 0;
+            UDSTpSsize_t ret = 0;
             if (r->send_len) {
-                ret = UDSTpSend(srv->tp, r->send_buf, (UDSTpSize_t)r->send_len, NULL);
+                ret = UDSTpSend(srv->tp, r->send_buf, r->send_len, NULL);
             }
 
             // TODO test injection of transport errors:
@@ -1670,7 +1668,7 @@ void UDSServerPoll(UDSServer_t *srv) {
         if (srv->notReadyToReceive) {
             return; // cannot respond to request right now
         }
-        UDSTpSize_t len = UDSTpRecv(srv->tp, r->recv_buf, sizeof(r->recv_buf), &r->info);
+        UDSTpSsize_t len = UDSTpRecv(srv->tp, r->recv_buf, sizeof(r->recv_buf), &r->info);
         if (len < 0) {
             UDS_LOGE(__FILE__, "UDSTpRecv failed with %zd\n", r->recv_len);
             return;

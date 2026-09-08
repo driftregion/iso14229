@@ -70,7 +70,16 @@ cc_library(
     ],
     copts = select({
         "@platforms//os:windows": [],
-        "//conditions:default": [ "-g", ],
+        "//conditions:default": [ 
+            "-g", 
+            "-Werror",
+            "-Wall",
+            "-Wextra",
+            "-Wpedantic",
+            "-Wno-gnu-zero-variadic-macro-arguments",
+#            "-Wconversion",
+            "-Wsign-conversion",
+        ],
     }),
     defines = [
         "UDS_TP_ISOTP_MOCK",

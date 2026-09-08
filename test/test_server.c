@@ -28,11 +28,11 @@ int Teardown(void **state) {
     return 0;
 }
 
-int fn_return_positive_response(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+UDSErr_t fn_return_positive_response(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     return UDS_PositiveResponse;
 }
 
-int fn_test_session_timeout(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+UDSErr_t fn_test_session_timeout(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     int *call_count = (int *)srv->fn_data;
     TEST_INT_EQUAL(UDS_EVT_SessionTimeout, ev);
     (*call_count)++;
@@ -125,7 +125,7 @@ void test_0x10_suppress_pos_resp(void **state) {
     TEST_INT_EQUAL(e->server->sessionType, UDS_LEV_DS_EXTDS);
 }
 
-int fn_test_0x11_no_send_recv_after_ECU_reset(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+UDSErr_t fn_test_0x11_no_send_recv_after_ECU_reset(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     int *call_count = (int *)srv->fn_data;
     switch (ev) {
     case UDS_EVT_EcuReset:
@@ -221,7 +221,7 @@ void test_0x14_incorrect_request_length(void **state) {
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
-int fn_test_0x14_negative_response(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+UDSErr_t fn_test_0x14_negative_response(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     UDSCDIArgs_t *args = (UDSCDIArgs_t *)arg;
     TEST_INT_EQUAL(ev, UDS_EVT_ClearDiagnosticInfo);
     TEST_INT_EQUAL(args->groupOfDTC, 0x00FFDD33);
@@ -2124,7 +2124,7 @@ void test_0x19_sub_0x56_no_record(void **state) {
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
-int fn_test_0x19_subfunc_not_suported(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+UDSErr_t fn_test_0x19_subfunc_not_suported(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     /* This function should never be called */
     TEST_INT_EQUAL(1, 2);
     return UDS_PositiveResponse;
@@ -2160,7 +2160,7 @@ void test_0x19_subfunc_not_suported(void **state) {
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
-int fn_test_0x19_invalid_req_len(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+UDSErr_t fn_test_0x19_invalid_req_len(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     /* This function should never be called */
     TEST_INT_EQUAL(1, 2);
     return UDS_PositiveResponse;
@@ -2448,7 +2448,7 @@ void test_0x19_malformed_responses(void **state) {
     }
 }
 
-int fn_test_0x22(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+UDSErr_t fn_test_0x22(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     TEST_INT_EQUAL(UDS_EVT_ReadDataByIdent, ev);
 
     const uint8_t vin[] = {0x57, 0x30, 0x4C, 0x30, 0x30, 0x30, 0x30, 0x34, 0x33,
@@ -2528,7 +2528,7 @@ void test_0x22_misuse(void **state) {
     TEST_MEMORY_EQUAL(buf, RESP, sizeof(RESP));
 }
 
-int fn_test_0x23(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+UDSErr_t fn_test_0x23(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     TEST_INT_EQUAL(ev, UDS_EVT_ReadMemByAddr);
     UDSReadMemByAddrArgs_t *r = (UDSReadMemByAddrArgs_t *)arg;
     TEST_PTR_EQUAL(r->memAddr, (void *)0x20481392);
@@ -2579,7 +2579,7 @@ typedef struct {
     const void *expectedMemData;
 } Test0x3DTestFnData_t;
 
-int fn_test_0x3D(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+UDSErr_t fn_test_0x3D(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     Test0x3DTestFnData_t *fnData = (Test0x3DTestFnData_t *)srv->fn_data;
 
     TEST_INT_EQUAL(ev, UDS_EVT_WriteMemByAddr);
@@ -2740,7 +2740,7 @@ void test_0x27_level_is_zero_at_init(void **state) {
 }
 
 // Implemented to match IS014229-1 2013 9.4.5.2, 9.4.5.3
-int fn_test_0x27_security_access(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+UDSErr_t fn_test_0x27_security_access(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     switch (ev) {
     case UDS_EVT_SecAccessRequestSeed: {
         UDSSecAccessRequestSeedArgs_t *r = (UDSSecAccessRequestSeedArgs_t *)arg;
@@ -3509,7 +3509,7 @@ void test_0x2C_sub_0x03_negative_response(void **state) {
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
-int fn_test_0x2F(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+UDSErr_t fn_test_0x2F(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     UDSIOCtrlArgs_t *args = arg;
 
     TEST_INT_EQUAL(ev, UDS_EVT_IOControl);
@@ -3649,7 +3649,7 @@ void test_0x2F_negative_response(void **state) {
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
-int fn_test_0x31_RCRRP(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+UDSErr_t fn_test_0x31_RCRRP(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     return *(int *)(srv->fn_data);
 }
 
@@ -3715,7 +3715,7 @@ void test_0x34_no_handler(void **state) {
     TEST_MEMORY_EQUAL(buf, RESP, sizeof(RESP));
 }
 
-int fn_test_0x34(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+UDSErr_t fn_test_0x34(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     TEST_INT_EQUAL(ev, UDS_EVT_RequestDownload);
     UDSRequestDownloadArgs_t *r = (UDSRequestDownloadArgs_t *)arg;
     TEST_INT_EQUAL(0x11, r->dataFormatIdentifier);
@@ -3764,7 +3764,7 @@ void test_0x38_no_handler(void **state) {
     TEST_MEMORY_EQUAL(buf, RESP, sizeof(RESP));
 }
 
-int fn_test_0x38_addfile(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+UDSErr_t fn_test_0x38_addfile(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     TEST_INT_EQUAL(ev, UDS_EVT_RequestFileTransfer);
     UDSRequestFileTransferArgs_t *r = (UDSRequestFileTransferArgs_t *)arg;
     TEST_INT_EQUAL(0x01, r->modeOfOperation);
@@ -3797,7 +3797,7 @@ void test_0x38_addfile(void **state) {
     TEST_MEMORY_EQUAL(buf, RESP, sizeof(RESP));
 }
 
-int fn_test_0x38_delfile(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+UDSErr_t fn_test_0x38_delfile(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     TEST_INT_EQUAL(ev, UDS_EVT_RequestFileTransfer);
     UDSRequestFileTransferArgs_t *r = (UDSRequestFileTransferArgs_t *)arg;
     TEST_INT_EQUAL(0x02, r->modeOfOperation);
@@ -4172,7 +4172,7 @@ void test_0x87_link_ctrl_negative_response(void **state) {
     TEST_MEMORY_EQUAL(buf, EXPECTED_RESP, sizeof(EXPECTED_RESP));
 }
 
-int fn_0x27_noop(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
+UDSErr_t fn_0x27_noop(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     switch (ev) {
     case UDS_EVT_SecAccessRequestSeed: {
         UDSSecAccessRequestSeedArgs_t *r = (UDSSecAccessRequestSeedArgs_t *)arg;

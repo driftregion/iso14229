@@ -17,19 +17,22 @@ static UDSTpStatus_t tp_poll(UDSTp_t *hdl) {
     return status;
 }
 
-static UDSTpSize_t tp_send(UDSTp_t *hdl, const uint8_t *buf, size_t len, const UDSSDU_t *info) {
+static UDSTpSsize_t tp_send(UDSTp_t *hdl, const uint8_t *buf, size_t len, const UDSSDU_t *info) {
     UDS_ASSERT(hdl);
-    UDSTpSize_t ret = -1;
+    UDSTpSsize_t ret = -1;
     UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
     IsoTpLink *link = NULL;
-    const UDSTpAddr_t ta_type = info ? info->A_TA_Type : UDS_A_TA_TYPE_PHYSICAL;
+    const UDS_A_TA_Type_t ta_type = info ? info->A_TA_Type : UDS_A_TA_TYPE_PHYSICAL;
+    UDS_ASSERT(len <= UINT16_MAX);
+    const uint16_t u16len = (uint16_t)len;
+
     switch (ta_type) {
     case UDS_A_TA_TYPE_PHYSICAL:
         link = &tp->phys_link;
         break;
     case UDS_A_TA_TYPE_FUNCTIONAL:
         link = &tp->func_link;
-        if (len > 7) {
+        if (u16len > 7) {
             UDS_LOGI(__FILE__, "Cannot send more than 7 bytes via functional addressing\n");
             ret = -3;
             goto done;
@@ -39,12 +42,12 @@ static UDSTpSize_t tp_send(UDSTp_t *hdl, const uint8_t *buf, size_t len, const U
         ret = -4;
         goto done;
     }
-
-    int send_status = isotp_send(link, buf, len);
+    int send_status = isotp_send(link, buf, u16len);
     switch (send_status) {
-    case ISOTP_RET_OK:
-        ret = len;
+    case ISOTP_RET_OK: {
+        ret = u16len;
         goto done;
+    }
     case ISOTP_RET_INPROGRESS:
     case ISOTP_RET_OVERFLOW:
     default:
@@ -55,13 +58,14 @@ done:
     return ret;
 }
 
-static UDSTpSize_t tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
+static UDSTpSsize_t tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     UDS_ASSERT(buf);
     uint16_t out_size = 0;
     UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
+    uint16_t u16len = len > UINT16_MAX ? UINT16_MAX: (uint16_t)len;
 
-    int ret = isotp_receive(&tp->phys_link, buf, bufsize, &out_size);
+    int ret = isotp_receive(&tp->phys_link, buf, u16len, &out_size);
     if (ret == ISOTP_RET_OK) {
         UDS_LOGI(__FILE__, "phys link received %d bytes", out_size);
         if (NULL != info) {
@@ -70,7 +74,7 @@ static UDSTpSize_t tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t 
             info->A_TA_Type = UDS_A_TA_TYPE_PHYSICAL;
         }
     } else if (ret == ISOTP_RET_NO_DATA) {
-        ret = isotp_receive(&tp->func_link, buf, bufsize, &out_size);
+        ret = isotp_receive(&tp->func_link, buf, u16len, &out_size);
         if (ret == ISOTP_RET_OK) {
             UDS_LOGI(__FILE__, "func link received %d bytes", out_size);
             if (NULL != info) {

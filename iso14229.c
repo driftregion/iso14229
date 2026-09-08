@@ -2118,7 +2118,7 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
     uint8_t file_size_parameter_length = 0; // also called "k" in ISO14229:2020
     size_t file_size_uncompressed = 0;
     size_t file_size_compressed = 0;
-    uint16_t byte_idx = 4 + file_path_len;
+    size_t byte_idx = 4 + file_path_len;
 
     if (byte_idx > r->recv_len) {
         err = UDS_NRC_IncorrectMessageLengthOrInvalidFormat;
@@ -3010,7 +3010,7 @@ void UDS_LogWrite(UDS_LogLevel_t level, const char *tag, const char *format, ...
 }
 
 void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *buffer,
-                        size_t buff_len, const UDSSDU_t *info) {
+                        UDSTpSize_t buff_len, const UDSSDU_t *info) {
     (void)info;
     for (unsigned i = 0; i < buff_len; i++) {
         UDS_LogWrite(level, tag, "%02x ", buffer[i]);

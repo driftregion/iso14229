@@ -65,7 +65,7 @@ static void NetworkPoll(void) {
     }
 }
 
-static UDSTpSize_t mock_tp_send(struct UDSTp *hdl, const uint8_t *buf, size_t len,
+static UDSTpSsize_t mock_tp_send(struct UDSTp *hdl, const uint8_t *buf, size_t len,
                                 const UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
@@ -74,8 +74,8 @@ static UDSTpSize_t mock_tp_send(struct UDSTp *hdl, const uint8_t *buf, size_t le
         return -1;
     }
     struct Msg *m = &msgs[MsgCount++];
-    UDSTpAddr_t ta_type =
-        info == NULL ? (UDSTpAddr_t)UDS_A_TA_TYPE_PHYSICAL : (UDSTpAddr_t)info->A_TA_Type;
+    UDS_A_TA_Type_t ta_type =
+        info == NULL ? (UDS_A_TA_Type_t)UDS_A_TA_TYPE_PHYSICAL : (UDS_A_TA_Type_t)info->A_TA_Type;
     m->len = len;
     m->info.A_AE = info == NULL ? 0 : info->A_AE;
     if (UDS_A_TA_TYPE_PHYSICAL == ta_type) {
@@ -87,7 +87,7 @@ static UDSTpSize_t mock_tp_send(struct UDSTp *hdl, const uint8_t *buf, size_t le
         // Technically CAN-FD may also be used in ISO-TP.
         // TODO: add profiles to isotp_mock
         if (len > 7) {
-            UDS_LOGW(__FILE__, "mock_tp_send: functional message too long: %ld", len);
+            UDS_LOGW(__FILE__, "mock_tp_send: functional message too long: %zu", len);
             return -1;
         }
         m->info.A_TA = tp->ta_func;
@@ -104,10 +104,10 @@ static UDSTpSize_t mock_tp_send(struct UDSTp *hdl, const uint8_t *buf, size_t le
              m->info.A_TA, m->info.A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "PHYSICAL" : "FUNCTIONAL");
     UDS_LOG_SDU(__FILE__, buf, len, &m->info);
 
-    return (UDSTpSize_t)len;
+    return (UDSTpSsize_t)len;
 }
 
-static UDSTpSize_t mock_tp_recv(struct UDSTp *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
+static UDSTpSsize_t mock_tp_recv(struct UDSTp *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
     if (tp->recv_len == 0) {
@@ -117,7 +117,7 @@ static UDSTpSize_t mock_tp_recv(struct UDSTp *hdl, uint8_t *buf, size_t bufsize,
         UDS_LOGW(__FILE__, "mock_tp_recv: buffer too small: %ld < %ld", bufsize, tp->recv_len);
         return -1;
     }
-    UDSTpSize_t len = (UDSTpSize_t)tp->recv_len;
+    UDSTpSsize_t len = (UDSTpSsize_t)tp->recv_len;
     memmove(buf, tp->recv_buf, tp->recv_len);
     if (info) {
         *info = tp->recv_info;

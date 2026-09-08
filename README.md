@@ -26,8 +26,8 @@ API status: Major version zero (0.y.z) **(not yet stable)**. Anything MAY change
 
 See: https://driftregion.github.io/iso14229/
 
-# [Security](./SECURITY.md)
-See [SECURITY.md](./SECURITY.md)
+# Security
+For disclosure guidelines, see [SECURITY.md](./SECURITY.md)
 
 # Used / Cited by
 

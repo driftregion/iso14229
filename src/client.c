@@ -1,5 +1,6 @@
 #include "client.h"
 #include "config.h"
+#include "iso14229.h"
 #include "uds.h"
 #include "util.h"
 #include "util_private.h"
@@ -151,7 +152,7 @@ static UDSErr_t HandleServerResponse(UDSClient_t *client) {
 
             uint16_t p2 =
                 (uint16_t)(((uint16_t)client->recv_buf[2] << 8) | (uint16_t)client->recv_buf[3]);
-            uint32_t p2_star = ((client->recv_buf[4] << 8) + client->recv_buf[5]) * 10;
+            uint32_t p2_star = (uint32_t)((client->recv_buf[4] << 8) + client->recv_buf[5]) * 10U;
             UDS_LOGI(__FILE__, "received new timings: p2: %" PRIu16 ", p2*: %" PRIu32, p2, p2_star);
             client->p2_ms = p2;
             client->p2_star_ms = p2_star;
@@ -185,7 +186,7 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
     case STATE_SENDING: {
         {
             UDSSDU_t info = {0};
-            UDSTpSize_t len =
+            UDSTpSsize_t len =
                 UDSTpRecv(client->tp, client->recv_buf, sizeof(client->recv_buf), &info);
             if (len < 0) {
                 UDS_LOGE(__FILE__, "transport returned error %" PRId32, len);
@@ -193,20 +194,20 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
                 ; // expected
             } else {
                 UDS_LOGW(__FILE__, "received %" PRId32 " unexpected bytes:", len);
-                UDS_LOG_SDU(__FILE__, client->recv_buf, len, &info);
+                UDS_LOG_SDU(__FILE__, client->recv_buf, (size_t)len, &info);
             }
         }
 
         memset(client->recv_buf, 0, sizeof(client->recv_buf));
         client->recv_size = 0;
 
-        UDSTpAddr_t ta_type = client->_options_copy & UDS_FUNCTIONAL ? UDS_A_TA_TYPE_FUNCTIONAL
+        UDS_A_TA_Type_t ta_type = client->_options_copy & UDS_FUNCTIONAL ? UDS_A_TA_TYPE_FUNCTIONAL
                                                                      : UDS_A_TA_TYPE_PHYSICAL;
         UDSSDU_t info = {
             .A_Mtype = UDS_A_MTYPE_DIAG,
             .A_TA_Type = ta_type,
         };
-        UDSTpSize_t ret = UDSTpSend(client->tp, client->send_buf, client->send_size, &info);
+        UDSTpSsize_t ret = UDSTpSend(client->tp, client->send_buf, client->send_size, &info);
         if (ret < 0) {
             err = UDS_ERR_TPORT;
             UDS_LOGI(__FILE__, "tport err: %" PRId32, ret);
@@ -242,7 +243,7 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
     case STATE_AWAIT_RESPONSE: {
         UDSSDU_t info = {0};
 
-        UDSTpSize_t len = UDSTpRecv(client->tp, client->recv_buf, sizeof(client->recv_buf), &info);
+        UDSTpSsize_t len = UDSTpRecv(client->tp, client->recv_buf, sizeof(client->recv_buf), &info);
         if (len < 0) {
             err = UDS_ERR_TPORT;
             changeState(client, STATE_IDLE);
@@ -254,7 +255,7 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
             }
         } else {
             UDS_LOGD(__FILE__, "received %" PRId32 " bytes. Processing...", len);
-            UDS_ASSERT(len <= (UDSTpSize_t)UINT16_MAX);
+            UDS_ASSERT(len <= (UDSTpSsize_t)UINT16_MAX);
             client->recv_size = (uint16_t)len;
 
             err = ValidateServerResponse(client);
@@ -641,7 +642,7 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, uint8_t mode, const cha
     size_t bufSizeRequired = SIZE_MAX;
     client->send_buf[0] = kSID_REQUEST_FILE_TRANSFER; // Request SID
     client->send_buf[1] = mode;                       // modeOfOperation
-    StoreBE(&client->send_buf[2], n_filePathLen, 2);  // filePathAndNameLength
+    PackBE(&client->send_buf[2], n_filePathLen, 2);  // filePathAndNameLength
 
     switch (mode) {
     case UDS_MOOP_ADDFILE: // 1
@@ -652,9 +653,9 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, uint8_t mode, const cha
         memmove(&client->send_buf[4], filePath, n_filePathLen); // filePathAndName
         client->send_buf[4 + n_filePathLen] = client->cfg_data_format_identifier;
         client->send_buf[5 + n_filePathLen] = client->cfg_file_size_parameter_length;
-        StoreBE(&client->send_buf[6 + n_filePathLen], fileSizeUncompressed,
+        PackBE(&client->send_buf[6 + n_filePathLen], fileSizeUncompressed,
                 client->cfg_file_size_parameter_length);
-        StoreBE(&client->send_buf[6 + n_filePathLen + client->cfg_file_size_parameter_length],
+        PackBE(&client->send_buf[6 + n_filePathLen + client->cfg_file_size_parameter_length],
                 fileSizeCompressed, client->cfg_file_size_parameter_length);
         break;
     case UDS_MOOP_DELFILE: // 2
@@ -672,9 +673,9 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, uint8_t mode, const cha
         memmove(&client->send_buf[4], filePath, n_filePathLen); // filePathAndName
         client->send_buf[4 + n_filePathLen] = client->cfg_data_format_identifier;
         client->send_buf[5 + n_filePathLen] = client->cfg_file_size_parameter_length;
-        StoreBE(&client->send_buf[6 + n_filePathLen], fileSizeUncompressed,
+        PackBE(&client->send_buf[6 + n_filePathLen], fileSizeUncompressed,
                 client->cfg_file_size_parameter_length);
-        StoreBE(&client->send_buf[6 + n_filePathLen + client->cfg_file_size_parameter_length],
+        PackBE(&client->send_buf[6 + n_filePathLen + client->cfg_file_size_parameter_length],
                 fileSizeCompressed, client->cfg_file_size_parameter_length);
         break;
     case UDS_MOOP_RDFILE: // 4
@@ -700,9 +701,9 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, uint8_t mode, const cha
         memmove(&client->send_buf[4], filePath, n_filePathLen); // filePathAndName
         client->send_buf[4 + n_filePathLen] = client->cfg_data_format_identifier;
         client->send_buf[5 + n_filePathLen] = client->cfg_file_size_parameter_length;
-        StoreBE(&client->send_buf[6 + n_filePathLen], fileSizeUncompressed,
+        PackBE(&client->send_buf[6 + n_filePathLen], fileSizeUncompressed,
                 client->cfg_file_size_parameter_length);
-        StoreBE(&client->send_buf[6 + n_filePathLen + client->cfg_file_size_parameter_length],
+        PackBE(&client->send_buf[6 + n_filePathLen + client->cfg_file_size_parameter_length],
                 fileSizeCompressed, client->cfg_file_size_parameter_length);
         break;
     default:
@@ -852,7 +853,7 @@ UDSErr_t UDSUnpackRoutineControlResponse(const UDSClient_t *client,
 }
 
 /**
- * @brief
+ * @brief Validates and parses server's response to RequestDownload.
  *
  * @param client
  * @param resp
@@ -870,18 +871,18 @@ UDSErr_t UDSUnpackRequestDownloadResponse(const UDSClient_t *client,
     if (client->recv_size < UDS_0X34_RESP_BASE_LEN) {
         return UDS_ERR_RESP_TOO_SHORT;
     }
-    uint8_t maxNumberOfBlockLengthSize = (client->recv_buf[1] & 0xF0) >> 4;
+    uint8_t mnrobSize = (client->recv_buf[1] & 0xF0) >> 4;
+    UDS_ASSERT(mnrobSize <= 15);
 
-    if (sizeof(resp->maxNumberOfBlockLength) < maxNumberOfBlockLengthSize) {
-        UDS_LOGI(__FILE__, "WARNING: sizeof(maxNumberOfBlockLength) > sizeof(size_t)");
-        return UDS_FAIL;
+    if (client->recv_size < 2 + mnrobSize) {
+        return UDS_ERR_RESP_TOO_SHORT;
     }
-    resp->maxNumberOfBlockLength = 0;
-    for (uint8_t byteIdx = 0; byteIdx < maxNumberOfBlockLengthSize; byteIdx++) {
-        uint8_t byte = client->recv_buf[UDS_0X34_RESP_BASE_LEN + byteIdx];
-        uint8_t shiftBytes = maxNumberOfBlockLengthSize - 1 - byteIdx;
-        resp->maxNumberOfBlockLength |= byte << (8 * shiftBytes);
+
+    UDSErr_t err = UnpackBEu32(&client->recv_buf[UDS_0X34_RESP_BASE_LEN], &resp->maxBlockLength, mnrobSize);
+    if (err) {
+        return err;
     }
+
     return UDS_OK;
 }
 

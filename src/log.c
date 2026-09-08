@@ -14,9 +14,9 @@ void UDS_LogWrite(UDS_LogLevel_t level, const char *tag, const char *format, ...
 }
 
 void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *buffer,
-                        size_t buff_len, const UDSSDU_t *info) {
+                        size_t buflen, const UDSSDU_t *info) {
     (void)info;
-    for (unsigned i = 0; i < buff_len; i++) {
+    for (size_t i = 0; i < buflen; i++) {
         UDS_LogWrite(level, tag, "%02x ", buffer[i]);
     }
     UDS_LogWrite(level, tag, "\n");
