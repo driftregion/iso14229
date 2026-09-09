@@ -13,8 +13,8 @@ void UDS_LogWrite(UDS_LogLevel_t level, const char *tag, const char *format, ...
     va_end(list);
 }
 
-void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *buffer,
-                        size_t buflen, const UDSSDU_t *info) {
+void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *buffer, size_t buflen,
+                        const UDSSDU_t *info) {
     (void)info;
     for (size_t i = 0; i < buflen; i++) {
         UDS_LogWrite(level, tag, "%02x ", buffer[i]);

@@ -16,8 +16,8 @@ srcs = {os.path.basename(src): src for src in args.srcs}
 
 
 def strip_includes(src):
-    src = re.sub(r'#include ".*\n', "", src)
-    src = re.sub(r'#pragma once\n', "", src)
+    src = re.sub(r'#include ".*\n', "\n", src)
+    src = re.sub(r'#pragma once\n', "\n", src)
     return src
 
 isotp_c_wrapped_c = \
@@ -25,9 +25,16 @@ isotp_c_wrapped_c = \
 /// \cond DOXYGEN_SHOULD_SKIP_THIS
 
 #ifndef ISO_TP_USER_SEND_CAN_ARG
-#error
+#error "need this"
 #endif
 
+#ifndef ISO_TP_NO_FORMATTED_ERRORS
+#error "need this too"
+#endif
+
+#ifdef UDS_LINES
+#line 1 "src/tp/isotp-c/isotp.c"
+#endif
 """ + \
 strip_includes(open("src/tp/isotp-c/isotp.c").read()) + \
 """
@@ -39,9 +46,15 @@ isotp_c_wrapped_h = \
 """#if defined(UDS_TP_ISOTP_C)
 /// \cond DOXYGEN_SHOULD_SKIP_THIS
 
-#define ISO_TP_USER_SEND_CAN_ARG 1 
+#define ISO_TP_USER_SEND_CAN_ARG 1
+#define ISO_TP_NO_FORMATTED_ERRORS 1
 
-""" + "\n".join([strip_includes(open("src/tp/isotp-c/" + h).read()) for h in [
+""" + "\n".join([
+        f"""#ifdef UDS_LINES
+#line 1 "src/tp/isotp-c/{h}"
+#endif
+""" + strip_includes(open("src/tp/isotp-c/" + h).read())
+        for h in [
         "isotp_config.h",
         "isotp_defines.h",
         "isotp_user.h",
@@ -107,17 +120,22 @@ extern "C" {
         "src/version.h",
         "src/sys.h",
         "src/config.h",
-        "src/tp.h",
         "src/uds.h",
+        "src/tp.h",
         "src/util.h",
         "src/log.h",
         "src/client.h",
         "src/server.h",
     ]:
+        f.write(f"""
+#ifdef UDS_LINES
+#line 1 "{src}"
+#endif
+""")
         src_path = next((s for s in args.srcs if src in s))
         with open(src_path, "r", encoding="utf-8") as src_file:
             stripped = strip_includes(src_file.read())
-            f.write("\n" + stripped + "\n")
+            f.write(stripped + "\n")
 
     f.write(isotp_c_wrapped_h)
 
@@ -128,8 +146,13 @@ extern "C" {
         "src/tp/isotp_sock.h",
         "src/tp/isotp_mock.h",
     ]:
+        f.write(f"""
+#ifdef UDS_LINES
+#line 1 "{src}"
+#endif
+""")
         with open(src) as src_file:
-            f.write("\n" + strip_includes(src_file.read()) + "\n")
+            f.write(strip_includes(src_file.read()) + "\n")
 
     f.write("""
 #ifdef __cplusplus

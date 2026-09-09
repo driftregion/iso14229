@@ -54,10 +54,10 @@ typedef struct {
     bool is_real_time; // if true, EnvRunMillis will run for a wall-time duration rather than
                        // simulated time. This makes tests much slower, so use it only when
                        // necessary.
-    bool do_not_poll; // if true, EnvRunMillis will not poll any objects
 } Env_t;
 
 void EnvRunMillis(Env_t *env, uint32_t millis);
+void EnvSetMillis(uint32_t millis);
 
 #define _TEST_INT_COND(a, b, cond)                                                                 \
     {                                                                                              \

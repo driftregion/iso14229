@@ -2,26 +2,24 @@
 #include "uds.h"
 #include "util.h"
 
-UDSTpSsize_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, size_t len, const UDSSDU_t *info) {
-    UDS_ASSERT(hdl);
-    UDS_ASSERT(hdl->send);
-    if (NULL==hdl || NULL == hdl->send) {
+UDSErr_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, const size_t len, const UDSSDU_t *info) {
+    if (NULL == hdl || NULL == hdl->send) {
         return UDS_ERR_INVALID_ARG;
     }
     return hdl->send(hdl, (uint8_t *)buf, len, info);
 }
 
-UDSTpSsize_t UDSTpRecv(UDSTp_t *hdl, uint8_t *buf, size_t len, UDSSDU_t *info) {
-    UDS_ASSERT(hdl);
-    UDS_ASSERT(hdl->recv);
-    if (NULL==hdl || NULL == hdl->recv) {
+UDSErr_t UDSTpRecv(UDSTp_t *hdl, uint8_t *buf, const size_t bufsiz, size_t *recvlen,
+                   UDSSDU_t *info) {
+    if (NULL == hdl || NULL == hdl->recv || NULL == recvlen) {
         return UDS_ERR_INVALID_ARG;
     }
-    return hdl->recv(hdl, buf, len, info);
+    return hdl->recv(hdl, buf, bufsiz, recvlen, info);
 }
 
-UDSTpStatus_t UDSTpPoll(UDSTp_t *hdl) {
-    UDS_ASSERT(hdl);
-    UDS_ASSERT(hdl->poll);
+UDSErr_t UDSTpPoll(UDSTp_t *hdl) {
+    if (NULL == hdl || NULL == hdl->poll) {
+        return UDS_ERR_INVALID_ARG;
+    }
     return hdl->poll(hdl);
 }

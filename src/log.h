@@ -116,8 +116,8 @@ static_assert(UDS_LOG_LEVEL == UDS_LOG_NONE || UDS_LOG_LEVEL == UDS_LOG_ERROR ||
 #if UDS_LOG_LEVEL > UDS_LOG_NONE
 void UDS_LogWrite(UDS_LogLevel_t level, const char *tag, const char *format, ...)
     UDS_PRINTF_FORMAT(3, 4);
-void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *buffer,
-                        size_t buflen, const UDSSDU_t *info);
+void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *buffer, size_t buflen,
+                        const UDSSDU_t *info);
 #endif
 
 // Dummy function that consumes arguments but does nothing

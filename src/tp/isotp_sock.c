@@ -15,9 +15,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-static UDSTpStatus_t isotp_sock_tp_poll(UDSTp_t *hdl) {
+static UDSErr_t isotp_sock_tp_poll(UDSTp_t *hdl) {
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
-    UDSTpStatus_t status = 0;
+    UDSErr_t err = UDS_OK;
     int ret = 0;
     int fds[2] = {impl->phys_fd, impl->func_fd};
     struct pollfd pfds[2] = {0};
@@ -32,7 +32,7 @@ static UDSTpStatus_t isotp_sock_tp_poll(UDSTp_t *hdl) {
     ret = poll(pfds, 2, 1);
     if (ret < 0) {
         UDS_LOGE(__FILE__, "poll failed: %d", ret);
-        status |= UDS_TP_ERR;
+        err = UDS_ERR_TPORT;
     } else if (ret == 0) {
         ; // timeout, no events
     } else {
@@ -48,12 +48,11 @@ static UDSTpStatus_t isotp_sock_tp_poll(UDSTp_t *hdl) {
                     switch (pending_err) {
                     case ECOMM:
                         UDS_LOGE(__FILE__, "ECOMM: Communication error on send");
-                        status |= UDS_TP_ERR;
+                        err = UDS_ERR_TPORT;
                         break;
                     default:
                         UDS_LOGE(__FILE__, "Asynchronous socket error: %s (%d)",
                                  strerror(pending_err), pending_err);
-                        status |= UDS_TP_ERR;
                         break;
                     }
                 } else {
@@ -69,100 +68,106 @@ static UDSTpStatus_t isotp_sock_tp_poll(UDSTp_t *hdl) {
                 // See: https://lore.kernel.org/all/20230331125511.372783-1-michal.sojka@cvut.cz/
                 // The kernel ISO-TP driver suppresses POLLOUT when tx.state != ISOTP_IDLE
                 if (!(pfd.revents & POLLOUT)) {
-                    status |= UDS_TP_SEND_IN_PROGRESS;
+                    hdl->status.is_sending = 1;
+                } else {
+                    hdl->status.is_sending = 0;
                 }
             }
         }
     }
-    return status;
+    return err;
 }
 
-static UDSTpSsize_t tp_recv_once(int fd, uint8_t *buf, size_t len) {
-    UDS_ASSERT(len <= UINT16_MAX);
-    ssize_t ret = read(fd, buf, (size_t)len);
+static UDSErr_t tp_recv_once(int fd, uint8_t *buf, const size_t bufsiz, size_t *recvlen) {
+    UDSErr_t err = UDS_OK;
+    ssize_t ret = read(fd, buf, bufsiz);
     if (ret < 0) {
         if (EAGAIN == errno || EWOULDBLOCK == errno) {
-            ret = 0;
+            ; // temporarily unavailable -- not an error
         } else {
-            UDS_LOGI(__FILE__, "read failed: %zd with errno: %d\n", ret, errno);
-            if (EILSEQ == errno) {
-                UDS_LOGI(__FILE__, "Perhaps I received multiple responses?");
-            }
+            UDS_LOGE(__FILE__, "read failed: %zd with errno: %d", ret, errno);
+            err = UDS_FAIL;
         }
     }
-    UDS_ASSERT(ret <= UINT16_MAX);
-    return (UDSTpSsize_t)ret;
+
+    *recvlen = ret < 0 ? 0 : (size_t)ret;
+    return err;
 }
 
-static UDSTpSsize_t isotp_sock_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t size, UDSSDU_t *info) {
-    UDS_ASSERT(hdl);
-    UDS_ASSERT(buf);
-    UDSTpSsize_t ret = 0;
+static UDSErr_t isotp_sock_tp_recv(UDSTp_t *hdl, uint8_t *buf, const size_t bufsiz, size_t *recvlen,
+                                   UDSSDU_t *info) {
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
+    UDSErr_t err = 0;
     UDSSDU_t *msg = &impl->recv_info;
 
-    ret = tp_recv_once(impl->phys_fd, buf, size);
-    if (ret > 0) {
+    err = tp_recv_once(impl->phys_fd, buf, bufsiz, recvlen);
+    if (err) {
+        return err;
+    }
+    if (*recvlen > 0) {
         msg->A_TA = impl->phys_sa;
         msg->A_SA = impl->phys_ta;
         msg->A_TA_Type = UDS_A_TA_TYPE_PHYSICAL;
     } else {
-        ret = tp_recv_once(impl->func_fd, buf, size);
-        if (ret > 0) {
+        err = tp_recv_once(impl->func_fd, buf, bufsiz, recvlen);
+        if (err) {
+            return err;
+        }
+        if (*recvlen > 0) {
             msg->A_TA = impl->func_sa;
             msg->A_SA = impl->func_ta;
             msg->A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL;
         }
     }
 
-    if (ret > 0) {
+    if (*recvlen > 0) {
         if (info) {
             *info = *msg;
         }
 
-        UDS_LOGD(__FILE__, "'%s' received %" PRId32 " bytes from 0x%03x (%s), ", impl->tag, ret,
+        UDS_LOGD(__FILE__, "'%s' received %zd bytes from 0x%03x (%s), ", impl->tag, *recvlen,
                  msg->A_TA, msg->A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
-        UDS_LOG_SDU(__FILE__, impl->recv_buf, (size_t)ret, msg);
+        UDS_LOG_SDU(__FILE__, impl->recv_buf, *recvlen, msg);
     }
-
-    return ret;
+    return UDS_OK;
 }
 
-static UDSTpSsize_t isotp_sock_tp_send(UDSTp_t *hdl, const uint8_t *buf, size_t len,
-                                      const UDSSDU_t *info) {
-    UDS_ASSERT(hdl);
-    ssize_t ret = -1;
+static UDSErr_t isotp_sock_tp_send(UDSTp_t *hdl, const uint8_t *buf, const size_t len,
+                                   const UDSSDU_t *info) {
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
+    ssize_t ret = -1;
     int fd = -1;
     const UDS_A_TA_Type_t ta_type = info ? info->A_TA_Type : UDS_A_TA_TYPE_PHYSICAL;
-    if (len < 0) {
-        return UDS_ERR_INVALID_ARG;
-    }
 
-    if (UDS_A_TA_TYPE_PHYSICAL == ta_type) {
+    switch (ta_type) {
+    case UDS_A_TA_TYPE_PHYSICAL:
         fd = impl->phys_fd;
-    } else if (UDS_A_TA_TYPE_FUNCTIONAL == ta_type) {
+        break;
+    case UDS_A_TA_TYPE_FUNCTIONAL: {
         if (len > 7) {
-            UDS_LOGI(__FILE__, "UDSTpIsoTpSock: functional request too large");
-            return -1;
+            UDS_LOGE(__FILE__, "UDSTpIsoTpSock: functional request too large");
+            return UDS_ERR_MISUSE;
         }
         fd = impl->func_fd;
-    } else {
-        ret = -4;
-        goto done;
+    } break;
+    default:
+        UDS_LOGE(__FILE__, "unknown UDS_A_TA_TYPE");
+        return UDS_ERR_MISUSE;
     }
+
     UDS_ASSERT(fd >= 0);
-    ret = write(fd, buf, (size_t)len);
+    ret = write(fd, buf, len);
     UDS_ASSERT(ret < UINT16_MAX);
     if (ret < 0) {
         perror("write");
+        return UDS_FAIL;
     }
-done:;
+
     uint32_t ta = ta_type == UDS_A_TA_TYPE_PHYSICAL ? impl->phys_ta : impl->func_ta;
     UDS_LOGD(__FILE__, "'%s' sends %zu bytes to 0x%03x (%s)", impl->tag, len, ta,
              ta_type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
     UDS_LOG_SDU(__FILE__, buf, len, info);
-    return (UDSTpSsize_t)ret;
+    return UDS_OK;
 }
 
 static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool functional) {

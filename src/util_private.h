@@ -13,7 +13,7 @@ static inline void PackBE(uint8_t *dst, uint64_t val, size_t n) {
 /**
  * @brief Unpack up to sizeof(size_t) big-endian bytes from src into dst.
  * @param src buffer
- * @param dst 
+ * @param dst
  * @param n ranges from 0 to sizeof(size_t) inclusive
  * @return UDS_OK if successful
  */
@@ -32,7 +32,7 @@ static inline UDSErr_t UnpackBEsize(const uint8_t *src, size_t *dst, size_t n) {
 /**
  * @brief Unpack up to sizeof(uintptr_t) big-endian bytes from src into dst.
  * @param src buffer
- * @param dst 
+ * @param dst
  * @param n ranges from 0 to sizeof(uintptr_t) inclusive
  * @return UDS_OK if successful
  */

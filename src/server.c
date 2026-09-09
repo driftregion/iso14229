@@ -476,9 +476,8 @@ static UDSErr_t Handle_0x22_ReadDataByIdentifier(UDSServer_t *srv, UDSReq_t *r) 
  * @param offset how many elements (addres and size pairs) away from the format identifier
  * @return uint8_t
  */
-static UDSErr_t decodeAddressAndLengthAt(UDSReq_t *r, uint8_t *const buf,
-                                                 void **memoryAddress, size_t *memorySize,
-                                                 size_t offset) {
+static UDSErr_t decodeAddressAndLengthAt(UDSReq_t *r, uint8_t *const buf, void **memoryAddress,
+                                         size_t *memorySize, size_t offset) {
     UDS_ASSERT(r);
     UDS_ASSERT(memoryAddress);
     UDS_ASSERT(memorySize);
@@ -524,7 +523,7 @@ static UDSErr_t decodeAddressAndLengthAt(UDSReq_t *r, uint8_t *const buf,
 }
 
 /**
- * @brief decode the addressAndLengthFormatIdentifier 
+ * @brief decode the addressAndLengthFormatIdentifier
  *
  * @param srv
  * @param buf pointer to addressAndDataLengthFormatIdentifier in recv_buf
@@ -767,8 +766,8 @@ static UDSErr_t Handle_0x2C_DynamicDefineDataIdentifier(UDSServer_t *srv, UDSReq
 
         for (size_t i = 0; i < numAddrs; i++) {
             ret = decodeAddressAndLengthAt(r, &r->recv_buf[4],
-                                                   &args.subFuncArgs.defineByMemAddress.memAddr,
-                                                   &args.subFuncArgs.defineByMemAddress.memSize, i);
+                                           &args.subFuncArgs.defineByMemAddress.memAddr,
+                                           &args.subFuncArgs.defineByMemAddress.memSize, i);
 
             if (UDS_PositiveResponse != ret) {
                 return NegativeResponse(r, ret);
@@ -1025,7 +1024,7 @@ static UDSErr_t Handle_0x35_RequestUpload(UDSServer_t *srv, UDSReq_t *r) {
     r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_REQUEST_UPLOAD);
     r->send_buf[1] = lengthFormatIdentifier;
     PackBE(&r->send_buf[UDS_0X35_RESP_BASE_LEN], args.maxNumberOfBlockLength,
-            sizeof(args.maxNumberOfBlockLength));
+           sizeof(args.maxNumberOfBlockLength));
     r->send_len = UDS_0X35_RESP_BASE_LEN + (size_t)sizeof(args.maxNumberOfBlockLength);
     return UDS_PositiveResponse;
 }
@@ -1241,7 +1240,7 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
 
     // A_Data bytes 4 to 4+m-1: maxNumberOfBlockLength
     PackBE(&r->send_buf[r->send_len], args.maxNumberOfBlockLength,
-            sizeof(args.maxNumberOfBlockLength));
+           sizeof(args.maxNumberOfBlockLength));
     r->send_len += (size_t)sizeof(args.maxNumberOfBlockLength);
 
     // daataFormatIdentifier: 0 if ReadDir
@@ -1258,7 +1257,7 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
 
         // fileSizeUncompressedOrDirInfoLength
         PackBE(&r->send_buf[r->send_len], args.fileSizeUnCompressed,
-                sizeof(args.fileSizeUnCompressed));
+               sizeof(args.fileSizeUnCompressed));
         r->send_len += sizeof(args.fileSizeUnCompressed);
 
         if (mode_of_operation == UDS_MOOP_RDDIR) {
@@ -1266,7 +1265,7 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
         } else {
             // fileSizeCompressed
             PackBE(&r->send_buf[r->send_len], args.fileSizeCompressed,
-                    sizeof(args.fileSizeCompressed));
+                   sizeof(args.fileSizeCompressed));
             r->send_len += sizeof(args.fileSizeCompressed);
         }
     }
@@ -1605,6 +1604,7 @@ UDSErr_t UDSServerInit(UDSServer_t *srv) {
 }
 
 void UDSServerPoll(UDSServer_t *srv) {
+
     // UDS-1-2013 Figure 38: Session Timeout (S3)
     if (UDS_LEV_DS_DS != srv->sessionType &&
         UDSTimeAfter(UDSMillis(), srv->s3_session_timeout_timer)) {
@@ -1641,16 +1641,14 @@ void UDSServerPoll(UDSServer_t *srv) {
         }
 
         if (UDSTimeAfter(UDSMillis(), srv->p2_timer)) {
-            UDSTpSsize_t ret = 0;
-            if (r->send_len) {
-                ret = UDSTpSend(srv->tp, r->send_buf, r->send_len, NULL);
-            }
 
-            // TODO test injection of transport errors:
-            if (ret < 0) {
-                UDSErr_t err = UDS_ERR_TPORT;
-                EmitEvent(srv, UDS_EVT_Err, &err);
-                UDS_LOGE(__FILE__, "UDSTpSend failed with %" PRId32 "\n", ret);
+            if (r->send_len) {
+                UDSErr_t err = UDS_OK;
+                err = UDSTpSend(srv->tp, r->send_buf, r->send_len, NULL);
+                if (UDS_OK != err) {
+                    EmitEvent(srv, UDS_EVT_Err, &err);
+                    UDS_LOGE(__FILE__, "UDSTpSend failed with %s", UDSErrToStr(err));
+                }
             }
 
             if (srv->RCRRP) {
@@ -1668,13 +1666,13 @@ void UDSServerPoll(UDSServer_t *srv) {
         if (srv->notReadyToReceive) {
             return; // cannot respond to request right now
         }
-        UDSTpSsize_t len = UDSTpRecv(srv->tp, r->recv_buf, sizeof(r->recv_buf), &r->info);
-        if (len < 0) {
-            UDS_LOGE(__FILE__, "UDSTpRecv failed with %zd\n", r->recv_len);
+        size_t recvlen = 0;
+        UDSErr_t err = UDSTpRecv(srv->tp, r->recv_buf, sizeof(r->recv_buf), &recvlen, &r->info);
+        if (UDS_OK != err) {
+            UDS_LOGE(__FILE__, "UDSTpRecv failed with %s\n", UDSErrToStr(err));
             return;
         }
-
-        r->recv_len = (size_t)len;
+        r->recv_len = recvlen;
 
         if (r->recv_len > 0) {
             UDSErr_t response = evaluateServiceResponse(srv, r);

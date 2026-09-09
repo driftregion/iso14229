@@ -29,8 +29,8 @@ typedef struct UDSClient {
     int (*fn)(struct UDSClient *client, UDSEvent_t evt, void *ev_data); /**< callback function */
     void *fn_data; /**< user-specified function data */
 
-    uint16_t recv_size;                         /**< size of received data */
-    uint16_t send_size;                         /**< size of data to send */
+    size_t recv_size;                           /**< size of received data */
+    size_t send_size;                           /**< size of data to send */
     uint8_t recv_buf[UDS_CLIENT_RECV_BUF_SIZE]; /**< receive buffer */
     uint8_t send_buf[UDS_CLIENT_SEND_BUF_SIZE]; /**< send buffer */
 } UDSClient_t;

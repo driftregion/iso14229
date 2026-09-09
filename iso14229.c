@@ -12,20 +12,71 @@
 #endif
 
 
+
+
+
 /// Serializes n bytes of val to *dst in big-endian format.
-static inline void StoreBE(uint8_t *dst, uint64_t val, size_t n) {
+static inline void PackBE(uint8_t *dst, uint64_t val, size_t n) {
     for (size_t i = 0; i < n; i++) {
         dst[i] = (uint8_t)(val >> (8 * (n - 1 - i)));
     }
 }
 
-/// Mirror operation to StoreBE
-static inline uint64_t LoadBE(const uint8_t *src, size_t n) {
-    uint64_t val = 0;
+/**
+ * @brief Unpack up to sizeof(size_t) big-endian bytes from src into dst.
+ * @param src buffer
+ * @param dst
+ * @param n ranges from 0 to sizeof(size_t) inclusive
+ * @return UDS_OK if successful
+ */
+static inline UDSErr_t UnpackBEsize(const uint8_t *src, size_t *dst, size_t n) {
+    if (NULL == src || NULL == dst || n > sizeof(*dst)) {
+        return UDS_ERR_INVALID_ARG;
+    }
+    size_t val = 0;
     for (size_t i = 0; i < n; i++) {
         val = (val << 8) | src[i];
     }
-    return val;
+    *dst = val;
+    return UDS_OK;
+}
+
+/**
+ * @brief Unpack up to sizeof(uintptr_t) big-endian bytes from src into dst.
+ * @param src buffer
+ * @param dst
+ * @param n ranges from 0 to sizeof(uintptr_t) inclusive
+ * @return UDS_OK if successful
+ */
+static inline UDSErr_t UnpackBEuintptr(const uint8_t *src, uintptr_t *dst, size_t n) {
+    if (NULL == src || NULL == dst || n > sizeof(*dst)) {
+        return UDS_ERR_INVALID_ARG;
+    }
+    uintptr_t val = 0;
+    for (size_t i = 0; i < n; i++) {
+        val = (val << 8) | src[i];
+    }
+    *dst = val;
+    return UDS_OK;
+}
+
+/**
+ * @brief Unpack up to 4 big-endian bytes from src into dst as uint32_t.
+ * @param src buffer
+ * @param dst pointer to destination
+ * @param n ranges from 0 to 4 inclusive
+ * @return UDS_OK if successful
+ */
+static inline UDSErr_t UnpackBEu32(const uint8_t *src, uint32_t *dst, size_t n) {
+    if (NULL == src || NULL == dst || n > sizeof(*dst)) {
+        return UDS_ERR_INVALID_ARG;
+    }
+    uint32_t val = 0;
+    for (size_t i = 0; i < n; i++) {
+        val = (val << 8) | src[i];
+    }
+    *dst = val;
+    return UDS_OK;
 }
 
 /// returns true if a security level is reserved per ISO14229-1:2020 Table 42
@@ -38,6 +89,13 @@ bool UDSErrIsNRC(UDSErr_t err);
 #ifdef UDS_LINES
 #line 1 "src/client.c"
 #endif
+
+
+
+
+
+
+
 #include <stdint.h>
 
 /**
@@ -185,7 +243,7 @@ static UDSErr_t HandleServerResponse(UDSClient_t *client) {
 
             uint16_t p2 =
                 (uint16_t)(((uint16_t)client->recv_buf[2] << 8) | (uint16_t)client->recv_buf[3]);
-            uint32_t p2_star = ((client->recv_buf[4] << 8) + client->recv_buf[5]) * 10;
+            uint32_t p2_star = (uint32_t)((client->recv_buf[4] << 8) + client->recv_buf[5]) * 10U;
             UDS_LOGI(__FILE__, "received new timings: p2: %" PRIu16 ", p2*: %" PRIu32, p2, p2_star);
             client->p2_ms = p2;
             client->p2_star_ms = p2_star;
@@ -210,7 +268,7 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
         return UDS_ERR_MISUSE;
     }
 
-    UDSTpStatus_t tp_status = UDSTpPoll(client->tp);
+    UDSTpPoll(client->tp);
     switch (client->state) {
     case STATE_IDLE: {
         client->options = client->defaultOptions;
@@ -218,39 +276,37 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
     }
     case STATE_SENDING: {
         {
+            // warn if anything is received. TODO (easy): make into a function
+            // While sending, we expect that nothing should be received,
+            // but sometimes data is received due to e.g. misconfiguration.
             UDSSDU_t info = {0};
-            UDSTpSize_t len =
-                UDSTpRecv(client->tp, client->recv_buf, sizeof(client->recv_buf), &info);
-            if (len < 0) {
-                UDS_LOGE(__FILE__, "transport returned error %" PRId32, len);
-            } else if (len == 0) {
+            size_t recvlen = 0;
+            UDSErr_t err =
+                UDSTpRecv(client->tp, client->recv_buf, sizeof(client->recv_buf), &recvlen, &info);
+            if (UDS_OK != err) {
+                UDS_LOGE(__FILE__, "transport returned error %s", UDSErrToStr(err));
+            } else if (recvlen == 0) {
                 ; // expected
             } else {
-                UDS_LOGW(__FILE__, "received %" PRId32 " unexpected bytes:", len);
-                UDS_LOG_SDU(__FILE__, client->recv_buf, len, &info);
+                UDS_LOGW(__FILE__, "received %zd unexpected bytes:", recvlen);
+                UDS_LOG_SDU(__FILE__, client->recv_buf, recvlen, &info);
             }
         }
 
         memset(client->recv_buf, 0, sizeof(client->recv_buf));
         client->recv_size = 0;
 
-        UDSTpAddr_t ta_type = client->_options_copy & UDS_FUNCTIONAL ? UDS_A_TA_TYPE_FUNCTIONAL
-                                                                     : UDS_A_TA_TYPE_PHYSICAL;
+        UDS_A_TA_Type_t ta_type = client->_options_copy & UDS_FUNCTIONAL ? UDS_A_TA_TYPE_FUNCTIONAL
+                                                                         : UDS_A_TA_TYPE_PHYSICAL;
         UDSSDU_t info = {
             .A_Mtype = UDS_A_MTYPE_DIAG,
             .A_TA_Type = ta_type,
         };
-        UDSTpSize_t ret = UDSTpSend(client->tp, client->send_buf, client->send_size, &info);
-        if (ret < 0) {
-            err = UDS_ERR_TPORT;
-            UDS_LOGI(__FILE__, "tport err: %" PRId32, ret);
-        } else if (0 == ret) {
-            UDS_LOGI(__FILE__, "send in progress...");
-            ; // Waiting for send completion
-        } else if (client->send_size == ret) {
-            changeState(client, STATE_AWAIT_SEND_COMPLETE);
+        err = UDSTpSend(client->tp, client->send_buf, client->send_size, &info);
+        if (UDS_OK != err) {
+            UDS_LOGE(__FILE__, "tport err: %s", UDSErrToStr(err));
         } else {
-            err = UDS_ERR_BUFSIZ;
+            changeState(client, STATE_AWAIT_SEND_COMPLETE);
         }
         break;
     }
@@ -260,7 +316,7 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
             // Specification of Diagnostic Communication (Diagnostic on CAN - Network Layer)
             changeState(client, STATE_IDLE);
         }
-        if (tp_status & UDS_TP_SEND_IN_PROGRESS) {
+        if (client->tp->status.is_sending) {
             ; // await send complete
         } else {
             client->fn(client, UDS_EVT_SendComplete, NULL);
@@ -275,21 +331,20 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
     }
     case STATE_AWAIT_RESPONSE: {
         UDSSDU_t info = {0};
-
-        UDSTpSize_t len = UDSTpRecv(client->tp, client->recv_buf, sizeof(client->recv_buf), &info);
-        if (len < 0) {
-            err = UDS_ERR_TPORT;
+        size_t recvlen = 0;
+        err = UDSTpRecv(client->tp, client->recv_buf, sizeof(client->recv_buf), &recvlen, &info);
+        if (UDS_OK != err) {
             changeState(client, STATE_IDLE);
-        } else if (0 == len) {
+        } else if (0 == recvlen) {
             if (UDSTimeAfter(UDSMillis(), client->p2_timer)) {
                 UDS_LOGI(__FILE__, "p2 timeout");
                 err = UDS_ERR_TIMEOUT;
                 changeState(client, STATE_IDLE);
             }
         } else {
-            UDS_LOGD(__FILE__, "received %" PRId32 " bytes. Processing...", len);
-            UDS_ASSERT(len <= (UDSTpSize_t)UINT16_MAX);
-            client->recv_size = (uint16_t)len;
+            UDS_LOGD(__FILE__, "received %zd bytes. Processing...", recvlen);
+            UDS_ASSERT(len <= (UDSTpSsize_t)UINT16_MAX);
+            client->recv_size = recvlen;
 
             err = ValidateServerResponse(client);
             if (UDS_OK == err) {
@@ -675,7 +730,7 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, uint8_t mode, const cha
     size_t bufSizeRequired = SIZE_MAX;
     client->send_buf[0] = kSID_REQUEST_FILE_TRANSFER; // Request SID
     client->send_buf[1] = mode;                       // modeOfOperation
-    StoreBE(&client->send_buf[2], n_filePathLen, 2);  // filePathAndNameLength
+    PackBE(&client->send_buf[2], n_filePathLen, 2);   // filePathAndNameLength
 
     switch (mode) {
     case UDS_MOOP_ADDFILE: // 1
@@ -686,10 +741,10 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, uint8_t mode, const cha
         memmove(&client->send_buf[4], filePath, n_filePathLen); // filePathAndName
         client->send_buf[4 + n_filePathLen] = client->cfg_data_format_identifier;
         client->send_buf[5 + n_filePathLen] = client->cfg_file_size_parameter_length;
-        StoreBE(&client->send_buf[6 + n_filePathLen], fileSizeUncompressed,
-                client->cfg_file_size_parameter_length);
-        StoreBE(&client->send_buf[6 + n_filePathLen + client->cfg_file_size_parameter_length],
-                fileSizeCompressed, client->cfg_file_size_parameter_length);
+        PackBE(&client->send_buf[6 + n_filePathLen], fileSizeUncompressed,
+               client->cfg_file_size_parameter_length);
+        PackBE(&client->send_buf[6 + n_filePathLen + client->cfg_file_size_parameter_length],
+               fileSizeCompressed, client->cfg_file_size_parameter_length);
         break;
     case UDS_MOOP_DELFILE: // 2
         bufSizeRequired = 4 + n_filePathLen + 1;
@@ -706,10 +761,10 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, uint8_t mode, const cha
         memmove(&client->send_buf[4], filePath, n_filePathLen); // filePathAndName
         client->send_buf[4 + n_filePathLen] = client->cfg_data_format_identifier;
         client->send_buf[5 + n_filePathLen] = client->cfg_file_size_parameter_length;
-        StoreBE(&client->send_buf[6 + n_filePathLen], fileSizeUncompressed,
-                client->cfg_file_size_parameter_length);
-        StoreBE(&client->send_buf[6 + n_filePathLen + client->cfg_file_size_parameter_length],
-                fileSizeCompressed, client->cfg_file_size_parameter_length);
+        PackBE(&client->send_buf[6 + n_filePathLen], fileSizeUncompressed,
+               client->cfg_file_size_parameter_length);
+        PackBE(&client->send_buf[6 + n_filePathLen + client->cfg_file_size_parameter_length],
+               fileSizeCompressed, client->cfg_file_size_parameter_length);
         break;
     case UDS_MOOP_RDFILE: // 4
         bufSizeRequired = 4 + n_filePathLen + 1;
@@ -734,10 +789,10 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, uint8_t mode, const cha
         memmove(&client->send_buf[4], filePath, n_filePathLen); // filePathAndName
         client->send_buf[4 + n_filePathLen] = client->cfg_data_format_identifier;
         client->send_buf[5 + n_filePathLen] = client->cfg_file_size_parameter_length;
-        StoreBE(&client->send_buf[6 + n_filePathLen], fileSizeUncompressed,
-                client->cfg_file_size_parameter_length);
-        StoreBE(&client->send_buf[6 + n_filePathLen + client->cfg_file_size_parameter_length],
-                fileSizeCompressed, client->cfg_file_size_parameter_length);
+        PackBE(&client->send_buf[6 + n_filePathLen], fileSizeUncompressed,
+               client->cfg_file_size_parameter_length);
+        PackBE(&client->send_buf[6 + n_filePathLen + client->cfg_file_size_parameter_length],
+               fileSizeCompressed, client->cfg_file_size_parameter_length);
         break;
     default:
         UDS_ASSERT(0);
@@ -886,7 +941,7 @@ UDSErr_t UDSUnpackRoutineControlResponse(const UDSClient_t *client,
 }
 
 /**
- * @brief
+ * @brief Validates and parses server's response to RequestDownload.
  *
  * @param client
  * @param resp
@@ -904,18 +959,19 @@ UDSErr_t UDSUnpackRequestDownloadResponse(const UDSClient_t *client,
     if (client->recv_size < UDS_0X34_RESP_BASE_LEN) {
         return UDS_ERR_RESP_TOO_SHORT;
     }
-    uint8_t maxNumberOfBlockLengthSize = (client->recv_buf[1] & 0xF0) >> 4;
+    uint8_t mnrobSize = (client->recv_buf[1] & 0xF0) >> 4;
+    UDS_ASSERT(mnrobSize <= 15);
 
-    if (sizeof(resp->maxNumberOfBlockLength) < maxNumberOfBlockLengthSize) {
-        UDS_LOGI(__FILE__, "WARNING: sizeof(maxNumberOfBlockLength) > sizeof(size_t)");
-        return UDS_FAIL;
+    if (client->recv_size < 2 + mnrobSize) {
+        return UDS_ERR_RESP_TOO_SHORT;
     }
-    resp->maxNumberOfBlockLength = 0;
-    for (uint8_t byteIdx = 0; byteIdx < maxNumberOfBlockLengthSize; byteIdx++) {
-        uint8_t byte = client->recv_buf[UDS_0X34_RESP_BASE_LEN + byteIdx];
-        uint8_t shiftBytes = maxNumberOfBlockLengthSize - 1 - byteIdx;
-        resp->maxNumberOfBlockLength |= byte << (8 * shiftBytes);
+
+    UDSErr_t err =
+        UnpackBEu32(&client->recv_buf[UDS_0X34_RESP_BASE_LEN], &resp->maxBlockLength, mnrobSize);
+    if (err) {
+        return err;
     }
+
     return UDS_OK;
 }
 
@@ -970,6 +1026,13 @@ UDSErr_t UDSUnpackRDBIResponse(UDSClient_t *client, UDSRDBIVar_t *vars, uint16_t
 #ifdef UDS_LINES
 #line 1 "src/server.c"
 #endif
+
+
+
+
+
+
+
 #include <stdint.h>
 
 static inline UDSErr_t NegativeResponse(UDSReq_t *r, UDSErr_t nrc) {
@@ -1431,9 +1494,8 @@ static UDSErr_t Handle_0x22_ReadDataByIdentifier(UDSServer_t *srv, UDSReq_t *r) 
 }
 
 /**
- * @brief decode the addressAndLengthFormatIdentifier that appears in
- * DynamicallyDefineDataIdentifier (0x2C). This must be handled separatedly because the
- * format identifier is not directly above the memory address and length.
+ * @brief decodes addressAndLength at a nonzero offset within the receive buffer.
+ * @see ISO 14229-1:2020(E) Annex H
  *
  * @param srv
  * @param buf pointer to addressAndDataLengthFormatIdentifier in recv_buf
@@ -1442,9 +1504,8 @@ static UDSErr_t Handle_0x22_ReadDataByIdentifier(UDSServer_t *srv, UDSReq_t *r) 
  * @param offset how many elements (addres and size pairs) away from the format identifier
  * @return uint8_t
  */
-static UDSErr_t decodeAddressAndLengthWithOffset(UDSReq_t *r, uint8_t *const buf,
-                                                 void **memoryAddress, size_t *memorySize,
-                                                 size_t offset) {
+static UDSErr_t decodeAddressAndLengthAt(UDSReq_t *r, uint8_t *const buf, void **memoryAddress,
+                                         size_t *memorySize, size_t offset) {
     UDS_ASSERT(r);
     UDS_ASSERT(memoryAddress);
     UDS_ASSERT(memorySize);
@@ -1475,24 +1536,22 @@ static UDSErr_t decodeAddressAndLengthWithOffset(UDSReq_t *r, uint8_t *const buf
         return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
-    for (int byteIdx = 0; byteIdx < memoryAddressLength; byteIdx++) {
-        long long unsigned int byte = buf[1 + offsetBytes + byteIdx];
-        uint8_t shiftBytes = (uint8_t)(memoryAddressLength - 1 - byteIdx);
-        tmp |= byte << (8 * shiftBytes);
+    UDSErr_t err = UnpackBEuintptr(&buf[1 + offsetBytes], &tmp, memoryAddressLength);
+    if (err) {
+        return err;
     }
     *memoryAddress = (void *)tmp;
 
-    for (int byteIdx = 0; byteIdx < memorySizeLength; byteIdx++) {
-        uint8_t byte = buf[1 + offsetBytes + memoryAddressLength + byteIdx];
-        uint8_t shiftBytes = (uint8_t)(memorySizeLength - 1 - byteIdx);
-        *memorySize |= (size_t)byte << (8 * shiftBytes);
+    err = UnpackBEsize(&buf[1 + offsetBytes + memoryAddressLength], memorySize, memorySizeLength);
+    if (err) {
+        return err;
     }
+
     return UDS_PositiveResponse;
 }
 
 /**
- * @brief decode the addressAndLengthFormatIdentifier that appears in ReadMemoryByAddress (0x23)
- * and RequestDownload (0X34)
+ * @brief decode the addressAndLengthFormatIdentifier
  *
  * @param srv
  * @param buf pointer to addressAndDataLengthFormatIdentifier in recv_buf
@@ -1502,7 +1561,7 @@ static UDSErr_t decodeAddressAndLengthWithOffset(UDSReq_t *r, uint8_t *const buf
  */
 static UDSErr_t decodeAddressAndLength(UDSReq_t *r, uint8_t *const buf, void **memoryAddress,
                                        size_t *memorySize) {
-    return decodeAddressAndLengthWithOffset(r, buf, memoryAddress, memorySize, 0);
+    return decodeAddressAndLengthAt(r, buf, memoryAddress, memorySize, 0);
 }
 
 static UDSErr_t Handle_0x23_ReadMemoryByAddress(UDSServer_t *srv, UDSReq_t *r) {
@@ -1734,9 +1793,9 @@ static UDSErr_t Handle_0x2C_DynamicDefineDataIdentifier(UDSServer_t *srv, UDSReq
         size_t numAddrs = (r->recv_len - 5) / bytesPerAddrAndSize;
 
         for (size_t i = 0; i < numAddrs; i++) {
-            ret = decodeAddressAndLengthWithOffset(r, &r->recv_buf[4],
-                                                   &args.subFuncArgs.defineByMemAddress.memAddr,
-                                                   &args.subFuncArgs.defineByMemAddress.memSize, i);
+            ret = decodeAddressAndLengthAt(r, &r->recv_buf[4],
+                                           &args.subFuncArgs.defineByMemAddress.memAddr,
+                                           &args.subFuncArgs.defineByMemAddress.memSize, i);
 
             if (UDS_PositiveResponse != ret) {
                 return NegativeResponse(r, ret);
@@ -1992,8 +2051,8 @@ static UDSErr_t Handle_0x35_RequestUpload(UDSServer_t *srv, UDSReq_t *r) {
 
     r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_REQUEST_UPLOAD);
     r->send_buf[1] = lengthFormatIdentifier;
-    StoreBE(&r->send_buf[UDS_0X35_RESP_BASE_LEN], args.maxNumberOfBlockLength,
-            sizeof(args.maxNumberOfBlockLength));
+    PackBE(&r->send_buf[UDS_0X35_RESP_BASE_LEN], args.maxNumberOfBlockLength,
+           sizeof(args.maxNumberOfBlockLength));
     r->send_len = UDS_0X35_RESP_BASE_LEN + (size_t)sizeof(args.maxNumberOfBlockLength);
     return UDS_PositiveResponse;
 }
@@ -2113,7 +2172,7 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
         goto done;
     }
 
-    const uint16_t file_path_len = (uint16_t)LoadBE(&r->recv_buf[2], 2);
+    const uint16_t file_path_len = (uint16_t)((r->recv_buf[2] << 8) + (r->recv_buf[3]));
     uint8_t data_format_identifier = 0;
     uint8_t file_size_parameter_length = 0; // also called "k" in ISO14229:2020
     size_t file_size_uncompressed = 0;
@@ -2208,8 +2267,8 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
     r->send_len = 3;
 
     // A_Data bytes 4 to 4+m-1: maxNumberOfBlockLength
-    StoreBE(&r->send_buf[r->send_len], args.maxNumberOfBlockLength,
-            sizeof(args.maxNumberOfBlockLength));
+    PackBE(&r->send_buf[r->send_len], args.maxNumberOfBlockLength,
+           sizeof(args.maxNumberOfBlockLength));
     r->send_len += (size_t)sizeof(args.maxNumberOfBlockLength);
 
     // daataFormatIdentifier: 0 if ReadDir
@@ -2221,20 +2280,20 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
         // pass
     } else {
         // fileSizeOrDirInfoParameterLength
-        StoreBE(&r->send_buf[r->send_len], sizeof(args.fileSizeUnCompressed), 2);
+        PackBE(&r->send_buf[r->send_len], sizeof(args.fileSizeUnCompressed), 2);
         r->send_len += 2;
 
         // fileSizeUncompressedOrDirInfoLength
-        StoreBE(&r->send_buf[r->send_len], args.fileSizeUnCompressed,
-                sizeof(args.fileSizeUnCompressed));
+        PackBE(&r->send_buf[r->send_len], args.fileSizeUnCompressed,
+               sizeof(args.fileSizeUnCompressed));
         r->send_len += sizeof(args.fileSizeUnCompressed);
 
         if (mode_of_operation == UDS_MOOP_RDDIR) {
             // pass
         } else {
             // fileSizeCompressed
-            StoreBE(&r->send_buf[r->send_len], args.fileSizeCompressed,
-                    sizeof(args.fileSizeCompressed));
+            PackBE(&r->send_buf[r->send_len], args.fileSizeCompressed,
+                   sizeof(args.fileSizeCompressed));
             r->send_len += sizeof(args.fileSizeCompressed);
         }
     }
@@ -2245,7 +2304,7 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
         // pass
     } else {
         // filePosition
-        StoreBE(&r->send_buf[r->send_len], args.filePosition, sizeof(args.filePosition));
+        PackBE(&r->send_buf[r->send_len], args.filePosition, sizeof(args.filePosition));
         r->send_len += sizeof(args.filePosition);
     }
 
@@ -2573,6 +2632,7 @@ UDSErr_t UDSServerInit(UDSServer_t *srv) {
 }
 
 void UDSServerPoll(UDSServer_t *srv) {
+
     // UDS-1-2013 Figure 38: Session Timeout (S3)
     if (UDS_LEV_DS_DS != srv->sessionType &&
         UDSTimeAfter(UDSMillis(), srv->s3_session_timeout_timer)) {
@@ -2609,16 +2669,14 @@ void UDSServerPoll(UDSServer_t *srv) {
         }
 
         if (UDSTimeAfter(UDSMillis(), srv->p2_timer)) {
-            UDSTpSize_t ret = 0;
-            if (r->send_len) {
-                ret = UDSTpSend(srv->tp, r->send_buf, (UDSTpSize_t)r->send_len, NULL);
-            }
 
-            // TODO test injection of transport errors:
-            if (ret < 0) {
-                UDSErr_t err = UDS_ERR_TPORT;
-                EmitEvent(srv, UDS_EVT_Err, &err);
-                UDS_LOGE(__FILE__, "UDSTpSend failed with %" PRId32 "\n", ret);
+            if (r->send_len) {
+                UDSErr_t err = UDS_OK;
+                err = UDSTpSend(srv->tp, r->send_buf, r->send_len, NULL);
+                if (UDS_OK != err) {
+                    EmitEvent(srv, UDS_EVT_Err, &err);
+                    UDS_LOGE(__FILE__, "UDSTpSend failed with %s", UDSErrToStr(err));
+                }
             }
 
             if (srv->RCRRP) {
@@ -2636,13 +2694,13 @@ void UDSServerPoll(UDSServer_t *srv) {
         if (srv->notReadyToReceive) {
             return; // cannot respond to request right now
         }
-        UDSTpSize_t len = UDSTpRecv(srv->tp, r->recv_buf, sizeof(r->recv_buf), &r->info);
-        if (len < 0) {
-            UDS_LOGE(__FILE__, "UDSTpRecv failed with %zd\n", r->recv_len);
+        size_t recvlen = 0;
+        UDSErr_t err = UDSTpRecv(srv->tp, r->recv_buf, sizeof(r->recv_buf), &recvlen, &r->info);
+        if (UDS_OK != err) {
+            UDS_LOGE(__FILE__, "UDSTpRecv failed with %s\n", UDSErrToStr(err));
             return;
         }
-
-        r->recv_len = (size_t)len;
+        r->recv_len = recvlen;
 
         if (r->recv_len > 0) {
             UDSErr_t response = evaluateServiceResponse(srv, r);
@@ -2659,27 +2717,39 @@ void UDSServerPoll(UDSServer_t *srv) {
 #line 1 "src/tp.c"
 #endif
 
-UDSTpSize_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, UDSTpSize_t len, const UDSSDU_t *info) {
-    UDS_ASSERT(hdl);
-    UDS_ASSERT(hdl->send);
+
+
+
+UDSErr_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, const size_t len, const UDSSDU_t *info) {
+    if (NULL == hdl || NULL == hdl->send) {
+        return UDS_ERR_INVALID_ARG;
+    }
     return hdl->send(hdl, (uint8_t *)buf, len, info);
 }
 
-UDSTpSize_t UDSTpRecv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
-    UDS_ASSERT(hdl);
-    UDS_ASSERT(hdl->recv);
-    return hdl->recv(hdl, buf, bufsize, info);
+UDSErr_t UDSTpRecv(UDSTp_t *hdl, uint8_t *buf, const size_t bufsiz, size_t *recvlen,
+                       UDSSDU_t *info) {
+    if (NULL == hdl || NULL == hdl->recv || NULL == recvlen) {
+        return UDS_ERR_INVALID_ARG;
+    }
+    return hdl->recv(hdl, buf, bufsiz, recvlen, info);
 }
 
-UDSTpStatus_t UDSTpPoll(UDSTp_t *hdl) {
-    UDS_ASSERT(hdl);
-    UDS_ASSERT(hdl->poll);
-    return hdl->poll(hdl);
+void UDSTpPoll(UDSTp_t *hdl) {
+    if (NULL == hdl || NULL == hdl->poll) {
+        return;
+    }
+    hdl->poll(hdl);
 }
+
 
 #ifdef UDS_LINES
 #line 1 "src/util.c"
 #endif
+
+
+
+
 
 #if defined(UDS_CUSTOM_MILLIS)
 // the user is expected to provide a UDSMillis implementation
@@ -2996,6 +3066,8 @@ bool UDSErrIsNRC(UDSErr_t err) {
 #ifdef UDS_LINES
 #line 1 "src/log.c"
 #endif
+
+
 #include <stdio.h>
 #include <stdarg.h>
 
@@ -3009,10 +3081,10 @@ void UDS_LogWrite(UDS_LogLevel_t level, const char *tag, const char *format, ...
     va_end(list);
 }
 
-void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *buffer,
-                        UDSTpSize_t buff_len, const UDSSDU_t *info) {
+void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *buffer, size_t buflen,
+                        const UDSSDU_t *info) {
     (void)info;
-    for (unsigned i = 0; i < buff_len; i++) {
+    for (size_t i = 0; i < buflen; i++) {
         UDS_LogWrite(level, tag, "%02x ", buffer[i]);
     }
     UDS_LogWrite(level, tag, "\n");
@@ -3026,24 +3098,32 @@ void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *bu
 #if defined(UDS_TP_ISOTP_C)
 
 
-static UDSTpStatus_t tp_poll(UDSTp_t *hdl) {
-    UDS_ASSERT(hdl);
-    UDSTpStatus_t status = 0;
+
+
+
+
+
+
+static void tp_poll(UDSTp_t *hdl) {
     UDSTpISOTpC_t *impl = (UDSTpISOTpC_t *)hdl;
     isotp_poll(&impl->phys_link);
     isotp_poll(&impl->func_link);
-    if (impl->phys_link.send_status == ISOTP_SEND_STATUS_INPROGRESS) {
-        status |= UDS_TP_SEND_IN_PROGRESS;
+    if (ISOTP_SEND_STATUS_INPROGRESS == impl->phys_link.send_status) {
+        hdl->status.is_sending = 1;
+    } else {
+        hdl->status.is_sending = 0;
     }
-    return status;
 }
 
-static UDSTpSize_t tp_send(UDSTp_t *hdl, const uint8_t *buf, size_t len, const UDSSDU_t *info) {
-    UDS_ASSERT(hdl);
-    UDSTpSize_t ret = -1;
+static UDSErr_t tp_send(UDSTp_t *hdl, const uint8_t *buf, size_t len, const UDSSDU_t *info) {
     UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
     IsoTpLink *link = NULL;
-    const UDSTpAddr_t ta_type = info ? info->A_TA_Type : UDS_A_TA_TYPE_PHYSICAL;
+    const UDS_A_TA_Type_t ta_type = info ? info->A_TA_Type : UDS_A_TA_TYPE_PHYSICAL;
+
+    if (len > UINT32_MAX) {
+        return UDS_FAIL;
+    }
+
     switch (ta_type) {
     case UDS_A_TA_TYPE_PHYSICAL:
         link = &tp->phys_link;
@@ -3051,66 +3131,92 @@ static UDSTpSize_t tp_send(UDSTp_t *hdl, const uint8_t *buf, size_t len, const U
     case UDS_A_TA_TYPE_FUNCTIONAL:
         link = &tp->func_link;
         if (len > 7) {
-            UDS_LOGI(__FILE__, "Cannot send more than 7 bytes via functional addressing\n");
-            ret = -3;
-            goto done;
+            UDS_LOGE(__FILE__, "Cannot send more than 7 bytes via functional addressing");
+            return UDS_ERR_MISUSE;
         }
         break;
     default:
-        ret = -4;
-        goto done;
+        UDS_LOGE(__FILE__, "unknown UDS_A_TA_TYPE");
+        return UDS_ERR_MISUSE;
     }
 
-    int send_status = isotp_send(link, buf, len);
-    switch (send_status) {
-    case ISOTP_RET_OK:
-        ret = len;
-        goto done;
+    int ret = isotp_send(link, buf, (uint32_t)len);
+    switch (ret) {
+    case ISOTP_RET_OK: {
+        return UDS_OK;
+    }
     case ISOTP_RET_INPROGRESS:
     case ISOTP_RET_OVERFLOW:
     default:
-        ret = send_status;
-        goto done;
+        return UDS_ERR_TPORT;
     }
-done:
-    return ret;
 }
 
-static UDSTpSize_t tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
-    UDS_ASSERT(hdl);
-    UDS_ASSERT(buf);
-    uint16_t out_size = 0;
-    UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
+static inline UDSErr_t safe_api_shim_isotp_receive(
+    IsoTpLink* link, 
+    uint8_t* payload, 
+    const size_t payload_size, // size of payload buffer
+    size_t* out_size,
+    int *isotp_ret
+) {
+    if (payload_size > sizeof(uint32_t)) { // sizeof(isotp_receive payload_size) arg
+        return UDS_FAIL;
+    }
+    if (sizeof(*out_size) > sizeof(uint32_t)) { // sizeof(isotp_receive *out_size) arg
+        return UDS_FAIL;
+    }
+    uint32_t u32out_size = 0;
+    *isotp_ret = isotp_receive(link, payload, (uint32_t)payload_size, &u32out_size) ;
 
-    int ret = isotp_receive(&tp->phys_link, buf, bufsize, &out_size);
-    if (ret == ISOTP_RET_OK) {
-        UDS_LOGI(__FILE__, "phys link received %d bytes", out_size);
+    if (u32out_size > sizeof(*out_size)) {
+        return UDS_FAIL;
+    }
+    *out_size = u32out_size;
+    return UDS_OK;
+}
+
+static UDSErr_t tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsiz, size_t *recvlen,
+                            UDSSDU_t *info) {
+    UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
+    int ret = 0;
+    UDSErr_t err = UDS_OK;
+
+    err = safe_api_shim_isotp_receive(&tp->phys_link, buf, bufsiz, recvlen, &ret);
+    if (UDS_OK != err) {
+        goto done;
+    }
+    if (ISOTP_RET_OK == ret) {
+        UDS_LOGI(__FILE__, "phys link received %zd bytes", *recvlen);
         if (NULL != info) {
             info->A_TA = tp->phys_sa;
             info->A_SA = tp->phys_ta;
             info->A_TA_Type = UDS_A_TA_TYPE_PHYSICAL;
         }
-    } else if (ret == ISOTP_RET_NO_DATA) {
-        ret = isotp_receive(&tp->func_link, buf, bufsize, &out_size);
-        if (ret == ISOTP_RET_OK) {
-            UDS_LOGI(__FILE__, "func link received %d bytes", out_size);
+    } else if (ISOTP_RET_NO_DATA == ret) {
+        err = safe_api_shim_isotp_receive(&tp->func_link, buf, bufsiz, recvlen, &ret);
+        if (UDS_OK != err) {
+            goto done;
+        }
+        if (ISOTP_RET_OK == ret) {
+            UDS_LOGI(__FILE__, "func link received %zd bytes", *recvlen);
             if (NULL != info) {
                 info->A_TA = tp->func_sa;
                 info->A_SA = tp->func_ta;
                 info->A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL;
             }
-        } else if (ret == ISOTP_RET_NO_DATA) {
-            return 0;
+        } else if (ISOTP_RET_NO_DATA == ret) {
+            goto done;
         } else {
             UDS_LOGE(__FILE__, "unhandled return code from func link %d\n", ret);
         }
     } else {
         UDS_LOGE(__FILE__, "unhandled return code from phys link %d\n", ret);
     }
-    return out_size;
+    done:
+    return err;
 }
 
-static UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t sa, uint32_t ta, uint32_t sa_func,
+UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t sa, uint32_t ta, uint32_t sa_func,
                                 uint32_t ta_func) {
     if (tp == NULL) {
         return UDS_ERR_INVALID_ARG;
@@ -3147,6 +3253,10 @@ UDSErr_t UDSClientTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t target_addr, uint32_t
 #line 1 "src/tp/isotp_c_socketcan.c"
 #endif
 #if defined(UDS_TP_ISOTP_C_SOCKETCAN)
+
+
+
+
 
 #include <linux/can.h>
 #include <linux/can/raw.h>
@@ -3219,7 +3329,7 @@ int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t *data, cons
 static void SocketCANRecv(UDSTpISOTpCSocketCAN_t *tp) {
     UDS_ASSERT(tp);
     struct can_frame frame = {0};
-    int nbytes = 0;
+    ssize_t nbytes = 0;
 
     for (;;) {
         nbytes = read(tp->fd, &frame, sizeof(struct can_frame));
@@ -3232,138 +3342,49 @@ static void SocketCANRecv(UDSTpISOTpCSocketCAN_t *tp) {
         } else if (nbytes == 0) {
             break;
         } else {
-            if (frame.can_id == tp->phys_sa) {
-                isotp_on_can_message(&tp->phys_link, frame.data, frame.can_dlc);
-            } else if (frame.can_id == tp->func_sa) {
-                if (ISOTP_RECEIVE_STATUS_IDLE != tp->phys_link.receive_status) {
+            if (frame.can_id == tp->hdl2.phys_sa) {
+                isotp_on_can_message(&tp->hdl2.phys_link, frame.data, frame.can_dlc);
+            } else if (frame.can_id == tp->hdl2.func_sa) {
+                if (ISOTP_RECEIVE_STATUS_IDLE != tp->hdl2.phys_link.receive_status) {
                     UDS_LOGI(__FILE__,
                              "func frame received but cannot process because link is not idle");
                     return;
                 }
                 // TODO: reject if it's longer than a single frame
-                isotp_on_can_message(&tp->func_link, frame.data, frame.can_dlc);
+                isotp_on_can_message(&tp->hdl2.func_link, frame.data, frame.can_dlc);
             }
         }
     }
 }
 
-static UDSTpStatus_t isotp_c_socketcan_tp_poll(UDSTp_t *hdl) {
-    UDS_ASSERT(hdl);
-    UDSTpStatus_t status = 0;
-    UDSTpISOTpCSocketCAN_t *impl = (UDSTpISOTpCSocketCAN_t *)hdl;
-    SocketCANRecv(impl);
-    isotp_poll(&impl->phys_link);
-    if (impl->phys_link.send_status == ISOTP_SEND_STATUS_INPROGRESS) {
-        status |= UDS_TP_SEND_IN_PROGRESS;
-    }
-    if (impl->phys_link.send_status == ISOTP_SEND_STATUS_ERROR) {
-        status |= UDS_TP_ERR;
-    }
-    return status;
-}
-
-static UDSTpSize_t isotp_c_socketcan_tp_send(UDSTp_t *hdl, const uint8_t *buf, size_t len,
-                                             const UDSSDU_t *info) {
-    UDS_ASSERT(hdl);
-    UDSTpSize_t ret = -1;
-    UDSTpISOTpCSocketCAN_t *tp = (UDSTpISOTpCSocketCAN_t *)hdl;
-    IsoTpLink *link = NULL;
-    const UDSTpAddr_t ta_type = info ? info->A_TA_Type : UDS_A_TA_TYPE_PHYSICAL;
-    const uint32_t ta = ta_type == UDS_A_TA_TYPE_PHYSICAL ? tp->phys_ta : tp->func_ta;
-    switch (ta_type) {
-    case UDS_A_TA_TYPE_PHYSICAL:
-        link = &tp->phys_link;
-        break;
-    case UDS_A_TA_TYPE_FUNCTIONAL:
-        link = &tp->func_link;
-        if (len > 7) {
-            UDS_LOGI(__FILE__, "Cannot send more than 7 bytes via functional addressing");
-            ret = -3;
-            goto done;
-        }
-        break;
-    default:
-        ret = -4;
-        goto done;
-    }
-
-    int send_status = isotp_send(link, buf, len);
-    switch (send_status) {
-    case ISOTP_RET_OK:
-        ret = len;
-        goto done;
-    case ISOTP_RET_INPROGRESS:
-    case ISOTP_RET_OVERFLOW:
-    default:
-        ret = send_status;
-        goto done;
-    }
-done:
-    UDS_LOGD(__FILE__, "'%s' sends %ld bytes to 0x%03x (%s)", tp->tag, len, ta,
-             ta_type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
-    UDS_LOG_SDU(__FILE__, buf, len, info);
-    return ret;
-}
-
-static UDSTpSize_t isotp_c_socketcan_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize,
-                                             UDSSDU_t *info) {
-    UDS_ASSERT(hdl);
-    UDS_ASSERT(buf);
-    uint16_t out_size = 0;
-    UDSTpISOTpCSocketCAN_t *tp = (UDSTpISOTpCSocketCAN_t *)hdl;
-
-    int ret = isotp_receive(&tp->phys_link, buf, bufsize, &out_size);
-    if (ret == ISOTP_RET_OK) {
-        UDS_LOGI(__FILE__, "phys link received %d bytes", out_size);
-        if (NULL != info) {
-            info->A_TA = tp->phys_sa;
-            info->A_SA = tp->phys_ta;
-            info->A_TA_Type = UDS_A_TA_TYPE_PHYSICAL;
-        }
-    } else if (ret == ISOTP_RET_NO_DATA) {
-        ret = isotp_receive(&tp->func_link, buf, bufsize, &out_size);
-        if (ret == ISOTP_RET_OK) {
-            UDS_LOGI(__FILE__, "func link received %d bytes", out_size);
-            if (NULL != info) {
-                info->A_TA = tp->func_sa;
-                info->A_SA = tp->func_ta;
-                info->A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL;
-            }
-        } else if (ret == ISOTP_RET_NO_DATA) {
-            return 0;
-        } else {
-            UDS_LOGE(__FILE__, "unhandled return code from func link %d\n", ret);
-        }
-    } else {
-        UDS_LOGE(__FILE__, "unhandled return code from phys link %d\n", ret);
-    }
-    return out_size;
-}
 
 UDSErr_t UDSTpISOTpCSocketCANInit(UDSTpISOTpCSocketCAN_t *tp, const char *ifname,
                                   uint32_t source_addr, uint32_t target_addr,
                                   uint32_t source_addr_func, uint32_t target_addr_func) {
-    UDS_ASSERT(tp);
-    UDS_ASSERT(ifname);
-    tp->hdl.poll = isotp_c_socketcan_tp_poll;
-    tp->hdl.send = isotp_c_socketcan_tp_send;
-    tp->hdl.recv = isotp_c_socketcan_tp_recv;
-    tp->phys_sa = source_addr;
-    tp->phys_ta = target_addr;
-    tp->func_sa = source_addr_func;
-    tp->func_ta = target_addr;
+    UDSErr_t err = UDS_OK;
+
+    UDSTpISOTpCInit(&tp->hdl2, source_addr, target_addr, source_addr_func, target_addr_func);
+    if (err) {
+        return err;
+    }
     tp->fd = SetupSocketCAN(ifname);
-
-    isotp_init_link(&tp->phys_link, target_addr, tp->send_buf, sizeof(tp->send_buf), tp->recv_buf,
-                    sizeof(tp->recv_buf));
-    isotp_init_link(&tp->func_link, target_addr_func, tp->recv_buf, sizeof(tp->send_buf),
-                    tp->recv_buf, sizeof(tp->recv_buf));
-
-    tp->phys_link.user_send_can_arg = &(tp->fd);
-    tp->func_link.user_send_can_arg = &(tp->fd);
+    tp->hdl2.phys_link.user_send_can_arg = &(tp->fd);
+    tp->hdl2.func_link.user_send_can_arg = &(tp->fd);
 
     return UDS_OK;
 }
+
+UDSErr_t UDSServerTpISOTpCSocketCANInit(UDSTpISOTpCSocketCAN_t *tp, const char *ifname,
+                                  uint32_t source_addr, uint32_t target_addr,
+                                  uint32_t source_addr_func) {
+    return UDSTpISOTpCSocketCANInit(tp, ifname, source_addr, target_addr, source_addr_func, UDS_TP_NOOP_ADDR);
+}
+
+UDSErr_t UDSClientTpISOTpCSocketCANInit(UDSTpISOTpCSocketCAN_t *tp, const char *ifname,
+                                  uint32_t target_addr, uint32_t source_addr,
+                                  uint32_t target_addr_func) {
+    return UDSTpISOTpCSocketCANInit(tp, ifname, source_addr, target_addr, UDS_TP_NOOP_ADDR, target_addr_func);
+                                }
 
 void UDSTpISOTpCSocketCANDeinit(UDSTpISOTpCSocketCAN_t *tp) {
     UDS_ASSERT(tp);
@@ -3379,6 +3400,9 @@ void UDSTpISOTpCSocketCANDeinit(UDSTpISOTpCSocketCAN_t *tp) {
 #endif
 #if defined(UDS_TP_ISOTP_SOCK)
 
+
+
+
 #include <string.h>
 #include <errno.h>
 #include <linux/can.h>
@@ -3391,9 +3415,8 @@ void UDSTpISOTpCSocketCANDeinit(UDSTpISOTpCSocketCAN_t *tp) {
 #include <sys/types.h>
 #include <unistd.h>
 
-static UDSTpStatus_t isotp_sock_tp_poll(UDSTp_t *hdl) {
+static void isotp_sock_tp_poll(UDSTp_t *hdl) {
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
-    UDSTpStatus_t status = 0;
     int ret = 0;
     int fds[2] = {impl->phys_fd, impl->func_fd};
     struct pollfd pfds[2] = {0};
@@ -3408,7 +3431,6 @@ static UDSTpStatus_t isotp_sock_tp_poll(UDSTp_t *hdl) {
     ret = poll(pfds, 2, 1);
     if (ret < 0) {
         UDS_LOGE(__FILE__, "poll failed: %d", ret);
-        status |= UDS_TP_ERR;
     } else if (ret == 0) {
         ; // timeout, no events
     } else {
@@ -3424,12 +3446,10 @@ static UDSTpStatus_t isotp_sock_tp_poll(UDSTp_t *hdl) {
                     switch (pending_err) {
                     case ECOMM:
                         UDS_LOGE(__FILE__, "ECOMM: Communication error on send");
-                        status |= UDS_TP_ERR;
                         break;
                     default:
                         UDS_LOGE(__FILE__, "Asynchronous socket error: %s (%d)",
                                  strerror(pending_err), pending_err);
-                        status |= UDS_TP_ERR;
                         break;
                     }
                 } else {
@@ -3445,94 +3465,105 @@ static UDSTpStatus_t isotp_sock_tp_poll(UDSTp_t *hdl) {
                 // See: https://lore.kernel.org/all/20230331125511.372783-1-michal.sojka@cvut.cz/
                 // The kernel ISO-TP driver suppresses POLLOUT when tx.state != ISOTP_IDLE
                 if (!(pfd.revents & POLLOUT)) {
-                    status |= UDS_TP_SEND_IN_PROGRESS;
+                    hdl->status.is_sending = 1;
+                } else {
+                    hdl->status.is_sending = 0;
                 }
             }
         }
     }
-    return status;
 }
 
-static UDSTpSize_t tp_recv_once(int fd, uint8_t *buf, size_t size) {
-    UDSTpSize_t ret = read(fd, buf, size);
+static UDSErr_t tp_recv_once(int fd, uint8_t *buf, const size_t bufsiz, size_t *recvlen) {
+    UDSErr_t err = UDS_OK;
+    ssize_t ret = read(fd, buf, bufsiz);
     if (ret < 0) {
         if (EAGAIN == errno || EWOULDBLOCK == errno) {
-            ret = 0;
+            ; // temporarily unavailable -- not an error
         } else {
-            UDS_LOGI(__FILE__, "read failed: %" PRId32 " with errno: %d\n", ret, errno);
-            if (EILSEQ == errno) {
-                UDS_LOGI(__FILE__, "Perhaps I received multiple responses?");
-            }
+            UDS_LOGE(__FILE__, "read failed: %zd with errno: %d", ret, errno);
+            err = UDS_FAIL;
         }
     }
-    return ret;
+
+    *recvlen = ret < 0 ? 0 : (size_t)ret;
+    return err;
 }
 
-static UDSTpSize_t isotp_sock_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
-    UDS_ASSERT(hdl);
-    UDS_ASSERT(buf);
-    UDSTpSize_t ret = 0;
+static UDSErr_t isotp_sock_tp_recv(UDSTp_t *hdl, uint8_t *buf, const size_t bufsiz, size_t *recvlen, UDSSDU_t *info) {
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
+    UDSErr_t err = 0;
     UDSSDU_t *msg = &impl->recv_info;
 
-    ret = tp_recv_once(impl->phys_fd, buf, bufsize);
-    if (ret > 0) {
+    err = tp_recv_once(impl->phys_fd, buf, bufsiz, recvlen);
+    if (err) {
+        return err;
+    }
+    if (*recvlen > 0) {
         msg->A_TA = impl->phys_sa;
         msg->A_SA = impl->phys_ta;
         msg->A_TA_Type = UDS_A_TA_TYPE_PHYSICAL;
     } else {
-        ret = tp_recv_once(impl->func_fd, buf, bufsize);
-        if (ret > 0) {
+        err = tp_recv_once(impl->func_fd, buf, bufsiz, recvlen);
+        if (err) {
+            return err;
+        }
+        if (*recvlen > 0) {
             msg->A_TA = impl->func_sa;
             msg->A_SA = impl->func_ta;
             msg->A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL;
         }
     }
 
-    if (ret > 0) {
+    if (*recvlen > 0) {
         if (info) {
             *info = *msg;
         }
 
-        UDS_LOGD(__FILE__, "'%s' received %" PRId32 " bytes from 0x%03x (%s), ", impl->tag, ret,
+        UDS_LOGD(__FILE__, "'%s' received %zd bytes from 0x%03x (%s), ", impl->tag, *recvlen,
                  msg->A_TA, msg->A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
-        UDS_LOG_SDU(__FILE__, impl->recv_buf, ret, msg);
+        UDS_LOG_SDU(__FILE__, impl->recv_buf, *recvlen, msg);
     }
-
-    return ret;
+    return UDS_OK;
 }
 
-static UDSTpSize_t isotp_sock_tp_send(UDSTp_t *hdl, const uint8_t *buf, size_t len,
-                                      const UDSSDU_t *info) {
-    UDS_ASSERT(hdl);
-    UDSTpSize_t ret = -1;
+static UDSErr_t isotp_sock_tp_send(UDSTp_t *hdl, const uint8_t *buf, const size_t len,
+                                       const UDSSDU_t *info) {
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
-    int fd;
-    const UDSTpAddr_t ta_type = info ? info->A_TA_Type : UDS_A_TA_TYPE_PHYSICAL;
+    ssize_t ret = -1;
+    int fd = -1;
+    const UDS_A_TA_Type_t ta_type = info ? info->A_TA_Type : UDS_A_TA_TYPE_PHYSICAL;
 
-    if (UDS_A_TA_TYPE_PHYSICAL == ta_type) {
+    switch (ta_type) {
+        case UDS_A_TA_TYPE_PHYSICAL:
         fd = impl->phys_fd;
-    } else if (UDS_A_TA_TYPE_FUNCTIONAL == ta_type) {
-        if (len > 7) {
-            UDS_LOGI(__FILE__, "UDSTpIsoTpSock: functional request too large");
-            return -1;
+        break;
+        case UDS_A_TA_TYPE_FUNCTIONAL: {
+            if (len > 7) {
+                UDS_LOGE(__FILE__, "UDSTpIsoTpSock: functional request too large");
+                return UDS_ERR_MISUSE;
+            }
+            fd = impl->func_fd;
         }
-        fd = impl->func_fd;
-    } else {
-        ret = -4;
-        goto done;
+        break;
+    default:
+        UDS_LOGE(__FILE__, "unknown UDS_A_TA_TYPE");
+        return UDS_ERR_MISUSE;
     }
+
+    UDS_ASSERT(fd >= 0);
     ret = write(fd, buf, len);
+    UDS_ASSERT(ret < UINT16_MAX);
     if (ret < 0) {
         perror("write");
+        return UDS_FAIL;
     }
-done:;
-    int ta = ta_type == UDS_A_TA_TYPE_PHYSICAL ? impl->phys_ta : impl->func_ta;
-    UDS_LOGD(__FILE__, "'%s' sends %ld bytes to 0x%03x (%s)", impl->tag, len, ta,
+
+    uint32_t ta = ta_type == UDS_A_TA_TYPE_PHYSICAL ? impl->phys_ta : impl->func_ta;
+    UDS_LOGD(__FILE__, "'%s' sends %zu bytes to 0x%03x (%s)", impl->tag, len, ta,
              ta_type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
     UDS_LOG_SDU(__FILE__, buf, len, info);
-
-    return ret;
+    return UDS_OK;
 }
 
 static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool functional) {
@@ -3662,6 +3693,8 @@ void UDSTpIsoTpSockDeinit(UDSTpIsoTpSock_t *tp) {
 
 /// \cond INTERNAL_INTERFACE
 
+
+
 #include <assert.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -3723,17 +3756,17 @@ static void NetworkPoll(void) {
     }
 }
 
-static UDSTpSize_t mock_tp_send(struct UDSTp *hdl, const uint8_t *buf, size_t len,
-                                const UDSSDU_t *info) {
+static UDSErr_t mock_tp_send(struct UDSTp *hdl, const uint8_t *buf, size_t len,
+                                 const UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
     if (MsgCount >= NUM_MSGS) {
         UDS_LOGW(__FILE__, "mock_tp_send: too many messages in the queue");
-        return -1;
+        return UDS_FAIL;
     }
     struct Msg *m = &msgs[MsgCount++];
-    UDSTpAddr_t ta_type =
-        info == NULL ? (UDSTpAddr_t)UDS_A_TA_TYPE_PHYSICAL : (UDSTpAddr_t)info->A_TA_Type;
+    UDS_A_TA_Type_t ta_type =
+        info == NULL ? (UDS_A_TA_Type_t)UDS_A_TA_TYPE_PHYSICAL : (UDS_A_TA_Type_t)info->A_TA_Type;
     m->len = len;
     m->info.A_AE = info == NULL ? 0 : info->A_AE;
     if (UDS_A_TA_TYPE_PHYSICAL == ta_type) {
@@ -3745,14 +3778,14 @@ static UDSTpSize_t mock_tp_send(struct UDSTp *hdl, const uint8_t *buf, size_t le
         // Technically CAN-FD may also be used in ISO-TP.
         // TODO: add profiles to isotp_mock
         if (len > 7) {
-            UDS_LOGW(__FILE__, "mock_tp_send: functional message too long: %ld", len);
-            return -1;
+            UDS_LOGW(__FILE__, "mock_tp_send: functional message too long: %zu", len);
+            return UDS_FAIL;
         }
         m->info.A_TA = tp->ta_func;
         m->info.A_SA = tp->sa_func;
     } else {
         UDS_LOGW(__FILE__, "mock_tp_send: unknown TA type: %d", ta_type);
-        return -1;
+        return UDS_FAIL;
     }
     m->info.A_TA_Type = ta_type;
     m->scheduled_tx_time = UDSMillis() + tp->send_tx_delay_ms;
@@ -3762,33 +3795,31 @@ static UDSTpSize_t mock_tp_send(struct UDSTp *hdl, const uint8_t *buf, size_t le
              m->info.A_TA, m->info.A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "PHYSICAL" : "FUNCTIONAL");
     UDS_LOG_SDU(__FILE__, buf, len, &m->info);
 
-    return (UDSTpSize_t)len;
+    return UDS_OK;
 }
 
-static UDSTpSize_t mock_tp_recv(struct UDSTp *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
+static UDSErr_t mock_tp_recv(struct UDSTp *hdl, uint8_t *buf, size_t bufsiz, size_t *recvlen, UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
     if (tp->recv_len == 0) {
-        return 0;
+        return UDS_OK;
     }
-    if (bufsize < tp->recv_len) {
-        UDS_LOGW(__FILE__, "mock_tp_recv: buffer too small: %ld < %ld", bufsize, tp->recv_len);
-        return -1;
+    if (bufsiz < tp->recv_len) {
+        UDS_LOGE(__FILE__, "mock_tp_recv: buffer too small: %ld < %ld", bufsiz, tp->recv_len);
+        return UDS_FAIL;
     }
-    UDSTpSize_t len = (UDSTpSize_t)tp->recv_len;
+    *recvlen = tp->recv_len;
     memmove(buf, tp->recv_buf, tp->recv_len);
     if (info) {
         *info = tp->recv_info;
     }
     tp->recv_len = 0;
-    return len;
+    return UDS_OK;
 }
 
-static UDSTpStatus_t mock_tp_poll(struct UDSTp *hdl) {
+static void mock_tp_poll(struct UDSTp *hdl) {
     (void)hdl; // unused parameter
     NetworkPoll();
-    // todo: make this status reflect TX time
-    return UDS_TP_IDLE;
 }
 
 static_assert(offsetof(ISOTPMock_t, hdl) == 0, "ISOTPMock_t must not have any members before hdl");
@@ -3892,17 +3923,112 @@ void ISOTPMockFree(UDSTp_t *tp) {
 #error
 #endif
 
+#ifdef UDS_LINES
+#line 1 "src/tp/isotp-c/isotp.c"
+#endif
+////////////////////////////////////////////////////////////////////////
+//                  ___ ___  ___ _____ ___      ___                   //
+//                 |_ _/ __|/ _ \_   _| _ \___ / __|                  //
+//                  | |\__ \ (_) || | |  _/___| (__                   //
+//                 |___|___/\___/ |_| |_|      \___|                  //
+//                                                                    //
+////////////////////////////////////////////////////////////////////////
+
+#include <assert.h>
 #include <stdint.h>
+
+
 
 ///////////////////////////////////////////////////////
 ///                 STATIC FUNCTIONS                ///
 ///////////////////////////////////////////////////////
 
+/* CAN frame data lengths (CAN_DL) which may be used by CAN FD frames larger than
+ * a Classical CAN frame. CAN FD frames can only carry these lengths, so frames
+ * exceeding 8 bytes always have to be padded up to the next valid length.
+ */
+static const uint8_t isotp_can_fd_frame_sizes[] = {12, 16, 20, 24, 32, 48, 64};
+
+/* Returns the smallest valid CAN_DL which is able to carry length bytes of data */
+static uint8_t isotp_ceil_can_dl(uint8_t length) {
+    if (length <= ISOTP_CAN_DL_CLASSIC) {
+        /* every length up to 8 bytes maps directly to a DLC */
+        return length;
+    }
+
+    for (uint8_t i = 0; i < (uint8_t)(sizeof(isotp_can_fd_frame_sizes) / sizeof(isotp_can_fd_frame_sizes[0])); ++i) {
+        if (length <= isotp_can_fd_frame_sizes[i]) { return isotp_can_fd_frame_sizes[i]; }
+    }
+
+    return isotp_can_fd_frame_sizes[sizeof(isotp_can_fd_frame_sizes) / sizeof(isotp_can_fd_frame_sizes[0]) - 1];
+}
+
+/* Returns logic true if length is a CAN_DL which can be transmitted on a CAN(-FD) bus */
+static uint8_t isotp_is_valid_can_dl(uint8_t length) { return (uint8_t)(length == isotp_ceil_can_dl(length)); }
+
+/* Returns the TX_DL to use for the given link, falling back to Classical CAN for
+ * links which weren't initialised through isotp_init_link()
+ */
+static uint8_t isotp_tx_dl(const IsoTpLink* link) {
+    if (link->tx_dl < ISOTP_CAN_DL_CLASSIC || link->tx_dl > ISO_TP_MAX_CAN_FRAME_SIZE || !isotp_is_valid_can_dl(link->tx_dl)) { return ISOTP_CAN_DL_CLASSIC; }
+
+    return link->tx_dl;
+}
+
+#ifdef ISO_TP_USER_SEND_CAN_FLAGS
+/* Returns the frame format flags the user shim has to transmit the frames of this link with.
+ * Links using a TX_DL of more than 8 bytes require CAN FD frames, so all of their frames are
+ * flagged accordingly, irrespective of the length of the individual frame.
+ */
+static uint8_t isotp_frame_flags(const IsoTpLink* link) {
+    uint8_t flags = ISOTP_CAN_FRAME_FLAG_NONE;
+
+    if (isotp_tx_dl(link) > ISOTP_CAN_DL_CLASSIC) {
+        flags |= ISOTP_CAN_FRAME_FLAG_FD;
+
+    #ifdef ISO_TP_CAN_FD_USE_BRS
+        flags |= ISOTP_CAN_FRAME_FLAG_BRS;
+    #endif
+    }
+
+    return flags;
+}
+#endif
+
+/* Pads a frame containing used_length bytes up to a transmittable CAN_DL and
+ * returns the resulting frame length.
+ *
+ * Frames of more than 8 bytes are always padded, as CAN FD only supports a
+ * discrete set of frame lengths. Smaller frames are only padded if
+ * ISO_TP_FRAME_PADDING is enabled.
+ */
+static uint8_t isotp_pad_frame(IsoTpCanMessage* message, uint8_t used_length) {
+    uint8_t frame_length = used_length;
+
+#ifdef ISO_TP_FRAME_PADDING
+    if (frame_length < ISOTP_CAN_DL_CLASSIC) { frame_length = ISOTP_CAN_DL_CLASSIC; }
+#endif
+
+    frame_length = isotp_ceil_can_dl(frame_length);
+
+    if (frame_length > used_length) { (void)memset(message->as.data_array.ptr + used_length, ISO_TP_FRAME_PADDING_VALUE, frame_length - used_length); }
+
+    return frame_length;
+}
+
 /* st_min to microsecond */
 static uint8_t isotp_us_to_st_min(uint32_t us) {
-    if (us <= 127000) {
-        if (us >= 100 && us <= 900) {
-            return (uint8_t)(0xF0 + (us / 100));
+    // ISO 15765-2:2016 defines STmin encoding:
+    // 0x00..0x7F: value in milliseconds (0..127 ms)
+    // 0xF1..0xF9: value in 100 microsecond steps (100..900 us)
+    const uint32_t STMIN_MS_MAX = 127000;      // 127 ms in us
+    const uint32_t STMIN_US_MIN = 100;         // 100 us
+    const uint32_t STMIN_US_MAX = 900;         // 900 us
+    const uint8_t  STMIN_US_BASE = 0xF0;       // base for 100us steps
+
+    if (us <= STMIN_MS_MAX) {
+        if (us >= STMIN_US_MIN && us <= STMIN_US_MAX) {
+            return (uint8_t)(STMIN_US_BASE + (us / 100));
         } else {
             return (uint8_t)(us / 1000u);
         }
@@ -3913,227 +4039,349 @@ static uint8_t isotp_us_to_st_min(uint32_t us) {
 
 /* st_min to usec  */
 static uint32_t isotp_st_min_to_us(uint8_t st_min) {
-    if (st_min <= 0x7F) {
-        return st_min * 1000;
-    } else if (st_min >= 0xF1 && st_min <= 0xF9) {
-        return (st_min - 0xF0) * 100;
+    // ISO 15765-2:2016 defines STmin encoding:
+    // 0x00..0x7F: value in milliseconds (0..127 ms)
+    // 0xF1..0xF9: value in 100 microsecond steps (100..900 us)
+    const uint8_t  STMIN_MS_MAX      = 0x7F;   // 127 ms
+    const uint8_t  STMIN_US_MIN_CODE = 0xF1;   // 100 us
+    const uint8_t  STMIN_US_MAX_CODE = 0xF9;   // 900 us
+    const uint8_t  STMIN_US_BASE     = 0xF0;   // base for 100us steps
+    const uint32_t US_PER_MS         = 1000;
+    const uint32_t US_STEP           = 100;
+
+    if (st_min <= STMIN_MS_MAX) {
+        return st_min * US_PER_MS;
+    } else if (st_min >= STMIN_US_MIN_CODE && st_min <= STMIN_US_MAX_CODE) {
+        return (st_min - STMIN_US_BASE) * US_STEP;
     }
     return 0;
 }
 
 static int isotp_send_flow_control(const IsoTpLink* link, uint8_t flow_status, uint8_t block_size, uint32_t st_min_us) {
-
     IsoTpCanMessage message;
-    int ret;
-    uint8_t size = 0;
+    (void)memset(&message, 0, sizeof(message));
+    int             ret;
+    uint8_t         size = 0;
 
     /* setup message  */
-    message.as.flow_control.type = ISOTP_PCI_TYPE_FLOW_CONTROL_FRAME;
-    message.as.flow_control.FS = flow_status;
-    message.as.flow_control.BS = block_size;
+    message.as.flow_control.type  = ISOTP_PCI_TYPE_FLOW_CONTROL_FRAME;
+    message.as.flow_control.FS    = flow_status;
+    message.as.flow_control.BS    = block_size;
     message.as.flow_control.STmin = isotp_us_to_st_min(st_min_us);
 
     /* send message */
-#ifdef ISO_TP_FRAME_PADDING
-    (void) memset(message.as.flow_control.reserve, ISO_TP_FRAME_PADDING_VALUE, sizeof(message.as.flow_control.reserve));
-    size = sizeof(message);
-#else
-    size = 3;
-#endif
+    size = isotp_pad_frame(&message, 3);
 
     ret = isotp_user_send_can(link->send_arbitration_id, message.as.data_array.ptr, size
-    #if defined (ISO_TP_USER_SEND_CAN_ARG)
-    ,link->user_send_can_arg
-    #endif
+#if defined(ISO_TP_USER_SEND_CAN_FLAGS)
+                              , isotp_frame_flags(link)
+#endif
+#if defined(ISO_TP_USER_SEND_CAN_ARG)
+                              , link->user_send_can_arg
+#endif
     );
 
     return ret;
 }
 
 static int isotp_send_single_frame(const IsoTpLink* link, uint32_t id) {
+    (void)id; // Prevent unused variable warning
 
     IsoTpCanMessage message;
-    int ret;
-    uint8_t size = 0;
-    (void)id;
+    int             ret;
+    uint8_t         size = 0;
 
-    /* multi frame message length must greater than 7  */
-    assert(link->send_size <= 7);
+    (void)memset(&message, 0, sizeof(message));
+
+    /* payloads which don't fit into a single frame must be segmented */
+    assert(link->send_size <= ISOTP_SF_MAX_PAYLOAD(isotp_tx_dl(link)));
 
     /* setup message  */
-    message.as.single_frame.type = ISOTP_PCI_TYPE_SINGLE;
-    message.as.single_frame.SF_DL = (uint8_t) link->send_size;
-    (void) memcpy(message.as.single_frame.data, link->send_buffer, link->send_size);
+    if (link->send_size < ISOTP_CAN_DL_CLASSIC) {
+        message.as.single_frame.type  = ISOTP_PCI_TYPE_SINGLE;
+        message.as.single_frame.SF_DL = (uint8_t)link->send_size;
+        (void)memcpy(message.as.single_frame.data, link->send_buffer, link->send_size);
+
+        size = isotp_pad_frame(&message, (uint8_t)(link->send_size + 1u));
+    } else { // ISO15765-2:2016, CAN FD only
+        /* setup message using the SF_DL escape sequence */
+        message.as.single_frame_escape.type        = ISOTP_PCI_TYPE_SINGLE;
+        message.as.single_frame_escape.set_to_zero = 0;
+        message.as.single_frame_escape.SF_DL       = (uint8_t)link->send_size;
+        (void)memcpy(message.as.single_frame_escape.data, link->send_buffer, link->send_size);
+
+        size = isotp_pad_frame(&message, (uint8_t)(link->send_size + 2u));
+    }
 
     /* send message */
-#ifdef ISO_TP_FRAME_PADDING
-    (void) memset(message.as.single_frame.data + link->send_size, ISO_TP_FRAME_PADDING_VALUE, sizeof(message.as.single_frame.data) - link->send_size);
-    size = sizeof(message);
-#else
-    size = link->send_size + 1;
-#endif
-
     ret = isotp_user_send_can(link->send_arbitration_id, message.as.data_array.ptr, size
-    #if defined (ISO_TP_USER_SEND_CAN_ARG)
-    ,link->user_send_can_arg
-    #endif
+#if defined(ISO_TP_USER_SEND_CAN_FLAGS)
+                              , isotp_frame_flags(link)
+#endif
+#if defined(ISO_TP_USER_SEND_CAN_ARG)
+                              , link->user_send_can_arg
+#endif
     );
 
     return ret;
 }
-
 static int isotp_send_first_frame(IsoTpLink* link, uint32_t id) {
-    
     IsoTpCanMessage message;
-    int ret;
+    int             ret   = 0;
+    const uint8_t   tx_dl = isotp_tx_dl(link);
+    uint32_t        data_length;
 
-    /* multi frame message length must greater than 7  */
-    assert(link->send_size > 7);
+    (void)memset(&message, 0, sizeof(message));
 
-    /* setup message  */
-    message.as.first_frame.type = ISOTP_PCI_TYPE_FIRST_FRAME;
-    message.as.first_frame.FF_DL_low = (uint8_t) link->send_size;
-    message.as.first_frame.FF_DL_high = (uint8_t) (0x0F & (link->send_size >> 8));
-    (void) memcpy(message.as.first_frame.data, link->send_buffer, sizeof(message.as.first_frame.data));
+    /* payloads which fit into a single frame must not be segmented */
+    assert(link->send_size > ISOTP_SF_MAX_PAYLOAD(tx_dl));
+
+    /* first frames always use the full frame length of the sender (TX_DL) */
+    if (link->send_size <= 4095) {
+        /* setup 'short' message */
+        data_length                             = (uint32_t)tx_dl - 2u;
+        message.as.first_frame_short.type       = ISOTP_PCI_TYPE_FIRST_FRAME;
+        message.as.first_frame_short.FF_DL_low  = (uint8_t)link->send_size;
+        message.as.first_frame_short.FF_DL_high = (uint8_t)(0x0F & (link->send_size >> 8));
+        (void)memcpy(message.as.first_frame_short.data, link->send_buffer, data_length);
+    } else { // ISO15765-2:2016
+        /* setup 'long' message */
+        data_length                                  = (uint32_t)tx_dl - 6u;
+        message.as.first_frame_long.set_to_zero_high = 0;
+        message.as.first_frame_long.set_to_zero_low  = 0;
+        message.as.first_frame_long.type             = ISOTP_PCI_TYPE_FIRST_FRAME;
+        message.as.first_frame_long.FF_DL            = LE32TOH(link->send_size);
+        (void)memcpy(message.as.first_frame_long.data, link->send_buffer, data_length);
+    }
 
     /* send message */
-    ret = isotp_user_send_can(id, message.as.data_array.ptr, sizeof(message) 
-    #if defined (ISO_TP_USER_SEND_CAN_ARG)
-    ,link->user_send_can_arg
-    #endif
-
+    ret = isotp_user_send_can(id, message.as.data_array.ptr, tx_dl
+#if defined(ISO_TP_USER_SEND_CAN_FLAGS)
+                              , isotp_frame_flags(link)
+#endif
+#if defined(ISO_TP_USER_SEND_CAN_ARG)
+                              , link->user_send_can_arg
+#endif
     );
-    if (ISOTP_RET_OK == ret) {
-        link->send_offset += sizeof(message.as.first_frame.data);
-        link->send_sn = 1;
-    }
+
+    if (ISOTP_RET_OK == ret) { link->send_offset += data_length; }
+
+    link->send_sn = 1;
 
     return ret;
 }
 
 static int isotp_send_consecutive_frame(IsoTpLink* link) {
-    
     IsoTpCanMessage message;
-    uint16_t data_length;
-    int ret;
-    uint8_t size = 0;
+    uint32_t        data_length;
+    uint32_t        max_data_length;
+    int             ret;
+    uint8_t         size = 0;
 
-    /* multi frame message length must greater than 7  */
-    assert(link->send_size > 7);
+    (void)memset(&message, 0, sizeof(message));
+
+    /* payloads which fit into a single frame must not be segmented */
+    assert(link->send_size > ISOTP_SF_MAX_PAYLOAD(isotp_tx_dl(link)));
 
     /* setup message  */
-    message.as.consecutive_frame.type = TSOTP_PCI_TYPE_CONSECUTIVE_FRAME;
-    message.as.consecutive_frame.SN = link->send_sn;
-    data_length = link->send_size - link->send_offset;
-    if (data_length > sizeof(message.as.consecutive_frame.data)) {
-        data_length = sizeof(message.as.consecutive_frame.data);
-    }
-    (void) memcpy(message.as.consecutive_frame.data, link->send_buffer + link->send_offset, data_length);
+    message.as.consecutive_frame.type = ISOTP_PCI_TYPE_CONSECUTIVE_FRAME;
+    message.as.consecutive_frame.SN   = link->send_sn;
+    max_data_length                   = (uint32_t)isotp_tx_dl(link) - 1u;
+    data_length                       = link->send_size - link->send_offset;
+    if (data_length > max_data_length) { data_length = max_data_length; }
+    (void)memcpy(message.as.consecutive_frame.data, link->send_buffer + link->send_offset, data_length);
 
     /* send message */
-#ifdef ISO_TP_FRAME_PADDING
-    (void) memset(message.as.consecutive_frame.data + data_length, ISO_TP_FRAME_PADDING_VALUE, sizeof(message.as.consecutive_frame.data) - data_length);
-    size = sizeof(message);
-#else
-    size = data_length + 1;
-#endif
+    size = isotp_pad_frame(&message, (uint8_t)(data_length + 1u));
 
-    ret = isotp_user_send_can(link->send_arbitration_id,
-            message.as.data_array.ptr, size
-#if defined (ISO_TP_USER_SEND_CAN_ARG)
-    ,link->user_send_can_arg
+    ret = isotp_user_send_can(link->send_arbitration_id, message.as.data_array.ptr, size
+#if defined(ISO_TP_USER_SEND_CAN_FLAGS)
+                              , isotp_frame_flags(link)
+#endif
+#if defined(ISO_TP_USER_SEND_CAN_ARG)
+                              , link->user_send_can_arg
 #endif
     );
 
     if (ISOTP_RET_OK == ret) {
         link->send_offset += data_length;
-        if (++(link->send_sn) > 0x0F) {
-            link->send_sn = 0;
-        }
+        if (++(link->send_sn) > 0x0F) { link->send_sn = 0; }
     }
-    
+
     return ret;
 }
 
 static int isotp_receive_single_frame(IsoTpLink* link, const IsoTpCanMessage* message, uint8_t len) {
+    const uint8_t* payload;
+    uint32_t       payload_length;
+    uint32_t       max_payload_length;
+
+    if (0 == message->as.single_frame.SF_DL) {
+        /* ISO15765-2:2016: CAN FD frames larger than 8 bytes carry SF_DL in the second byte */
+        if (len <= ISOTP_CAN_DL_CLASSIC) {
+            isotp_user_debug("Single-frame length too small.");
+            return ISOTP_RET_LENGTH;
+        }
+
+        payload            = message->as.single_frame_escape.data;
+        payload_length     = message->as.single_frame_escape.SF_DL;
+        max_payload_length = (uint32_t)len - 2u;
+    } else {
+        payload            = message->as.single_frame.data;
+        payload_length     = message->as.single_frame.SF_DL;
+        max_payload_length = (uint32_t)len - 1u;
+    }
+
     /* check data length */
-    if ((0 == message->as.single_frame.SF_DL) || (message->as.single_frame.SF_DL > (len - 1))) {
+    if ((0 == payload_length) || (payload_length > max_payload_length)) {
         isotp_user_debug("Single-frame length too small.");
         return ISOTP_RET_LENGTH;
     }
 
+    if (payload_length > link->receive_buf_size) {
+        isotp_user_debug("Single-frame message too large for receiving buffer.");
+        return ISOTP_RET_OVERFLOW;
+    }
+
     /* copying data */
-    (void) memcpy(link->receive_buffer, message->as.single_frame.data, message->as.single_frame.SF_DL);
-    link->receive_size = message->as.single_frame.SF_DL;
-    
+    (void)memcpy(link->receive_buffer, payload, payload_length);
+    link->receive_size   = payload_length;
+    link->receive_offset = link->receive_size;
+
+#ifdef ISO_TP_ENABLE_STREAMING
+    link->receive_stream_size       = link->receive_size;
+    link->receive_streaming         = 0;
+    link->receive_stream_carry_size = 0;
+#endif
+
     return ISOTP_RET_OK;
 }
 
-static int isotp_receive_first_frame(IsoTpLink *link, IsoTpCanMessage *message, uint8_t len) {
-    uint16_t payload_length;
+static int isotp_receive_first_frame(IsoTpLink* link, IsoTpCanMessage* message, uint8_t len) {
+    const uint8_t* first_frame_data;
+    uint8_t        is_long_packet = 0;
+    uint32_t       first_frame_data_length;
+    uint32_t       payload_length;
 
-    if (8 != len) {
-        isotp_user_debug("First frame should be 8 bytes in length.");
+    /* first frames are sent using the full frame length of the sender, which
+     * determines the frame length of the following consecutive frames (RX_DL)
+     */
+    if (len < ISOTP_CAN_DL_CLASSIC || !isotp_is_valid_can_dl(len)) {
+        isotp_user_debug("First frame should be a full CAN frame of at least 8 bytes in length.");
         return ISOTP_RET_LENGTH;
     }
 
     /* check data length */
-    payload_length = message->as.first_frame.FF_DL_high;
-    payload_length = (uint16_t)(payload_length << 8) + message->as.first_frame.FF_DL_low;
+    payload_length = message->as.first_frame_short.FF_DL_high;
+    payload_length = (payload_length << 8) + message->as.first_frame_short.FF_DL_low;
+
+    /* if length is ZERO we get a long message > 4095bytes of payload */
+    if (payload_length == 0) {
+        is_long_packet          = 1;
+        payload_length          = LE32TOH(message->as.first_frame_long.FF_DL);
+        first_frame_data_length = (uint32_t)len - 6u;
+    } else {
+        first_frame_data_length = (uint32_t)len - 2u;
+    }
 
     /* should not use multiple frame transmition */
-    if (payload_length <= 7) {
+    if (payload_length <= ISOTP_SF_MAX_PAYLOAD(len)) {
         isotp_user_debug("Should not use multiple frame transmission.");
         return ISOTP_RET_LENGTH;
     }
-    
+
+#ifndef ISO_TP_ENABLE_STREAMING
     if (payload_length > link->receive_buf_size) {
         isotp_user_debug("Multi-frame response too large for receiving buffer.");
         return ISOTP_RET_OVERFLOW;
     }
-    
+#else
+    if (link->receive_buf_size == 0) {
+        isotp_user_debug("Receiving buffer must not be empty.");
+        return ISOTP_RET_OVERFLOW;
+    }
+
+    link->receive_streaming         = payload_length > link->receive_buf_size;
+    link->receive_stream_size       = 0;
+    link->receive_stream_carry_size = 0;
+#endif
+
     /* copying data */
-    (void) memcpy(link->receive_buffer, message->as.first_frame.data, sizeof(message->as.first_frame.data));
-    link->receive_size = payload_length;
-    link->receive_offset = sizeof(message->as.first_frame.data);
-    link->receive_sn = 1;
+    if (is_long_packet) {
+        first_frame_data = message->as.first_frame_long.data;
+    } else {
+        first_frame_data = message->as.first_frame_short.data;
+    }
+
+#ifdef ISO_TP_ENABLE_STREAMING
+    if (first_frame_data_length > link->receive_buf_size) {
+        (void)memcpy(link->receive_buffer, first_frame_data, link->receive_buf_size);
+        link->receive_stream_size       = link->receive_buf_size;
+        link->receive_stream_carry_size = (uint8_t)(first_frame_data_length - link->receive_buf_size);
+        (void)memcpy(link->receive_stream_carry, first_frame_data + link->receive_buf_size, link->receive_stream_carry_size);
+    } else {
+        (void)memcpy(link->receive_buffer, first_frame_data, first_frame_data_length);
+        link->receive_stream_size = first_frame_data_length;
+    }
+#else
+    (void)memcpy(link->receive_buffer, first_frame_data, first_frame_data_length);
+#endif
+
+    link->receive_offset = first_frame_data_length;
+    link->receive_size   = payload_length;
+    link->receive_sn     = 1;
+    link->rx_dl          = len;
 
     return ISOTP_RET_OK;
 }
 
-static int isotp_receive_consecutive_frame(IsoTpLink *link, IsoTpCanMessage *message, uint8_t len) {
-    uint16_t remaining_bytes;
-    
+static int isotp_receive_consecutive_frame(IsoTpLink* link, const IsoTpCanMessage* message, uint8_t len) {
+    uint32_t remaining_bytes;
+    uint32_t max_data_length;
+
     /* check sn */
-    if (link->receive_sn != message->as.consecutive_frame.SN) {
-        return ISOTP_RET_WRONG_SN;
-    }
+    if (link->receive_sn != message->as.consecutive_frame.SN) { return ISOTP_RET_WRONG_SN; }
+
+    /* consecutive frames use the frame length announced by the first frame (RX_DL) */
+    max_data_length = (uint32_t)(link->rx_dl < ISOTP_CAN_DL_CLASSIC ? ISOTP_CAN_DL_CLASSIC : link->rx_dl) - 1u;
 
     /* check data length */
     remaining_bytes = link->receive_size - link->receive_offset;
-    if (remaining_bytes > sizeof(message->as.consecutive_frame.data)) {
-        remaining_bytes = sizeof(message->as.consecutive_frame.data);
-    }
-    if (remaining_bytes > len - 1) {
+    if (remaining_bytes > max_data_length) { remaining_bytes = max_data_length; }
+    if (remaining_bytes > (uint32_t)(len - 1)) {
         isotp_user_debug("Consecutive frame too short.");
         return ISOTP_RET_LENGTH;
     }
 
-    /* copying data */
-    (void) memcpy(link->receive_buffer + link->receive_offset, message->as.consecutive_frame.data, remaining_bytes);
+#ifdef ISO_TP_ENABLE_STREAMING
+    if (link->receive_streaming) {
+        uint32_t available = link->receive_buf_size - link->receive_stream_size;
+        uint32_t copy_size = remaining_bytes < available ? remaining_bytes : available;
+
+        (void)memcpy(link->receive_buffer + link->receive_stream_size, message->as.consecutive_frame.data, copy_size);
+        link->receive_stream_size += copy_size;
+
+        link->receive_stream_carry_size = (uint8_t)(remaining_bytes - copy_size);
+        if (link->receive_stream_carry_size > 0) {
+            (void)memcpy(link->receive_stream_carry, message->as.consecutive_frame.data + copy_size, link->receive_stream_carry_size);
+        }
+    } else
+#endif
+    {
+        /* copying data */
+        (void)memcpy(link->receive_buffer + link->receive_offset, message->as.consecutive_frame.data, remaining_bytes);
+    }
 
     link->receive_offset += remaining_bytes;
-    if (++(link->receive_sn) > 0x0F) {
-        link->receive_sn = 0;
-    }
+    if (++(link->receive_sn) > 0x0F) { link->receive_sn = 0; }
 
     return ISOTP_RET_OK;
 }
 
-static int isotp_receive_flow_control_frame(IsoTpLink *link, IsoTpCanMessage *message, uint8_t len) {
+static int isotp_receive_flow_control_frame(IsoTpLink* link, IsoTpCanMessage* message, uint8_t len) {
     /* unused args */
-    (void) link;
-    (void) message;
+    (void)link;
+    (void)message;
 
     /* check message length */
     if (len < 3) {
@@ -4148,11 +4396,9 @@ static int isotp_receive_flow_control_frame(IsoTpLink *link, IsoTpCanMessage *me
 ///                 PUBLIC FUNCTIONS                ///
 ///////////////////////////////////////////////////////
 
-int isotp_send(IsoTpLink *link, const uint8_t payload[], uint16_t size) {
-    return isotp_send_with_id(link, link->send_arbitration_id, payload, size);
-}
+int isotp_send(IsoTpLink* link, const uint8_t payload[], uint32_t size) { return isotp_send_with_id(link, link->send_arbitration_id, payload, size); }
 
-int isotp_send_with_id(IsoTpLink *link, uint32_t id, const uint8_t payload[], uint16_t size) {
+int isotp_send_with_id(IsoTpLink* link, uint32_t id, const uint8_t payload[], uint32_t size) {
     int ret;
 
     if (link == 0x0) {
@@ -4162,14 +4408,17 @@ int isotp_send_with_id(IsoTpLink *link, uint32_t id, const uint8_t payload[], ui
 
     if (size > link->send_buf_size) {
         isotp_user_debug("Message size too large. Increase ISO_TP_MAX_MESSAGE_SIZE to set a larger buffer\n");
-        const int32_t messageSize = 128;
-        char message[messageSize];
-        int32_t writtenChars = sprintf(&message[0], "Attempted to send %d bytes; max size is %d!\n", size, link->send_buf_size);
 
-        assert(writtenChars <= messageSize);
-        (void) writtenChars;
-        
-        isotp_user_debug("%s", message);
+#ifndef ISO_TP_NO_FORMATTED_ERRORS
+        char    message[ISOTP_MAX_ERROR_MSG_SIZE] = {0};
+        int32_t writtenChars = snprintf(&message[0], ISOTP_MAX_ERROR_MSG_SIZE, "Attempted to send %u bytes; max size is %u!\n", (unsigned int)size,
+                                        (unsigned int)link->send_buf_size);
+
+        assert(writtenChars <= ISOTP_MAX_ERROR_MSG_SIZE);
+        (void)writtenChars;
+
+        isotp_user_debug(message);
+#endif
         return ISOTP_RET_OVERFLOW;
     }
 
@@ -4179,26 +4428,29 @@ int isotp_send_with_id(IsoTpLink *link, uint32_t id, const uint8_t payload[], ui
     }
 
     /* copy into local buffer */
-    link->send_size = size;
+    link->send_size   = size;
     link->send_offset = 0;
-    (void) memcpy(link->send_buffer, payload, size);
- 
-    if (link->send_size < 8) {
+    (void)memcpy(link->send_buffer, payload, size);
+
+    if (link->send_size <= ISOTP_SF_MAX_PAYLOAD(isotp_tx_dl(link))) {
         /* send single frame */
         ret = isotp_send_single_frame(link, id);
+#ifdef ISO_TP_TRANSMIT_COMPLETE_CALLBACK
+        if (ret == ISOTP_RET_OK && link->tx_done_cb) { link->tx_done_cb(link, link->send_size, link->tx_done_cb_arg); }
+#endif
     } else {
         /* send multi-frame */
         ret = isotp_send_first_frame(link, id);
 
         /* init multi-frame control flags */
         if (ISOTP_RET_OK == ret) {
-            link->send_bs_remain = 0;
-            link->send_st_min_us = 0;
-            link->send_wtf_count = 0;
-            link->send_timer_st = isotp_user_get_us();
-            link->send_timer_bs = isotp_user_get_us() + ISO_TP_DEFAULT_RESPONSE_TIMEOUT_US;
+            link->send_bs_remain       = 0;
+            link->send_st_min_us       = 0;
+            link->send_wtf_count       = 0;
+            link->send_timer_st        = isotp_user_get_us();
+            link->send_timer_bs        = isotp_user_get_us() + ISO_TP_DEFAULT_RESPONSE_TIMEOUT_US;
             link->send_protocol_result = ISOTP_PROTOCOL_RESULT_OK;
-            link->send_status = ISOTP_SEND_STATUS_INPROGRESS;
+            link->send_status          = ISOTP_SEND_STATUS_INPROGRESS;
         }
     }
 
@@ -4207,11 +4459,9 @@ int isotp_send_with_id(IsoTpLink *link, uint32_t id, const uint8_t payload[], ui
 
 void isotp_on_can_message(IsoTpLink* link, const uint8_t* data, uint8_t len) {
     IsoTpCanMessage message;
-    int ret;
-    
-    if (len < 2 || len > 8) {
-        return;
-    }
+    int             ret;
+
+    if (len < 2 || len > ISO_TP_MAX_CAN_FRAME_SIZE) { return; }
 
     memcpy(message.as.data_array.ptr, data, len);
     memset(message.as.data_array.ptr + len, 0, sizeof(message.as.data_array.ptr) - len);
@@ -4227,8 +4477,11 @@ void isotp_on_can_message(IsoTpLink* link, const uint8_t* data, uint8_t len) {
 
             /* handle message */
             ret = isotp_receive_single_frame(link, &message, len);
-            
-            if (ISOTP_RET_OK == ret) {
+
+            if (ISOTP_RET_OVERFLOW == ret) {
+                /* update protocol result */
+                link->receive_protocol_result = ISOTP_PROTOCOL_RESULT_BUFFER_OVFLW;
+            } else if (ISOTP_RET_OK == ret) {
                 /* change status */
                 link->receive_status = ISOTP_RECEIVE_STATUS_FULL;
             }
@@ -4258,18 +4511,27 @@ void isotp_on_can_message(IsoTpLink* link, const uint8_t* data, uint8_t len) {
 
             /* if receive successful */
             if (ISOTP_RET_OK == ret) {
-                /* change status */
-                link->receive_status = ISOTP_RECEIVE_STATUS_INPROGRESS;
-                /* send fc frame */
+                /* change status and send fc frame */
+#ifdef ISO_TP_ENABLE_STREAMING
+                if (link->receive_streaming && link->receive_stream_size >= link->receive_buf_size) {
+                    link->receive_status = ISOTP_RECEIVE_STATUS_FULL;
+                } else {
+                    link->receive_status = ISOTP_RECEIVE_STATUS_INPROGRESS;
+                    link->receive_bs_count = link->receive_streaming ? 1 : ISO_TP_DEFAULT_BLOCK_SIZE;
+                    isotp_send_flow_control(link, PCI_FLOW_STATUS_CONTINUE, link->receive_bs_count, ISO_TP_DEFAULT_ST_MIN_US);
+                }
+#else
+                link->receive_status   = ISOTP_RECEIVE_STATUS_INPROGRESS;
                 link->receive_bs_count = ISO_TP_DEFAULT_BLOCK_SIZE;
                 isotp_send_flow_control(link, PCI_FLOW_STATUS_CONTINUE, link->receive_bs_count, ISO_TP_DEFAULT_ST_MIN_US);
+#endif
                 /* refresh timer cs */
                 link->receive_timer_cr = isotp_user_get_us() + ISO_TP_DEFAULT_RESPONSE_TIMEOUT_US;
             }
-            
+
             break;
         }
-        case TSOTP_PCI_TYPE_CONSECUTIVE_FRAME: {
+        case ISOTP_PCI_TYPE_CONSECUTIVE_FRAME: {
             /* check if in receiving status */
             if (ISOTP_RECEIVE_STATUS_INPROGRESS != link->receive_status) {
                 link->receive_protocol_result = ISOTP_PROTOCOL_RESULT_UNEXP_PDU;
@@ -4282,7 +4544,7 @@ void isotp_on_can_message(IsoTpLink* link, const uint8_t* data, uint8_t len) {
             /* if wrong sn */
             if (ISOTP_RET_WRONG_SN == ret) {
                 link->receive_protocol_result = ISOTP_PROTOCOL_RESULT_WRONG_SN;
-                link->receive_status = ISOTP_RECEIVE_STATUS_IDLE;
+                link->receive_status          = ISOTP_RECEIVE_STATUS_IDLE;
                 break;
             }
 
@@ -4290,30 +4552,36 @@ void isotp_on_can_message(IsoTpLink* link, const uint8_t* data, uint8_t len) {
             if (ISOTP_RET_OK == ret) {
                 /* refresh timer cs */
                 link->receive_timer_cr = isotp_user_get_us() + ISO_TP_DEFAULT_RESPONSE_TIMEOUT_US;
-                
+
                 /* receive finished */
-                if (link->receive_offset >= link->receive_size) {
+                if (link->receive_offset >= link->receive_size
+#ifdef ISO_TP_ENABLE_STREAMING
+                    || (link->receive_streaming && link->receive_stream_size >= link->receive_buf_size)
+#endif
+                ) {
                     link->receive_status = ISOTP_RECEIVE_STATUS_FULL;
                 } else {
                     /* send fc when bs reaches limit */
                     if (0 == --link->receive_bs_count) {
-                        link->receive_bs_count = ISO_TP_DEFAULT_BLOCK_SIZE;
+                        link->receive_bs_count =
+#ifdef ISO_TP_ENABLE_STREAMING
+                            link->receive_streaming ? 1 :
+#endif
+                            ISO_TP_DEFAULT_BLOCK_SIZE;
                         isotp_send_flow_control(link, PCI_FLOW_STATUS_CONTINUE, link->receive_bs_count, ISO_TP_DEFAULT_ST_MIN_US);
                     }
                 }
             }
-            
+
             break;
         }
         case ISOTP_PCI_TYPE_FLOW_CONTROL_FRAME:
             /* handle fc frame only when sending in progress  */
-            if (ISOTP_SEND_STATUS_INPROGRESS != link->send_status) {
-                break;
-            }
+            if (ISOTP_SEND_STATUS_INPROGRESS != link->send_status) { break; }
 
             /* handle message */
             ret = isotp_receive_flow_control_frame(link, &message, len);
-            
+
             if (ISOTP_RET_OK == ret) {
                 /* refresh bs timer */
                 link->send_timer_bs = isotp_user_get_us() + ISO_TP_DEFAULT_RESPONSE_TIMEOUT_US;
@@ -4321,7 +4589,7 @@ void isotp_on_can_message(IsoTpLink* link, const uint8_t* data, uint8_t len) {
                 /* overflow */
                 if (PCI_FLOW_STATUS_OVERFLOW == message.as.flow_control.FS) {
                     link->send_protocol_result = ISOTP_PROTOCOL_RESULT_BUFFER_OVFLW;
-                    link->send_status = ISOTP_SEND_STATUS_ERROR;
+                    link->send_status          = ISOTP_SEND_STATUS_ERROR;
                 }
 
                 /* wait */
@@ -4330,7 +4598,7 @@ void isotp_on_can_message(IsoTpLink* link, const uint8_t* data, uint8_t len) {
                     /* wait exceed allowed count */
                     if (link->send_wtf_count > ISO_TP_MAX_WFT_NUMBER) {
                         link->send_protocol_result = ISOTP_PROTOCOL_RESULT_WFT_OVRN;
-                        link->send_status = ISOTP_SEND_STATUS_ERROR;
+                        link->send_status          = ISOTP_SEND_STATUS_ERROR;
                     }
                 }
 
@@ -4342,74 +4610,207 @@ void isotp_on_can_message(IsoTpLink* link, const uint8_t* data, uint8_t len) {
                         link->send_bs_remain = message.as.flow_control.BS;
                     }
                     uint32_t message_st_min_us = isotp_st_min_to_us(message.as.flow_control.STmin);
-                    link->send_st_min_us = message_st_min_us > ISO_TP_DEFAULT_ST_MIN_US ? message_st_min_us : ISO_TP_DEFAULT_ST_MIN_US; // prefer as much st_min as possible for stability?
-                    link->send_wtf_count = 0;
+                    link->send_st_min_us       = message_st_min_us > ISO_TP_DEFAULT_ST_MIN_US
+                                                     ? message_st_min_us
+                                                     : ISO_TP_DEFAULT_ST_MIN_US; // prefer as much st_min as possible for stability?
+                    link->send_wtf_count       = 0;
                 }
             }
             break;
-        default:
-            break;
+        default: break;
     };
-    
+
+#ifdef ISO_TP_RECEIVE_COMPLETE_CALLBACK
+    /* Notify user via callback if registered */
+    if (link->receive_status == ISOTP_RECEIVE_STATUS_FULL && link->rx_done_cb != NULL
+#ifdef ISO_TP_ENABLE_STREAMING
+        && !link->receive_streaming
+#endif
+    ) {
+        link->rx_done_cb(link, link->receive_buffer, link->receive_size, link->rx_done_cb_arg);
+        link->receive_status = ISOTP_RECEIVE_STATUS_IDLE;
+    }
+#endif
     return;
 }
 
-int isotp_receive(IsoTpLink *link, uint8_t *payload, const uint16_t payload_size, uint16_t *out_size) {
-    uint16_t copylen;
-    
-    if (ISOTP_RECEIVE_STATUS_FULL != link->receive_status) {
-        return ISOTP_RET_NO_DATA;
-    }
+int isotp_receive(IsoTpLink* link, uint8_t* payload, const uint32_t payload_size, uint32_t* out_size) {
+    uint32_t copylen;
+
+#ifdef ISO_TP_RECEIVE_COMPLETE_CALLBACK
+    /* If callback is registered, isotp_receive should not be used */
+    if (link->rx_done_cb != NULL) { return ISOTP_RET_ERROR; /* Callback mode active, use callback instead */ }
+#endif
+
+#ifdef ISO_TP_ENABLE_STREAMING
+    if (link->receive_streaming) { return ISOTP_RET_ERROR; }
+#endif
+
+    if (ISOTP_RECEIVE_STATUS_FULL != link->receive_status) { return ISOTP_RET_NO_DATA; }
 
     copylen = link->receive_size;
-    if (copylen > payload_size) {
-        copylen = payload_size;
-    }
+    if (copylen > payload_size) { copylen = payload_size; }
 
     memcpy(payload, link->receive_buffer, copylen);
-    *out_size = copylen;
+    *out_size            = copylen;
 
     link->receive_status = ISOTP_RECEIVE_STATUS_IDLE;
 
     return ISOTP_RET_OK;
 }
 
-void isotp_init_link(IsoTpLink *link, uint32_t sendid, uint8_t *sendbuf, uint16_t sendbufsize, uint8_t *recvbuf, uint16_t recvbufsize) {
+#ifdef ISO_TP_ENABLE_STREAMING
+int isotp_receive_streaming(IsoTpLink* link, uint8_t* payload, const uint32_t payload_size, uint32_t* out_size, bool* is_complete) {
+    uint32_t copylen;
+
+    if (link == NULL || payload == NULL || out_size == NULL || is_complete == NULL) { return ISOTP_RET_ERROR; }
+    if (ISOTP_RECEIVE_STATUS_FULL != link->receive_status) { return ISOTP_RET_NO_DATA; }
+
+    copylen = link->receive_streaming ? link->receive_stream_size : link->receive_size;
+    if (payload_size < copylen) { return ISOTP_RET_NOSPACE; }
+
+    (void)memcpy(payload, link->receive_buffer, copylen);
+    *out_size    = copylen;
+    *is_complete = link->receive_offset >= link->receive_size && link->receive_stream_carry_size == 0;
+
+    if (!link->receive_streaming || *is_complete) {
+        link->receive_status    = ISOTP_RECEIVE_STATUS_IDLE;
+        link->receive_streaming = 0;
+        return ISOTP_RET_OK;
+    }
+
+    link->receive_stream_size = link->receive_stream_carry_size;
+    if (link->receive_stream_size > link->receive_buf_size) {
+        link->receive_stream_size = link->receive_buf_size;
+    }
+    if (link->receive_stream_size > 0) {
+        (void)memcpy(link->receive_buffer, link->receive_stream_carry, link->receive_stream_size);
+        link->receive_stream_carry_size -= (uint8_t)link->receive_stream_size;
+        if (link->receive_stream_carry_size > 0) {
+            (void)memmove(link->receive_stream_carry, link->receive_stream_carry + link->receive_stream_size, link->receive_stream_carry_size);
+        }
+    }
+
+    if (link->receive_stream_carry_size > 0 || link->receive_offset >= link->receive_size) {
+        link->receive_status = ISOTP_RECEIVE_STATUS_FULL;
+    } else {
+        link->receive_status   = ISOTP_RECEIVE_STATUS_INPROGRESS;
+        link->receive_bs_count = 1;
+        isotp_send_flow_control(link, PCI_FLOW_STATUS_CONTINUE, link->receive_bs_count, ISO_TP_DEFAULT_ST_MIN_US);
+        link->receive_timer_cr = isotp_user_get_us() + ISO_TP_DEFAULT_RESPONSE_TIMEOUT_US;
+    }
+
+    return ISOTP_RET_OK;
+}
+#endif
+
+void isotp_init_link(IsoTpLink* link, uint32_t sendid, uint8_t* sendbuf, uint32_t sendbufsize, uint8_t* recvbuf, uint32_t recvbufsize) {
     memset(link, 0, sizeof(*link));
-    link->receive_status = ISOTP_RECEIVE_STATUS_IDLE;
-    link->send_status = ISOTP_SEND_STATUS_IDLE;
+    link->receive_status      = ISOTP_RECEIVE_STATUS_IDLE;
+    link->send_status         = ISOTP_SEND_STATUS_IDLE;
     link->send_arbitration_id = sendid;
-    link->send_buffer = sendbuf;
-    link->send_buf_size = sendbufsize;
-    link->receive_buffer = recvbuf;
-    link->receive_buf_size = recvbufsize;
-    
+    link->send_buffer         = sendbuf;
+    link->send_buf_size       = sendbufsize;
+    link->receive_buffer      = recvbuf;
+    link->receive_buf_size    = recvbufsize;
+    link->tx_dl               = ISO_TP_DEFAULT_TX_DL;
+    link->rx_dl               = ISOTP_CAN_DL_CLASSIC;
+
+#ifdef ISO_TP_TRANSMIT_COMPLETE_CALLBACK
+    link->tx_done_cb     = NULL;
+    link->tx_done_cb_arg = NULL;
+#endif
+
+#ifdef ISO_TP_RECEIVE_COMPLETE_CALLBACK
+    link->rx_done_cb     = NULL;
+    link->rx_done_cb_arg = NULL;
+#endif
+
     return;
 }
 
-void isotp_poll(IsoTpLink *link) {
+int isotp_set_tx_dl(IsoTpLink* link, uint8_t tx_dl) {
+    if (link == NULL) {
+        isotp_user_debug("Link is null!");
+        return ISOTP_RET_ERROR;
+    }
+
+    if (tx_dl < ISOTP_CAN_DL_CLASSIC || tx_dl > ISO_TP_MAX_CAN_FRAME_SIZE || !isotp_is_valid_can_dl(tx_dl)) {
+#ifndef ISO_TP_NO_FORMATTED_ERRORS
+        char    message[ISOTP_MAX_ERROR_MSG_SIZE] = {0};
+        int32_t writtenChars =
+            snprintf(&message[0], ISOTP_MAX_ERROR_MSG_SIZE, "Invalid TX_DL of %u bytes; must be a CAN frame length between 8 and %u!\n",
+                     (unsigned int)tx_dl, (unsigned int)ISO_TP_MAX_CAN_FRAME_SIZE);
+
+        assert(writtenChars <= ISOTP_MAX_ERROR_MSG_SIZE);
+        (void)writtenChars;
+
+        isotp_user_debug(message);
+#else
+        isotp_user_debug("Invalid TX_DL; must be a valid CAN frame length.\n");
+#endif
+        return ISOTP_RET_ERROR;
+    }
+
+    if (ISOTP_SEND_STATUS_INPROGRESS == link->send_status) {
+        isotp_user_debug("Cannot change TX_DL while a transmission is in progress.\n");
+        return ISOTP_RET_INPROGRESS;
+    }
+
+    link->tx_dl = tx_dl;
+
+    return ISOTP_RET_OK;
+}
+
+uint8_t isotp_get_tx_dl(const IsoTpLink* link) {
+    if (link == NULL) {
+        isotp_user_debug("Link is null!");
+        return 0;
+    }
+
+    return isotp_tx_dl(link);
+}
+
+void isotp_destroy_link(IsoTpLink* link) {
+    if (link == NULL) { return; }
+
+    // Clear callbacks
+#ifdef ISO_TP_TRANSMIT_COMPLETE_CALLBACK
+    link->tx_done_cb     = NULL;
+    link->tx_done_cb_arg = NULL;
+#endif
+
+#ifdef ISO_TP_RECEIVE_COMPLETE_CALLBACK
+    link->rx_done_cb     = NULL;
+    link->rx_done_cb_arg = NULL;
+#endif
+
+    // Reset link state (optional, but good practice)
+    memset(link, 0, sizeof(IsoTpLink));
+}
+
+void isotp_poll(IsoTpLink* link) {
     int ret;
 
     /* only polling when operation in progress */
     if (ISOTP_SEND_STATUS_INPROGRESS == link->send_status) {
-
         /* continue send data */
         if (/* send data if bs_remain is invalid or bs_remain large than zero */
-        (ISOTP_INVALID_BS == link->send_bs_remain || link->send_bs_remain > 0) &&
-        /* and if st_min is zero or go beyond interval time */
-        (0 == link->send_st_min_us || IsoTpTimeAfter(isotp_user_get_us(), link->send_timer_st))) {
-            
+            (ISOTP_INVALID_BS == link->send_bs_remain || link->send_bs_remain > 0) &&
+            /* and if st_min is zero or go beyond interval time */
+            (0 == link->send_st_min_us || IsoTpTimeAfter(isotp_user_get_us(), link->send_timer_st))) {
             ret = isotp_send_consecutive_frame(link);
             if (ISOTP_RET_OK == ret) {
-                if (ISOTP_INVALID_BS != link->send_bs_remain) {
-                    link->send_bs_remain -= 1;
-                }
+                if (ISOTP_INVALID_BS != link->send_bs_remain) { link->send_bs_remain -= 1; }
                 link->send_timer_bs = isotp_user_get_us() + ISO_TP_DEFAULT_RESPONSE_TIMEOUT_US;
                 link->send_timer_st = isotp_user_get_us() + link->send_st_min_us;
 
                 /* check if send finish */
                 if (link->send_offset >= link->send_size) {
                     link->send_status = ISOTP_SEND_STATUS_IDLE;
+#ifdef ISO_TP_TRANSMIT_COMPLETE_CALLBACK
+                    if (link->tx_done_cb != NULL) { link->tx_done_cb(link, link->send_size, link->tx_done_cb_arg); }
+#endif
                 }
             } else if (ISOTP_RET_NOSPACE == ret) {
                 /* shim reported that it isn't able to send a frame at present, retry on next call */
@@ -4421,22 +4822,39 @@ void isotp_poll(IsoTpLink *link) {
         /* check timeout */
         if (IsoTpTimeAfter(isotp_user_get_us(), link->send_timer_bs)) {
             link->send_protocol_result = ISOTP_PROTOCOL_RESULT_TIMEOUT_BS;
-            link->send_status = ISOTP_SEND_STATUS_ERROR;
+            link->send_status          = ISOTP_SEND_STATUS_ERROR;
         }
     }
 
     /* only polling when operation in progress */
     if (ISOTP_RECEIVE_STATUS_INPROGRESS == link->receive_status) {
-        
         /* check timeout */
-        if (IsoTpTimeAfter(isotp_user_get_us(), link->receive_timer_cr)) {
+        if ((link->receive_timer_cr > 0) && IsoTpTimeAfter(isotp_user_get_us(), link->receive_timer_cr)) {
             link->receive_protocol_result = ISOTP_PROTOCOL_RESULT_TIMEOUT_CR;
-            link->receive_status = ISOTP_RECEIVE_STATUS_IDLE;
+            link->receive_status          = ISOTP_RECEIVE_STATUS_IDLE;
         }
     }
 
     return;
 }
+
+#ifdef ISO_TP_TRANSMIT_COMPLETE_CALLBACK
+void isotp_set_tx_done_cb(IsoTpLink* link, isotp_tx_done_cb cb, void* arg) {
+    if (link != NULL) {
+        link->tx_done_cb     = cb;
+        link->tx_done_cb_arg = arg;
+    }
+}
+#endif
+
+#ifdef ISO_TP_RECEIVE_COMPLETE_CALLBACK
+void isotp_set_rx_done_cb(IsoTpLink* link, isotp_rx_done_cb cb, void* arg) {
+    if (link != NULL) {
+        link->rx_done_cb     = cb;
+        link->rx_done_cb_arg = arg;
+    }
+}
+#endif
 
 /// \endcond
 #endif // if defined(UDS_TP_ISOTP_C)

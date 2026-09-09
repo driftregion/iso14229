@@ -85,9 +85,10 @@ cc_library(
         "UDS_TP_ISOTP_MOCK",
         "UDS_CUSTOM_MILLIS",
         "UDS_LOG_LEVEL=UDS_LOG_VERBOSE",
+        "UDS_LINES",
     ] + select({
         "@platforms//os:windows": [],
-        "//conditions:default": [ 
+        "//conditions:default": [
             "UDS_TP_ISOTP_C_SOCKETCAN",
             "UDS_TP_ISOTP_SOCK",
         ],
@@ -113,6 +114,7 @@ cc_library(
         "UDS_TP_ISOTP_MOCK",
         "UDS_CUSTOM_MILLIS",
         "UDS_LOG_LEVEL=UDS_LOG_VERBOSE",
+        "UDS_LINES",
     ] + select({
         "@platforms//os:windows": [],
         "//conditions:default": [ 
