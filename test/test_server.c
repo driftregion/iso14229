@@ -9,8 +9,7 @@ static size_t TestTpRecv(UDSTp_t *tp, uint8_t *buf, size_t bufsize) {
 }
 
 int Setup(void **state) {
-    Env_t *env = malloc(sizeof(Env_t));
-    memset(env, 0, sizeof(Env_t));
+    Env_t *env = EnvNew();
     env->server = malloc(sizeof(UDSServer_t));
     UDSServerInit(env->server);
     env->server->tp = ISOTPMockNew("server", &(ISOTPMockArgs_t){.sa_phys = 0x7E0,
@@ -31,7 +30,7 @@ int Teardown(void **state) {
     ISOTPMockFree(env->client_tp);
     ISOTPMockReset();
     free(env->server);
-    free(env);
+    EnvFree(env);
     return 0;
 }
 

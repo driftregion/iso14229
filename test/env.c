@@ -116,6 +116,15 @@ void MockServerPoll(MockServer_t *srv) {
     }
 }
 
+Env_t *EnvNew() {
+    Env_t *e = malloc(sizeof(Env_t));
+    assert(e);
+    memset(e, 0, sizeof(*e));
+    return e;
+}
+
+void EnvFree(Env_t *e) { free(e); }
+
 void EnvRunMillis(Env_t *env, uint32_t millis) {
     uint32_t end = UDSMillis() + millis;
     while (UDSMillis() < end) {

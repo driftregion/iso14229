@@ -44,7 +44,8 @@ static UDSErr_t isotp_sock_tp_poll(UDSTp_t *hdl) {
             if (pfd.revents & POLLERR) {
                 int pending_err = 0;
                 socklen_t len = sizeof(pending_err);
-                if (!getsockopt(fds[i], SOL_SOCKET, SO_ERROR, &pending_err, &len) && pending_err) {
+                if (0 == getsockopt(fds[i], SOL_SOCKET, SO_ERROR, &pending_err, &len) &&
+                    pending_err) {
                     switch (pending_err) {
                     case ECOMM:
                         UDS_LOGE(__FILE__, "ECOMM: Communication error on send");

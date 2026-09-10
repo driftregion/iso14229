@@ -619,10 +619,9 @@ typedef struct UDSTp {
     /**
      * @brief Poll the transport layer.
      * @param hdl: pointer to transport handle
-     * @note the transport layer user is responsible for calling this function periodically
-     * @note threaded implementations like linux isotp sockets don't need to do anything here.
+     * @note
      */
-    void (*poll)(struct UDSTp *hdl);
+    UDSErr_t (*poll)(struct UDSTp *hdl);
 
     /**
      * @brief status flag (read-only)
@@ -636,7 +635,7 @@ UDSErr_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, const size_t len,
                    const UDSSDU_t *info); ///< Send to transport
 UDSErr_t UDSTpRecv(UDSTp_t *hdl, uint8_t *buf, const size_t bufsiz, size_t *recvlen,
                    UDSSDU_t *info); ///< Receive from transport
-void UDSTpPoll(UDSTp_t *hdl);       ///< call this at <5ms intervals
+UDSErr_t UDSTpPoll(UDSTp_t *hdl);   ///< call this at <5ms intervals
 
 
 #ifdef UDS_LINES
@@ -2362,17 +2361,17 @@ UDSErr_t UDSServerTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t source_addr, uint32_t
 /**
  * @brief Initialize isotp-c transport for \ref UDSClient_t
  * @param tp \ref UDSTpISOTpC_t instance.
- * @param target_addr Client sends physical requests to this address.
  * @param source_addr Client listens for responses at this address.
+ * @param target_addr Client sends physical requests to this address.
  * @param target_addr_func Client sends functional transmissions to this address.
  */
-UDSErr_t UDSClientTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t target_addr, uint32_t source_addr,
+UDSErr_t UDSClientTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t source_addr, uint32_t target_addr,
                                uint32_t target_addr_func);
 
-
-// Internal API                               
+// Internal API
 UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t sa, uint32_t ta, uint32_t sa_func,
-                                uint32_t ta_func);
+                         uint32_t ta_func);
+UDSErr_t UDSTpISOTpCPoll(UDSTp_t *tp);
 
 #endif
 
@@ -2406,20 +2405,19 @@ typedef struct {
  * @param source_addr_func Server listens for functional transmissions on this address.
  */
 UDSErr_t UDSServerTpISOTpCSocketCANInit(UDSTpISOTpCSocketCAN_t *tp, const char *ifname,
-                                  uint32_t source_addr, uint32_t target_addr,
-                                  uint32_t source_addr_func);
-
+                                        uint32_t source_addr, uint32_t target_addr,
+                                        uint32_t source_addr_func);
 
 /**
  * @brief Initialize isotp-c over SocketCAN transport for \ref UDSClient_t
  * @param tp \ref UDSTpISOTpC_t instance.
- * @param target_addr Client sends physical requests to this address.
  * @param source_addr Client listens for responses at this address.
+ * @param target_addr Client sends physical requests to this address.
  * @param target_addr_func Client sends functional transmissions to this address.
  */
 UDSErr_t UDSClientTpISOTpCSocketCANInit(UDSTpISOTpCSocketCAN_t *tp, const char *ifname,
-                                  uint32_t target_addr, uint32_t source_addr,
-                                  uint32_t target_addr_func);
+                                        uint32_t source_addr, uint32_t target_addr,
+                                        uint32_t target_addr_func);
 
 void UDSTpISOTpCSocketCANDeinit(UDSTpISOTpCSocketCAN_t *tp); ///< release socket
 

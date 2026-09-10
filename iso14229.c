@@ -2728,18 +2728,18 @@ UDSErr_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, const size_t len, const UDS
 }
 
 UDSErr_t UDSTpRecv(UDSTp_t *hdl, uint8_t *buf, const size_t bufsiz, size_t *recvlen,
-                       UDSSDU_t *info) {
+                   UDSSDU_t *info) {
     if (NULL == hdl || NULL == hdl->recv || NULL == recvlen) {
         return UDS_ERR_INVALID_ARG;
     }
     return hdl->recv(hdl, buf, bufsiz, recvlen, info);
 }
 
-void UDSTpPoll(UDSTp_t *hdl) {
+UDSErr_t UDSTpPoll(UDSTp_t *hdl) {
     if (NULL == hdl || NULL == hdl->poll) {
-        return;
+        return UDS_ERR_INVALID_ARG;
     }
-    hdl->poll(hdl);
+    return hdl->poll(hdl);
 }
 
 
@@ -3103,8 +3103,7 @@ void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *bu
 
 
 
-
-static void tp_poll(UDSTp_t *hdl) {
+UDSErr_t UDSTpISOTpCPoll(UDSTp_t *hdl) {
     UDSTpISOTpC_t *impl = (UDSTpISOTpC_t *)hdl;
     isotp_poll(&impl->phys_link);
     isotp_poll(&impl->func_link);
@@ -3112,6 +3111,12 @@ static void tp_poll(UDSTp_t *hdl) {
         hdl->status.is_sending = 1;
     } else {
         hdl->status.is_sending = 0;
+    }
+
+    if (ISOTP_SEND_STATUS_ERROR == impl->phys_link.send_status) {
+        return UDS_ERR_TPORT;
+    } else {
+        return UDS_OK;
     }
 }
 
@@ -3152,13 +3157,10 @@ static UDSErr_t tp_send(UDSTp_t *hdl, const uint8_t *buf, size_t len, const UDSS
     }
 }
 
-static inline UDSErr_t safe_api_shim_isotp_receive(
-    IsoTpLink* link, 
-    uint8_t* payload, 
-    const size_t payload_size, // size of payload buffer
-    size_t* out_size,
-    int *isotp_ret
-) {
+static inline UDSErr_t
+safe_api_shim_isotp_receive(IsoTpLink *link, uint8_t *payload,
+                            const size_t payload_size, // size of payload buffer
+                            size_t *out_size, int *isotp_ret) {
     if (payload_size > sizeof(uint32_t)) { // sizeof(isotp_receive payload_size) arg
         return UDS_FAIL;
     }
@@ -3166,7 +3168,7 @@ static inline UDSErr_t safe_api_shim_isotp_receive(
         return UDS_FAIL;
     }
     uint32_t u32out_size = 0;
-    *isotp_ret = isotp_receive(link, payload, (uint32_t)payload_size, &u32out_size) ;
+    *isotp_ret = isotp_receive(link, payload, (uint32_t)payload_size, &u32out_size);
 
     if (u32out_size > sizeof(*out_size)) {
         return UDS_FAIL;
@@ -3176,7 +3178,7 @@ static inline UDSErr_t safe_api_shim_isotp_receive(
 }
 
 static UDSErr_t tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsiz, size_t *recvlen,
-                            UDSSDU_t *info) {
+                        UDSSDU_t *info) {
     UDSTpISOTpC_t *tp = (UDSTpISOTpC_t *)hdl;
     int ret = 0;
     UDSErr_t err = UDS_OK;
@@ -3212,16 +3214,16 @@ static UDSErr_t tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsiz, size_t *recvl
     } else {
         UDS_LOGE(__FILE__, "unhandled return code from phys link %d\n", ret);
     }
-    done:
+done:
     return err;
 }
 
 UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t sa, uint32_t ta, uint32_t sa_func,
-                                uint32_t ta_func) {
+                         uint32_t ta_func) {
     if (tp == NULL) {
         return UDS_ERR_INVALID_ARG;
     }
-    tp->hdl.poll = tp_poll;
+    tp->hdl.poll = UDSTpISOTpCPoll;
     tp->hdl.send = tp_send;
     tp->hdl.recv = tp_recv;
     tp->phys_sa = sa;
@@ -3241,7 +3243,7 @@ UDSErr_t UDSServerTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t source_addr, uint32_t
     return UDSTpISOTpCInit(tp, source_addr, target_addr, source_addr_func, UDS_TP_NOOP_ADDR);
 }
 
-UDSErr_t UDSClientTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t target_addr, uint32_t source_addr,
+UDSErr_t UDSClientTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t source_addr, uint32_t target_addr,
                                uint32_t target_addr_func) {
     return UDSTpISOTpCInit(tp, source_addr, target_addr, UDS_TP_NOOP_ADDR, target_addr_func);
 }
@@ -3357,6 +3359,11 @@ static void SocketCANRecv(UDSTpISOTpCSocketCAN_t *tp) {
     }
 }
 
+static UDSErr_t isotp_c_socketcan_poll(UDSTp_t *hdl) {
+    UDSTpISOTpCSocketCAN_t *impl = (UDSTpISOTpCSocketCAN_t *)hdl;
+    SocketCANRecv(impl);
+    return UDSTpISOTpCPoll((UDSTp_t *)&(impl->hdl2));
+}
 
 UDSErr_t UDSTpISOTpCSocketCANInit(UDSTpISOTpCSocketCAN_t *tp, const char *ifname,
                                   uint32_t source_addr, uint32_t target_addr,
@@ -3367,6 +3374,9 @@ UDSErr_t UDSTpISOTpCSocketCANInit(UDSTpISOTpCSocketCAN_t *tp, const char *ifname
     if (err) {
         return err;
     }
+    UDSTp_t *hdl = (UDSTp_t *)tp;
+    hdl->poll = isotp_c_socketcan_poll;
+
     tp->fd = SetupSocketCAN(ifname);
     tp->hdl2.phys_link.user_send_can_arg = &(tp->fd);
     tp->hdl2.func_link.user_send_can_arg = &(tp->fd);
@@ -3375,16 +3385,18 @@ UDSErr_t UDSTpISOTpCSocketCANInit(UDSTpISOTpCSocketCAN_t *tp, const char *ifname
 }
 
 UDSErr_t UDSServerTpISOTpCSocketCANInit(UDSTpISOTpCSocketCAN_t *tp, const char *ifname,
-                                  uint32_t source_addr, uint32_t target_addr,
-                                  uint32_t source_addr_func) {
-    return UDSTpISOTpCSocketCANInit(tp, ifname, source_addr, target_addr, source_addr_func, UDS_TP_NOOP_ADDR);
+                                        uint32_t source_addr, uint32_t target_addr,
+                                        uint32_t source_addr_func) {
+    return UDSTpISOTpCSocketCANInit(tp, ifname, source_addr, target_addr, source_addr_func,
+                                    UDS_TP_NOOP_ADDR);
 }
 
 UDSErr_t UDSClientTpISOTpCSocketCANInit(UDSTpISOTpCSocketCAN_t *tp, const char *ifname,
-                                  uint32_t target_addr, uint32_t source_addr,
-                                  uint32_t target_addr_func) {
-    return UDSTpISOTpCSocketCANInit(tp, ifname, source_addr, target_addr, UDS_TP_NOOP_ADDR, target_addr_func);
-                                }
+                                        uint32_t source_addr, uint32_t target_addr,
+                                        uint32_t target_addr_func) {
+    return UDSTpISOTpCSocketCANInit(tp, ifname, source_addr, target_addr, UDS_TP_NOOP_ADDR,
+                                    target_addr_func);
+}
 
 void UDSTpISOTpCSocketCANDeinit(UDSTpISOTpCSocketCAN_t *tp) {
     UDS_ASSERT(tp);
@@ -3415,8 +3427,9 @@ void UDSTpISOTpCSocketCANDeinit(UDSTpISOTpCSocketCAN_t *tp) {
 #include <sys/types.h>
 #include <unistd.h>
 
-static void isotp_sock_tp_poll(UDSTp_t *hdl) {
+static UDSErr_t isotp_sock_tp_poll(UDSTp_t *hdl) {
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
+    UDSErr_t err = UDS_OK;
     int ret = 0;
     int fds[2] = {impl->phys_fd, impl->func_fd};
     struct pollfd pfds[2] = {0};
@@ -3431,6 +3444,7 @@ static void isotp_sock_tp_poll(UDSTp_t *hdl) {
     ret = poll(pfds, 2, 1);
     if (ret < 0) {
         UDS_LOGE(__FILE__, "poll failed: %d", ret);
+        err = UDS_ERR_TPORT;
     } else if (ret == 0) {
         ; // timeout, no events
     } else {
@@ -3446,6 +3460,7 @@ static void isotp_sock_tp_poll(UDSTp_t *hdl) {
                     switch (pending_err) {
                     case ECOMM:
                         UDS_LOGE(__FILE__, "ECOMM: Communication error on send");
+                        err = UDS_ERR_TPORT;
                         break;
                     default:
                         UDS_LOGE(__FILE__, "Asynchronous socket error: %s (%d)",
@@ -3472,6 +3487,7 @@ static void isotp_sock_tp_poll(UDSTp_t *hdl) {
             }
         }
     }
+    return err;
 }
 
 static UDSErr_t tp_recv_once(int fd, uint8_t *buf, const size_t bufsiz, size_t *recvlen) {
@@ -3490,7 +3506,8 @@ static UDSErr_t tp_recv_once(int fd, uint8_t *buf, const size_t bufsiz, size_t *
     return err;
 }
 
-static UDSErr_t isotp_sock_tp_recv(UDSTp_t *hdl, uint8_t *buf, const size_t bufsiz, size_t *recvlen, UDSSDU_t *info) {
+static UDSErr_t isotp_sock_tp_recv(UDSTp_t *hdl, uint8_t *buf, const size_t bufsiz, size_t *recvlen,
+                                   UDSSDU_t *info) {
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
     UDSErr_t err = 0;
     UDSSDU_t *msg = &impl->recv_info;
@@ -3528,24 +3545,23 @@ static UDSErr_t isotp_sock_tp_recv(UDSTp_t *hdl, uint8_t *buf, const size_t bufs
 }
 
 static UDSErr_t isotp_sock_tp_send(UDSTp_t *hdl, const uint8_t *buf, const size_t len,
-                                       const UDSSDU_t *info) {
+                                   const UDSSDU_t *info) {
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
     ssize_t ret = -1;
     int fd = -1;
     const UDS_A_TA_Type_t ta_type = info ? info->A_TA_Type : UDS_A_TA_TYPE_PHYSICAL;
 
     switch (ta_type) {
-        case UDS_A_TA_TYPE_PHYSICAL:
+    case UDS_A_TA_TYPE_PHYSICAL:
         fd = impl->phys_fd;
         break;
-        case UDS_A_TA_TYPE_FUNCTIONAL: {
-            if (len > 7) {
-                UDS_LOGE(__FILE__, "UDSTpIsoTpSock: functional request too large");
-                return UDS_ERR_MISUSE;
-            }
-            fd = impl->func_fd;
+    case UDS_A_TA_TYPE_FUNCTIONAL: {
+        if (len > 7) {
+            UDS_LOGE(__FILE__, "UDSTpIsoTpSock: functional request too large");
+            return UDS_ERR_MISUSE;
         }
-        break;
+        fd = impl->func_fd;
+    } break;
     default:
         UDS_LOGE(__FILE__, "unknown UDS_A_TA_TYPE");
         return UDS_ERR_MISUSE;
@@ -3757,7 +3773,7 @@ static void NetworkPoll(void) {
 }
 
 static UDSErr_t mock_tp_send(struct UDSTp *hdl, const uint8_t *buf, size_t len,
-                                 const UDSSDU_t *info) {
+                             const UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
     if (MsgCount >= NUM_MSGS) {
@@ -3798,7 +3814,8 @@ static UDSErr_t mock_tp_send(struct UDSTp *hdl, const uint8_t *buf, size_t len,
     return UDS_OK;
 }
 
-static UDSErr_t mock_tp_recv(struct UDSTp *hdl, uint8_t *buf, size_t bufsiz, size_t *recvlen, UDSSDU_t *info) {
+static UDSErr_t mock_tp_recv(struct UDSTp *hdl, uint8_t *buf, size_t bufsiz, size_t *recvlen,
+                             UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
     if (tp->recv_len == 0) {
@@ -3817,9 +3834,10 @@ static UDSErr_t mock_tp_recv(struct UDSTp *hdl, uint8_t *buf, size_t bufsiz, siz
     return UDS_OK;
 }
 
-static void mock_tp_poll(struct UDSTp *hdl) {
+static UDSErr_t mock_tp_poll(struct UDSTp *hdl) {
     (void)hdl; // unused parameter
     NetworkPoll();
+    return UDS_OK;
 }
 
 static_assert(offsetof(ISOTPMock_t, hdl) == 0, "ISOTPMock_t must not have any members before hdl");
@@ -3920,7 +3938,11 @@ void ISOTPMockFree(UDSTp_t *tp) {
 /// \cond DOXYGEN_SHOULD_SKIP_THIS
 
 #ifndef ISO_TP_USER_SEND_CAN_ARG
-#error
+#error "need this"
+#endif
+
+#ifndef ISO_TP_NO_FORMATTED_ERRORS
+#error "need this too"
 #endif
 
 #ifdef UDS_LINES

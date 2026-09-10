@@ -136,7 +136,7 @@ UDSErr_t UDSServerTpISOTpCSocketCANInit(UDSTpISOTpCSocketCAN_t *tp, const char *
 }
 
 UDSErr_t UDSClientTpISOTpCSocketCANInit(UDSTpISOTpCSocketCAN_t *tp, const char *ifname,
-                                        uint32_t target_addr, uint32_t source_addr,
+                                        uint32_t source_addr, uint32_t target_addr,
                                         uint32_t target_addr_func) {
     return UDSTpISOTpCSocketCANInit(tp, ifname, source_addr, target_addr, UDS_TP_NOOP_ADDR,
                                     target_addr_func);

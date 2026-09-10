@@ -42,7 +42,7 @@ MockServer_t *MockServerNew(void);
 void MockServerFree(MockServer_t *srv);
 
 // Test environment
-typedef struct {
+typedef struct Env {
 
     // the environment polls these objects in EnvRunMillis
     UDSServer_t *server;
@@ -54,10 +54,13 @@ typedef struct {
     bool is_real_time; // if true, EnvRunMillis will run for a wall-time duration rather than
                        // simulated time. This makes tests much slower, so use it only when
                        // necessary.
+
+    void *p; // pointer to arbitrary setup-defined data 
 } Env_t;
 
+Env_t *EnvNew();
+void EnvFree(Env_t *e);
 void EnvRunMillis(Env_t *env, uint32_t millis);
-void EnvSetMillis(uint32_t millis);
 
 #define _TEST_INT_COND(a, b, cond)                                                                 \
     {                                                                                              \

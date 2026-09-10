@@ -64,18 +64,20 @@ static inline UDSErr_t
 safe_api_shim_isotp_receive(IsoTpLink *link, uint8_t *payload,
                             const size_t payload_size, // size of payload buffer
                             size_t *out_size, int *isotp_ret) {
-    if (payload_size > sizeof(uint32_t)) { // sizeof(isotp_receive payload_size) arg
-        return UDS_FAIL;
-    }
-    if (sizeof(*out_size) > sizeof(uint32_t)) { // sizeof(isotp_receive *out_size) arg
-        return UDS_FAIL;
-    }
     uint32_t u32out_size = 0;
+
+    if (payload_size > UINT32_MAX) { // max value of isotp_receive(payload_size)
+        return UDS_FAIL;
+    }
+
     *isotp_ret = isotp_receive(link, payload, (uint32_t)payload_size, &u32out_size);
 
-    if (u32out_size > sizeof(*out_size)) {
+#if UINT32_MAX > SIZE_MAX
+    if (u32out_size > SIZE_MAX) {
         return UDS_FAIL;
     }
+#endif
+
     *out_size = u32out_size;
     return UDS_OK;
 }
@@ -146,7 +148,7 @@ UDSErr_t UDSServerTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t source_addr, uint32_t
     return UDSTpISOTpCInit(tp, source_addr, target_addr, source_addr_func, UDS_TP_NOOP_ADDR);
 }
 
-UDSErr_t UDSClientTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t target_addr, uint32_t source_addr,
+UDSErr_t UDSClientTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t source_addr, uint32_t target_addr,
                                uint32_t target_addr_func) {
     return UDSTpISOTpCInit(tp, source_addr, target_addr, UDS_TP_NOOP_ADDR, target_addr_func);
 }
