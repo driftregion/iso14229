@@ -3161,18 +3161,20 @@ static inline UDSErr_t
 safe_api_shim_isotp_receive(IsoTpLink *link, uint8_t *payload,
                             const size_t payload_size, // size of payload buffer
                             size_t *out_size, int *isotp_ret) {
-    if (payload_size > sizeof(uint32_t)) { // sizeof(isotp_receive payload_size) arg
-        return UDS_FAIL;
-    }
-    if (sizeof(*out_size) > sizeof(uint32_t)) { // sizeof(isotp_receive *out_size) arg
-        return UDS_FAIL;
-    }
     uint32_t u32out_size = 0;
+
+    if (payload_size > UINT32_MAX) { // max value of isotp_receive(payload_size)
+        return UDS_FAIL;
+    }
+
     *isotp_ret = isotp_receive(link, payload, (uint32_t)payload_size, &u32out_size);
 
-    if (u32out_size > sizeof(*out_size)) {
+#if UINT32_MAX > SIZE_MAX
+    if (u32out_size > SIZE_MAX) {
         return UDS_FAIL;
     }
+#endif
+
     *out_size = u32out_size;
     return UDS_OK;
 }
@@ -3456,7 +3458,8 @@ static UDSErr_t isotp_sock_tp_poll(UDSTp_t *hdl) {
             if (pfd.revents & POLLERR) {
                 int pending_err = 0;
                 socklen_t len = sizeof(pending_err);
-                if (!getsockopt(fds[i], SOL_SOCKET, SO_ERROR, &pending_err, &len) && pending_err) {
+                if (0 == getsockopt(fds[i], SOL_SOCKET, SO_ERROR, &pending_err, &len) &&
+                    pending_err) {
                     switch (pending_err) {
                     case ECOMM:
                         UDS_LOGE(__FILE__, "ECOMM: Communication error on send");

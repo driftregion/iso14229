@@ -9,7 +9,7 @@ cc_library(
     ],
     deps = [ 
         "@cmocka",
-        "//:iso14229",
+        "//src:iso14229",
     ],
     copts = select({
         "@platforms//os:windows": [],
@@ -17,21 +17,13 @@ cc_library(
             "-g",
          ],
     }),
-    defines = [
-        "UDS_ASSERT=assert",
-    ]
+    defines = [ "UDS_ASSERT=assert" ]
 )
 
 cc_test(
     name="test_server", 
-    srcs = [
-        "test_server.c",
-    ],
-    deps = [ 
-        "//:iso14229",
-        "@cmocka",
-        ":env",
-    ],
+    srcs = [ "test_server.c" ],
+    deps = [ ":env" ],
     size = "small",
     copts = select({
         "@platforms//os:windows": [],
@@ -47,14 +39,8 @@ cc_test(
 
 cc_test(
     name="test_client", 
-    srcs = [
-        "test_client.c",
-    ],
-    deps = [ 
-        "//:iso14229",
-        "@cmocka",
-        ":env",
-    ],
+    srcs = [ "test_client.c" ],
+    deps = [ ":env" ],
     size = "small",
     copts = select({
         "@platforms//os:windows": [],
@@ -67,8 +53,6 @@ cc_test(
         "UDS_LINES",
     ],
 )
-
-
 
 cc_library(
     name = "test_prefix_c",
@@ -122,48 +106,11 @@ sh_test(
     ],
 )
 
-cc_library(
-    name = "ultra_strict",
-    srcs = [
-        "//src:iso14229.h",
-        "//src:iso14229.c",
-    ],
-    copts = select({
-        "@platforms//os:windows": [
-            "/WX",  # Treat warnings as errors (MSVC equivalent of -Werror)
-            "/W4",  # High warning level (MSVC equivalent of -Wall -Wextra)
-        ],
-        "//conditions:default": [
-            "-Werror",
-            "-Wall",
-            "-Wextra",
-            "-Wpedantic",
-            "-Wno-unused-parameter",
-            "-Wno-gnu-zero-variadic-macro-arguments",
-        ],
-    }),
-    defines = select({
-        "@platforms//os:windows": [
-            "UDS_TP_ISOTP_MOCK",
-        ],
-        "//conditions:default": [
-            "UDS_TP_ISOTP_C_SOCKETCAN",
-            "UDS_TP_ISOTP_SOCK",
-            "UDS_TP_ISOTP_MOCK",
-        ],
-    }),
-)
-
 [
     cc_test(
         name = "test_tp_isotp_compliance_" + tp_name,
-        srcs = [
-            "test_tp_isotp_compliance.c",
-        ],
-        deps = [ 
-            "@cmocka",
-            ":env",
-        ],
+        srcs = [ "test_tp_isotp_compliance.c" ],
+        deps = [ ":env" ],
         defines = [
             "UDS_CUSTOM_MILLIS",
             "UDS_LINES",

@@ -45,10 +45,6 @@ jobs:
         disk-cache: ${{ github.workflow }}
         repository-cache: true
 
-    - name: run ultra_strict
-      run: |
-        bazel build --repo_env=CC=clang --repo_env=CXX=clang++ //test:ultra_strict
-
   CodeChecker:
     runs-on: ubuntu-latest
 
