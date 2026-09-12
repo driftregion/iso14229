@@ -20,6 +20,7 @@
 | [94xhn](https://github.com/94xhn)                   |  Fix MinGW/GCC-on-Windows build broken by _WIN32 vs __GNUC__ macro clash                       | #65    |
 | [mccre110](https://github.com/mccre110)             |  Added support for CAN-FD.                                                                     | #69    |
 | [jerry73204](https://github.com/jerry73204)         |  Added ISO_TP_NO_FORMATTED_ERRORS to drop the snprintf dependency.                              | #75    |
+| [Max Proskauer](https://github.com/mproskauer-cmt) |  Fixed `isotp_send_with_id()` ignoring the identifier for Single Frames.                       | #79    |
 
 Thank you everyone for contributing to this library and improving it!
 Have you contributed and I've forgotten to mention you? Please let me know and I'll add you here!

@@ -38,6 +38,7 @@
 
 #define TEST_TX_ID 0x123
 #define TEST_RX_ID 0x456
+#define TEST_FUNCTIONAL_ID 0x7DF
 
 using test_frame_t = struct {
         uint32_t id;
@@ -934,6 +935,47 @@ TEST_F(FramingTest, RejectsMalformedAndOversizedFrames) {
 }
 TEST_F(FramingTest, EncodesLongFirstFrames) { test_long_first_frame(8); }
 TEST_F(FramingTest, TransfersPayloadsAtClassicDataLength) { test_transfers(8); }
+
+TEST_F(FramingTest, SendsWithOverriddenIdentifier) {
+    IsoTpLink link;
+    test_init_link(&link, TEST_TX_ID, g_send_buffer.data(), sizeof(g_send_buffer), g_receive_buffer.data(), sizeof(g_receive_buffer));
+    ASSERT_EQ(isotp_set_tx_dl(&link, 8), ISOTP_RET_OK);
+
+    /* a functional request is a Single Frame sent with a one-time identifier */
+    fill_pattern(g_payload.data(), 3);
+    EXPECT_EQ(isotp_send_with_id(&link, TEST_FUNCTIONAL_ID, g_payload.data(), 3), ISOTP_RET_OK);
+    EXPECT_EQ(g_frame_count, 1);
+    EXPECT_EQ(g_frames[0].id, TEST_FUNCTIONAL_ID);
+    EXPECT_EQ(g_frames[0].data[0], 0x03);
+    EXPECT_EQ(memcmp(&g_frames[0].data[1], g_payload.data(), 3), 0);
+
+    /* the override applies to that send only and leaves the link identifier untouched */
+    EXPECT_EQ(link.send_arbitration_id, TEST_TX_ID);
+    reset_bus();
+    EXPECT_EQ(isotp_send(&link, g_payload.data(), 3), ISOTP_RET_OK);
+    EXPECT_EQ(g_frame_count, 1);
+    EXPECT_EQ(g_frames[0].id, TEST_TX_ID);
+
+    /* a segmented send starts its First Frame with the override as well */
+    reset_bus();
+    fill_pattern(g_payload.data(), 20);
+    EXPECT_EQ(isotp_send_with_id(&link, TEST_FUNCTIONAL_ID, g_payload.data(), 20), ISOTP_RET_OK);
+    EXPECT_EQ(g_frame_count, 1);
+    EXPECT_EQ(g_frames[0].id, TEST_FUNCTIONAL_ID);
+    EXPECT_EQ(g_frames[0].data[0], 0x10);
+
+#if ISO_TP_MAX_CAN_FRAME_SIZE > 8
+    /* the CAN FD SF_DL escape format honours the override too */
+    reset_bus();
+    test_init_link(&link, TEST_TX_ID, g_send_buffer.data(), sizeof(g_send_buffer), g_receive_buffer.data(), sizeof(g_receive_buffer));
+    ASSERT_EQ(isotp_set_tx_dl(&link, ISO_TP_MAX_CAN_FRAME_SIZE), ISOTP_RET_OK);
+    EXPECT_EQ(isotp_send_with_id(&link, TEST_FUNCTIONAL_ID, g_payload.data(), 8), ISOTP_RET_OK);
+    EXPECT_EQ(g_frame_count, 1);
+    EXPECT_EQ(g_frames[0].id, TEST_FUNCTIONAL_ID);
+    EXPECT_EQ(g_frames[0].data[0], 0x00);
+    EXPECT_EQ(g_frames[0].data[1], 8);
+#endif
+}
 
 TEST_F(FramingTest, RejectsInvalidSendStateAndPropagatesDriverFailures) {
     IsoTpLink link;

@@ -157,8 +157,6 @@ static int isotp_send_flow_control(const IsoTpLink* link, uint8_t flow_status, u
 }
 
 static int isotp_send_single_frame(const IsoTpLink* link, uint32_t id) {
-    (void)id; // Prevent unused variable warning
-
     IsoTpCanMessage message;
     int             ret;
     uint8_t         size = 0;
@@ -185,8 +183,9 @@ static int isotp_send_single_frame(const IsoTpLink* link, uint32_t id) {
         size = isotp_pad_frame(&message, (uint8_t)(link->send_size + 2u));
     }
 
-    /* send message */
-    ret = isotp_user_send_can(link->send_arbitration_id, message.as.data_array.ptr, size
+    /* send message using the identifier requested by the caller, which
+     * isotp_send_with_id() may override for a functional request */
+    ret = isotp_user_send_can(id, message.as.data_array.ptr, size
 #if defined(ISO_TP_USER_SEND_CAN_FLAGS)
                               , isotp_frame_flags(link)
 #endif
