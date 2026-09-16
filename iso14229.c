@@ -1599,10 +1599,8 @@ static UDSErr_t Handle_0x23_ReadMemoryByAddress(UDSServer_t *srv, UDSReq_t *r) {
 }
 
 static UDSErr_t Handle_0x27_SecurityAccess(UDSServer_t *srv, UDSReq_t *r) {
-    uint8_t subFunction = r->recv_buf[1];
     UDSErr_t response = UDS_PositiveResponse;
-
-    if (UDSSecurityAccessLevelIsReserved(subFunction)) {
+    if (r->recv_len < UDS_0X27_REQ_BASE_LEN) {
         return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
@@ -1612,6 +1610,11 @@ static UDSErr_t Handle_0x27_SecurityAccess(UDSServer_t *srv, UDSReq_t *r) {
 
     if (!(UDSTimeAfter(UDSMillis(), srv->sec_access_auth_fail_timer))) {
         return NegativeResponse(r, UDS_NRC_ExceedNumberOfAttempts);
+    }
+
+    uint8_t subFunction = r->recv_buf[1];
+    if (UDSSecurityAccessLevelIsReserved(subFunction)) {
+        return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
     r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_SECURITY_ACCESS);

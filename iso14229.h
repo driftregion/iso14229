@@ -864,7 +864,7 @@ typedef struct UDSClient {
 struct SecurityAccessResponse {
     uint8_t securityAccessType;  /**< security access type (subfunction) */
     const uint8_t *securitySeed; /**< pointer to security seed data */
-    uint16_t securitySeedLength; /**< length of security seed */
+    size_t securitySeedLength;   /**< length of security seed */
 };
 
 /**
@@ -881,7 +881,7 @@ struct RoutineControlResponse {
     uint8_t routineControlType;         /**< routine control type (subfunction) */
     uint16_t routineIdentifier;         /**< routine identifier */
     const uint8_t *routineStatusRecord; /**< pointer to routine status record */
-    uint16_t routineStatusRecordLength; /**< length of routine status record */
+    size_t routineStatusRecordLength;   /**< length of routine status record */
 };
 
 /**
