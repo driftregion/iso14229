@@ -4,3 +4,5 @@ misra-c2012-2.5:src/uds.h // this file declares macros intended for external use
 
 // Don't warn on system header contents
 *:*/usr/include/*
+
+missingIncludeSystem

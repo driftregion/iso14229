@@ -135,7 +135,7 @@ static UDSErr_t mock_tp_poll(struct UDSTp *hdl) {
 
 static_assert(offsetof(ISOTPMock_t, hdl) == 0, "ISOTPMock_t must not have any members before hdl");
 
-static void ISOTPMockAttach(ISOTPMock_t *tp, ISOTPMockArgs_t *args) {
+static void ISOTPMockAttach(ISOTPMock_t *tp, const ISOTPMockArgs_t *args) {
     UDS_ASSERT(tp);
     UDS_ASSERT(args);
     UDS_ASSERT(TPCount < MAX_NUM_TP);
@@ -166,7 +166,7 @@ static void ISOTPMockDetach(ISOTPMock_t *tp) {
     UDS_ASSERT(false);
 }
 
-UDSTp_t *ISOTPMockNew(const char *name, ISOTPMockArgs_t *args) {
+UDSTp_t *ISOTPMockNew(const char *name, const ISOTPMockArgs_t *args) {
     if (TPCount >= MAX_NUM_TP) {
         UDS_LOGI(__FILE__, "TPCount: %d, too many TPs\n", TPCount);
         return NULL;

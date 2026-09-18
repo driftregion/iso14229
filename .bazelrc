@@ -1,6 +1,8 @@
+# choice debugging flags 
+
 # common --toolchain_resolution_debug='@bazel_tools//tools/cpp:toolchain_type'
-common --announce_rc
-common --show_timestamps
+# common --announce_rc
+# common --show_timestamps
 
 build --strip=never
 build --workspace_status_command=tools/workspace_status.sh
@@ -8,27 +10,30 @@ build --stamp
 build --verbose_failures
 
 # Hermetic LLVM toolchain with Debian Bullseye sysroot (includes isotp headers)
-common:hermetic-llvm --extra_toolchains @llvm_toolchain//:cc-toolchain-x86_64-linux
-common:hermetic-llvm --platforms=//platforms:x86_64_clang
+common:llvm --extra_toolchains @llvm_toolchain//:cc-toolchain-x86_64-linux
+common:llvm --platforms=//platforms:x86_64_clang
+common:llvm --extra_execution_platforms=//platforms:x86_64_clang
 
-# Hermetic fuzzing configuration with LibFuzzer
-common:hermetic-fuzz --config=hermetic-llvm
-common:hermetic-fuzz --@rules_fuzzing//fuzzing:cc_engine=@rules_fuzzing//fuzzing/engines:libfuzzer
-common:hermetic-fuzz --@rules_fuzzing//fuzzing:cc_engine_instrumentation=libfuzzer
-common:hermetic-fuzz --@rules_fuzzing//fuzzing:cc_engine_sanitizer=asan
+# fuzzing configuration with LibFuzzer
+common:fuzz --config=llvm
+common:fuzz --@rules_fuzzing//fuzzing:cc_engine=@rules_fuzzing//fuzzing/engines:libfuzzer
+common:fuzz --@rules_fuzzing//fuzzing:cc_engine_instrumentation=libfuzzer
+common:fuzz --@rules_fuzzing//fuzzing:cc_engine_sanitizer=asan-ubsan
+build:fuzz --copt=-fsanitize=unsigned-integer-overflow
+build:fuzz --linkopt=-fsanitize=unsigned-integer-overflow
 
-# Hermetic coverage configuration
-common:hermetic-coverage --config=hermetic-llvm
-common:hermetic-coverage --extra_execution_platforms=//platforms:x86_64_clang
-common:hermetic-coverage --@rules_fuzzing//fuzzing:cc_engine=@rules_fuzzing//fuzzing/engines:replay
-common:hermetic-coverage --@rules_fuzzing//fuzzing:cc_engine_instrumentation=none
-common:hermetic-coverage --@rules_fuzzing//fuzzing:cc_engine_sanitizer=none
-common:hermetic-coverage --instrument_test_targets
-common:hermetic-coverage --experimental_collect_code_coverage_for_generated_files
-common:hermetic-coverage --combined_report=lcov
-common:hermetic-coverage --action_env=BAZEL_USE_LLVM_NATIVE_COVERAGE=1
-common:hermetic-coverage --action_env=GCOV=llvm-profdata
-common:hermetic-coverage --action_env=BAZEL_LLVM_COV=llvm-cov
-common:hermetic-coverage --experimental_use_llvm_covmap
-common:hermetic-coverage --experimental_generate_llvm_lcov
-common:hermetic-coverage --java_runtime_version=remotejdk_11
+# Coverage configuration
+common:coverage --config=llvm
+common:coverage --extra_execution_platforms=//platforms:x86_64_clang
+common:coverage --@rules_fuzzing//fuzzing:cc_engine=@rules_fuzzing//fuzzing/engines:replay
+common:coverage --@rules_fuzzing//fuzzing:cc_engine_instrumentation=none
+common:coverage --@rules_fuzzing//fuzzing:cc_engine_sanitizer=none
+common:coverage --instrument_test_targets
+common:coverage --experimental_collect_code_coverage_for_generated_files
+common:coverage --combined_report=lcov
+common:coverage --action_env=BAZEL_USE_LLVM_NATIVE_COVERAGE=1
+common:coverage --action_env=GCOV=llvm-profdata
+common:coverage --action_env=BAZEL_LLVM_COV=llvm-cov
+common:coverage --experimental_use_llvm_covmap
+common:coverage --experimental_generate_llvm_lcov
+common:coverage --java_runtime_version=remotejdk_11

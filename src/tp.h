@@ -41,7 +41,7 @@ typedef struct {
     uint32_t A_AE;             /**< application layer remote address */
 } UDSSDU_t;
 
-#define UDS_TP_NOOP_ADDR (0xFFFFFFFF) ///< flags A_SA / A_TA as unused
+#define UDS_TP_NOOP_ADDR (0xFFFFFFFFU) ///< flags A_SA / A_TA as unused
 
 /**
  * @brief UDS Transport layer

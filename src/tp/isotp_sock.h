@@ -28,6 +28,6 @@ UDSErr_t UDSServerTpIsoTpSockInit(UDSTpIsoTpSock_t *tp, const char *ifname, uint
 UDSErr_t UDSClientTpIsoTpSockInit(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
                                   uint32_t target_addr,
                                   uint32_t target_addr_func); ///< for UDSClient_t
-void UDSTpIsoTpSockDeinit(UDSTpIsoTpSock_t *tp);              ///< release sockets
+void UDSTpIsoTpSockDeinit(const UDSTpIsoTpSock_t *tp);              ///< release sockets
 
 #endif

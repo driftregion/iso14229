@@ -28,6 +28,13 @@ refresh_compile_commands(
     }
 )
 
+refresh_compile_commands(
+    name = "iso14229_unamalgamated_compile_commands",
+    targets = {
+        "//:iso14229_unamalgamated": "",
+    }
+)
+
 cc_library(
     name = "iso14229_unamalgamated",
     srcs=[

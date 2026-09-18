@@ -35,7 +35,7 @@ typedef struct {
  * @param name optional name of the transport (can be NULL)
  * @return UDSTp_t*
  */
-UDSTp_t *ISOTPMockNew(const char *name, ISOTPMockArgs_t *args);
+UDSTp_t *ISOTPMockNew(const char *name, const ISOTPMockArgs_t *args);
 void ISOTPMockFree(UDSTp_t *tp);
 
 /**

@@ -68,7 +68,7 @@ static UDSErr_t Handle_0x10_DiagnosticSessionControl(UDSServer_t *srv, UDSReq_t 
         break;
     }
 
-    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_DIAGNOSTIC_SESSION_CONTROL);
+    r->send_buf[0] = AsResponseSID(kSID_DIAGNOSTIC_SESSION_CONTROL);
     r->send_buf[1] = sessType;
 
     // UDS-1-2013: Table 29
@@ -106,7 +106,7 @@ static UDSErr_t Handle_0x11_ECUReset(UDSServer_t *srv, UDSReq_t *r) {
         return NegativeResponse(r, err);
     }
 
-    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_ECU_RESET);
+    r->send_buf[0] = AsResponseSID(kSID_ECU_RESET);
     r->send_buf[1] = resetType;
 
     if (UDS_LEV_RT_ERPSD == resetType) {
@@ -127,7 +127,7 @@ static UDSErr_t Handle_0x14_ClearDiagnosticInformation(UDSServer_t *srv, UDSReq_
         return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
-    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_CLEAR_DIAGNOSTIC_INFORMATION);
+    r->send_buf[0] = AsResponseSID(kSID_CLEAR_DIAGNOSTIC_INFORMATION);
     r->send_len = UDS_0X14_RESP_BASE_LEN;
 
     UDSCDIArgs_t args = {
@@ -170,7 +170,7 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
     }
 
     /* Shared by all SubFunc */
-    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_READ_DTC_INFORMATION);
+    r->send_buf[0] = AsResponseSID(kSID_READ_DTC_INFORMATION);
     r->send_buf[1] = type;
     r->send_len = UDS_0X19_RESP_BASE_LEN;
 
@@ -419,9 +419,7 @@ respond_to_0x19_malformed_response:
 
 static UDSErr_t Handle_0x22_ReadDataByIdentifier(UDSServer_t *srv, UDSReq_t *r) {
     uint8_t numDIDs;
-    uint16_t dataId = 0;
-    UDSErr_t ret = UDS_PositiveResponse;
-    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_READ_DATA_BY_IDENTIFIER);
+    r->send_buf[0] = AsResponseSID(kSID_READ_DATA_BY_IDENTIFIER);
     r->send_len = 1;
 
     if (0 != (r->recv_len - 1) % sizeof(uint16_t)) {
@@ -436,7 +434,7 @@ static UDSErr_t Handle_0x22_ReadDataByIdentifier(UDSServer_t *srv, UDSReq_t *r) 
 
     for (uint16_t did = 0; did < numDIDs; did++) {
         uint16_t idx = (uint16_t)(1 + did * 2);
-        dataId = (uint16_t)((uint16_t)(r->recv_buf[idx] << 8) | (uint16_t)r->recv_buf[idx + 1]);
+        uint16_t dataId = (uint16_t)((uint16_t)(r->recv_buf[idx] << 8) | (uint16_t)r->recv_buf[idx + 1]);
 
         if (r->send_len + 3 > sizeof(r->send_buf)) {
             return NegativeResponse(r, UDS_NRC_ResponseTooLong);
@@ -451,8 +449,11 @@ static UDSErr_t Handle_0x22_ReadDataByIdentifier(UDSServer_t *srv, UDSReq_t *r) 
             .copy = safe_copy,
         };
 
-        size_t send_len_before = r->send_len;
-        ret = EmitEvent(srv, UDS_EVT_ReadDataByIdent, &args);
+        const size_t send_len_before = r->send_len;
+        UDSErr_t ret = EmitEvent(srv, UDS_EVT_ReadDataByIdent, &args);
+
+        // r->send_len is modified when the user calls safe_copy. 
+        /* cppcheck-suppress [knownConditionTrueFalse] */ 
         if (ret == UDS_PositiveResponse && send_len_before == r->send_len) {
             UDS_LOGE(__FILE__, "RDBI response positive but no data sent\n");
             return NegativeResponse(r, UDS_NRC_GeneralReject);
@@ -556,7 +557,7 @@ static UDSErr_t Handle_0x23_ReadMemoryByAddress(UDSServer_t *srv, UDSReq_t *r) {
         .copy = safe_copy,
     };
 
-    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_READ_MEMORY_BY_ADDRESS);
+    r->send_buf[0] = AsResponseSID(kSID_READ_MEMORY_BY_ADDRESS);
     r->send_len = UDS_0X23_RESP_BASE_LEN;
     ret = EmitEvent(srv, UDS_EVT_ReadMemByAddr, &args);
     if (UDS_PositiveResponse != ret) {
@@ -571,7 +572,6 @@ static UDSErr_t Handle_0x23_ReadMemoryByAddress(UDSServer_t *srv, UDSReq_t *r) {
 }
 
 static UDSErr_t Handle_0x27_SecurityAccess(UDSServer_t *srv, UDSReq_t *r) {
-    UDSErr_t response = UDS_PositiveResponse;
     if (r->recv_len < UDS_0X27_REQ_BASE_LEN) {
         return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
@@ -589,7 +589,7 @@ static UDSErr_t Handle_0x27_SecurityAccess(UDSServer_t *srv, UDSReq_t *r) {
         return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
-    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_SECURITY_ACCESS);
+    r->send_buf[0] = AsResponseSID(kSID_SECURITY_ACCESS);
     r->send_buf[1] = subFunction;
     r->send_len = UDS_0X27_RESP_BASE_LEN;
 
@@ -602,12 +602,12 @@ static UDSErr_t Handle_0x27_SecurityAccess(UDSServer_t *srv, UDSReq_t *r) {
             .len = (uint16_t)(r->recv_len - UDS_0X27_REQ_BASE_LEN),
         };
 
-        response = EmitEvent(srv, UDS_EVT_SecAccessValidateKey, &args);
+        UDSErr_t ret = EmitEvent(srv, UDS_EVT_SecAccessValidateKey, &args);
 
-        if (UDS_PositiveResponse != response) {
+        if (UDS_PositiveResponse != ret) {
             srv->sec_access_auth_fail_timer =
                 UDSMillis() + UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_AUTH_FAIL_DELAY_MS;
-            return NegativeResponse(r, response);
+            return NegativeResponse(r, ret);
         }
 
         // "requestSeed = 0x01" identifies a fixed relationship between
@@ -641,10 +641,10 @@ static UDSErr_t Handle_0x27_SecurityAccess(UDSServer_t *srv, UDSReq_t *r) {
                 .copySeed = safe_copy,
             };
 
-            response = EmitEvent(srv, UDS_EVT_SecAccessRequestSeed, &args);
+            UDSErr_t ret = EmitEvent(srv, UDS_EVT_SecAccessRequestSeed, &args);
 
-            if (UDS_PositiveResponse != response) {
-                return NegativeResponse(r, response);
+            if (UDS_PositiveResponse != ret) {
+                return NegativeResponse(r, ret);
             }
 
             if (r->send_len <= UDS_0X27_RESP_BASE_LEN) { // no data was copied
@@ -682,7 +682,7 @@ static UDSErr_t Handle_0x28_CommunicationControl(UDSServer_t *srv, UDSReq_t *r) 
         return NegativeResponse(r, err);
     }
 
-    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_COMMUNICATION_CONTROL);
+    r->send_buf[0] = AsResponseSID(kSID_COMMUNICATION_CONTROL);
     r->send_buf[1] = controlType;
     r->send_len = UDS_0X28_RESP_LEN;
     return UDS_PositiveResponse;
@@ -696,7 +696,7 @@ static UDSErr_t Handle_0x2C_DynamicDefineDataIdentifier(UDSServer_t *srv, UDSReq
         return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
-    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_DYNAMICALLY_DEFINE_DATA_IDENTIFIER);
+    r->send_buf[0] = AsResponseSID(kSID_DYNAMICALLY_DEFINE_DATA_IDENTIFIER);
     r->send_buf[1] = type;
     /* Set dynamicDataId. If response does not require it, the length will be adjusted later */
     r->send_buf[2] = r->recv_buf[2];
@@ -830,7 +830,7 @@ static UDSErr_t Handle_0x2E_WriteDataByIdentifier(UDSServer_t *srv, UDSReq_t *r)
         return NegativeResponse(r, err);
     }
 
-    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_WRITE_DATA_BY_IDENTIFIER);
+    r->send_buf[0] = AsResponseSID(kSID_WRITE_DATA_BY_IDENTIFIER);
     r->send_buf[1] = dataId >> 8;
     r->send_buf[2] = dataId & 0xFF;
     r->send_len = UDS_0X2E_RESP_LEN;
@@ -842,7 +842,7 @@ static UDSErr_t Handle_0x2F_IOControlByIdentifier(UDSServer_t *srv, UDSReq_t *r)
         return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
-    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_IO_CONTROL_BY_IDENTIFIER);
+    r->send_buf[0] = AsResponseSID(kSID_IO_CONTROL_BY_IDENTIFIER);
     r->send_buf[1] = r->recv_buf[1];
     r->send_buf[2] = r->recv_buf[2];
     r->send_buf[3] = r->recv_buf[3];
@@ -883,7 +883,7 @@ static UDSErr_t Handle_0x31_RoutineControl(UDSServer_t *srv, UDSReq_t *r) {
         .copyStatusRecord = safe_copy,
     };
 
-    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_ROUTINE_CONTROL);
+    r->send_buf[0] = AsResponseSID(kSID_ROUTINE_CONTROL);
     r->send_buf[1] = routineControlType;
     r->send_buf[2] = routineIdentifier >> 8;
     r->send_buf[3] = routineIdentifier & 0xFF;
@@ -973,7 +973,7 @@ static UDSErr_t Handle_0x34_RequestDownload(UDSServer_t *srv, UDSReq_t *r) {
         args.maxNumberOfBlockLength = UDS_TP_MTU;
     }
 
-    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_REQUEST_DOWNLOAD);
+    r->send_buf[0] = AsResponseSID(kSID_REQUEST_DOWNLOAD);
     r->send_buf[1] = lengthFormatIdentifier;
     for (uint8_t idx = 0; idx < (uint8_t)sizeof(args.maxNumberOfBlockLength); idx++) {
         uint8_t shiftBytes = (uint8_t)(sizeof(args.maxNumberOfBlockLength) - 1 - idx);
@@ -1024,7 +1024,7 @@ static UDSErr_t Handle_0x35_RequestUpload(UDSServer_t *srv, UDSReq_t *r) {
 
     uint8_t lengthFormatIdentifier = (uint8_t)(sizeof(args.maxNumberOfBlockLength) << 4);
 
-    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_REQUEST_UPLOAD);
+    r->send_buf[0] = AsResponseSID(kSID_REQUEST_UPLOAD);
     r->send_buf[1] = lengthFormatIdentifier;
     PackBE(&r->send_buf[UDS_0X35_RESP_BASE_LEN], args.maxNumberOfBlockLength,
            sizeof(args.maxNumberOfBlockLength));
@@ -1070,7 +1070,7 @@ static UDSErr_t Handle_0x36_TransferData(UDSServer_t *srv, UDSReq_t *r) {
             .copyResponse = safe_copy,
         };
 
-        r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_TRANSFER_DATA);
+        r->send_buf[0] = AsResponseSID(kSID_TRANSFER_DATA);
         r->send_buf[1] = blockSequenceCounter;
         r->send_len = UDS_0X36_RESP_BASE_LEN;
 
@@ -1098,7 +1098,7 @@ static UDSErr_t Handle_0x37_RequestTransferExit(UDSServer_t *srv, UDSReq_t *r) {
         return NegativeResponse(r, UDS_NRC_UploadDownloadNotAccepted);
     }
 
-    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_REQUEST_TRANSFER_EXIT);
+    r->send_buf[0] = AsResponseSID(kSID_REQUEST_TRANSFER_EXIT);
     r->send_len = UDS_0X37_RESP_BASE_LEN;
 
     UDSRequestTransferExitArgs_t args = {
@@ -1221,7 +1221,7 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
         goto done;
     }
 
-    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_REQUEST_FILE_TRANSFER);
+    r->send_buf[0] = AsResponseSID(kSID_REQUEST_FILE_TRANSFER);
     r->send_buf[1] = mode_of_operation;
 
     if (mode_of_operation == UDS_MOOP_DELFILE) {
@@ -1321,7 +1321,7 @@ static UDSErr_t Handle_0x3D_WriteMemoryByAddress(UDSServer_t *srv, UDSReq_t *r) 
         return NegativeResponse(r, ret);
     }
 
-    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_WRITE_MEMORY_BY_ADDRESS);
+    r->send_buf[0] = AsResponseSID(kSID_WRITE_MEMORY_BY_ADDRESS);
     // echo addressAndLengthFormatIdentifier, memoryAddress, and memorySize
     memcpy(&r->send_buf[1], &r->recv_buf[1], 1 + memorySizeLength + memoryAddressLength);
     r->send_len = UDS_0X3D_RESP_BASE_LEN + memorySizeLength + memoryAddressLength;
@@ -1338,7 +1338,7 @@ static UDSErr_t Handle_0x3E_TesterPresent(UDSServer_t *srv, UDSReq_t *r) {
     case 0x00:
     case 0x80:
         srv->s3_session_timeout_timer = UDSMillis() + srv->s3_ms;
-        r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_TESTER_PRESENT);
+        r->send_buf[0] = AsResponseSID(kSID_TESTER_PRESENT);
         r->send_buf[1] = 0x00;
         r->send_len = UDS_0X3E_RESP_LEN;
         return UDS_PositiveResponse;
@@ -1366,7 +1366,7 @@ static UDSErr_t Handle_0x85_ControlDTCSetting(UDSServer_t *srv, UDSReq_t *r) {
         return NegativeResponse(r, ret);
     }
 
-    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_CONTROL_DTC_SETTING);
+    r->send_buf[0] = AsResponseSID(kSID_CONTROL_DTC_SETTING);
     r->send_buf[1] = type;
     r->send_len = UDS_0X85_RESP_LEN;
     return UDS_PositiveResponse;
@@ -1384,7 +1384,7 @@ static UDSErr_t Handle_0x87_LinkControl(UDSServer_t *srv, UDSReq_t *r) {
         UDS_LOGW(__FILE__, "0x87 LinkControl: Transitioning mode without suppressing response!");
     }
 
-    r->send_buf[0] = UDS_RESPONSE_SID_OF(kSID_LINK_CONTROL);
+    r->send_buf[0] = AsResponseSID(kSID_LINK_CONTROL);
     r->send_buf[1] = r->recv_buf[1]; /* do not use `type` because we want to preserve the suppress
                                         response bit */
     r->send_len = UDS_0X87_RESP_LEN;
@@ -1553,7 +1553,7 @@ static UDSErr_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
                 .copyResponse = safe_copy,
             };
 
-            r->send_buf[0] = UDS_RESPONSE_SID_OF(sid);
+            r->send_buf[0] = AsResponseSID(sid);
             r->send_len = 1;
 
             response = EmitEvent(srv, UDS_EVT_Custom, &args);

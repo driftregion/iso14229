@@ -75,10 +75,9 @@ int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t *data, cons
 static void SocketCANRecv(UDSTpISOTpCSocketCAN_t *tp) {
     UDS_ASSERT(tp);
     struct can_frame frame = {0};
-    ssize_t nbytes = 0;
 
     for (;;) {
-        nbytes = read(tp->fd, &frame, sizeof(struct can_frame));
+        ssize_t nbytes = read(tp->fd, &frame, sizeof(struct can_frame));
         if (nbytes < 0) {
             if (EAGAIN == errno || EWOULDBLOCK == errno) {
                 break;
@@ -114,7 +113,7 @@ UDSErr_t UDSTpISOTpCSocketCANInit(UDSTpISOTpCSocketCAN_t *tp, const char *ifname
                                   uint32_t source_addr_func, uint32_t target_addr_func) {
     UDSErr_t err = UDS_OK;
 
-    UDSTpISOTpCInit(&tp->hdl2, source_addr, target_addr, source_addr_func, target_addr_func);
+    err = UDSTpISOTpCInit(&tp->hdl2, source_addr, target_addr, source_addr_func, target_addr_func);
     if (err) {
         return err;
     }

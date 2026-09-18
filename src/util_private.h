@@ -6,7 +6,7 @@
 /// Serializes n bytes of val to *dst in big-endian format.
 static inline void PackBE(uint8_t *dst, uint64_t val, size_t n) {
     for (size_t i = 0; i < n; i++) {
-        dst[i] = (uint8_t)(val >> (8 * (n - 1 - i)));
+        dst[i] = (uint8_t)(val >> (8u * (n - 1u - i)));
     }
 }
 
@@ -67,8 +67,19 @@ static inline UDSErr_t UnpackBEu32(const uint8_t *src, uint32_t *dst, size_t n) 
     return UDS_OK;
 }
 
+static inline uint8_t AsResponseSID(uint8_t request_sid)  {
+    UDS_ASSERT(request_sid <= UINT8_MAX - 0x40);
+    return request_sid + 0x40;
+}
+
+static inline uint8_t AsRequestSID(uint8_t response_sid) {
+    UDS_ASSERT(response_sid >= 0x40);
+    return response_sid - 0x40;
+}
+
 /// returns true if a security level is reserved per ISO14229-1:2020 Table 42
 bool UDSSecurityAccessLevelIsReserved(uint8_t securityLevel);
 
 /// returns true if err is defined in ISO14229-1:2020 as an NRC
 bool UDSErrIsNRC(UDSErr_t err);
+

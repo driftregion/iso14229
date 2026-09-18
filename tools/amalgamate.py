@@ -33,7 +33,7 @@ isotp_c_wrapped_c = \
 #endif
 
 #ifdef UDS_LINES
-#line 1 "src/tp/isotp-c/isotp.c"
+#line 0 "src/tp/isotp-c/isotp.c"
 #endif
 """ + \
 strip_includes(open("src/tp/isotp-c/isotp.c").read()) + \
@@ -51,7 +51,7 @@ isotp_c_wrapped_h = \
 
 """ + "\n".join([
         f"""#ifdef UDS_LINES
-#line 1 "src/tp/isotp-c/{h}"
+#line 0 "src/tp/isotp-c/{h}"
 #endif
 """ + strip_includes(open("src/tp/isotp-c/" + h).read())
         for h in [
@@ -89,7 +89,7 @@ with open(args.out_c, "w", encoding="utf-8") as f:
     ]:
         f.write(f"""
 #ifdef UDS_LINES
-#line 1 "{src}"
+#line 0 "{src}"
 #endif
 """)
         with open(src, "r", encoding="utf-8") as src_file:
@@ -129,7 +129,7 @@ extern "C" {
     ]:
         f.write(f"""
 #ifdef UDS_LINES
-#line 1 "{src}"
+#line 0 "{src}"
 #endif
 """)
         src_path = next((s for s in args.srcs if src in s))
@@ -148,7 +148,7 @@ extern "C" {
     ]:
         f.write(f"""
 #ifdef UDS_LINES
-#line 1 "{src}"
+#line 0 "{src}"
 #endif
 """)
         with open(src) as src_file:

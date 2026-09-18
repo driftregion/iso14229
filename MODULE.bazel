@@ -1,12 +1,13 @@
 module(name = "iso14229")
 
 bazel_dep(name = "platforms", version="1.0.0")
-bazel_dep(name = "rules_python", version = "1.8.2")
+bazel_dep(name = "rules_python", version = "2.3.3")
 bazel_dep(name = "rules_shell", version="0.6.1")
 bazel_dep(name = "rules_cc", version="0.2.17")
 bazel_dep(name = "toolchains_llvm", version = "1.9.0")
 
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+sysroot = use_repo_rule("@toolchains_llvm//toolchain:sysroot.bzl", "sysroot")
 
 bazel_dep(name = "hedron_compile_commands", dev_dependency = True)
 git_override(
@@ -40,22 +41,13 @@ http_archive(
     type = ".zip",
 )
 
-
 # Chromium sysroot (Debian Bullseye) - includes isotp headers
-http_archive(
+# which are needed to compile tp/isotp_sock.c under the hermetic toolchain. 
+sysroot(
     name = "org_chromium_sysroot_linux_x64",
-    build_file_content = """
-filegroup(
-  name = "sysroot",
-  srcs = glob(["*/**"], exclude=["**/*\\\\*"]),
-  visibility = ["//visibility:public"],
-)
-""",
     sha256 = "36a164623d03f525e3dfb783a5e9b8a00e98e1ddd2b5cff4e449bd016dd27e50",
     urls = ["https://commondatastorage.googleapis.com/chrome-linux-sysroot/36a164623d03f525e3dfb783a5e9b8a00e98e1ddd2b5cff4e449bd016dd27e50"],
-    type = "tar.xz",
 )
-
 
 llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm")
 llvm.toolchain(
@@ -64,7 +56,7 @@ llvm.toolchain(
 )
 llvm.sysroot(
     name = "llvm_toolchain",
-    label = "@org_chromium_sysroot_linux_x64//:sysroot",
+    label = "@org_chromium_sysroot_linux_x64//sysroot:sysroot",
     targets = ["linux-x86_64"],
 )
 use_repo(llvm, "llvm_toolchain")

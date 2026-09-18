@@ -77,7 +77,7 @@ UDSErr_t UDSSendBytes(UDSClient_t *client, const uint8_t *data,
                       uint16_t size); ///< Send user-defined bytes to a UDS server
 UDSErr_t UDSSendECUReset(UDSClient_t *client, uint8_t type);     ///< Request ECUReset
 UDSErr_t UDSSendDiagSessCtrl(UDSClient_t *client, uint8_t mode); ///< Change the diagnostic session
-UDSErr_t UDSSendSecurityAccess(UDSClient_t *client, uint8_t level, uint8_t *data,
+UDSErr_t UDSSendSecurityAccess(UDSClient_t *client, uint8_t level, const uint8_t *data,
                                uint16_t size); ///< Get Security Access
 UDSErr_t UDSSendCommCtrl(UDSClient_t *client, uint8_t ctrl,
                          uint8_t comm); ///< Change communication settings
@@ -109,7 +109,7 @@ UDSErr_t UDSSendRequestFileTransfer(
     UDSClient_t *client, uint8_t mode, const char *filePath, size_t fileSizeUncompressed,
     size_t fileSizeCompressed); ///< filesystem-based frontend to TransferData
 UDSErr_t UDSCtrlDTCSetting(UDSClient_t *client, uint8_t dtcSettingType,
-                           uint8_t *dtcSettingControlOptionRecord,
+                           const uint8_t *dtcSettingControlOptionRecord,
                            uint16_t len); ///< control DTC setting
 UDSErr_t UDSUnpackRDBIResponse(UDSClient_t *client, UDSRDBIVar_t *vars,
                                uint16_t numVars); ///< Parse server's response to RDBI

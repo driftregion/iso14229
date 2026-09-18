@@ -16,10 +16,10 @@
 #include <unistd.h>
 
 static UDSErr_t isotp_sock_tp_poll(UDSTp_t *hdl) {
-    UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
+    const UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
     UDSErr_t err = UDS_OK;
     int ret = 0;
-    int fds[2] = {impl->phys_fd, impl->func_fd};
+    const int fds[2] = {impl->phys_fd, impl->func_fd};
     struct pollfd pfds[2] = {0};
     pfds[0].fd = impl->phys_fd;
     pfds[0].events = POLLERR | POLLOUT;
@@ -185,6 +185,7 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool
     };
     if (setsockopt(fd, SOL_CAN_ISOTP, CAN_ISOTP_RECV_FC, &fcopts, sizeof(fcopts)) < 0) {
         perror("setsockopt");
+        close(fd);
         return -1;
     }
 
@@ -198,6 +199,7 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool
 
     if (setsockopt(fd, SOL_CAN_ISOTP, CAN_ISOTP_OPTS, &opts, sizeof(opts)) < 0) {
         perror("setsockopt (isotp_options):");
+        close(fd);
         return -1;
     }
 
@@ -219,6 +221,7 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool
 
     if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
         UDS_LOGI(__FILE__, "Bind: %s %s", strerror(errno), if_name);
+        close(fd);
         return -1;
     }
     return fd;
@@ -277,7 +280,7 @@ UDSErr_t UDSClientTpIsoTpSockInit(UDSTpIsoTpSock_t *tp, const char *ifname, uint
     return UDS_OK;
 }
 
-void UDSTpIsoTpSockDeinit(UDSTpIsoTpSock_t *tp) {
+void UDSTpIsoTpSockDeinit(const UDSTpIsoTpSock_t *tp) {
     if (tp) {
         if (close(tp->phys_fd) < 0) {
             perror("failed to close socket");

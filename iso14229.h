@@ -14,13 +14,13 @@ extern "C" {
 
 
 #ifdef UDS_LINES
-#line 1 "src/version.h"
+#line 0 "src/version.h"
 #endif
 #define UDS_LIB_VERSION "0.10.0"
 
 
 #ifdef UDS_LINES
-#line 1 "src/sys.h"
+#line 0 "src/sys.h"
 #endif
 
 
@@ -102,7 +102,7 @@ extern "C" {
 
 
 #ifdef UDS_LINES
-#line 1 "src/config.h"
+#line 0 "src/config.h"
 #endif
 
 
@@ -211,7 +211,7 @@ TransferData request message from the client. */
 
 
 #ifdef UDS_LINES
-#line 1 "src/uds.h"
+#line 0 "src/uds.h"
 #endif
 
 
@@ -457,11 +457,6 @@ typedef enum {
 /// ISO-14229-1:2013 Table 2
 #define UDS_MAX_DIAGNOSTIC_SERVICES 0x7F
 
-#define UDS_RESPONSE_SID_OF(request_sid)                                                           \
-    ((request_sid) + 0x40) ///< Convert request SID to response SID
-#define UDS_REQUEST_SID_OF(response_sid)                                                           \
-    ((response_sid) - 0x40) ///< Convert response SID to request SID
-
 /// \cond DOXYGEN_SHOULD_SKIP_THIS
 #define UDS_NEG_RESP_LEN 3U
 #define UDS_0X10_REQ_LEN 2U
@@ -540,7 +535,7 @@ enum UDSDiagnosticServiceId {
 
 
 #ifdef UDS_LINES
-#line 1 "src/tp.h"
+#line 0 "src/tp.h"
 #endif
 
 
@@ -585,7 +580,7 @@ typedef struct {
     uint32_t A_AE;             /**< application layer remote address */
 } UDSSDU_t;
 
-#define UDS_TP_NOOP_ADDR (0xFFFFFFFF) ///< flags A_SA / A_TA as unused
+#define UDS_TP_NOOP_ADDR (0xFFFFFFFFU) ///< flags A_SA / A_TA as unused
 
 /**
  * @brief UDS Transport layer
@@ -639,7 +634,7 @@ UDSErr_t UDSTpPoll(UDSTp_t *hdl);   ///< call this at <5ms intervals
 
 
 #ifdef UDS_LINES
-#line 1 "src/util.h"
+#line 0 "src/util.h"
 #endif
 
 
@@ -679,7 +674,7 @@ const char *UDSEventToStr(UDSEvent_t evt);
 
 
 #ifdef UDS_LINES
-#line 1 "src/log.h"
+#line 0 "src/log.h"
 #endif
 
 
@@ -819,7 +814,7 @@ static inline void UDS_LogSDUDummy(const char *tag, const uint8_t *buffer, size_
 
 
 #ifdef UDS_LINES
-#line 1 "src/client.h"
+#line 0 "src/client.h"
 #endif
 
 
@@ -900,7 +895,7 @@ UDSErr_t UDSSendBytes(UDSClient_t *client, const uint8_t *data,
                       uint16_t size); ///< Send user-defined bytes to a UDS server
 UDSErr_t UDSSendECUReset(UDSClient_t *client, uint8_t type);     ///< Request ECUReset
 UDSErr_t UDSSendDiagSessCtrl(UDSClient_t *client, uint8_t mode); ///< Change the diagnostic session
-UDSErr_t UDSSendSecurityAccess(UDSClient_t *client, uint8_t level, uint8_t *data,
+UDSErr_t UDSSendSecurityAccess(UDSClient_t *client, uint8_t level, const uint8_t *data,
                                uint16_t size); ///< Get Security Access
 UDSErr_t UDSSendCommCtrl(UDSClient_t *client, uint8_t ctrl,
                          uint8_t comm); ///< Change communication settings
@@ -932,7 +927,7 @@ UDSErr_t UDSSendRequestFileTransfer(
     UDSClient_t *client, uint8_t mode, const char *filePath, size_t fileSizeUncompressed,
     size_t fileSizeCompressed); ///< filesystem-based frontend to TransferData
 UDSErr_t UDSCtrlDTCSetting(UDSClient_t *client, uint8_t dtcSettingType,
-                           uint8_t *dtcSettingControlOptionRecord,
+                           const uint8_t *dtcSettingControlOptionRecord,
                            uint16_t len); ///< control DTC setting
 UDSErr_t UDSUnpackRDBIResponse(UDSClient_t *client, UDSRDBIVar_t *vars,
                                uint16_t numVars); ///< Parse server's response to RDBI
@@ -948,7 +943,7 @@ UDSErr_t UDSUnpackRoutineControlResponse(
 
 
 #ifdef UDS_LINES
-#line 1 "src/server.h"
+#line 0 "src/server.h"
 #endif
 
 
@@ -1332,7 +1327,7 @@ void UDSServerPoll(UDSServer_t *srv);     ///< Call this at <5ms intervals
 #define ISO_TP_NO_FORMATTED_ERRORS 1
 
 #ifdef UDS_LINES
-#line 1 "src/tp/isotp-c/isotp_config.h"
+#line 0 "src/tp/isotp-c/isotp_config.h"
 #endif
 ////////////////////////////////////////////////////////////////////////
 //                  ___ ___  ___ _____ ___      ___                   //
@@ -1491,7 +1486,7 @@ void UDSServerPoll(UDSServer_t *srv);     ///< Call this at <5ms intervals
 #endif // ISOTPC_CONFIG_H
 
 #ifdef UDS_LINES
-#line 1 "src/tp/isotp-c/isotp_defines.h"
+#line 0 "src/tp/isotp-c/isotp_defines.h"
 #endif
 #ifndef ISOTPC_USER_DEFINITIONS_H
 #define ISOTPC_USER_DEFINITIONS_H
@@ -1890,7 +1885,7 @@ typedef enum { PCI_FLOW_STATUS_CONTINUE = 0x0, PCI_FLOW_STATUS_WAIT = 0x1, PCI_F
 #endif // ISOTPC_USER_DEFINITIONS_H
 
 #ifdef UDS_LINES
-#line 1 "src/tp/isotp-c/isotp_user.h"
+#line 0 "src/tp/isotp-c/isotp_user.h"
 #endif
 ////////////////////////////////////////////////////////////////////////
 //                  ___ ___  ___ _____ ___      ___                   //
@@ -1980,7 +1975,7 @@ uint32_t isotp_user_get_us(void);
 #endif // ISOTPC_USER_H
 
 #ifdef UDS_LINES
-#line 1 "src/tp/isotp-c/isotp.h"
+#line 0 "src/tp/isotp-c/isotp.h"
 #endif
 ////////////////////////////////////////////////////////////////////////
 //                  ___ ___  ___ _____ ___      ___                   //
@@ -2320,7 +2315,7 @@ void isotp_set_rx_done_cb(IsoTpLink* link, isotp_rx_done_cb cb, void* arg);
 #endif // if defined(UDS_TP_ISOTP_C)
 
 #ifdef UDS_LINES
-#line 1 "src/tp/isotp_c.h"
+#line 0 "src/tp/isotp_c.h"
 #endif
 
 #if defined(UDS_TP_ISOTP_C)
@@ -2377,7 +2372,7 @@ UDSErr_t UDSTpISOTpCPoll(UDSTp_t *tp);
 
 
 #ifdef UDS_LINES
-#line 1 "src/tp/isotp_c_socketcan.h"
+#line 0 "src/tp/isotp_c_socketcan.h"
 #endif
 
 
@@ -2425,7 +2420,7 @@ void UDSTpISOTpCSocketCANDeinit(UDSTpISOTpCSocketCAN_t *tp); ///< release socket
 
 
 #ifdef UDS_LINES
-#line 1 "src/tp/isotp_sock.h"
+#line 0 "src/tp/isotp_sock.h"
 #endif
 #if defined(UDS_TP_ISOTP_SOCK)
 
@@ -2457,13 +2452,13 @@ UDSErr_t UDSServerTpIsoTpSockInit(UDSTpIsoTpSock_t *tp, const char *ifname, uint
 UDSErr_t UDSClientTpIsoTpSockInit(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
                                   uint32_t target_addr,
                                   uint32_t target_addr_func); ///< for UDSClient_t
-void UDSTpIsoTpSockDeinit(UDSTpIsoTpSock_t *tp);              ///< release sockets
+void UDSTpIsoTpSockDeinit(const UDSTpIsoTpSock_t *tp);              ///< release sockets
 
 #endif
 
 
 #ifdef UDS_LINES
-#line 1 "src/tp/isotp_mock.h"
+#line 0 "src/tp/isotp_mock.h"
 #endif
 #if defined(UDS_TP_ISOTP_MOCK)
 
@@ -2502,7 +2497,7 @@ typedef struct {
  * @param name optional name of the transport (can be NULL)
  * @return UDSTp_t*
  */
-UDSTp_t *ISOTPMockNew(const char *name, ISOTPMockArgs_t *args);
+UDSTp_t *ISOTPMockNew(const char *name, const ISOTPMockArgs_t *args);
 void ISOTPMockFree(UDSTp_t *tp);
 
 /**
