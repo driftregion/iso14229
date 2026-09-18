@@ -5,9 +5,9 @@
 #include "tp.h"
 #include "uds.h"
 
-#define UDS_SUPPRESS_POS_RESP 0x1  ///< set the suppress positive response bit
-#define UDS_FUNCTIONAL 0x2         ///< send the request as a functional request
-#define UDS_IGNORE_SRV_TIMINGS 0x8 ///< ignore the server-provided p2 and p2_star
+#define UDS_SUPPRESS_POS_RESP 0x1u  ///< set the suppress positive response bit
+#define UDS_FUNCTIONAL 0x2u         ///< send the request as a functional request
+#define UDS_IGNORE_SRV_TIMINGS 0x8u ///< ignore the server-provided p2 and p2_star
 
 /**
  * @brief UDS client structure

@@ -67,14 +67,25 @@ static inline UDSErr_t UnpackBEu32(const uint8_t *src, uint32_t *dst, size_t n) 
     return UDS_OK;
 }
 
-static inline uint8_t AsResponseSID(uint8_t request_sid)  {
-    UDS_ASSERT(request_sid <= UINT8_MAX - 0x40);
-    return request_sid + 0x40;
+/**
+ * @brief Unpack 2 big-endian bytes from src into dst as uint16_t.
+ * @param src buffer
+ * @param dst pointer to destination
+ * @return UDS_OK if successful
+ */
+static inline uint16_t UnpackBEu16(const uint8_t *src) {
+    UDS_ASSERT(src);
+    return (uint16_t)((uint16_t)(src[0] << 8) | (uint16_t)src[1]);
+}
+
+static inline uint8_t AsResponseSID(uint8_t request_sid) {
+    UDS_ASSERT(request_sid <= UINT8_MAX - 0x40u);
+    return request_sid + 0x40u;
 }
 
 static inline uint8_t AsRequestSID(uint8_t response_sid) {
-    UDS_ASSERT(response_sid >= 0x40);
-    return response_sid - 0x40;
+    UDS_ASSERT(response_sid >= 0x40u);
+    return response_sid - 0x40u;
 }
 
 /// returns true if a security level is reserved per ISO14229-1:2020 Table 42
@@ -82,4 +93,3 @@ bool UDSSecurityAccessLevelIsReserved(uint8_t securityLevel);
 
 /// returns true if err is defined in ISO14229-1:2020 as an NRC
 bool UDSErrIsNRC(UDSErr_t err);
-
