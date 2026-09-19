@@ -27,7 +27,7 @@ jobs:
         repository-cache: true
 
     - name: run unit tests
-      run: bazel test --features=asan --features=ubsan --config=hermetic-llvm //test:all --test_tag_filters=-vcan
+      run: bazel test --features=asan --features=ubsan --config=llvm //test:all --test_tag_filters=-vcan
 
   windows:
     runs-on: windows-latest
