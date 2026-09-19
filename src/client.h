@@ -5,9 +5,9 @@
 #include "tp.h"
 #include "uds.h"
 
-#define UDS_SUPPRESS_POS_RESP 0x1  ///< set the suppress positive response bit
-#define UDS_FUNCTIONAL 0x2         ///< send the request as a functional request
-#define UDS_IGNORE_SRV_TIMINGS 0x8 ///< ignore the server-provided p2 and p2_star
+#define UDS_SUPPRESS_POS_RESP 0x1u  ///< set the suppress positive response bit
+#define UDS_FUNCTIONAL 0x2u         ///< send the request as a functional request
+#define UDS_IGNORE_SRV_TIMINGS 0x8u ///< ignore the server-provided p2 and p2_star
 
 /**
  * @brief UDS client structure
@@ -29,8 +29,8 @@ typedef struct UDSClient {
     int (*fn)(struct UDSClient *client, UDSEvent_t evt, void *ev_data); /**< callback function */
     void *fn_data; /**< user-specified function data */
 
-    uint16_t recv_size;                         /**< size of received data */
-    uint16_t send_size;                         /**< size of data to send */
+    size_t recv_size;                           /**< size of received data */
+    size_t send_size;                           /**< size of data to send */
     uint8_t recv_buf[UDS_CLIENT_RECV_BUF_SIZE]; /**< receive buffer */
     uint8_t send_buf[UDS_CLIENT_SEND_BUF_SIZE]; /**< send buffer */
 } UDSClient_t;
@@ -41,14 +41,14 @@ typedef struct UDSClient {
 struct SecurityAccessResponse {
     uint8_t securityAccessType;  /**< security access type (subfunction) */
     const uint8_t *securitySeed; /**< pointer to security seed data */
-    uint16_t securitySeedLength; /**< length of security seed */
+    size_t securitySeedLength;   /**< length of security seed */
 };
 
 /**
  * @brief Request download response structure
  */
 struct RequestDownloadResponse {
-    size_t maxNumberOfBlockLength; /**< maximum number of block length */
+    uint32_t maxBlockLength; /**< server's maximum block length for TransferData requests */
 };
 
 /**
@@ -58,7 +58,7 @@ struct RoutineControlResponse {
     uint8_t routineControlType;         /**< routine control type (subfunction) */
     uint16_t routineIdentifier;         /**< routine identifier */
     const uint8_t *routineStatusRecord; /**< pointer to routine status record */
-    uint16_t routineStatusRecordLength; /**< length of routine status record */
+    size_t routineStatusRecordLength;   /**< length of routine status record */
 };
 
 /**
@@ -77,7 +77,7 @@ UDSErr_t UDSSendBytes(UDSClient_t *client, const uint8_t *data,
                       uint16_t size); ///< Send user-defined bytes to a UDS server
 UDSErr_t UDSSendECUReset(UDSClient_t *client, uint8_t type);     ///< Request ECUReset
 UDSErr_t UDSSendDiagSessCtrl(UDSClient_t *client, uint8_t mode); ///< Change the diagnostic session
-UDSErr_t UDSSendSecurityAccess(UDSClient_t *client, uint8_t level, uint8_t *data,
+UDSErr_t UDSSendSecurityAccess(UDSClient_t *client, uint8_t level, const uint8_t *data,
                                uint16_t size); ///< Get Security Access
 UDSErr_t UDSSendCommCtrl(UDSClient_t *client, uint8_t ctrl,
                          uint8_t comm); ///< Change communication settings
@@ -109,7 +109,7 @@ UDSErr_t UDSSendRequestFileTransfer(
     UDSClient_t *client, uint8_t mode, const char *filePath, size_t fileSizeUncompressed,
     size_t fileSizeCompressed); ///< filesystem-based frontend to TransferData
 UDSErr_t UDSCtrlDTCSetting(UDSClient_t *client, uint8_t dtcSettingType,
-                           uint8_t *dtcSettingControlOptionRecord,
+                           const uint8_t *dtcSettingControlOptionRecord,
                            uint16_t len); ///< control DTC setting
 UDSErr_t UDSUnpackRDBIResponse(UDSClient_t *client, UDSRDBIVar_t *vars,
                                uint16_t numVars); ///< Parse server's response to RDBI

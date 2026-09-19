@@ -2,8 +2,7 @@
 #include <unistd.h>
 
 int SetupMockTpPair(void **state) {
-    Env_t *env = malloc(sizeof(Env_t));
-    memset(env, 0, sizeof(Env_t));
+    Env_t *env = EnvNew();
     env->server_tp = ISOTPMockNew("server", &(ISOTPMockArgs_t){.sa_phys = 0x7E0,
                                                                .ta_phys = 0x7E8,
                                                                .sa_func = 0x7DF,
@@ -21,13 +20,12 @@ int TeardownMockTpPair(void **state) {
     ISOTPMockFree(env->server_tp);
     ISOTPMockFree(env->client_tp);
     ISOTPMockReset();
-    free(env);
+    EnvFree(env);
     return 0;
 }
 
 int SetupMockTpPairExtendedID(void **state) {
-    Env_t *env = malloc(sizeof(Env_t));
-    memset(env, 0, sizeof(Env_t));
+    Env_t *env = EnvNew();
     env->server_tp = ISOTPMockNew("server", &(ISOTPMockArgs_t){.sa_phys = 0x1ffffff0,
                                                                .ta_phys = 0x1ffffff8,
                                                                .sa_func = 0x1fffffff,
@@ -41,8 +39,7 @@ int SetupMockTpPairExtendedID(void **state) {
 }
 
 int SetupMockTpClientOnly(void **state) {
-    Env_t *env = malloc(sizeof(Env_t));
-    memset(env, 0, sizeof(Env_t));
+    Env_t *env = EnvNew();
     env->client_tp = ISOTPMockNew("client", &(ISOTPMockArgs_t){.sa_phys = 0x7E8,
                                                                .ta_phys = 0x7E0,
                                                                .sa_func = UDS_TP_NOOP_ADDR,
@@ -55,21 +52,20 @@ int TeardownMockTpClientOnly(void **state) {
     Env_t *env = *state;
     ISOTPMockFree(env->client_tp);
     ISOTPMockReset();
-    free(env);
+    EnvFree(env);
     return 0;
 }
 
 int SetupIsoTpCPair(void **state) {
-    Env_t *env = malloc(sizeof(Env_t));
-    memset(env, 0, sizeof(Env_t));
+    Env_t *env = EnvNew();
     UDSTpISOTpCSocketCAN_t *server_isotp = malloc(sizeof(UDSTpISOTpCSocketCAN_t));
+    assert(UDS_OK == UDSServerTpISOTpCSocketCANInit(server_isotp, "vcan0", 0x7e8, 0x7e0, 0x7df));
     strcpy(server_isotp->tag, "server");
-    assert(UDS_OK == UDSTpISOTpCSocketCANInit(server_isotp, "vcan0", 0x7e8, 0x7e0, 0x7df, 0));
     env->server_tp = (UDSTp_t *)server_isotp;
 
     UDSTpISOTpCSocketCAN_t *client_isotp = malloc(sizeof(UDSTpISOTpCSocketCAN_t));
+    assert(UDS_OK == UDSClientTpISOTpCSocketCANInit(client_isotp, "vcan0", 0x7e0, 0x7e8, 0x7df));
     strcpy(client_isotp->tag, "client");
-    assert(UDS_OK == UDSTpISOTpCSocketCANInit(client_isotp, "vcan0", 0x7e0, 0x7e8, 0, 0x7df));
     env->client_tp = (UDSTp_t *)client_isotp;
 
     env->is_real_time = true;
@@ -83,17 +79,16 @@ int TeardownIsoTpCPair(void **state) {
     UDSTpISOTpCSocketCANDeinit((UDSTpISOTpCSocketCAN_t *)env->client_tp);
     free(env->server_tp);
     free(env->client_tp);
-    free(env);
+    EnvFree(env);
     return 0;
 }
 
 int SetupIsoTpCClientOnly(void **state) {
-    Env_t *env = malloc(sizeof(Env_t));
-    memset(env, 0, sizeof(Env_t));
+    Env_t *env = EnvNew();
     UDSTpISOTpCSocketCAN_t *client_isotp = malloc(sizeof(UDSTpISOTpCSocketCAN_t));
+    assert(UDS_OK == UDSClientTpISOTpCSocketCANInit(client_isotp, "vcan0", 0x7e0, 0x7e8, 0x7df));
     strcpy(client_isotp->tag, "client");
-    assert(UDS_OK == UDSTpISOTpCSocketCANInit(client_isotp, "vcan0", 0x7e0, 0x7e8, 0, 0x7df));
-    env->client_tp = (UDSTp_t *)client_isotp;
+    env->p = (UDSTp_t *)client_isotp;
     env->is_real_time = true;
     *state = env;
     return 0;
@@ -101,15 +96,14 @@ int SetupIsoTpCClientOnly(void **state) {
 
 int TeardownIsoTpCClientOnly(void **state) {
     Env_t *env = *state;
-    UDSTpISOTpCSocketCANDeinit((UDSTpISOTpCSocketCAN_t *)env->client_tp);
-    free(env->client_tp);
-    free(env);
+    UDSTpISOTpCSocketCANDeinit((UDSTpISOTpCSocketCAN_t *)env->p);
+    free(env->p);
+    EnvFree(env);
     return 0;
 }
 
 int SetupIsoTpSockPair(void **state) {
-    Env_t *env = malloc(sizeof(Env_t));
-    memset(env, 0, sizeof(Env_t));
+    Env_t *env = EnvNew();
     UDSTpIsoTpSock_t *server_isotp = malloc(sizeof(UDSTpIsoTpSock_t));
     strcpy(server_isotp->tag, "server");
     assert(UDS_OK == UDSServerTpIsoTpSockInit(server_isotp, "vcan0", 0x7e8, 0x7e0, 0x7df));
@@ -131,17 +125,16 @@ int TeardownIsoTpSockPair(void **state) {
     UDSTpIsoTpSockDeinit((UDSTpIsoTpSock_t *)env->client_tp);
     free(env->server_tp);
     free(env->client_tp);
-    free(env);
+    EnvFree(env);
     return 0;
 }
 
 int SetupIsoTpSockClientOnly(void **state) {
-    Env_t *env = malloc(sizeof(Env_t));
-    memset(env, 0, sizeof(Env_t));
+    Env_t *env = EnvNew();
     UDSTpIsoTpSock_t *client_isotp = malloc(sizeof(UDSTpIsoTpSock_t));
     strcpy(client_isotp->tag, "client");
     assert(UDS_OK == UDSClientTpIsoTpSockInit(client_isotp, "vcan0", 0x7e0, 0x7e8, 0x7df));
-    env->client_tp = (UDSTp_t *)client_isotp;
+    env->p = (UDSTp_t *)client_isotp;
     env->is_real_time = true;
     *state = env;
     return 0;
@@ -149,56 +142,68 @@ int SetupIsoTpSockClientOnly(void **state) {
 
 int TeardownIsoTpSockClientOnly(void **state) {
     Env_t *env = *state;
-    UDSTpIsoTpSockDeinit((UDSTpIsoTpSock_t *)env->client_tp);
-    free(env->client_tp);
-    free(env);
+    UDSTpIsoTpSockDeinit((UDSTpIsoTpSock_t *)env->p);
+    free(env->p);
+    EnvFree(env);
     return 0;
 }
 
 void test_send_recv(void **state) {
     Env_t *e = *state;
     uint8_t buf[2] = {0};
+    UDSErr_t err = UDS_OK;
+    size_t recvlen = 0;
 
     // When some data is sent by one transport
     const uint8_t MSG[] = {0x10, 0x02};
     UDSTpSend(e->client_tp, MSG, sizeof(MSG), NULL);
 
     // it should be received soon by the other transport.
-    EXPECT_WITHIN_MS(e, UDSTpRecv(e->server_tp, buf, sizeof(buf), NULL) > 0, 10);
-    TEST_MEMORY_EQUAL(buf, MSG, sizeof(MSG));
+    EXPECT_WITHIN_MS(e,
+                     UDS_OK == (err = UDSTpRecv(e->server_tp, buf, sizeof(buf), &recvlen, NULL)) &&
+                         recvlen > 0 && 0 == memcmp(buf, MSG, sizeof(MSG)),
+                     10);
 }
 
 void test_send_recv_functional(void **state) {
     Env_t *e = *state;
     uint8_t buf[2] = {0};
+    UDSErr_t err = UDS_OK;
+    size_t recvlen = 0;
+    UDSSDU_t info2 = {0};
 
     // When a functional request is sent
     const uint8_t MSG[] = {0x10, 0x02};
     UDSTpSend(e->client_tp, MSG, sizeof(MSG), &(UDSSDU_t){.A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL});
 
     // the server should receive it quickly
-    UDSSDU_t info2 = {0};
-    EXPECT_WITHIN_MS(e, UDSTpRecv(e->server_tp, buf, sizeof(buf), &info2) > 0, 10);
-    TEST_MEMORY_EQUAL(buf, MSG, sizeof(MSG));
+    EXPECT_WITHIN_MS(e,
+                     UDS_OK ==
+                             (err = UDSTpRecv(e->server_tp, buf, sizeof(buf), &recvlen, &info2)) &&
+                         recvlen > 0 && 0 == memcmp(buf, MSG, sizeof(MSG)),
+                     10);
 
-    // and the server should know it's a functional request
+    // and it should be marked as functional
     assert_int_equal(info2.A_TA_Type, UDS_A_TA_TYPE_FUNCTIONAL);
 }
 
 void test_send_recv_largest_single_frame(void **state) {
     Env_t *e = *state;
     uint8_t buf[8] = {0};
+    UDSErr_t err = UDS_OK;
+    size_t recvlen = 0;
+    UDSSDU_t info2 = {0};
 
     // When a functional request is sent
     const uint8_t MSG[] = {1, 2, 3, 4, 5, 6, 7};
     UDSTpSend(e->client_tp, MSG, sizeof(MSG), &(UDSSDU_t){.A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL});
 
     // the server should receive it quickly
-    UDSSDU_t info2 = {0};
-    EXPECT_WITHIN_MS(e, UDSTpRecv(e->server_tp, buf, sizeof(buf), &info2) > 0, 10);
-
-    // it should be the same message
-    TEST_MEMORY_EQUAL(buf, MSG, sizeof(MSG));
+    EXPECT_WITHIN_MS(e,
+                     UDS_OK ==
+                             (err = UDSTpRecv(e->server_tp, buf, sizeof(buf), &recvlen, &info2)) &&
+                         recvlen > 0 && 0 == memcmp(buf, MSG, sizeof(MSG)),
+                     10);
 
     // and the server should know it's a functional request
     assert_int_equal(info2.A_TA_Type, UDS_A_TA_TYPE_FUNCTIONAL);
@@ -211,16 +216,18 @@ void test_send_functional_larger_than_single_frame_fails(void **state) {
 
     // When a functional request is sent with more than 7 bytes
     const uint8_t MSG[] = {1, 2, 3, 4, 5, 6, 7, 8};
-    UDSTpSize_t ret = UDSTpSend(e->client_tp, MSG, sizeof(MSG),
-                                &(UDSSDU_t){.A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL});
+    UDSErr_t err = UDSTpSend(e->client_tp, MSG, sizeof(MSG),
+                             &(UDSSDU_t){.A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL});
 
     // it should fail
-    assert_true(ret < 0);
+    assert_true(UDS_OK != err);
 }
 
 void test_send_recv_max_len(void **state) {
     Env_t *e = *state;
     uint8_t buf[4095] = {0};
+    size_t recvlen = 0;
+    UDSErr_t err = UDS_OK;
 
     // When a request is sent with the maximum length
     uint8_t MSG[4095] = {0};
@@ -229,30 +236,32 @@ void test_send_recv_max_len(void **state) {
     UDSTpSend(e->client_tp, MSG, sizeof(MSG), NULL);
 
     // the server should receive it quickly, albeit perhaps with a slight delay on vcan
-    EXPECT_WITHIN_MS(e, UDSTpRecv(e->server_tp, buf, sizeof(buf), NULL) > 0, 3000);
-
-    // it should be the same message
-    TEST_MEMORY_EQUAL(buf, MSG, sizeof(MSG));
+    EXPECT_WITHIN_MS(e,
+                     UDS_OK == (err = UDSTpRecv(e->server_tp, buf, sizeof(buf), &recvlen, NULL)) &&
+                         recvlen > 0 && 0 == memcmp(buf, MSG, sizeof(MSG)),
+                     3000);
 }
 
 void test_flow_control_frame_timeout(void **state) {
     Env_t *e = *state;
-    e->do_not_poll = true;
+    UDSTp_t *client_tp = (UDSTp_t *)e->p;
 
     // sending multiframe to wait for Flow Control frame
     // which will not arrive since no server is running
     const uint8_t MSG[] = {1, 2, 3, 4, 5, 6, 7, 8};
-    UDSTpSize_t ret = UDSTpSend(e->client_tp, MSG, sizeof(MSG), NULL);
-    TEST_INT_EQUAL(ret, 8);
+    UDSErr_t err = UDSTpSend(client_tp, MSG, sizeof(MSG), NULL);
 
-    UDSTpStatus_t status = 0;
+    // UDSTpSend shall return UDS_OK
+    TEST_INT_EQUAL(err, UDS_OK);
+
+    // But an error will be set while polling
     for (int i = 0; i < 2000; i++) {
-        status = UDSTpPoll(e->client_tp);
-        if (status & UDS_TP_ERR) {
+        EnvRunMillis(e, 1);
+        err = UDSTpPoll(client_tp);
+        if (err != UDS_OK) {
             // success
             return;
         }
-        EnvRunMillis(e, 1);
     }
     fail();
 }

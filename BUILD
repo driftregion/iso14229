@@ -24,7 +24,14 @@ refresh_compile_commands(
 refresh_compile_commands(
     name = "lib_compile_commands",
     targets = {
-        "//:iso14229_in_tree": "",
+        "//:iso14229": "",
+    }
+)
+
+refresh_compile_commands(
+    name = "iso14229_unamalgamated_compile_commands",
+    targets = {
+        "//:iso14229_unamalgamated": "",
     }
 )
 
@@ -60,14 +67,12 @@ cc_binary(
     linkshared = 1,
 )
 
+
+# iso14229.c/h in the repository root are updated manually with `make update_srcs`
 cc_library(
     name="iso14229",
-    srcs=[
-        "//src:iso14229.c",
-    ],
-    hdrs=[
-        "//src:iso14229.h",
-    ],
+    srcs=[ ":iso14229.c" ],
+    hdrs=[ ":iso14229.h" ],
     copts = select({
         "@platforms//os:windows": [],
         "//conditions:default": [ "-g", ],
@@ -76,34 +81,7 @@ cc_library(
         "UDS_TP_ISOTP_MOCK",
         "UDS_CUSTOM_MILLIS",
         "UDS_LOG_LEVEL=UDS_LOG_VERBOSE",
-    ] + select({
-        "@platforms//os:windows": [],
-        "//conditions:default": [ 
-            "UDS_TP_ISOTP_C_SOCKETCAN",
-            "UDS_TP_ISOTP_SOCK",
-        ],
-    }),
-)
-
-# this target is consumed by static analysis
-# iso14229.c and iso14229.h are updated with tools/update_srcs.sh either
-# manually or via .githhoks/pre-commit.
-cc_library(
-    name="iso14229_in_tree",
-    srcs=[
-        ":iso14229.c",
-    ],
-    hdrs=[
-        ":iso14229.h",
-    ],
-    copts = select({
-        "@platforms//os:windows": [],
-        "//conditions:default": [ "-g", ],
-    }),
-    defines = [
-        "UDS_TP_ISOTP_MOCK",
-        "UDS_CUSTOM_MILLIS",
-        "UDS_LOG_LEVEL=UDS_LOG_VERBOSE",
+        "UDS_LINES",
     ] + select({
         "@platforms//os:windows": [],
         "//conditions:default": [ 

@@ -168,8 +168,9 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
             for (size_t time_us = 0; time_us < wait_ms * 1000; time_us += poll_rate_us) {
                 g_time_now_us += poll_rate_us;
                 UDSServerPoll(&srv);
-                UDSTpSize_t ret = UDSTpRecv(mock_client, client_recv_buf, sizeof(client_recv_buf), NULL);
-                (void)ret;
+                size_t recvlen = 0;
+                UDSErr_t err = UDSTpRecv(mock_client, client_recv_buf, sizeof(client_recv_buf), &recvlen, NULL);
+                (void)err;
             }
         }
 

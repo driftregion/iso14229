@@ -65,17 +65,17 @@ static void NetworkPoll(void) {
     }
 }
 
-static UDSTpSize_t mock_tp_send(struct UDSTp *hdl, const uint8_t *buf, size_t len,
-                                const UDSSDU_t *info) {
+static UDSErr_t mock_tp_send(struct UDSTp *hdl, const uint8_t *buf, size_t len,
+                             const UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
     if (MsgCount >= NUM_MSGS) {
         UDS_LOGW(__FILE__, "mock_tp_send: too many messages in the queue");
-        return -1;
+        return UDS_FAIL;
     }
     struct Msg *m = &msgs[MsgCount++];
-    UDSTpAddr_t ta_type =
-        info == NULL ? (UDSTpAddr_t)UDS_A_TA_TYPE_PHYSICAL : (UDSTpAddr_t)info->A_TA_Type;
+    UDS_A_TA_Type_t ta_type =
+        info == NULL ? (UDS_A_TA_Type_t)UDS_A_TA_TYPE_PHYSICAL : (UDS_A_TA_Type_t)info->A_TA_Type;
     m->len = len;
     m->info.A_AE = info == NULL ? 0 : info->A_AE;
     if (UDS_A_TA_TYPE_PHYSICAL == ta_type) {
@@ -87,14 +87,14 @@ static UDSTpSize_t mock_tp_send(struct UDSTp *hdl, const uint8_t *buf, size_t le
         // Technically CAN-FD may also be used in ISO-TP.
         // TODO: add profiles to isotp_mock
         if (len > 7) {
-            UDS_LOGW(__FILE__, "mock_tp_send: functional message too long: %ld", len);
-            return -1;
+            UDS_LOGW(__FILE__, "mock_tp_send: functional message too long: %zu", len);
+            return UDS_FAIL;
         }
         m->info.A_TA = tp->ta_func;
         m->info.A_SA = tp->sa_func;
     } else {
         UDS_LOGW(__FILE__, "mock_tp_send: unknown TA type: %d", ta_type);
-        return -1;
+        return UDS_FAIL;
     }
     m->info.A_TA_Type = ta_type;
     m->scheduled_tx_time = UDSMillis() + tp->send_tx_delay_ms;
@@ -104,38 +104,38 @@ static UDSTpSize_t mock_tp_send(struct UDSTp *hdl, const uint8_t *buf, size_t le
              m->info.A_TA, m->info.A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "PHYSICAL" : "FUNCTIONAL");
     UDS_LOG_SDU(__FILE__, buf, len, &m->info);
 
-    return (UDSTpSize_t)len;
+    return UDS_OK;
 }
 
-static UDSTpSize_t mock_tp_recv(struct UDSTp *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
+static UDSErr_t mock_tp_recv(struct UDSTp *hdl, uint8_t *buf, size_t bufsiz, size_t *recvlen,
+                             UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     ISOTPMock_t *tp = (ISOTPMock_t *)hdl;
     if (tp->recv_len == 0) {
-        return 0;
+        return UDS_OK;
     }
-    if (bufsize < tp->recv_len) {
-        UDS_LOGW(__FILE__, "mock_tp_recv: buffer too small: %ld < %ld", bufsize, tp->recv_len);
-        return -1;
+    if (bufsiz < tp->recv_len) {
+        UDS_LOGE(__FILE__, "mock_tp_recv: buffer too small: %ld < %ld", bufsiz, tp->recv_len);
+        return UDS_FAIL;
     }
-    UDSTpSize_t len = (UDSTpSize_t)tp->recv_len;
+    *recvlen = tp->recv_len;
     memmove(buf, tp->recv_buf, tp->recv_len);
     if (info) {
         *info = tp->recv_info;
     }
     tp->recv_len = 0;
-    return len;
+    return UDS_OK;
 }
 
-static UDSTpStatus_t mock_tp_poll(struct UDSTp *hdl) {
+static UDSErr_t mock_tp_poll(struct UDSTp *hdl) {
     (void)hdl; // unused parameter
     NetworkPoll();
-    // todo: make this status reflect TX time
-    return UDS_TP_IDLE;
+    return UDS_OK;
 }
 
 static_assert(offsetof(ISOTPMock_t, hdl) == 0, "ISOTPMock_t must not have any members before hdl");
 
-static void ISOTPMockAttach(ISOTPMock_t *tp, ISOTPMockArgs_t *args) {
+static void ISOTPMockAttach(ISOTPMock_t *tp, const ISOTPMockArgs_t *args) {
     UDS_ASSERT(tp);
     UDS_ASSERT(args);
     UDS_ASSERT(TPCount < MAX_NUM_TP);
@@ -166,7 +166,7 @@ static void ISOTPMockDetach(ISOTPMock_t *tp) {
     UDS_ASSERT(false);
 }
 
-UDSTp_t *ISOTPMockNew(const char *name, ISOTPMockArgs_t *args) {
+UDSTp_t *ISOTPMockNew(const char *name, const ISOTPMockArgs_t *args) {
     if (TPCount >= MAX_NUM_TP) {
         UDS_LOGI(__FILE__, "TPCount: %d, too many TPs\n", TPCount);
         return NULL;

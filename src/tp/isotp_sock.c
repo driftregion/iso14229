@@ -15,11 +15,11 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-static UDSTpStatus_t isotp_sock_tp_poll(UDSTp_t *hdl) {
-    UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
-    UDSTpStatus_t status = 0;
+static UDSErr_t isotp_sock_tp_poll(UDSTp_t *hdl) {
+    const UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
+    UDSErr_t err = UDS_OK;
     int ret = 0;
-    int fds[2] = {impl->phys_fd, impl->func_fd};
+    const int fds[2] = {impl->phys_fd, impl->func_fd};
     struct pollfd pfds[2] = {0};
     pfds[0].fd = impl->phys_fd;
     pfds[0].events = POLLERR | POLLOUT;
@@ -32,7 +32,7 @@ static UDSTpStatus_t isotp_sock_tp_poll(UDSTp_t *hdl) {
     ret = poll(pfds, 2, 1);
     if (ret < 0) {
         UDS_LOGE(__FILE__, "poll failed: %d", ret);
-        status |= UDS_TP_ERR;
+        err = UDS_ERR_TPORT;
     } else if (ret == 0) {
         ; // timeout, no events
     } else {
@@ -44,16 +44,16 @@ static UDSTpStatus_t isotp_sock_tp_poll(UDSTp_t *hdl) {
             if (pfd.revents & POLLERR) {
                 int pending_err = 0;
                 socklen_t len = sizeof(pending_err);
-                if (!getsockopt(fds[i], SOL_SOCKET, SO_ERROR, &pending_err, &len) && pending_err) {
+                if (0 == getsockopt(fds[i], SOL_SOCKET, SO_ERROR, &pending_err, &len) &&
+                    pending_err) {
                     switch (pending_err) {
                     case ECOMM:
                         UDS_LOGE(__FILE__, "ECOMM: Communication error on send");
-                        status |= UDS_TP_ERR;
+                        err = UDS_ERR_TPORT;
                         break;
                     default:
                         UDS_LOGE(__FILE__, "Asynchronous socket error: %s (%d)",
                                  strerror(pending_err), pending_err);
-                        status |= UDS_TP_ERR;
                         break;
                     }
                 } else {
@@ -69,94 +69,106 @@ static UDSTpStatus_t isotp_sock_tp_poll(UDSTp_t *hdl) {
                 // See: https://lore.kernel.org/all/20230331125511.372783-1-michal.sojka@cvut.cz/
                 // The kernel ISO-TP driver suppresses POLLOUT when tx.state != ISOTP_IDLE
                 if (!(pfd.revents & POLLOUT)) {
-                    status |= UDS_TP_SEND_IN_PROGRESS;
+                    hdl->status.is_sending = 1;
+                } else {
+                    hdl->status.is_sending = 0;
                 }
             }
         }
     }
-    return status;
+    return err;
 }
 
-static UDSTpSize_t tp_recv_once(int fd, uint8_t *buf, size_t size) {
-    UDSTpSize_t ret = read(fd, buf, size);
+static UDSErr_t tp_recv_once(int fd, uint8_t *buf, const size_t bufsiz, size_t *recvlen) {
+    UDSErr_t err = UDS_OK;
+    ssize_t ret = read(fd, buf, bufsiz);
     if (ret < 0) {
         if (EAGAIN == errno || EWOULDBLOCK == errno) {
-            ret = 0;
+            ; // temporarily unavailable -- not an error
         } else {
-            UDS_LOGI(__FILE__, "read failed: %" PRId32 " with errno: %d\n", ret, errno);
-            if (EILSEQ == errno) {
-                UDS_LOGI(__FILE__, "Perhaps I received multiple responses?");
-            }
+            UDS_LOGE(__FILE__, "read failed: %zd with errno: %d", ret, errno);
+            err = UDS_FAIL;
         }
     }
-    return ret;
+
+    *recvlen = ret < 0 ? 0 : (size_t)ret;
+    return err;
 }
 
-static UDSTpSize_t isotp_sock_tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info) {
-    UDS_ASSERT(hdl);
-    UDS_ASSERT(buf);
-    UDSTpSize_t ret = 0;
+static UDSErr_t isotp_sock_tp_recv(UDSTp_t *hdl, uint8_t *buf, const size_t bufsiz, size_t *recvlen,
+                                   UDSSDU_t *info) {
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
+    UDSErr_t err = 0;
     UDSSDU_t *msg = &impl->recv_info;
 
-    ret = tp_recv_once(impl->phys_fd, buf, bufsize);
-    if (ret > 0) {
+    err = tp_recv_once(impl->phys_fd, buf, bufsiz, recvlen);
+    if (err) {
+        return err;
+    }
+    if (*recvlen > 0) {
         msg->A_TA = impl->phys_sa;
         msg->A_SA = impl->phys_ta;
         msg->A_TA_Type = UDS_A_TA_TYPE_PHYSICAL;
     } else {
-        ret = tp_recv_once(impl->func_fd, buf, bufsize);
-        if (ret > 0) {
+        err = tp_recv_once(impl->func_fd, buf, bufsiz, recvlen);
+        if (err) {
+            return err;
+        }
+        if (*recvlen > 0) {
             msg->A_TA = impl->func_sa;
             msg->A_SA = impl->func_ta;
             msg->A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL;
         }
     }
 
-    if (ret > 0) {
+    if (*recvlen > 0) {
         if (info) {
             *info = *msg;
         }
 
-        UDS_LOGD(__FILE__, "'%s' received %" PRId32 " bytes from 0x%03x (%s), ", impl->tag, ret,
+        UDS_LOGD(__FILE__, "'%s' received %zd bytes from 0x%03x (%s), ", impl->tag, *recvlen,
                  msg->A_TA, msg->A_TA_Type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
-        UDS_LOG_SDU(__FILE__, impl->recv_buf, ret, msg);
+        UDS_LOG_SDU(__FILE__, impl->recv_buf, *recvlen, msg);
     }
-
-    return ret;
+    return UDS_OK;
 }
 
-static UDSTpSize_t isotp_sock_tp_send(UDSTp_t *hdl, const uint8_t *buf, size_t len,
-                                      const UDSSDU_t *info) {
-    UDS_ASSERT(hdl);
-    UDSTpSize_t ret = -1;
+static UDSErr_t isotp_sock_tp_send(UDSTp_t *hdl, const uint8_t *buf, const size_t len,
+                                   const UDSSDU_t *info) {
     UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl;
-    int fd;
-    const UDSTpAddr_t ta_type = info ? info->A_TA_Type : UDS_A_TA_TYPE_PHYSICAL;
+    ssize_t ret = -1;
+    int fd = -1;
+    const UDS_A_TA_Type_t ta_type = info ? info->A_TA_Type : UDS_A_TA_TYPE_PHYSICAL;
 
-    if (UDS_A_TA_TYPE_PHYSICAL == ta_type) {
+    switch (ta_type) {
+    case UDS_A_TA_TYPE_PHYSICAL:
         fd = impl->phys_fd;
-    } else if (UDS_A_TA_TYPE_FUNCTIONAL == ta_type) {
+        break;
+    case UDS_A_TA_TYPE_FUNCTIONAL: {
         if (len > 7) {
-            UDS_LOGI(__FILE__, "UDSTpIsoTpSock: functional request too large");
-            return -1;
+            UDS_LOGE(__FILE__, "UDSTpIsoTpSock: functional request too large");
+            return UDS_ERR_MISUSE;
         }
         fd = impl->func_fd;
-    } else {
-        ret = -4;
-        goto done;
+    } break;
+    default:
+        UDS_LOGE(__FILE__, "unknown UDS_A_TA_TYPE");
+        return UDS_ERR_MISUSE;
     }
+
+    UDS_ASSERT(fd >= 0);
     ret = write(fd, buf, len);
+    UDS_ASSERT(ret < UINT16_MAX);
     if (ret < 0) {
         perror("write");
+        return UDS_FAIL;
     }
-done:;
-    int ta = ta_type == UDS_A_TA_TYPE_PHYSICAL ? impl->phys_ta : impl->func_ta;
-    UDS_LOGD(__FILE__, "'%s' sends %ld bytes to 0x%03x (%s)", impl->tag, len, ta,
+
+    uint32_t ta = ta_type == UDS_A_TA_TYPE_PHYSICAL ? impl->phys_ta : impl->func_ta;
+    UDS_LOGD(__FILE__, "'%s' sends %zu bytes to 0x%03x (%s)", impl->tag, len, ta,
              ta_type == UDS_A_TA_TYPE_PHYSICAL ? "phys" : "func");
     UDS_LOG_SDU(__FILE__, buf, len, info);
-
-    return ret;
+    return UDS_OK;
 }
 
 static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool functional) {
@@ -173,6 +185,7 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool
     };
     if (setsockopt(fd, SOL_CAN_ISOTP, CAN_ISOTP_RECV_FC, &fcopts, sizeof(fcopts)) < 0) {
         perror("setsockopt");
+        close(fd);
         return -1;
     }
 
@@ -186,6 +199,7 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool
 
     if (setsockopt(fd, SOL_CAN_ISOTP, CAN_ISOTP_OPTS, &opts, sizeof(opts)) < 0) {
         perror("setsockopt (isotp_options):");
+        close(fd);
         return -1;
     }
 
@@ -207,6 +221,7 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool
 
     if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
         UDS_LOGI(__FILE__, "Bind: %s %s", strerror(errno), if_name);
+        close(fd);
         return -1;
     }
     return fd;
@@ -265,7 +280,7 @@ UDSErr_t UDSClientTpIsoTpSockInit(UDSTpIsoTpSock_t *tp, const char *ifname, uint
     return UDS_OK;
 }
 
-void UDSTpIsoTpSockDeinit(UDSTpIsoTpSock_t *tp) {
+void UDSTpIsoTpSockDeinit(const UDSTpIsoTpSock_t *tp) {
     if (tp) {
         if (close(tp->phys_fd) < 0) {
             perror("failed to close socket");

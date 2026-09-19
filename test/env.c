@@ -66,10 +66,9 @@ void MockServerPoll(MockServer_t *srv) {
     UDSTpPoll(srv->tp);
     uint8_t buf[UDS_TP_MTU] = {0};
     UDSSDU_t info = {0};
-    UDSTpSize_t len = UDSTpRecv(srv->tp, buf, sizeof(buf), &info);
-    UDS_ASSERT(len >= 0);
-    size_t recv_len = (size_t)len;
-    if (recv_len > 0) {
+    size_t recv_len = 0;
+    UDSErr_t err = UDSTpRecv(srv->tp, buf, sizeof(buf), &recv_len, &info);
+    if (UDS_OK == err) {
         for (int i = 0; i < impl->num_behaviors; i++) {
             struct Behavior *b = &impl->behaviors[i];
             switch (b->tag) {
@@ -117,27 +116,32 @@ void MockServerPoll(MockServer_t *srv) {
     }
 }
 
+Env_t *EnvNew() {
+    Env_t *e = malloc(sizeof(Env_t));
+    assert(e);
+    memset(e, 0, sizeof(*e));
+    return e;
+}
+
+void EnvFree(Env_t *e) { free(e); }
+
 void EnvRunMillis(Env_t *env, uint32_t millis) {
     uint32_t end = UDSMillis() + millis;
     while (UDSMillis() < end) {
-        if (env->do_not_poll) {
-            ;
-        } else {
-            if (env->server) {
-                UDSServerPoll(env->server);
-            }
-            if (env->server_tp) {
-                UDSTpPoll(env->server_tp);
-            }
-            if (env->client) {
-                UDSClientPoll(env->client);
-            }
-            if (env->client_tp) {
-                UDSTpPoll(env->client_tp);
-            }
-            if (env->mock_server) {
-                MockServerPoll(env->mock_server);
-            }
+        if (env->server) {
+            UDSServerPoll(env->server);
+        }
+        if (env->server_tp) {
+            UDSTpPoll(env->server_tp);
+        }
+        if (env->client) {
+            UDSClientPoll(env->client);
+        }
+        if (env->client_tp) {
+            UDSTpPoll(env->client_tp);
+        }
+        if (env->mock_server) {
+            MockServerPoll(env->mock_server);
         }
         if (env->is_real_time) {
 #ifdef _WIN32
@@ -149,3 +153,5 @@ void EnvRunMillis(Env_t *env, uint32_t millis) {
         TimeNowMillis++;
     }
 }
+
+void EnvSetMillis(uint32_t millis) { TimeNowMillis = millis; }

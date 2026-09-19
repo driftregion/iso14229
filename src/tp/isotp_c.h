@@ -37,11 +37,16 @@ UDSErr_t UDSServerTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t source_addr, uint32_t
 /**
  * @brief Initialize isotp-c transport for \ref UDSClient_t
  * @param tp \ref UDSTpISOTpC_t instance.
- * @param target_addr Client sends physical requests to this address.
  * @param source_addr Client listens for responses at this address.
+ * @param target_addr Client sends physical requests to this address.
  * @param target_addr_func Client sends functional transmissions to this address.
  */
-UDSErr_t UDSClientTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t target_addr, uint32_t source_addr,
+UDSErr_t UDSClientTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t source_addr, uint32_t target_addr,
                                uint32_t target_addr_func);
+
+// Internal API
+UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t sa, uint32_t ta, uint32_t sa_func,
+                         uint32_t ta_func);
+UDSErr_t UDSTpISOTpCPoll(UDSTp_t *tp);
 
 #endif

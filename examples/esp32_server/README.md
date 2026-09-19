@@ -23,7 +23,8 @@ client:
 2. connect CAN board to ESP32
 
 ```sh
-. ~/esp/esp-idf/export.sh
+source ~/.espressif/tools/activate_idf_v5.4.4.sh 
+# (formerly `. ~/esp/esp-idf/export.sh`)
 idf.py set-target esp32c3
 idf.py build flash monitor
 ```

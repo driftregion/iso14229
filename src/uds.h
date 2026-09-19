@@ -135,12 +135,13 @@ typedef enum {
     UDS_ERR_DID_MISMATCH,         // The response DID does not match the request DID
     UDS_ERR_SID_MISMATCH,         // The response SID does not match the request SID
     UDS_ERR_SUBFUNCTION_MISMATCH, // The response SubFunction does not match the request SubFunction
-    UDS_ERR_TPORT,                // Transport error. Check the transport layer for more information
     UDS_ERR_RESP_TOO_SHORT,       // The response is too short
     UDS_ERR_BUFSIZ,               // The buffer is not large enough
     UDS_ERR_INVALID_ARG,          // The function has been called with invalid arguments
     UDS_ERR_BUSY,                 // The client is busy and cannot process the request
     UDS_ERR_MISUSE,               // The library is used incorrectly
+
+    UDS_ERR_TPORT = 0x200, // Transport error
 } UDSErr_t;
 
 /**
@@ -241,11 +242,6 @@ typedef enum {
 /// ISO-14229-1:2013 Table 2
 #define UDS_MAX_DIAGNOSTIC_SERVICES 0x7F
 
-#define UDS_RESPONSE_SID_OF(request_sid)                                                           \
-    ((request_sid) + 0x40) ///< Convert request SID to response SID
-#define UDS_REQUEST_SID_OF(response_sid)                                                           \
-    ((response_sid) - 0x40) ///< Convert response SID to request SID
-
 /// \cond DOXYGEN_SHOULD_SKIP_THIS
 #define UDS_NEG_RESP_LEN 3U
 #define UDS_0X10_REQ_LEN 2U
@@ -271,6 +267,7 @@ typedef enum {
 #define UDS_0X2F_REQ_MIN_LEN 4U
 #define UDS_0X2F_RESP_BASE_LEN 4U
 #define UDS_0X31_REQ_MIN_LEN 4U
+#define UDS_0X31_REQ_BASE_LEN 4U
 #define UDS_0X31_RESP_MIN_LEN 4U
 #define UDS_0X34_REQ_BASE_LEN 3U
 #define UDS_0X34_RESP_BASE_LEN 2U
@@ -292,32 +289,31 @@ typedef enum {
 #define UDS_0X87_REQ_BASE_LEN 2U
 #define UDS_0X87_RESP_LEN 2U
 
-enum UDSDiagnosticServiceId {
-    kSID_DIAGNOSTIC_SESSION_CONTROL = 0x10,
-    kSID_ECU_RESET = 0x11,
-    kSID_CLEAR_DIAGNOSTIC_INFORMATION = 0x14,
-    kSID_READ_DTC_INFORMATION = 0x19,
-    kSID_READ_DATA_BY_IDENTIFIER = 0x22,
-    kSID_READ_MEMORY_BY_ADDRESS = 0x23,
-    kSID_READ_SCALING_DATA_BY_IDENTIFIER = 0x24,
-    kSID_SECURITY_ACCESS = 0x27,
-    kSID_COMMUNICATION_CONTROL = 0x28,
-    kSID_READ_PERIODIC_DATA_BY_IDENTIFIER = 0x2A,
-    kSID_DYNAMICALLY_DEFINE_DATA_IDENTIFIER = 0x2C,
-    kSID_WRITE_DATA_BY_IDENTIFIER = 0x2E,
-    kSID_IO_CONTROL_BY_IDENTIFIER = 0x2F,
-    kSID_ROUTINE_CONTROL = 0x31,
-    kSID_REQUEST_DOWNLOAD = 0x34,
-    kSID_REQUEST_UPLOAD = 0x35,
-    kSID_TRANSFER_DATA = 0x36,
-    kSID_REQUEST_TRANSFER_EXIT = 0x37,
-    kSID_REQUEST_FILE_TRANSFER = 0x38,
-    kSID_WRITE_MEMORY_BY_ADDRESS = 0x3D,
-    kSID_TESTER_PRESENT = 0x3E,
-    kSID_ACCESS_TIMING_PARAMETER = 0x83,
-    kSID_SECURED_DATA_TRANSMISSION = 0x84,
-    kSID_CONTROL_DTC_SETTING = 0x85,
-    kSID_RESPONSE_ON_EVENT = 0x86,
-    kSID_LINK_CONTROL = 0x87,
-};
+#define UDS_SID_DIAGNOSTIC_SESSION_CONTROL 0x10u
+#define UDS_SID_ECU_RESET 0x11u
+#define UDS_SID_CLEAR_DIAGNOSTIC_INFORMATION 0x14u
+#define UDS_SID_READ_DTC_INFORMATION 0x19u
+#define UDS_SID_READ_DATA_BY_IDENTIFIER 0x22u
+#define UDS_SID_READ_MEMORY_BY_ADDRESS 0x23u
+#define UDS_SID_READ_SCALING_DATA_BY_IDENTIFIER 0x24u
+#define UDS_SID_SECURITY_ACCESS 0x27u
+#define UDS_SID_COMMUNICATION_CONTROL 0x28u
+#define UDS_SID_READ_PERIODIC_DATA_BY_IDENTIFIER 0x2Au
+#define UDS_SID_DYNAMICALLY_DEFINE_DATA_IDENTIFIER 0x2Cu
+#define UDS_SID_WRITE_DATA_BY_IDENTIFIER 0x2Eu
+#define UDS_SID_IO_CONTROL_BY_IDENTIFIER 0x2Fu
+#define UDS_SID_ROUTINE_CONTROL 0x31u
+#define UDS_SID_REQUEST_DOWNLOAD 0x34u
+#define UDS_SID_REQUEST_UPLOAD 0x35u
+#define UDS_SID_TRANSFER_DATA 0x36u
+#define UDS_SID_REQUEST_TRANSFER_EXIT 0x37u
+#define UDS_SID_REQUEST_FILE_TRANSFER 0x38u
+#define UDS_SID_WRITE_MEMORY_BY_ADDRESS 0x3Du
+#define UDS_SID_TESTER_PRESENT 0x3Eu
+#define UDS_SID_ACCESS_TIMING_PARAMETER 0x83u
+#define UDS_SID_SECURED_DATA_TRANSMISSION 0x84u
+#define UDS_SID_CONTROL_DTC_SETTING 0x85u
+#define UDS_SID_RESPONSE_ON_EVENT 0x86u
+#define UDS_SID_LINK_CONTROL 0x87u
+
 /// \endcond

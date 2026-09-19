@@ -1,8 +1,7 @@
 #include "test/env.h"
 
 int Setup(void **state) {
-    Env_t *env = malloc(sizeof(Env_t));
-    memset(env, 0, sizeof(Env_t));
+    Env_t *env = EnvNew();
     env->client = malloc(sizeof(UDSClient_t));
     UDSClientInit(env->client);
     env->client->tp = ISOTPMockNew("client", &(ISOTPMockArgs_t){.sa_phys = 0x7E8,
@@ -26,7 +25,7 @@ int Teardown(void **state) {
     ISOTPMockReset();
     free(env->client);
     MockServerFree(env->mock_server);
-    free(env);
+    EnvFree(env);
     return 0;
 }
 

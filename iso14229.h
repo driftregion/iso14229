@@ -13,9 +13,15 @@ extern "C" {
 #endif
 
 
-#define UDS_LIB_VERSION "0.10.0"
+#ifdef UDS_LINES
+#line 1 "src/version.h"
+#endif
+#define UDS_LIB_VERSION "0.10.1"
 
 
+#ifdef UDS_LINES
+#line 1 "src/sys.h"
+#endif
 
 /**
  * @defgroup uds_sys_ valid values of UDS_SYS
@@ -94,6 +100,9 @@ extern "C" {
 #endif // if UDS_SYS == UDS_SYS_ZEPHYR
 
 
+#ifdef UDS_LINES
+#line 1 "src/config.h"
+#endif
 
 /**
  * @def UDS_SYS
@@ -199,105 +208,9 @@ TransferData request message from the client. */
 #endif
 
 
-
-
-#if defined UDS_TP_ISOTP_C_SOCKETCAN
-#ifndef UDS_TP_ISOTP_C
-#define UDS_TP_ISOTP_C
+#ifdef UDS_LINES
+#line 1 "src/uds.h"
 #endif
-#endif
-
-/** private: Status flags set by the transport implementation.
- */
-enum UDSTpStatusFlags {
-    UDS_TP_IDLE = 0x0000,
-    UDS_TP_SEND_IN_PROGRESS = 0x0001,
-    UDS_TP_RECV_COMPLETE = 0x0002,
-    UDS_TP_ERR = 0x0004,
-};
-
-typedef uint32_t UDSTpStatus_t; ///< private: bitfield of @ref UDSTpStatusFlags
-
-/** private: transport message type
- */
-typedef enum {
-    UDS_A_MTYPE_DIAG = 0,
-    UDS_A_MTYPE_REMOTE_DIAG,
-    UDS_A_MTYPE_SECURE_DIAG,
-    UDS_A_MTYPE_SECURE_REMOTE_DIAG,
-} UDS_A_Mtype_t;
-
-/** private: transmission type
- */
-typedef enum {
-    UDS_A_TA_TYPE_PHYSICAL = 0, // unicast (1:1)
-    UDS_A_TA_TYPE_FUNCTIONAL,   // multicast
-} UDS_A_TA_Type_t;
-
-typedef uint8_t UDSTpAddr_t; ///< private: oneof @ref UDS_A_TA_Type_t
-
-/**
- * @brief Service data unit (SDU)
- * @details Service data unit (SDU): data interface between the application layer and the
- * transport layer
- */
-typedef struct {
-    UDS_A_Mtype_t A_Mtype;     /**< message type (diagnostic, remote diagnostic, secure diagnostic,
-                                  secure remote diagnostic) */
-    uint32_t A_SA;             /**< application source address */
-    uint32_t A_TA;             /**< application target address */
-    UDS_A_TA_Type_t A_TA_Type; /**< application target address type (physical or functional) */
-    uint32_t A_AE;             /**< application layer remote address */
-} UDSSDU_t;
-
-#define UDS_TP_NOOP_ADDR (0xFFFFFFFF) ///< flags A_SA / A_TA as unused
-
-/** @brief Signed size type used by the transport layer interface (byte count, or negative on
- *  error). */
-typedef int32_t UDSTpSize_t;
-
-/**
- * @brief UDS Transport layer
- * @note implementers should embed this struct at offset zero in their own transport layer handle
- */
-typedef struct UDSTp {
-    /**
-     * @brief Send data to the transport
-     * @param hdl: pointer to transport handle
-     * @param buf: a pointer to the data to send
-     * @param len: length of data to send
-     * @param info: pointer to SDU info (may be NULL). If NULL, implementation should send with
-     * physical addressing
-     */
-    UDSTpSize_t (*send)(struct UDSTp *hdl, const uint8_t *buf, size_t len, const UDSSDU_t *info);
-
-    /**
-     * @brief Receive data from the transport
-     * @param hdl: transport handle
-     * @param buf: receive buffer
-     * @param bufsize: size of the receive buffer
-     * @param info: pointer to SDU info to be updated by transport implementation. May be NULL. If
-     * non-NULL, the transport implementation must populate it with valid values.
-     */
-    UDSTpSize_t (*recv)(struct UDSTp *hdl, uint8_t *buf, size_t bufsize, UDSSDU_t *info);
-
-    /**
-     * @brief Poll the transport layer.
-     * @param hdl: pointer to transport handle
-     * @note the transport layer user is responsible for calling this function periodically
-     * @note threaded implementations like linux isotp sockets don't need to do anything here.
-     * @return UDS_TP_IDLE if idle, otherwise UDS_TP_SEND_IN_PROGRESS or UDS_TP_RECV_COMPLETE
-     */
-    UDSTpStatus_t (*poll)(struct UDSTp *hdl);
-} UDSTp_t;
-
-UDSTpSize_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, UDSTpSize_t len,
-                      const UDSSDU_t *info); ///< Send to transport
-UDSTpSize_t UDSTpRecv(UDSTp_t *hdl, uint8_t *buf, size_t bufsize,
-                      UDSSDU_t *info); ///< Receive from transport
-UDSTpStatus_t UDSTpPoll(UDSTp_t *hdl); ///< call this at <5ms intervals
-
-
 
 /** @file */
 
@@ -434,12 +347,13 @@ typedef enum {
     UDS_ERR_DID_MISMATCH,         // The response DID does not match the request DID
     UDS_ERR_SID_MISMATCH,         // The response SID does not match the request SID
     UDS_ERR_SUBFUNCTION_MISMATCH, // The response SubFunction does not match the request SubFunction
-    UDS_ERR_TPORT,                // Transport error. Check the transport layer for more information
     UDS_ERR_RESP_TOO_SHORT,       // The response is too short
     UDS_ERR_BUFSIZ,               // The buffer is not large enough
     UDS_ERR_INVALID_ARG,          // The function has been called with invalid arguments
     UDS_ERR_BUSY,                 // The client is busy and cannot process the request
     UDS_ERR_MISUSE,               // The library is used incorrectly
+
+    UDS_ERR_TPORT = 0x200, // Transport error
 } UDSErr_t;
 
 /**
@@ -540,11 +454,6 @@ typedef enum {
 /// ISO-14229-1:2013 Table 2
 #define UDS_MAX_DIAGNOSTIC_SERVICES 0x7F
 
-#define UDS_RESPONSE_SID_OF(request_sid)                                                           \
-    ((request_sid) + 0x40) ///< Convert request SID to response SID
-#define UDS_REQUEST_SID_OF(response_sid)                                                           \
-    ((response_sid) - 0x40) ///< Convert response SID to request SID
-
 /// \cond DOXYGEN_SHOULD_SKIP_THIS
 #define UDS_NEG_RESP_LEN 3U
 #define UDS_0X10_REQ_LEN 2U
@@ -570,6 +479,7 @@ typedef enum {
 #define UDS_0X2F_REQ_MIN_LEN 4U
 #define UDS_0X2F_RESP_BASE_LEN 4U
 #define UDS_0X31_REQ_MIN_LEN 4U
+#define UDS_0X31_REQ_BASE_LEN 4U
 #define UDS_0X31_RESP_MIN_LEN 4U
 #define UDS_0X34_REQ_BASE_LEN 3U
 #define UDS_0X34_RESP_BASE_LEN 2U
@@ -591,35 +501,138 @@ typedef enum {
 #define UDS_0X87_REQ_BASE_LEN 2U
 #define UDS_0X87_RESP_LEN 2U
 
-enum UDSDiagnosticServiceId {
-    kSID_DIAGNOSTIC_SESSION_CONTROL = 0x10,
-    kSID_ECU_RESET = 0x11,
-    kSID_CLEAR_DIAGNOSTIC_INFORMATION = 0x14,
-    kSID_READ_DTC_INFORMATION = 0x19,
-    kSID_READ_DATA_BY_IDENTIFIER = 0x22,
-    kSID_READ_MEMORY_BY_ADDRESS = 0x23,
-    kSID_READ_SCALING_DATA_BY_IDENTIFIER = 0x24,
-    kSID_SECURITY_ACCESS = 0x27,
-    kSID_COMMUNICATION_CONTROL = 0x28,
-    kSID_READ_PERIODIC_DATA_BY_IDENTIFIER = 0x2A,
-    kSID_DYNAMICALLY_DEFINE_DATA_IDENTIFIER = 0x2C,
-    kSID_WRITE_DATA_BY_IDENTIFIER = 0x2E,
-    kSID_IO_CONTROL_BY_IDENTIFIER = 0x2F,
-    kSID_ROUTINE_CONTROL = 0x31,
-    kSID_REQUEST_DOWNLOAD = 0x34,
-    kSID_REQUEST_UPLOAD = 0x35,
-    kSID_TRANSFER_DATA = 0x36,
-    kSID_REQUEST_TRANSFER_EXIT = 0x37,
-    kSID_REQUEST_FILE_TRANSFER = 0x38,
-    kSID_WRITE_MEMORY_BY_ADDRESS = 0x3D,
-    kSID_TESTER_PRESENT = 0x3E,
-    kSID_ACCESS_TIMING_PARAMETER = 0x83,
-    kSID_SECURED_DATA_TRANSMISSION = 0x84,
-    kSID_CONTROL_DTC_SETTING = 0x85,
-    kSID_RESPONSE_ON_EVENT = 0x86,
-    kSID_LINK_CONTROL = 0x87,
-};
+#define UDS_SID_DIAGNOSTIC_SESSION_CONTROL 0x10u
+#define UDS_SID_ECU_RESET 0x11u
+#define UDS_SID_CLEAR_DIAGNOSTIC_INFORMATION 0x14u
+#define UDS_SID_READ_DTC_INFORMATION 0x19u
+#define UDS_SID_READ_DATA_BY_IDENTIFIER 0x22u
+#define UDS_SID_READ_MEMORY_BY_ADDRESS 0x23u
+#define UDS_SID_READ_SCALING_DATA_BY_IDENTIFIER 0x24u
+#define UDS_SID_SECURITY_ACCESS 0x27u
+#define UDS_SID_COMMUNICATION_CONTROL 0x28u
+#define UDS_SID_READ_PERIODIC_DATA_BY_IDENTIFIER 0x2Au
+#define UDS_SID_DYNAMICALLY_DEFINE_DATA_IDENTIFIER 0x2Cu
+#define UDS_SID_WRITE_DATA_BY_IDENTIFIER 0x2Eu
+#define UDS_SID_IO_CONTROL_BY_IDENTIFIER 0x2Fu
+#define UDS_SID_ROUTINE_CONTROL 0x31u
+#define UDS_SID_REQUEST_DOWNLOAD 0x34u
+#define UDS_SID_REQUEST_UPLOAD 0x35u
+#define UDS_SID_TRANSFER_DATA 0x36u
+#define UDS_SID_REQUEST_TRANSFER_EXIT 0x37u
+#define UDS_SID_REQUEST_FILE_TRANSFER 0x38u
+#define UDS_SID_WRITE_MEMORY_BY_ADDRESS 0x3Du
+#define UDS_SID_TESTER_PRESENT 0x3Eu
+#define UDS_SID_ACCESS_TIMING_PARAMETER 0x83u
+#define UDS_SID_SECURED_DATA_TRANSMISSION 0x84u
+#define UDS_SID_CONTROL_DTC_SETTING 0x85u
+#define UDS_SID_RESPONSE_ON_EVENT 0x86u
+#define UDS_SID_LINK_CONTROL 0x87u
+
 /// \endcond
+
+
+#ifdef UDS_LINES
+#line 1 "src/tp.h"
+#endif
+
+
+
+
+#if defined UDS_TP_ISOTP_C_SOCKETCAN
+#ifndef UDS_TP_ISOTP_C
+#define UDS_TP_ISOTP_C
+#endif
+#endif
+
+/** private: transport message type
+ * @defgroup uds_a_mtype
+ */
+#define UDS_A_MTYPE_DIAG 0
+#define UDS_A_MTYPE_REMOTE_DIAG 1
+#define UDS_A_MTYPE_SECURE_DIAG 2
+#define UDS_A_MTYPE_SECURE_REMOTE_DIAG 3
+
+typedef uint8_t UDS_A_Mtype_t; ///< private: oneof @ref uds_a_mtype
+
+/** private: transport transmission type
+ * @defgroup uds_a_ta_type
+ */
+#define UDS_A_TA_TYPE_PHYSICAL 0   // unicast (1:1)
+#define UDS_A_TA_TYPE_FUNCTIONAL 1 // multicast
+
+typedef uint8_t UDS_A_TA_Type_t; ///< private: oneof @ref uds_a_ta_type
+
+/**
+ * @brief Service data unit (SDU)
+ * @details Service data unit (SDU): data interface between the application layer and the
+ * transport layer
+ */
+typedef struct {
+    UDS_A_Mtype_t A_Mtype;     /**< message type (diagnostic, remote diagnostic, secure diagnostic,
+                                  secure remote diagnostic) */
+    uint32_t A_SA;             /**< application source address */
+    uint32_t A_TA;             /**< application target address */
+    UDS_A_TA_Type_t A_TA_Type; /**< application target address type (physical or functional) */
+    uint32_t A_AE;             /**< application layer remote address */
+} UDSSDU_t;
+
+#define UDS_TP_NOOP_ADDR (0xFFFFFFFFU) ///< flags A_SA / A_TA as unused
+
+/**
+ * @brief UDS Transport layer
+ * @note implementers should embed this struct at offset zero in their own transport layer handle
+ */
+typedef struct UDSTp {
+    /**
+     * @brief Send data to the transport
+     * @param hdl: pointer to transport handle
+     * @param buf: a pointer to the data to send
+     * @param len: length of data to send
+     * @param info: pointer to SDU info (may be NULL). If NULL, implementation should send with
+     * physical addressing
+     * @return UDS_OK if successful
+     */
+    UDSErr_t (*send)(struct UDSTp *hdl, const uint8_t *buf, const size_t len, const UDSSDU_t *info);
+
+    /**
+     * @brief Receive data from the transport
+     * @param hdl: transport handle
+     * @param buf: receive buffer
+     * @param bufsiz: size of receive buffer
+     * @param recvlen: number of bytes actually received
+     * @param info: pointer to SDU info to be updated by transport implementation. May be NULL. If
+     * non-NULL, the transport implementation must populate it with valid values.
+     * @return UDS_OK if successful
+     */
+    UDSErr_t (*recv)(struct UDSTp *hdl, uint8_t *buf, size_t bufsiz, size_t *recvlen,
+                     UDSSDU_t *info);
+
+    /**
+     * @brief Poll the transport layer.
+     * @param hdl: pointer to transport handle
+     * @note
+     */
+    UDSErr_t (*poll)(struct UDSTp *hdl);
+
+    /**
+     * @brief status flag (read-only)
+     */
+    struct {
+        unsigned is_sending : 1; // set when data transmission starts in send(); cleared when done.
+    } status;
+} UDSTp_t;
+
+UDSErr_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, const size_t len,
+                   const UDSSDU_t *info); ///< Send to transport
+UDSErr_t UDSTpRecv(UDSTp_t *hdl, uint8_t *buf, const size_t bufsiz, size_t *recvlen,
+                   UDSSDU_t *info); ///< Receive from transport
+UDSErr_t UDSTpPoll(UDSTp_t *hdl);   ///< call this at <5ms intervals
+
+
+#ifdef UDS_LINES
+#line 1 "src/util.h"
+#endif
+
 
 
 
@@ -655,11 +668,18 @@ const char *UDSErrToStr(UDSErr_t err);
 const char *UDSEventToStr(UDSEvent_t evt);
 
 
+#ifdef UDS_LINES
+#line 1 "src/log.h"
+#endif
 
 /**
  * @brief logging for bring-up and unit tests.
  * This interface was copied from ESP-IDF.
  */
+
+
+
+
 
 
 /**
@@ -768,8 +788,8 @@ static_assert(UDS_LOG_LEVEL == UDS_LOG_NONE || UDS_LOG_LEVEL == UDS_LOG_ERROR ||
 #if UDS_LOG_LEVEL > UDS_LOG_NONE
 void UDS_LogWrite(UDS_LogLevel_t level, const char *tag, const char *format, ...)
     UDS_PRINTF_FORMAT(3, 4);
-void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *buffer,
-                        size_t buff_len, const UDSSDU_t *info);
+void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *buffer, size_t buflen,
+                        const UDSSDU_t *info);
 #endif
 
 // Dummy function that consumes arguments but does nothing
@@ -777,21 +797,28 @@ static inline void UDS_LogDummy(const char *tag, const char *format, ...) {
     (void)tag;
     (void)format;
 }
-static inline void UDS_LogSDUDummy(const char *tag, const uint8_t *buffer, size_t buff_len,
+static inline void UDS_LogSDUDummy(const char *tag, const uint8_t *buffer, size_t buflen,
                                    const UDSSDU_t *info) {
     (void)tag;
     (void)buffer;
-    (void)buff_len;
+    (void)buflen;
     (void)info;
 }
 /// \endcond
 
 
+#ifdef UDS_LINES
+#line 1 "src/client.h"
+#endif
 
 
-#define UDS_SUPPRESS_POS_RESP 0x1  ///< set the suppress positive response bit
-#define UDS_FUNCTIONAL 0x2         ///< send the request as a functional request
-#define UDS_IGNORE_SRV_TIMINGS 0x8 ///< ignore the server-provided p2 and p2_star
+
+
+
+
+#define UDS_SUPPRESS_POS_RESP 0x1u  ///< set the suppress positive response bit
+#define UDS_FUNCTIONAL 0x2u         ///< send the request as a functional request
+#define UDS_IGNORE_SRV_TIMINGS 0x8u ///< ignore the server-provided p2 and p2_star
 
 /**
  * @brief UDS client structure
@@ -813,8 +840,8 @@ typedef struct UDSClient {
     int (*fn)(struct UDSClient *client, UDSEvent_t evt, void *ev_data); /**< callback function */
     void *fn_data; /**< user-specified function data */
 
-    uint16_t recv_size;                         /**< size of received data */
-    uint16_t send_size;                         /**< size of data to send */
+    size_t recv_size;                           /**< size of received data */
+    size_t send_size;                           /**< size of data to send */
     uint8_t recv_buf[UDS_CLIENT_RECV_BUF_SIZE]; /**< receive buffer */
     uint8_t send_buf[UDS_CLIENT_SEND_BUF_SIZE]; /**< send buffer */
 } UDSClient_t;
@@ -825,14 +852,14 @@ typedef struct UDSClient {
 struct SecurityAccessResponse {
     uint8_t securityAccessType;  /**< security access type (subfunction) */
     const uint8_t *securitySeed; /**< pointer to security seed data */
-    uint16_t securitySeedLength; /**< length of security seed */
+    size_t securitySeedLength;   /**< length of security seed */
 };
 
 /**
  * @brief Request download response structure
  */
 struct RequestDownloadResponse {
-    size_t maxNumberOfBlockLength; /**< maximum number of block length */
+    uint32_t maxBlockLength; /**< server's maximum block length for TransferData requests */
 };
 
 /**
@@ -842,7 +869,7 @@ struct RoutineControlResponse {
     uint8_t routineControlType;         /**< routine control type (subfunction) */
     uint16_t routineIdentifier;         /**< routine identifier */
     const uint8_t *routineStatusRecord; /**< pointer to routine status record */
-    uint16_t routineStatusRecordLength; /**< length of routine status record */
+    size_t routineStatusRecordLength;   /**< length of routine status record */
 };
 
 /**
@@ -861,7 +888,7 @@ UDSErr_t UDSSendBytes(UDSClient_t *client, const uint8_t *data,
                       uint16_t size); ///< Send user-defined bytes to a UDS server
 UDSErr_t UDSSendECUReset(UDSClient_t *client, uint8_t type);     ///< Request ECUReset
 UDSErr_t UDSSendDiagSessCtrl(UDSClient_t *client, uint8_t mode); ///< Change the diagnostic session
-UDSErr_t UDSSendSecurityAccess(UDSClient_t *client, uint8_t level, uint8_t *data,
+UDSErr_t UDSSendSecurityAccess(UDSClient_t *client, uint8_t level, const uint8_t *data,
                                uint16_t size); ///< Get Security Access
 UDSErr_t UDSSendCommCtrl(UDSClient_t *client, uint8_t ctrl,
                          uint8_t comm); ///< Change communication settings
@@ -893,7 +920,7 @@ UDSErr_t UDSSendRequestFileTransfer(
     UDSClient_t *client, uint8_t mode, const char *filePath, size_t fileSizeUncompressed,
     size_t fileSizeCompressed); ///< filesystem-based frontend to TransferData
 UDSErr_t UDSCtrlDTCSetting(UDSClient_t *client, uint8_t dtcSettingType,
-                           uint8_t *dtcSettingControlOptionRecord,
+                           const uint8_t *dtcSettingControlOptionRecord,
                            uint16_t len); ///< control DTC setting
 UDSErr_t UDSUnpackRDBIResponse(UDSClient_t *client, UDSRDBIVar_t *vars,
                                uint16_t numVars); ///< Parse server's response to RDBI
@@ -906,6 +933,13 @@ UDSErr_t UDSUnpackRequestDownloadResponse(
 UDSErr_t UDSUnpackRoutineControlResponse(
     const UDSClient_t *client,
     struct RoutineControlResponse *resp); ///< Parse server's response to RoutineControl
+
+
+#ifdef UDS_LINES
+#line 1 "src/server.h"
+#endif
+
+
 
 
 
@@ -1281,284 +1315,578 @@ void UDSServerPoll(UDSServer_t *srv);     ///< Call this at <5ms intervals
 #if defined(UDS_TP_ISOTP_C)
 /// \cond DOXYGEN_SHOULD_SKIP_THIS
 
-#define ISO_TP_USER_SEND_CAN_ARG 1 
+#define ISO_TP_USER_SEND_CAN_ARG 1
+#define ISO_TP_NO_FORMATTED_ERRORS 1
+
+////////////////////////////////////////////////////////////////////////
+#ifdef UDS_LINES
+#line 1 "src/tp/isotp-c/isotp_config.h"
+#endif
+//                  ___ ___  ___ _____ ___      ___                   //
+//                 |_ _/ __|/ _ \_   _| _ \___ / __|                  //
+//                  | |\__ \ (_) || | |  _/___| (__                   //
+//                 |___|___/\___/ |_| |_|      \___|                  //
+//                                                                    //
+//                      ___ ___  _  _ ___ ___ ___                     //
+//                     / __/ _ \| \| | __|_ _/ __|                    //
+//                    | (_| (_) | .` | _| | | (_ |                    //
+//                     \___\___/|_|\_|_| |___\___|                    //
+//                                                                    //
+////////////////////////////////////////////////////////////////////////
 
 #ifndef ISOTPC_CONFIG_H
 #define ISOTPC_CONFIG_H
 
-/* Max number of messages the receiver can receive at one time, this value 
- * is affected by can driver queue length
+/**
+ * @file isotp_config.h
+ * @brief Compile-time transport configuration and defaults.
+ *
+ * Prefer the corresponding CMake or Make settings when using a supplied build
+ * system. Direct builds must define ABI-affecting options identically while
+ * compiling the library and every consumer.
+ */
+
+/** @defgroup isotp_config Compile-time configuration
+ * @brief Macros controlling frame sizes, timing, optional APIs, and platform integration.
+ * @{ */
+
+/** The maximum amount of data bytes a single CAN frame may carry (CAN_DL).
+ * Classical CAN is limited to 8 bytes; CAN FD additionally allows frames of
+ * 12, 16, 20, 24, 32, 48 and 64 bytes.
+ *
+ * Set this to one of the CAN FD lengths to enable CAN FD support. This
+ * increases the size of the internal frame buffers accordingly, so leave it at
+ * 8 on platforms without CAN FD.
+ */
+#ifndef ISO_TP_MAX_CAN_FRAME_SIZE
+    #define ISO_TP_MAX_CAN_FRAME_SIZE 8
+#endif
+
+/** The CAN_DL (TX_DL) used by a freshly initialised link.
+ * This may be reduced per link at runtime using isotp_set_tx_dl(), e.g. when a
+ * peer only supports Classical CAN frame lengths.
+ */
+#ifndef ISO_TP_DEFAULT_TX_DL
+    #define ISO_TP_DEFAULT_TX_DL ISO_TP_MAX_CAN_FRAME_SIZE
+#endif
+
+/** Flow Control block size advertised by the receiver.
+ * A value of 0 asks the sender not to wait for further block acknowledgements.
  */
 #ifndef ISO_TP_DEFAULT_BLOCK_SIZE
-#define ISO_TP_DEFAULT_BLOCK_SIZE   8
+    #define ISO_TP_DEFAULT_BLOCK_SIZE 8
 #endif
 
-/* The STmin parameter value specifies the minimum time gap allowed between 
- * the transmission of consecutive frame network protocol data units
+/** Minimum Consecutive Frame separation requested by the receiver, in microseconds.
  */
 #ifndef ISO_TP_DEFAULT_ST_MIN_US
-#define ISO_TP_DEFAULT_ST_MIN_US    0
+    #define ISO_TP_DEFAULT_ST_MIN_US 0
 #endif
 
-/* This parameter indicate how many FC N_PDU WTs can be transmitted by the 
- * receiver in a row.
+/** Maximum number of Flow Control Wait frames accepted during transmission.
  */
 #ifndef ISO_TP_MAX_WFT_NUMBER
-#define ISO_TP_MAX_WFT_NUMBER       1
+    #define ISO_TP_MAX_WFT_NUMBER 1
 #endif
 
-/* Private: The default timeout to use when waiting for a response during a
- * multi-frame send or receive.
+/** Timeout for required Flow Control or Consecutive Frames, in microseconds.
+ * Keep this below half the range of the 32-bit microsecond clock so wrapping
+ * deadline comparisons remain unambiguous.
  */
 #ifndef ISO_TP_DEFAULT_RESPONSE_TIMEOUT_US
-#define ISO_TP_DEFAULT_RESPONSE_TIMEOUT_US 100000
+    #define ISO_TP_DEFAULT_RESPONSE_TIMEOUT_US 100000
 #endif
 
-/* Private: Determines if by default, padding is added to ISO-TP message frames.
+/** @def ISO_TP_FRAME_PADDING
+ * Pad transmitted Classical CAN frames to TX_DL. CAN FD frames larger than
+ * eight bytes are always padded to a legal CAN FD data length.
  */
-//#define ISO_TP_FRAME_PADDING
+#ifdef DOXYGEN
+    #define ISO_TP_FRAME_PADDING
+#endif
 
-/* Private: Value to use when padding frames if enabled by ISO_TP_FRAME_PADDING
+/** @def ISO_TP_NO_FORMATTED_ERRORS
+ * Omit the two formatted error messages, which are the library's only
+ * use of snprintf(). Define this on a target whose libc has no snprintf, or
+ * where the 128-byte ISOTP_MAX_ERROR_MSG_SIZE stack buffer is unwelcome. The
+ * errors are still reported through isotp_user_debug(), without the values.
+ *
+ * Measured on Cortex-M4, -Os -DNDEBUG: .text 2235 -> 2091 bytes, and the
+ * largest stack frame 160 -> 32 bytes. With this and NDEBUG the object needs
+ * nothing from libc but memcpy and memset.
  */
+#ifdef DOXYGEN
+    #define ISO_TP_NO_FORMATTED_ERRORS
+#endif
+
+
+/** Byte written into unused padded frame positions. */
 #ifndef ISO_TP_FRAME_PADDING_VALUE
-#define ISO_TP_FRAME_PADDING_VALUE 0xAA
+    #define ISO_TP_FRAME_PADDING_VALUE 0xAA
 #endif
 
-/* Private: Determines if by default, an additional argument is present in the
- * definition of isotp_user_send_can. 
+/** @def ISO_TP_USER_SEND_CAN_ARG
+ * Append the link's user_send_can_arg value to isotp_user_send_can(). This
+ * changes the shim signature and the public IsoTpLink layout.
  */
-//#define ISO_TP_USER_SEND_CAN_ARG
+#ifdef DOXYGEN
+    #define ISO_TP_USER_SEND_CAN_ARG
+#endif
+
+/** @def ISO_TP_USER_SEND_CAN_FLAGS
+ * Add a frame-flags argument to isotp_user_send_can(), telling the driver whether a frame has to be
+ * transmitted as a CAN FD frame. Enable this if the driver cannot derive the
+ * frame format from the frame length. When combined with
+ * ISO_TP_USER_SEND_CAN_ARG, the flags argument comes first.
+ */
+#ifdef DOXYGEN
+    #define ISO_TP_USER_SEND_CAN_FLAGS
+#endif
+
+/** @def ISO_TP_CAN_FD_USE_BRS
+ * Add ISOTP_CAN_FRAME_FLAG_BRS to CAN FD transmissions. This has an effect only
+ * with ISO_TP_USER_SEND_CAN_FLAGS.
+ */
+#ifdef DOXYGEN
+    #define ISO_TP_CAN_FD_USE_BRS
+#endif
+
+/** @def ISO_TP_TRANSMIT_COMPLETE_CALLBACK
+ * Add the transmit callback type, registration API, and link state.
+ */
+#ifdef DOXYGEN
+    #define ISO_TP_TRANSMIT_COMPLETE_CALLBACK
+#endif
+
+/** @def ISO_TP_RECEIVE_COMPLETE_CALLBACK
+ * Add the receive callback type, registration API, and link state.
+ */
+#ifdef DOXYGEN
+    #define ISO_TP_RECEIVE_COMPLETE_CALLBACK
+#endif
+
+/** @def ISO_TP_ENABLE_STREAMING
+ * Add isotp_receive_streaming() and link state for receiving messages larger
+ * than the receive buffer in application-consumable chunks.
+ */
+#ifdef DOXYGEN
+    #define ISO_TP_ENABLE_STREAMING
+#endif
+
+/** @} */
 
 #endif // ISOTPC_CONFIG_H
 
 #ifndef ISOTPC_USER_DEFINITIONS_H
+#ifdef UDS_LINES
+#line 1 "src/tp/isotp-c/isotp_defines.h"
+#endif
 #define ISOTPC_USER_DEFINITIONS_H
 
+/**
+ * @file isotp_defines.h
+ * @brief Public result codes, CAN frame constants, and callback types.
+ */
+
 #include <stdint.h>
+
+
 
 /**************************************************************
  * compiler specific defines
  *************************************************************/
 #ifdef __GNUC__
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-#define ISOTP_BYTE_ORDER_LITTLE_ENDIAN
-#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-#else
-#error "unsupported byte ordering"
-#endif
+    #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+        #define ISOTP_BYTE_ORDER_LITTLE_ENDIAN
+    #elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+    #else
+        #error "unsupported byte ordering"
+    #endif
+
+    #define ISOTP_PACKED_STRUCT(content) typedef struct __attribute__((packed)) content
 #endif
 
 /**************************************************************
  * OS specific defines
  *************************************************************/
-#ifdef _WIN32
-#define snprintf _snprintf
+#ifdef _MSC_VER
+    #define ISOTP_PACKED_STRUCT(content) __pragma(pack(push, 1)) typedef struct content __pragma(pack(pop))
+
+    #define snprintf _snprintf
+
+    #include <windows.h>
+    #define ISOTP_BYTE_ORDER_LITTLE_ENDIAN
+    #define __builtin_bswap8 _byteswap_uint8
+    #define __builtin_bswap16 _byteswap_uint16
+    #define __builtin_bswap32 _byteswap_uint32
+    #define __builtin_bswap64 _byteswap_uint64
 #endif
 
-#ifdef _WIN32
-#include <windows.h>
-#define ISOTP_BYTE_ORDER_LITTLE_ENDIAN
-#define __builtin_bswap8  _byteswap_uint8
-#define __builtin_bswap16 _byteswap_uint16
-#define __builtin_bswap32 _byteswap_uint32
-#define __builtin_bswap64 _byteswap_uint64
-#endif
+#define LE32TOH(le) ((uint32_t)(((le) << 24) | (((le) & 0x0000FF00) << 8) | (((le) & 0x00FF0000) >> 8) | ((le) >> 24)))
 
 /**************************************************************
- * internal used defines
+ * CAN frame length (CAN_DL) defines
  *************************************************************/
-#define ISOTP_RET_OK           0
-#define ISOTP_RET_ERROR        -1
-#define ISOTP_RET_INPROGRESS   -2
-#define ISOTP_RET_OVERFLOW     -3
-#define ISOTP_RET_WRONG_SN     -4
-#define ISOTP_RET_NO_DATA      -5
-#define ISOTP_RET_TIMEOUT      -6
-#define ISOTP_RET_LENGTH       -7
-#define ISOTP_RET_NOSPACE      -8
+
+/** @defgroup isotp_can CAN frame constants
+ * @brief Values used to configure CAN and CAN FD transmission.
+ * @{ */
+
+/** Number of payload bytes in a full Classical CAN frame. */
+#define ISOTP_CAN_DL_CLASSIC 8
+
+#if (ISO_TP_MAX_CAN_FRAME_SIZE != 8) && (ISO_TP_MAX_CAN_FRAME_SIZE != 12) && (ISO_TP_MAX_CAN_FRAME_SIZE != 16) && (ISO_TP_MAX_CAN_FRAME_SIZE != 20) && \
+    (ISO_TP_MAX_CAN_FRAME_SIZE != 24) && (ISO_TP_MAX_CAN_FRAME_SIZE != 32) && (ISO_TP_MAX_CAN_FRAME_SIZE != 48) && (ISO_TP_MAX_CAN_FRAME_SIZE != 64)
+    #error "ISO_TP_MAX_CAN_FRAME_SIZE must be one of 8, 12, 16, 20, 24, 32, 48, 64"
+#endif
+
+#if (ISO_TP_DEFAULT_TX_DL > ISO_TP_MAX_CAN_FRAME_SIZE) || (ISO_TP_DEFAULT_TX_DL < ISOTP_CAN_DL_CLASSIC)
+    #error "ISO_TP_DEFAULT_TX_DL must be at least 8 and must not exceed ISO_TP_MAX_CAN_FRAME_SIZE"
+#endif
+
+/** Transmit a Classical CAN frame; no optional frame properties are set. */
+#define ISOTP_CAN_FRAME_FLAG_NONE 0x00
+/** Transmit a CAN FD frame. */
+#define ISOTP_CAN_FRAME_FLAG_FD 0x01
+/** Enable CAN FD bit-rate switching for the data phase. */
+#define ISOTP_CAN_FRAME_FLAG_BRS 0x02
+
+/**
+ * Largest ISO-TP payload that fits in one frame for a given CAN_DL.
+ *
+ * CAN FD data lengths use the two-byte SF_DL escape header; Classical CAN uses
+ * a one-byte header.
+ */
+#define ISOTP_SF_MAX_PAYLOAD(can_dl) ((can_dl) > ISOTP_CAN_DL_CLASSIC ? (uint32_t)((can_dl) - 2u) : (uint32_t)((can_dl) - 1u))
+
+/** @} */
+
+/**************************************************************
+ * Result codes
+ *************************************************************/
+/** @defgroup isotp_results Return values
+ * @brief Status values returned by the transport API and platform send shim.
+ * @{ */
+
+/** Operation succeeded or a frame was accepted by the CAN driver. */
+#define ISOTP_RET_OK 0
+/** Invalid argument, incompatible receive mode, or permanent driver failure. */
+#define ISOTP_RET_ERROR -1
+/** A segmented transmission is already active. */
+#define ISOTP_RET_INPROGRESS -2
+/** A payload exceeds the configured link buffer. */
+#define ISOTP_RET_OVERFLOW -3
+/** A Consecutive Frame used an unexpected sequence number. */
+#define ISOTP_RET_WRONG_SN -4
+/** No completed message or streaming chunk is available. */
+#define ISOTP_RET_NO_DATA -5
+/** A protocol response was not received before its deadline. */
+#define ISOTP_RET_TIMEOUT -6
+/** A CAN frame or declared ISO-TP payload length is invalid. */
+#define ISOTP_RET_LENGTH -7
+/** Temporary CAN-driver backpressure, or a streaming destination that is too small. */
+#define ISOTP_RET_NOSPACE -8
+
+/** @} */
+
+/** @cond ISOTP_INTERNAL */
 
 /* return logic true if 'a' is after 'b' */
-#define IsoTpTimeAfter(a,b) ((int32_t)((int32_t)(b) - (int32_t)(a)) < 0)
+#define IsoTpTimeAfter(a, b) ((int32_t)((int32_t)(b) - (int32_t)(a)) < 0)
 
 /*  invalid bs */
-#define ISOTP_INVALID_BS       0xFFFF
+#define ISOTP_INVALID_BS 0xFFFF
 
-/* ISOTP sender status */
+/* Define the maximum amount of characters allowed in an error message. This fixes code which would otherwise break on Microsoft's dumb platform. */
+#define ISOTP_MAX_ERROR_MSG_SIZE 128
+
+/** @endcond */
+
+/** @defgroup isotp_status Link status and protocol results
+ * @brief Observable state for asynchronous send and receive operations.
+ * @{ */
+
+/** Current segmented-transmission state stored in IsoTpLink::send_status. */
 typedef enum {
-    ISOTP_SEND_STATUS_IDLE,
-    ISOTP_SEND_STATUS_INPROGRESS,
-    ISOTP_SEND_STATUS_ERROR,
+    ISOTP_SEND_STATUS_IDLE,       /**< No segmented transmission is active. */
+    ISOTP_SEND_STATUS_INPROGRESS, /**< Consecutive Frames or Flow Control are pending. */
+    ISOTP_SEND_STATUS_ERROR,      /**< Transmission stopped; inspect IsoTpLink::send_protocol_result. */
 } IsoTpSendStatusTypes;
 
-/* ISOTP receiver status */
+/** Current reassembly state stored in IsoTpLink::receive_status. */
 typedef enum {
-    ISOTP_RECEIVE_STATUS_IDLE,
-    ISOTP_RECEIVE_STATUS_INPROGRESS,
-    ISOTP_RECEIVE_STATUS_FULL,
+    ISOTP_RECEIVE_STATUS_IDLE,       /**< No message is being reassembled. */
+    ISOTP_RECEIVE_STATUS_INPROGRESS, /**< Consecutive Frames are expected. */
+    ISOTP_RECEIVE_STATUS_FULL,       /**< A complete message or streaming chunk is available. */
 } IsoTpReceiveStatusTypes;
+
+/** @} */
+
+/** @cond ISOTP_INTERNAL */
 
 /* can fram defination */
 #if defined(ISOTP_BYTE_ORDER_LITTLE_ENDIAN)
 typedef struct {
-    uint8_t reserve_1:4;
-    uint8_t type:4;
-    uint8_t reserve_2[7];
+    uint8_t reserve_1 : 4;
+    uint8_t type      : 4;
+    uint8_t reserve_2[ISO_TP_MAX_CAN_FRAME_SIZE - 1];
 } IsoTpPciType;
 
 typedef struct {
-    uint8_t SF_DL:4;
-    uint8_t type:4;
-    uint8_t data[7];
+    uint8_t SF_DL : 4;
+    uint8_t type  : 4;
+    uint8_t data[ISO_TP_MAX_CAN_FRAME_SIZE - 1];
 } IsoTpSingleFrame;
 
 typedef struct {
-    uint8_t FF_DL_high:4;
-    uint8_t type:4;
-    uint8_t FF_DL_low;
-    uint8_t data[6];
-} IsoTpFirstFrame;
+    uint8_t set_to_zero : 4;
+    uint8_t type        : 4;
+    uint8_t SF_DL;
+    uint8_t data[ISO_TP_MAX_CAN_FRAME_SIZE - 2];
+} IsoTpSingleFrameEscape;
 
 typedef struct {
-    uint8_t SN:4;
-    uint8_t type:4;
-    uint8_t data[7];
+    uint8_t FF_DL_high : 4;
+    uint8_t type       : 4;
+    uint8_t FF_DL_low;
+    uint8_t data[ISO_TP_MAX_CAN_FRAME_SIZE - 2];
+} IsoTpFirstFrameShort;
+
+ISOTP_PACKED_STRUCT({
+    uint8_t  set_to_zero_high : 4;
+    uint8_t  type             : 4;
+    uint8_t  set_to_zero_low;
+    uint32_t FF_DL;
+    uint8_t  data[ISO_TP_MAX_CAN_FRAME_SIZE - 6];
+} IsoTpFirstFrameLong);
+
+typedef struct {
+    uint8_t SN   : 4;
+    uint8_t type : 4;
+    uint8_t data[ISO_TP_MAX_CAN_FRAME_SIZE - 1];
 } IsoTpConsecutiveFrame;
 
 typedef struct {
-    uint8_t FS:4;
-    uint8_t type:4;
+    uint8_t FS   : 4;
+    uint8_t type : 4;
     uint8_t BS;
     uint8_t STmin;
-    uint8_t reserve[5];
+    uint8_t reserve[ISO_TP_MAX_CAN_FRAME_SIZE - 3];
 } IsoTpFlowControl;
 
 #else
 
 typedef struct {
-    uint8_t type:4;
-    uint8_t reserve_1:4;
-    uint8_t reserve_2[7];
+    uint8_t type      : 4;
+    uint8_t reserve_1 : 4;
+    uint8_t reserve_2[ISO_TP_MAX_CAN_FRAME_SIZE - 1];
 } IsoTpPciType;
 
 /*
-* single frame
-* +-------------------------+-----+
-* | byte #0                 | ... |
-* +-------------------------+-----+
-* | nibble #0   | nibble #1 | ... |
-* +-------------+-----------+ ... +
-* | PCIType = 0 | SF_DL     | ... |
-* +-------------+-----------+-----+
-*/
+ * single frame
+ * +-------------------------+-----+
+ * | byte #0                 | ... |
+ * +-------------------------+-----+
+ * | nibble #0   | nibble #1 | ... |
+ * +-------------+-----------+ ... +
+ * | PCIType = 0 | SF_DL     | ... |
+ * +-------------+-----------+-----+
+ */
 typedef struct {
-    uint8_t type:4;
-    uint8_t SF_DL:4;
-    uint8_t data[7];
+    uint8_t type  : 4;
+    uint8_t SF_DL : 4;
+    uint8_t data[ISO_TP_MAX_CAN_FRAME_SIZE - 1];
 } IsoTpSingleFrame;
 
 /*
-* first frame
-* +-------------------------+-----------------------+-----+
-* | byte #0                 | byte #1               | ... |
-* +-------------------------+-----------+-----------+-----+
-* | nibble #0   | nibble #1 | nibble #2 | nibble #3 | ... |
-* +-------------+-----------+-----------+-----------+-----+
-* | PCIType = 1 | FF_DL                             | ... |
-* +-------------+-----------+-----------------------+-----+
-*/
+ * single frame using the SF_DL escape sequence (CAN FD only, CAN_DL > 8)
+ * +-------------------------+-----------------------+-----+
+ * | byte #0                 | byte #1               | ... |
+ * +-------------------------+-----------+-----------+-----+
+ * | nibble #0   | nibble #1 | nibble #2 | nibble #3 | ... |
+ * +-------------+-----------+-----------+-----------+-----+
+ * | PCIType = 0 | unused=0  | SF_DL                 | ... |
+ * +-------------+-----------+-----------------------+-----+
+ */
 typedef struct {
-    uint8_t type:4;
-    uint8_t FF_DL_high:4;
-    uint8_t FF_DL_low;
-    uint8_t data[6];
-} IsoTpFirstFrame;
+    uint8_t type        : 4;
+    uint8_t set_to_zero : 4;
+    uint8_t SF_DL;
+    uint8_t data[ISO_TP_MAX_CAN_FRAME_SIZE - 2];
+} IsoTpSingleFrameEscape;
 
 /*
-* consecutive frame
-* +-------------------------+-----+
-* | byte #0                 | ... |
-* +-------------------------+-----+
-* | nibble #0   | nibble #1 | ... |
-* +-------------+-----------+ ... +
-* | PCIType = 0 | SN        | ... |
-* +-------------+-----------+-----+
-*/
+ * first frame short
+ * +-------------------------+-----------------------+-----+
+ * | byte #0                 | byte #1               | ... |
+ * +-------------------------+-----------+-----------+-----+
+ * | nibble #0   | nibble #1 | nibble #2 | nibble #3 | ... |
+ * +-------------+-----------+-----------+-----------+-----+
+ * | PCIType = 1 | FF_DL                             | ... |
+ * +-------------+-----------+-----------------------+-----+
+ */
 typedef struct {
-    uint8_t type:4;
-    uint8_t SN:4;
-    uint8_t data[7];
+    uint8_t type       : 4;
+    uint8_t FF_DL_high : 4;
+    uint8_t FF_DL_low;
+    uint8_t data[ISO_TP_MAX_CAN_FRAME_SIZE - 2];
+} IsoTpFirstFrameShort;
+
+/*
+ * first frame long
+ * +-------------------------+-----------------------+---------+---------+---------+---------+
+ * | byte #0                 | byte #1               | byte #2 | byte #3 | byte #4 | byte #5 |
+ * +-------------------------+-----------+-----------+---------+---------+---------+---------+
+ * | nibble #0   | nibble #1 | nibble #2 | nibble #3 | ...                                   |
+ * +-------------+-----------+-----------+-----------+---------------------------------------+
+ * | PCIType = 1 | unused=0  | escape sequence = 0   | FF_DL                                 |
+ * +-------------+-----------+-----------------------+---------------------------------------+
+ */
+ISOTP_PACKED_STRUCT({
+    uint8_t  type             : 4;
+    uint8_t  set_to_zero_high : 4;
+    uint8_t  set_to_zero_low;
+    uint32_t FF_DL;
+    uint8_t  data[ISO_TP_MAX_CAN_FRAME_SIZE - 6];
+} IsoTpFirstFrameLong);
+
+/*
+ * consecutive frame
+ * +-------------------------+-----+
+ * | byte #0                 | ... |
+ * +-------------------------+-----+
+ * | nibble #0   | nibble #1 | ... |
+ * +-------------+-----------+ ... +
+ * | PCIType = 0 | SN        | ... |
+ * +-------------+-----------+-----+
+ */
+typedef struct {
+    uint8_t type : 4;
+    uint8_t SN   : 4;
+    uint8_t data[ISO_TP_MAX_CAN_FRAME_SIZE - 1];
 } IsoTpConsecutiveFrame;
 
 /*
-* flow control frame
-* +-------------------------+-----------------------+-----------------------+-----+
-* | byte #0                 | byte #1               | byte #2               | ... |
-* +-------------------------+-----------+-----------+-----------+-----------+-----+
-* | nibble #0   | nibble #1 | nibble #2 | nibble #3 | nibble #4 | nibble #5 | ... |
-* +-------------+-----------+-----------+-----------+-----------+-----------+-----+
-* | PCIType = 1 | FS        | BS                    | STmin                 | ... |
-* +-------------+-----------+-----------------------+-----------------------+-----+
-*/
+ * flow control frame
+ * +-------------------------+-----------------------+-----------------------+-----+
+ * | byte #0                 | byte #1               | byte #2               | ... |
+ * +-------------------------+-----------+-----------+-----------+-----------+-----+
+ * | nibble #0   | nibble #1 | nibble #2 | nibble #3 | nibble #4 | nibble #5 | ... |
+ * +-------------+-----------+-----------+-----------+-----------+-----------+-----+
+ * | PCIType = 1 | FS        | BS                    | STmin                 | ... |
+ * +-------------+-----------+-----------------------+-----------------------+-----+
+ */
 typedef struct {
-    uint8_t type:4;
-    uint8_t FS:4;
+    uint8_t type : 4;
+    uint8_t FS   : 4;
     uint8_t BS;
     uint8_t STmin;
-    uint8_t reserve[5];
+    uint8_t reserve[ISO_TP_MAX_CAN_FRAME_SIZE - 3];
 } IsoTpFlowControl;
 
 #endif
 
 typedef struct {
-    uint8_t ptr[8];
+        uint8_t ptr[ISO_TP_MAX_CAN_FRAME_SIZE];
 } IsoTpDataArray;
 
 typedef struct {
     union {
-        IsoTpPciType          common;
-        IsoTpSingleFrame      single_frame;
-        IsoTpFirstFrame       first_frame;
-        IsoTpConsecutiveFrame consecutive_frame;
-        IsoTpFlowControl      flow_control;
-        IsoTpDataArray        data_array;
+        IsoTpPciType           common;
+        IsoTpSingleFrame       single_frame;
+        IsoTpSingleFrameEscape single_frame_escape;
+        IsoTpFirstFrameShort   first_frame_short;
+        IsoTpFirstFrameLong    first_frame_long;
+        IsoTpConsecutiveFrame  consecutive_frame;
+        IsoTpFlowControl       flow_control;
+        IsoTpDataArray         data_array;
     } as;
 } IsoTpCanMessage;
 
+/** @endcond */
+
 /**************************************************************
- * protocol specific defines
+ * Callback types
  *************************************************************/
 
-/* Private: Protocol Control Information (PCI) types, for identifying each frame of an ISO-TP message.
+#ifdef ISO_TP_TRANSMIT_COMPLETE_CALLBACK
+/**
+ * @brief Called after a complete payload has been transmitted successfully.
+ *
+ * @param link Link that completed transmission. Cast to IsoTpLink* when needed.
+ * @param tx_size Size of the completed ISO-TP payload in bytes.
+ * @param user_arg Value registered with isotp_set_tx_done_cb().
  */
+typedef void (*isotp_tx_done_cb)(void* link, uint32_t tx_size, void* user_arg);
+#endif
+
+#ifdef ISO_TP_RECEIVE_COMPLETE_CALLBACK
+/**
+ * @brief Called after a complete payload has been received successfully.
+ *
+ * @param link Link that received the payload. Cast to IsoTpLink* when needed.
+ * @param data Link-owned payload, valid only for the duration of the callback.
+ * @param size Payload size in bytes.
+ * @param user_arg Value registered with isotp_set_rx_done_cb().
+ */
+typedef void (*isotp_rx_done_cb)(void* link, const uint8_t* data, uint32_t size, void* user_arg);
+#endif
+
+/** @cond ISOTP_INTERNAL */
+/* Protocol Control Information (PCI) types. */
 typedef enum {
     ISOTP_PCI_TYPE_SINGLE             = 0x0,
     ISOTP_PCI_TYPE_FIRST_FRAME        = 0x1,
     TSOTP_PCI_TYPE_CONSECUTIVE_FRAME  = 0x2,
-    ISOTP_PCI_TYPE_FLOW_CONTROL_FRAME = 0x3
+    ISOTP_PCI_TYPE_FLOW_CONTROL_FRAME = 0x3,
+
+    ISOTP_PCI_TYPE_CONSECUTIVE_FRAME  = 0x2, // Typo fix; but keep broken value for backwards-compat.
 } IsoTpProtocolControlInformation;
 
 /* Private: Protocol Control Information (PCI) flow control identifiers.
  */
-typedef enum {
-    PCI_FLOW_STATUS_CONTINUE = 0x0,
-    PCI_FLOW_STATUS_WAIT     = 0x1,
-    PCI_FLOW_STATUS_OVERFLOW = 0x2
-} IsoTpFlowStatus;
+typedef enum { PCI_FLOW_STATUS_CONTINUE = 0x0, PCI_FLOW_STATUS_WAIT = 0x1, PCI_FLOW_STATUS_OVERFLOW = 0x2 } IsoTpFlowStatus;
 
-/* Private: network layer resault code.
- */
-#define ISOTP_PROTOCOL_RESULT_OK            0
-#define ISOTP_PROTOCOL_RESULT_TIMEOUT_A    -1
-#define ISOTP_PROTOCOL_RESULT_TIMEOUT_BS   -2
-#define ISOTP_PROTOCOL_RESULT_TIMEOUT_CR   -3
-#define ISOTP_PROTOCOL_RESULT_WRONG_SN     -4
-#define ISOTP_PROTOCOL_RESULT_INVALID_FS   -5
-#define ISOTP_PROTOCOL_RESULT_UNEXP_PDU    -6
-#define ISOTP_PROTOCOL_RESULT_WFT_OVRN     -7
+/** @endcond */
+
+/** @addtogroup isotp_status
+ * @{ */
+/** Protocol operation completed without an error. */
+#define ISOTP_PROTOCOL_RESULT_OK 0
+/** Reserved result for an N_As transmission timeout; not currently produced. */
+#define ISOTP_PROTOCOL_RESULT_TIMEOUT_A -1
+/** Timeout waiting for a Flow Control frame. */
+#define ISOTP_PROTOCOL_RESULT_TIMEOUT_BS -2
+/** Timeout waiting for a Consecutive Frame. */
+#define ISOTP_PROTOCOL_RESULT_TIMEOUT_CR -3
+/** An incoming Consecutive Frame had the wrong sequence number. */
+#define ISOTP_PROTOCOL_RESULT_WRONG_SN -4
+/** Reserved result for invalid Flow Control status; not currently produced. */
+#define ISOTP_PROTOCOL_RESULT_INVALID_FS -5
+/** A protocol data unit arrived in an incompatible link state. */
+#define ISOTP_PROTOCOL_RESULT_UNEXP_PDU -6
+/** The peer sent more Flow Control Wait frames than ISO_TP_MAX_WFT_NUMBER. */
+#define ISOTP_PROTOCOL_RESULT_WFT_OVRN -7
+/** The sender reported overflow, or an incoming message exceeded the receive buffer. */
 #define ISOTP_PROTOCOL_RESULT_BUFFER_OVFLW -8
-#define ISOTP_PROTOCOL_RESULT_ERROR        -9
+/** Reserved generic protocol error; not currently produced. */
+#define ISOTP_PROTOCOL_RESULT_ERROR -9
+
+/** @} */
 
 #endif // ISOTPC_USER_DEFINITIONS_H
+
+////////////////////////////////////////////////////////////////////////
+#ifdef UDS_LINES
+#line 1 "src/tp/isotp-c/isotp_user.h"
+#endif
+//                  ___ ___  ___ _____ ___      ___                   //
+//                 |_ _/ __|/ _ \_   _| _ \___ / __|                  //
+//                  | |\__ \ (_) || | |  _/___| (__                   //
+//                 |___|___/\___/ |_| |_|      \___|                  //
+//                                                                    //
+////////////////////////////////////////////////////////////////////////
+
 #ifndef ISOTPC_USER_H
 #define ISOTPC_USER_H
 
@@ -1568,26 +1896,69 @@ typedef enum {
 extern "C" {
 #endif
 
-/** @brief user implemented, print debug message */
+/**
+ * @file isotp_user.h
+ * @brief Application-provided platform hooks.
+ */
+
+/** @defgroup isotp_platform Platform integration
+ * @brief Functions that every application supplies to connect ISO-TP to its driver and clock.
+ * @{ */
+
+/**
+ * @brief Receive a diagnostic message from the library.
+ *
+ * The application may implement this as a no-op. Calls can occur from any
+ * transport API that detects an error. The library does not require the
+ * message to be retained after this function returns.
+ *
+ * @param[in] message Diagnostic string or printf-style format.
+ * @param[in] ... Optional format arguments.
+ */
 void isotp_user_debug(const char* message, ...);
 
 /**
- * @brief user implemented, send can message. should return ISOTP_RET_OK when success.
- * 
- * @return may return ISOTP_RET_NOSPACE if the CAN transfer should be retried later
- * or ISOTP_RET_ERROR if transmission couldn't be completed
+ * @brief Submit one CAN or CAN FD frame to the application's driver.
+ *
+ * The implementation must consume or copy @p data before returning. It may be
+ * called synchronously from isotp_send(), isotp_on_can_message(),
+ * isotp_receive_streaming(), or isotp_poll().
+ *
+ * @param[in] arbitration_id CAN identifier to transmit.
+ * @param[in] data Frame payload, valid only for the duration of this call.
+ * @param[in] size Frame payload length. It never exceeds
+ *                 ISO_TP_MAX_CAN_FRAME_SIZE. Lengths above 8 require CAN FD.
+ * @param[in] flags Present only with ISO_TP_USER_SEND_CAN_FLAGS. A bitwise OR
+ *                  of ISOTP_CAN_FRAME_FLAG_FD and ISOTP_CAN_FRAME_FLAG_BRS;
+ *                  short frames on a link with TX_DL above 8 still carry the
+ *                  FD flag.
+ * @param[in] arg Present only with ISO_TP_USER_SEND_CAN_ARG. This is the link's
+ *                user_send_can_arg value.
+ * @retval ISOTP_RET_OK The driver accepted the frame.
+ * @retval ISOTP_RET_NOSPACE The driver is temporarily full and a polled
+ *                           Consecutive Frame should be retried.
+ * @retval ISOTP_RET_ERROR The frame could not be submitted.
  */
-int  isotp_user_send_can(const uint32_t arbitration_id,
-                         const uint8_t* data, const uint8_t size
-#if ISO_TP_USER_SEND_CAN_ARG
-,void *arg
-#endif                         
-                         );
+int isotp_user_send_can(const uint32_t arbitration_id, const uint8_t* data, const uint8_t size
+#ifdef ISO_TP_USER_SEND_CAN_FLAGS
+                        , const uint8_t flags
+#endif
+#ifdef ISO_TP_USER_SEND_CAN_ARG
+                        , void* arg
+#endif
+);
 
 /**
- * @brief user implemented, gets the amount of time passed since the last call in microseconds
+ * @brief Return the current 32-bit monotonic time in microseconds.
+ *
+ * The value must advance independently of call frequency. Natural wraparound
+ * at UINT32_MAX is supported.
+ *
+ * @return Current platform tick in microseconds.
  */
 uint32_t isotp_user_get_us(void);
+
+/** @} */
 
 #ifdef __cplusplus
 }
@@ -1595,131 +1966,336 @@ uint32_t isotp_user_get_us(void);
 
 #endif // ISOTPC_USER_H
 
+////////////////////////////////////////////////////////////////////////
+#ifdef UDS_LINES
+#line 1 "src/tp/isotp-c/isotp.h"
+#endif
+//                  ___ ___  ___ _____ ___      ___                   //
+//                 |_ _/ __|/ _ \_   _| _ \___ / __|                  //
+//                  | |\__ \ (_) || | |  _/___| (__                   //
+//                 |___|___/\___/ |_| |_|      \___|                  //
+//                                                                    //
+////////////////////////////////////////////////////////////////////////
 
 #ifndef ISOTPC_H
 #define ISOTPC_H
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
 #ifdef __cplusplus
-#include <stdint.h>
+    #include <stdint.h>
 
 extern "C" {
 #endif
 
 
+
+
+
 /**
- * @brief Struct containing the data for linking an application to a CAN instance.
- * The data stored in this struct is used internally and may be used by software programs
- * using this library.
+ * @file isotp.h
+ * @brief Public ISO-TP link and transport API.
+ */
+
+/**
+ * @defgroup isotp_api Transport API
+ * @brief Functions for creating, driving, sending through, and receiving from an ISO-TP link.
+ * @{
+ */
+
+/**
+ * @brief State for one independent, full-duplex ISO-TP conversation.
+ *
+ * Allocate one link for each conversation that can have independent send or
+ * receive state. Initialise it with isotp_init_link() before use and keep the
+ * object and its buffers alive for the complete lifetime of the link.
+ *
+ * Calls that access the same link must be serialised. Applications may observe
+ * the documented status/result members and set user_send_can_arg when enabled;
+ * all other members are implementation state.
  */
 typedef struct IsoTpLink {
-    /* sender paramters */
-    uint32_t                    send_arbitration_id; /* used to reply consecutive frame */
-    /* message buffer */
-    uint8_t*                    send_buffer;
-    uint16_t                    send_buf_size;
-    uint16_t                    send_size;
-    uint16_t                    send_offset;
-    /* multi-frame flags */
-    uint8_t                     send_sn;
-    uint16_t                    send_bs_remain; /* Remaining block size */
-    uint32_t                    send_st_min_us; /* Separation Time between consecutive frames */
-    uint8_t                     send_wtf_count; /* Maximum number of FC.Wait frame transmissions  */
-    uint32_t                    send_timer_st;  /* Last time send consecutive frame */    
-    uint32_t                    send_timer_bs;  /* Time until reception of the next FlowControl N_PDU
-                                                   start at sending FF, CF, receive FC
-                                                   end at receive FC */
-    int                         send_protocol_result;
-    uint8_t                     send_status;
-    /* receiver paramters */
-    uint32_t                    receive_arbitration_id;
-    /* message buffer */
-    uint8_t*                    receive_buffer;
-    uint16_t                    receive_buf_size;
-    uint16_t                    receive_size;
-    uint16_t                    receive_offset;
-    /* multi-frame control */
-    uint8_t                     receive_sn;
-    uint8_t                     receive_bs_count; /* Maximum number of FC.Wait frame transmissions  */
-    uint32_t                    receive_timer_cr; /* Time until transmission of the next ConsecutiveFrame N_PDU
-                                                     start at sending FC, receive CF 
-                                                     end at receive FC */
-    int                         receive_protocol_result;
-    uint8_t                     receive_status;                                                     
+    /** @cond ISOTP_INTERNAL */
+    /* sender parameters */
+    uint32_t            send_arbitration_id;
+    uint8_t             tx_dl;
+
+    uint8_t*            send_buffer;
+    uint32_t            send_buf_size;
+    uint32_t            send_size;
+    uint32_t            send_offset;
+
+    uint8_t             send_sn;
+    uint32_t            send_bs_remain;
+    uint32_t            send_st_min_us;
+    uint8_t             send_wtf_count;
+    uint32_t            send_timer_st;
+    uint32_t            send_timer_bs;
+    /** @endcond */
+    /** Result of the current or most recent segmented transmission. */
+    int32_t             send_protocol_result;
+    /** Current IsoTpSendStatusTypes value. */
+    uint8_t             send_status;
+    /** @cond ISOTP_INTERNAL */
+
+    /* receiver parameters */
+    uint32_t            receive_arbitration_id;
+    uint8_t             rx_dl;
+
+    uint8_t*            receive_buffer;
+    uint32_t            receive_buf_size;
+    uint32_t            receive_size;
+    uint32_t            receive_offset;
+
+    uint8_t             receive_sn;
+    uint8_t             receive_bs_count;
+    uint32_t            receive_timer_cr;
+    /** @endcond */
+    /** Result of the current or most recent receive operation. */
+    int                 receive_protocol_result;
+    /** Current IsoTpReceiveStatusTypes value. Prefer isotp_receive() to consume completed data. */
+    uint8_t             receive_status;
+    /** @cond ISOTP_INTERNAL */
+
+#ifdef ISO_TP_ENABLE_STREAMING
+    uint32_t            receive_stream_size;
+    uint8_t             receive_streaming;
+    uint8_t             receive_stream_carry_size;
+    uint8_t             receive_stream_carry[ISO_TP_MAX_CAN_FRAME_SIZE - 1];
+#endif
+    /** @endcond */
 
 #if defined(ISO_TP_USER_SEND_CAN_ARG)
-    void*                       user_send_can_arg;
+    /**
+     * Application value passed to isotp_user_send_can() for this link.
+     *
+     * Set this after isotp_init_link(), which initially clears it to NULL.
+     * A CAN controller or driver context pointer is a typical value.
+     */
+    void*               user_send_can_arg;
 #endif
+
+    /** @cond ISOTP_INTERNAL */
+#ifdef ISO_TP_TRANSMIT_COMPLETE_CALLBACK
+    isotp_tx_done_cb    tx_done_cb;
+    void*               tx_done_cb_arg;
+#endif
+
+#ifdef ISO_TP_RECEIVE_COMPLETE_CALLBACK
+    isotp_rx_done_cb    rx_done_cb;
+    void*               rx_done_cb_arg;
+#endif
+    /** @endcond */
 } IsoTpLink;
 
 /**
- * @brief Initialises the ISO-TP library.
+ * @brief Initialise an ISO-TP link and its caller-owned buffers.
  *
- * @param link The @code IsoTpLink @endcode instance used for transceiving data.
- * @param sendid The ID used to send data to other CAN nodes.
- * @param sendbuf A pointer to an area in memory which can be used as a buffer for data to be sent.
- * @param sendbufsize The size of the buffer area.
- * @param recvbuf A pointer to an area in memory which can be used as a buffer for data to be received.
- * @param recvbufsize The size of the buffer area.
+ * The complete link object is cleared. Its transmit identifier is set to
+ * @p sendid, TX_DL is set to ISO_TP_DEFAULT_TX_DL, and receive and transmit
+ * state become idle.
+ *
+ * @param[out] link Link object to initialise. Must not be NULL.
+ * @param[in] sendid CAN arbitration identifier used by isotp_send() and by
+ *                   Flow Control responses.
+ * @param[in,out] sendbuf Persistent buffer into which outgoing payloads are
+ *                        copied. Must not be NULL when @p sendbufsize is nonzero.
+ * @param[in] sendbufsize Capacity of @p sendbuf and therefore the maximum
+ *                        payload accepted for transmission.
+ * @param[in,out] recvbuf Persistent reassembly or streaming buffer. Must not be
+ *                        NULL when @p recvbufsize is nonzero.
+ * @param[in] recvbufsize Capacity of @p recvbuf. Without streaming, incoming
+ *                        messages larger than this are rejected.
+ *
+ * @pre The link is not being used by another call.
+ * @see isotp_set_tx_dl()
  */
-void isotp_init_link(IsoTpLink *link, uint32_t sendid, 
-                     uint8_t *sendbuf, uint16_t sendbufsize,
-                     uint8_t *recvbuf, uint16_t recvbufsize);
+void isotp_init_link(IsoTpLink* link, uint32_t sendid, uint8_t* sendbuf, uint32_t sendbufsize, uint8_t* recvbuf, uint32_t recvbufsize);
 
 /**
- * @brief Polling function; call this function periodically to handle timeouts, send consecutive frames, etc.
+ * @brief Set the CAN frame data length used to transmit on a link.
  *
- * @param link The @code IsoTpLink @endcode instance used.
+ * A Classical CAN link uses 8. CAN FD links may use 12, 16, 20, 24, 32, 48,
+ * or 64, subject to the compiled ISO_TP_MAX_CAN_FRAME_SIZE.
+ *
+ * @param[in,out] link Initialised link, or NULL.
+ * @param[in] tx_dl Desired transmit data length.
+ * @retval ISOTP_RET_OK The value was applied.
+ * @retval ISOTP_RET_ERROR The link is NULL, the value is not a legal CAN data
+ *                         length, or it exceeds ISO_TP_MAX_CAN_FRAME_SIZE.
+ * @retval ISOTP_RET_INPROGRESS A segmented transmission is active; its TX_DL
+ *                              cannot be changed.
+ *
+ * @note RX_DL is learned independently from each incoming First Frame.
+ * @example isotp_example_can_fd.c
  */
-void isotp_poll(IsoTpLink *link);
+int isotp_set_tx_dl(IsoTpLink* link, uint8_t tx_dl);
 
 /**
- * @brief Handles incoming CAN messages.
- * Determines whether an incoming message is a valid ISO-TP frame or not and handles it accordingly.
+ * @brief Return the effective transmit data length for a link.
  *
- * @param link The @code IsoTpLink @endcode instance used for transceiving data.
- * @param data The data received via CAN.
- * @param len The length of the data received.
+ * @param[in] link Initialised link, or NULL.
+ * @return The configured TX_DL, with 8 used as a defensive fallback for a
+ *         zero-valued field; returns 0 when @p link is NULL.
  */
-void isotp_on_can_message(IsoTpLink *link, const uint8_t *data, uint8_t len);
+uint8_t isotp_get_tx_dl(const IsoTpLink* link);
 
 /**
- * @brief Sends ISO-TP frames via CAN, using the ID set in the initialising function.
+ * @brief Clear a link's state and callback registrations.
  *
- * Single-frame messages will be sent immediately when calling this function.
- * Multi-frame messages will be sent consecutively when calling isotp_poll.
+ * No memory is freed because the library owns no allocation. The caller retains
+ * ownership of the link and both buffers. Passing NULL has no effect.
  *
- * @param link The @code IsoTpLink @endcode instance used for transceiving data.
- * @param payload The payload to be sent. (Up to 4095 bytes).
- * @param size The size of the payload to be sent.
- *
- * @return Possible return values:
- *  - @code ISOTP_RET_OVERFLOW @endcode
- *  - @code ISOTP_RET_INPROGRESS @endcode
- *  - @code ISOTP_RET_OK @endcode
- *  - The return value of the user shim function isotp_user_send_can().
+ * @param[in,out] link Link to clear, or NULL.
  */
-int isotp_send(IsoTpLink *link, const uint8_t payload[], uint16_t size);
+void isotp_destroy_link(IsoTpLink* link);
 
 /**
- * @brief See @link isotp_send @endlink, with the exception that this function is used only for functional addressing.
+ * @brief Advance segmented transmission and protocol timeouts.
+ *
+ * Call this regularly even when completion callbacks are enabled. The required
+ * frequency depends on the configured separation time and response timeout.
+ * Single-frame transmission and incoming-frame parsing happen synchronously in
+ * their respective API calls.
+ *
+ * @param[in,out] link Initialised link. Must not be NULL.
+ * @example isotp_example_polling.c
  */
-int isotp_send_with_id(IsoTpLink *link, uint32_t id, const uint8_t payload[], uint16_t size);
+void isotp_poll(IsoTpLink* link);
 
 /**
- * @brief Receives and parses the received data and copies the parsed data in to the internal buffer.
- * @param link The @link IsoTpLink @endlink instance used to transceive data.
- * @param payload A pointer to an area in memory where the raw data is copied from.
- * @param payload_size The size of the received (raw) CAN data.
- * @param out_size A reference to a variable which will contain the size of the actual (parsed) data.
+ * @brief Process one CAN frame already routed to this link.
  *
- * @return Possible return values:
- *      - @link ISOTP_RET_OK @endlink
- *      - @link ISOTP_RET_NO_DATA @endlink
+ * The application must filter arbitration identifiers before calling this
+ * function. Frames shorter than two bytes or longer than
+ * ISO_TP_MAX_CAN_FRAME_SIZE are ignored. Valid frames update receive or
+ * transmit flow-control state and may synchronously send a Flow Control frame.
+ * A registered receive callback may run before this function returns.
+ *
+ * @param[in,out] link Initialised link. Must not be NULL.
+ * @param[in] data Frame payload, valid for at least @p len bytes. Must not be NULL.
+ * @param[in] len CAN payload length in bytes.
  */
-int isotp_receive(IsoTpLink *link, uint8_t *payload, const uint16_t payload_size, uint16_t *out_size);
+void isotp_on_can_message(IsoTpLink* link, const uint8_t* data, uint8_t len);
+
+/**
+ * @brief Start transmitting a payload with the link's configured CAN identifier.
+ *
+ * The payload is copied into the link's send buffer. A Single Frame is sent
+ * synchronously. For a segmented message, only the First Frame is sent here;
+ * isotp_poll() sends the remaining Consecutive Frames after Flow Control.
+ *
+ * @param[in,out] link Initialised link. Must not be NULL.
+ * @param[in] payload Payload to copy. Must be valid for at least @p size bytes.
+ * @param[in] size Payload size. It must not exceed the link's send-buffer capacity.
+ * @retval ISOTP_RET_OK The Single Frame or First Frame was accepted by the driver.
+ * @retval ISOTP_RET_OVERFLOW The payload exceeds the link's send buffer.
+ * @retval ISOTP_RET_INPROGRESS Another segmented transmission is active.
+ * @return Any other value returned by isotp_user_send_can().
+ *
+ * @warning ISOTP_RET_OK does not mean a segmented transmission is complete.
+ *          Keep polling until the completion callback runs or send_status is
+ *          no longer ISOTP_SEND_STATUS_INPROGRESS, then inspect
+ *          send_protocol_result.
+ */
+int isotp_send(IsoTpLink* link, const uint8_t payload[], uint32_t size);
+
+/**
+ * @brief Start transmitting with a one-time CAN identifier override.
+ *
+ * Behaviour and return values are the same as isotp_send(), except @p id is used
+ * instead of the identifier stored in the link. This is commonly used for a
+ * functional-addressing request. ISO-TP functional requests must fit in a
+ * Single Frame; the library does not enforce that addressing rule.
+ *
+ * @param[in,out] link Initialised link, or NULL.
+ * @param[in] id CAN arbitration identifier for this transmission.
+ * @param[in] payload Payload to copy. Must be valid for at least @p size bytes.
+ * @param[in] size Payload size.
+ * @retval ISOTP_RET_ERROR The link is NULL.
+ * @retval ISOTP_RET_OK The Single Frame or First Frame was accepted by the driver.
+ * @retval ISOTP_RET_OVERFLOW The payload exceeds the link's send buffer.
+ * @retval ISOTP_RET_INPROGRESS Another segmented transmission is active.
+ * @return Any other value returned by isotp_user_send_can().
+ */
+int isotp_send_with_id(IsoTpLink* link, uint32_t id, const uint8_t payload[], uint32_t size);
+
+/**
+ * @brief Copy and consume one completed, non-streaming message.
+ *
+ * At most @p payload_size bytes are copied. The completed message is released
+ * even when the destination is too small, so any uncopied remainder is lost.
+ *
+ * @param[in,out] link Initialised link. Must not be NULL.
+ * @param[out] payload Destination buffer. Must not be NULL.
+ * @param[in] payload_size Capacity of @p payload.
+ * @param[out] out_size Number of bytes copied. Must not be NULL.
+ * @retval ISOTP_RET_OK A completed message was copied and consumed.
+ * @retval ISOTP_RET_NO_DATA No complete message is available.
+ * @retval ISOTP_RET_ERROR Streaming reception is active, or a receive callback
+ *                         is registered in a build that supports callbacks.
+ */
+int isotp_receive(IsoTpLink* link, uint8_t* payload, const uint32_t payload_size, uint32_t* out_size);
+
+#ifdef ISO_TP_ENABLE_STREAMING
+/**
+ * @brief Copy and consume the next available chunk of an incoming message.
+ *
+ * This function supports both oversized streaming messages and messages that
+ * fit in the normal receive buffer. Consuming an intermediate chunk emits a
+ * Continue Flow Control frame when more wire data is needed.
+ *
+ * @param[in,out] link Initialised link, or NULL.
+ * @param[out] payload Destination for the complete available chunk, or NULL.
+ * @param[in] payload_size Capacity of @p payload.
+ * @param[out] out_size Number of bytes copied, or NULL.
+ * @param[out] is_complete Set to true when this chunk ends the message, or NULL.
+ * @retval ISOTP_RET_OK A chunk was copied.
+ * @retval ISOTP_RET_NO_DATA No chunk is currently available.
+ * @retval ISOTP_RET_NOSPACE The destination cannot hold the available chunk;
+ *                           the chunk remains available.
+ * @retval ISOTP_RET_ERROR Any required pointer is NULL.
+ * @example isotp_example_streaming.c
+ */
+int isotp_receive_streaming(IsoTpLink* link, uint8_t* payload, const uint32_t payload_size, uint32_t* out_size, bool* is_complete);
+#endif
+
+#ifdef ISO_TP_TRANSMIT_COMPLETE_CALLBACK
+/**
+ * @brief Register or clear the successful-transmission callback.
+ *
+ * A Single Frame invokes the callback synchronously from isotp_send() or
+ * isotp_send_with_id(). A segmented transmission invokes it from isotp_poll()
+ * after the final Consecutive Frame is accepted.
+ *
+ * @param[in,out] link Initialised link. Passing NULL has no effect.
+ * @param[in] cb Callback to register, or NULL to disable notification.
+ * @param[in] arg Application value passed to @p cb.
+ */
+void isotp_set_tx_done_cb(IsoTpLink* link, isotp_tx_done_cb cb, void* arg);
+#endif
+
+#ifdef ISO_TP_RECEIVE_COMPLETE_CALLBACK
+/**
+ * @brief Register or clear the completed-receive callback.
+ *
+ * The callback runs synchronously from isotp_on_can_message(). Its payload
+ * pointer refers to the link's receive buffer and is valid only until the
+ * callback returns. Registering it disables delivery through isotp_receive().
+ * Oversized streaming messages are still delivered through
+ * isotp_receive_streaming().
+ *
+ * @param[in,out] link Initialised link. Passing NULL has no effect.
+ * @param[in] cb Callback to register, or NULL to restore polling delivery.
+ * @param[in] arg Application value passed to @p cb.
+ * @example isotp_example_callbacks.c
+ */
+void isotp_set_rx_done_cb(IsoTpLink* link, isotp_rx_done_cb cb, void* arg);
+#endif
+
+/** @} */
 
 #ifdef __cplusplus
 }
@@ -1727,11 +2303,18 @@ int isotp_receive(IsoTpLink *link, uint8_t *payload, const uint16_t payload_size
 
 #endif // ISOTPC_H
 
-
 /// \endcond
 #endif // if defined(UDS_TP_ISOTP_C)
 
+#ifdef UDS_LINES
+#line 1 "src/tp/isotp_c.h"
+#endif
 #if defined(UDS_TP_ISOTP_C)
+
+
+
+
+
 
 
 /**
@@ -1764,18 +2347,28 @@ UDSErr_t UDSServerTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t source_addr, uint32_t
 /**
  * @brief Initialize isotp-c transport for \ref UDSClient_t
  * @param tp \ref UDSTpISOTpC_t instance.
- * @param target_addr Client sends physical requests to this address.
  * @param source_addr Client listens for responses at this address.
+ * @param target_addr Client sends physical requests to this address.
  * @param target_addr_func Client sends functional transmissions to this address.
  */
-UDSErr_t UDSClientTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t target_addr, uint32_t source_addr,
+UDSErr_t UDSClientTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t source_addr, uint32_t target_addr,
                                uint32_t target_addr_func);
+
+// Internal API
+UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t sa, uint32_t ta, uint32_t sa_func,
+                         uint32_t ta_func);
+UDSErr_t UDSTpISOTpCPoll(UDSTp_t *tp);
 
 #endif
 
 
+#ifdef UDS_LINES
+#line 1 "src/tp/isotp_c_socketcan.h"
+#endif
 
 #if defined(UDS_TP_ISOTP_C_SOCKETCAN)
+
+
 
 
 /**
@@ -1783,36 +2376,45 @@ UDSErr_t UDSClientTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t target_addr, uint32_t
  */
 typedef struct {
     /// \cond DOXYGEN_SHOULD_SKIP_THIS
-    UDSTp_t hdl;
-    IsoTpLink phys_link;
-    IsoTpLink func_link;
-    uint8_t send_buf[UDS_ISOTP_MTU];
-    uint8_t recv_buf[UDS_ISOTP_MTU];
+    UDSTpISOTpC_t hdl2;
     int fd;
-    uint32_t phys_sa, phys_ta;
-    uint32_t func_sa, func_ta;
     char tag[16];
     /// \endcond
 } UDSTpISOTpCSocketCAN_t;
 
 /**
- * @brief Initialize the transport
- * @param tp transport
- * @param ifname can0, vcan0
- * @param source_addr
- * @param target_addr
- * @param source_addr_func
- * @param target_addr_func
+ * @brief Initialize isotp-c over SocketCAN transport for \ref UDSServer_t
+ * @param tp \ref UDSTpISOTpSocketCAN_t instance.
+ * @param source_addr Server listens for physical transmissions on this address.
+ * @param target_addr Server sends responses to this address.
+ * @param source_addr_func Server listens for functional transmissions on this address.
  */
-UDSErr_t UDSTpISOTpCSocketCANInit(UDSTpISOTpCSocketCAN_t *tp, const char *ifname,
-                                  uint32_t source_addr, uint32_t target_addr,
-                                  uint32_t source_addr_func, uint32_t target_addr_func);
+UDSErr_t UDSServerTpISOTpCSocketCANInit(UDSTpISOTpCSocketCAN_t *tp, const char *ifname,
+                                        uint32_t source_addr, uint32_t target_addr,
+                                        uint32_t source_addr_func);
+
+/**
+ * @brief Initialize isotp-c over SocketCAN transport for \ref UDSClient_t
+ * @param tp \ref UDSTpISOTpC_t instance.
+ * @param source_addr Client listens for responses at this address.
+ * @param target_addr Client sends physical requests to this address.
+ * @param target_addr_func Client sends functional transmissions to this address.
+ */
+UDSErr_t UDSClientTpISOTpCSocketCANInit(UDSTpISOTpCSocketCAN_t *tp, const char *ifname,
+                                        uint32_t source_addr, uint32_t target_addr,
+                                        uint32_t target_addr_func);
+
 void UDSTpISOTpCSocketCANDeinit(UDSTpISOTpCSocketCAN_t *tp); ///< release socket
 
 #endif
 
-
 #if defined(UDS_TP_ISOTP_SOCK)
+#ifdef UDS_LINES
+#line 1 "src/tp/isotp_sock.h"
+#endif
+
+
+
 
 
 /**
@@ -1839,15 +2441,20 @@ UDSErr_t UDSServerTpIsoTpSockInit(UDSTpIsoTpSock_t *tp, const char *ifname, uint
 UDSErr_t UDSClientTpIsoTpSockInit(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
                                   uint32_t target_addr,
                                   uint32_t target_addr_func); ///< for UDSClient_t
-void UDSTpIsoTpSockDeinit(UDSTpIsoTpSock_t *tp);              ///< release sockets
+void UDSTpIsoTpSockDeinit(const UDSTpIsoTpSock_t *tp);        ///< release sockets
 
 #endif
 
-
 #if defined(UDS_TP_ISOTP_MOCK)
+#ifdef UDS_LINES
+#line 1 "src/tp/isotp_mock.h"
+#endif
+
 
 
 /// \cond INTERNAL_INTERFACE
+
+
 
 
 typedef struct ISOTPMock {
@@ -1878,7 +2485,7 @@ typedef struct {
  * @param name optional name of the transport (can be NULL)
  * @return UDSTp_t*
  */
-UDSTp_t *ISOTPMockNew(const char *name, ISOTPMockArgs_t *args);
+UDSTp_t *ISOTPMockNew(const char *name, const ISOTPMockArgs_t *args);
 void ISOTPMockFree(UDSTp_t *tp);
 
 /**

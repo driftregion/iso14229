@@ -28,26 +28,11 @@ jobs:
         disk-cache: ${{ github.workflow }}
         repository-cache: true
 
+    - name: test that srcs are updated
+      run: ./test/test_srcs_are_updated.sh
+
     - name: lint
       run: CHECK_FORMAT=1 ./tools/run_clang_format.sh
-
-  ultra-strict-build:
-    runs-on: ubuntu-22.04
-
-    steps:
-    - name: checkout
-      uses: actions/checkout@v4
-
-    - name: Setup Bazel
-      uses: bazel-contrib/setup-bazel@0.15.0
-      with:
-        bazelisk-cache: true
-        disk-cache: ${{ github.workflow }}
-        repository-cache: true
-
-    - name: run ultra_strict
-      run: |
-        bazel build --repo_env=CC=clang --repo_env=CXX=clang++ //test:ultra_strict
 
   CodeChecker:
     runs-on: ubuntu-latest
