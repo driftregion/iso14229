@@ -1,6 +1,5 @@
 #include "client.h"
 #include "config.h"
-#include "iso14229.h"
 #include "uds.h"
 #include "util.h"
 #include "util_private.h"
@@ -366,7 +365,6 @@ UDSErr_t UDSSendTesterPresent(UDSClient_t *client) {
 
 UDSErr_t UDSSendRDBI(UDSClient_t *client, const uint16_t *didList,
                      const uint16_t numDataIdentifiers) {
-    const uint16_t DID_LEN_BYTES = 2;
     UDSErr_t err = PreRequestCheck(client);
     if (err) {
         return err;
@@ -374,16 +372,18 @@ UDSErr_t UDSSendRDBI(UDSClient_t *client, const uint16_t *didList,
     if (NULL == didList || 0u == numDataIdentifiers) {
         return UDS_ERR_INVALID_ARG;
     }
+
+    const size_t send_size = 1u + (size_t)numDataIdentifiers * 2u;
+    if (send_size > sizeof(client->send_buf)) {
+        return UDS_ERR_BUFSIZ;
+    }
+
     client->send_buf[0] = UDS_SID_READ_DATA_BY_IDENTIFIER;
     for (uint16_t i = 0u; i < numDataIdentifiers; i++) {
-        uint16_t offset = (uint16_t)(1u + DID_LEN_BYTES * i);
-        if ((size_t)(offset + 2u) > sizeof(client->send_buf)) {
-            return UDS_ERR_INVALID_ARG;
-        }
-        (client->send_buf + offset)[0] = (didList[i] & 0xFF00u) >> 8u;
-        (client->send_buf + offset)[1] = (didList[i] & 0xFFu);
+        uint16_t offset = (uint16_t)(1u + i * 2u);
+        PackBE(client->send_buf + offset, didList[i], 2);
     }
-    client->send_size = 1u + (numDataIdentifiers * DID_LEN_BYTES);
+    client->send_size = send_size;
     return SendRequest(client);
 }
 
@@ -396,14 +396,15 @@ UDSErr_t UDSSendWDBI(UDSClient_t *client, uint16_t dataIdentifier, const uint8_t
     if (data == NULL || size == 0u) {
         return UDS_ERR_INVALID_ARG;
     }
-    client->send_buf[0] = UDS_SID_WRITE_DATA_BY_IDENTIFIER;
-    if (sizeof(client->send_buf) <= 3u || size > sizeof(client->send_buf) - 3u) {
+    const size_t send_size = UDS_0X2E_REQ_BASE_LEN + (size_t)size;
+    if (send_size > sizeof(client->send_buf)) {
         return UDS_ERR_BUFSIZ;
     }
-    client->send_buf[1] = (dataIdentifier & 0xFF00u) >> 8u;
-    client->send_buf[2] = (dataIdentifier & 0xFFu);
-    memmove(&client->send_buf[3], data, size);
-    client->send_size = 3u + size;
+
+    client->send_buf[0] = UDS_SID_WRITE_DATA_BY_IDENTIFIER;
+    PackBE(&client->send_buf[1], dataIdentifier, 2);
+    memmove(&client->send_buf[UDS_0X2E_REQ_BASE_LEN], data, size);
+    client->send_size = send_size;
     return SendRequest(client);
 }
 
@@ -428,20 +429,18 @@ UDSErr_t UDSSendRoutineCtrl(UDSClient_t *client, uint8_t type, uint16_t routineI
     client->send_buf[1] = type;
     client->send_buf[2] = routineIdentifier >> 8u;
     client->send_buf[3] = routineIdentifier & 0xFFu;
-    if (size) {
-        if (NULL == data) {
-            return UDS_ERR_INVALID_ARG;
-        }
-        if (size > sizeof(client->send_buf) - UDS_0X31_REQ_MIN_LEN) {
-            return UDS_ERR_BUFSIZ;
-        }
-        memmove(&client->send_buf[UDS_0X31_REQ_MIN_LEN], data, size);
-    } else {
-        if (NULL != data) {
-            UDS_LOGI(__FILE__, "warning: size zero and data non-null");
-        }
+
+    if (0 != size && data == NULL) {
+        return UDS_ERR_INVALID_ARG;
     }
-    client->send_size = UDS_0X31_REQ_MIN_LEN + size;
+
+    const size_t send_size = UDS_0X31_REQ_BASE_LEN + size;
+    if (send_size > sizeof(client->send_buf)) {
+        return UDS_ERR_BUFSIZ;
+    }
+
+    memmove(&client->send_buf[UDS_0X31_REQ_BASE_LEN], data, size);
+    client->send_size = send_size;
     return SendRequest(client);
 }
 
@@ -465,7 +464,9 @@ UDSErr_t UDSSendRequestDownload(UDSClient_t *client, uint8_t dataFormatIdentifie
     }
     uint8_t numMemorySizeBytes = (uint8_t)((addressAndLengthFormatIdentifier & 0xF0u) >> 4u);
     uint8_t numMemoryAddressBytes = (uint8_t)(addressAndLengthFormatIdentifier & 0x0Fu);
-    if (sizeof(client->send_buf) < 3u + numMemoryAddressBytes + numMemorySizeBytes) {
+    const size_t send_size = 3u + (size_t)numMemoryAddressBytes + (size_t)numMemorySizeBytes;
+
+    if (send_size > sizeof(client->send_buf)) {
         return UDS_ERR_BUFSIZ;
     }
 
@@ -476,7 +477,7 @@ UDSErr_t UDSSendRequestDownload(UDSClient_t *client, uint8_t dataFormatIdentifie
     PackBE(&client->send_buf[3], memoryAddress, numMemoryAddressBytes);
     PackBE(&client->send_buf[3u + numMemoryAddressBytes], memorySize, numMemorySizeBytes);
 
-    client->send_size = 3u + numMemoryAddressBytes + numMemorySizeBytes;
+    client->send_size = send_size;
     return SendRequest(client);
 }
 
@@ -596,14 +597,14 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, uint8_t mode, const cha
     if (filePath == NULL) {
         return UDS_ERR_INVALID_ARG;
     }
-    size_t filePathLenSize = strnlen(filePath, UINT16_MAX + 1);
+    const size_t filePathLenSize = strnlen(filePath, UINT16_MAX + 1);
     if (filePathLenSize == 0u) {
         return UDS_ERR_INVALID_ARG;
     }
     if (filePathLenSize > (uint16_t)UINT16_MAX) {
         return UDS_ERR_INVALID_ARG;
     }
-    uint16_t n_filePathLen = (uint16_t)filePathLenSize;
+    const uint16_t n_filePathLen = (uint16_t)filePathLenSize;
 
     /*
     Pre-compute the request length based on the MOOP.

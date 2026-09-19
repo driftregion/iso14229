@@ -1,23 +1,22 @@
 #include "server.h"
 #include "config.h"
-#include "iso14229.h"
 #include "uds.h"
 #include "util.h"
 #include "util_private.h"
 #include "log.h"
-#include <stdint.h>
 
-static inline UDSErr_t NegativeResponse(UDSReq_t *r, UDSErr_t nrc) {
-    if (nrc < 0 || nrc > 0xFF) {
-        UDS_LOGW(__FILE__, "Invalid negative response code: %d (0x%x)", nrc, nrc);
-        nrc = UDS_NRC_GeneralReject;
+static inline UDSErr_t NegativeResponse(UDSReq_t *r, const UDSErr_t nrc) {
+    UDSErr_t ret = nrc;
+    if ((nrc < 0) || (nrc > 0xFF)) {
+        UDS_LOGE(__FILE__, "Invalid negative response code: %d (0x%x)", nrc, nrc);
+        ret = UDS_NRC_GeneralReject;
     }
 
-    r->send_buf[0] = 0x7F;
+    r->send_buf[0] = 0x7Fu;
     r->send_buf[1] = r->recv_buf[0];
-    r->send_buf[2] = (uint8_t)nrc;
+    r->send_buf[2] = (uint8_t)ret;
     r->send_len = UDS_NEG_RESP_LEN;
-    return nrc;
+    return ret;
 }
 
 static inline void NoResponse(UDSReq_t *r) { r->send_len = 0; }
