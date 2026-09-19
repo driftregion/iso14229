@@ -24,7 +24,6 @@ build:fuzz --linkopt=-fsanitize=unsigned-integer-overflow
 
 # Coverage configuration
 common:coverage --config=llvm
-common:coverage --extra_execution_platforms=//platforms:x86_64_clang
 common:coverage --@rules_fuzzing//fuzzing:cc_engine=@rules_fuzzing//fuzzing/engines:replay
 common:coverage --@rules_fuzzing//fuzzing:cc_engine_instrumentation=none
 common:coverage --@rules_fuzzing//fuzzing:cc_engine_sanitizer=none

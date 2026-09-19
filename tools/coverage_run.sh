@@ -1,6 +1,7 @@
 #!/bin/bash
 
 bazel coverage \
+--config=coverage \
 --combined_report=lcov \
 --instrumentation_filter='^//(:iso14229|test:.*)$' \
 --instrument_test_targets \
