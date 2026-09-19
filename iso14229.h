@@ -16,7 +16,7 @@ extern "C" {
 #ifdef UDS_LINES
 #line 0 "src/version.h"
 #endif
-#define UDS_LIB_VERSION "0.10.0"
+#define UDS_LIB_VERSION "0.11.0"
 
 
 #ifdef UDS_LINES
@@ -482,6 +482,7 @@ typedef enum {
 #define UDS_0X2F_REQ_MIN_LEN 4U
 #define UDS_0X2F_RESP_BASE_LEN 4U
 #define UDS_0X31_REQ_MIN_LEN 4U
+#define UDS_0X31_REQ_BASE_LEN 4U
 #define UDS_0X31_RESP_MIN_LEN 4U
 #define UDS_0X34_REQ_BASE_LEN 3U
 #define UDS_0X34_RESP_BASE_LEN 2U

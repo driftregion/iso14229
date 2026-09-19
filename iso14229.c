@@ -508,14 +508,14 @@ UDSErr_t UDSSendWDBI(UDSClient_t *client, uint16_t dataIdentifier, const uint8_t
     if (data == NULL || size == 0u) {
         return UDS_ERR_INVALID_ARG;
     }
-    const size_t send_size = 3u + (size_t)size;
+    const size_t send_size = UDS_0X2E_REQ_BASE_LEN + (size_t)size;
     if (send_size > sizeof(client->send_buf)) {
         return UDS_ERR_BUFSIZ;
     }
 
     client->send_buf[0] = UDS_SID_WRITE_DATA_BY_IDENTIFIER;
     PackBE(&client->send_buf[1], dataIdentifier, 2);
-    memmove(&client->send_buf[3], data, size);
+    memmove(&client->send_buf[UDS_0X2E_REQ_BASE_LEN], data, size);
     client->send_size = send_size;
     return SendRequest(client);
 }
@@ -546,12 +546,12 @@ UDSErr_t UDSSendRoutineCtrl(UDSClient_t *client, uint8_t type, uint16_t routineI
         return UDS_ERR_INVALID_ARG;
     }
 
-    const size_t send_size = 4u + size;
+    const size_t send_size = UDS_0X31_REQ_BASE_LEN + size;
     if (send_size > sizeof(client->send_buf)) {
         return UDS_ERR_BUFSIZ;
     }
 
-    memmove(&client->send_buf[4u], data, size);
+    memmove(&client->send_buf[UDS_0X31_REQ_BASE_LEN], data, size);
     client->send_size = send_size;
     return SendRequest(client);
 }
@@ -3983,15 +3983,14 @@ void ISOTPMockFree(UDSTp_t *tp) {
 ///                 STATIC FUNCTIONS                ///
 ///////////////////////////////////////////////////////
 
+/* CAN frame data lengths (CAN_DL) which may be used by CAN FD frames larger than
+ * a Classical CAN frame. CAN FD frames can only carry these lengths, so frames
+ * exceeding 8 bytes always have to be padded up to the next valid length.
+ */
+static const uint8_t isotp_can_fd_frame_sizes[] = {12, 16, 20, 24, 32, 48, 64};
 
 /* Returns the smallest valid CAN_DL which is able to carry length bytes of data */
 static uint8_t isotp_ceil_can_dl(uint8_t length) {
-    /* CAN frame data lengths (CAN_DL) which may be used by CAN FD frames larger than
-    * a Classical CAN frame. CAN FD frames can only carry these lengths, so frames
-    * exceeding 8 bytes always have to be padded up to the next valid length.
-    */
-    static const uint8_t isotp_can_fd_frame_sizes[] = {12, 16, 20, 24, 32, 48, 64};
-    
     if (length <= ISOTP_CAN_DL_CLASSIC) {
         /* every length up to 8 bytes maps directly to a DLC */
         return length;

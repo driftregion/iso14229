@@ -1,1 +1,1 @@
-#define UDS_LIB_VERSION "0.10.0"
+#define UDS_LIB_VERSION "0.11.0"
