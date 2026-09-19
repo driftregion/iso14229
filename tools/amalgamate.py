@@ -15,55 +15,25 @@ args = parser.parse_args()
 srcs = {os.path.basename(src): src for src in args.srcs}
 
 
-def strip_includes(src):
-    src = re.sub(r'#include ".*\n', "\n", src)
-    src = re.sub(r'#pragma once\n', "\n", src)
-    return src
+def transform(filename):
+    """ makes the source file suitable for amalgamation by stripping includes and inserting 
+    preprocessor directives. 
+    """
+    with open(filename, "r", encoding='utf-8') as f:
+        buf = f.read()
+        buf = re.sub(r'#include ".*\n', "\n", buf)
+        buf = re.sub(r'#pragma once\n', "\n", buf)
 
-isotp_c_wrapped_c = \
-"""#if defined(UDS_TP_ISOTP_C)
-/// \cond DOXYGEN_SHOULD_SKIP_THIS
-
-#ifndef ISO_TP_USER_SEND_CAN_ARG
-#error "need this"
-#endif
-
-#ifndef ISO_TP_NO_FORMATTED_ERRORS
-#error "need this too"
-#endif
-
+    # this hack is needed to make the #line directive resolve correctly
+    first_line, buf = buf.split("\n", 1)
+    buf = first_line + f"""
 #ifdef UDS_LINES
-#line 0 "src/tp/isotp-c/isotp.c"
+#line 1 "{filename}"
 #endif
-""" + \
-strip_includes(open("src/tp/isotp-c/isotp.c").read()) + \
-"""
-/// \endcond
-#endif // if defined(UDS_TP_ISOTP_C)
-"""
+""" + buf
 
-isotp_c_wrapped_h = \
-"""#if defined(UDS_TP_ISOTP_C)
-/// \cond DOXYGEN_SHOULD_SKIP_THIS
+    return buf
 
-#define ISO_TP_USER_SEND_CAN_ARG 1
-#define ISO_TP_NO_FORMATTED_ERRORS 1
-
-""" + "\n".join([
-        f"""#ifdef UDS_LINES
-#line 0 "src/tp/isotp-c/{h}"
-#endif
-""" + strip_includes(open("src/tp/isotp-c/" + h).read())
-        for h in [
-        "isotp_config.h",
-        "isotp_defines.h",
-        "isotp_user.h",
-        "isotp.h",
-    ]]) + \
-"""
-/// \endcond
-#endif // if defined(UDS_TP_ISOTP_C)
-"""
 
 with open(args.out_c, "w", encoding="utf-8") as f:
     f.write("""/**
@@ -87,17 +57,27 @@ with open(args.out_c, "w", encoding="utf-8") as f:
         "src/tp/isotp_sock.c",
         "src/tp/isotp_mock.c",
     ]:
-        f.write(f"""
-#ifdef UDS_LINES
-#line 0 "{src}"
-#endif
-""")
-        with open(src, "r", encoding="utf-8") as src_file:
-            stripped = strip_includes(src_file.read())
-            f.write(stripped)
-            f.write("\n")
+        f.write(transform(src))
+        f.write("\n")
 
-    f.write(isotp_c_wrapped_c + "\n")
+    f.write("""#if defined(UDS_TP_ISOTP_C)
+/// \cond DOXYGEN_SHOULD_SKIP_THIS
+
+#ifndef ISO_TP_USER_SEND_CAN_ARG
+#error "need this"
+#endif
+
+#ifndef ISO_TP_NO_FORMATTED_ERRORS
+#error "need this too"
+#endif
+
+""" + \
+transform("src/tp/isotp-c/isotp.c") + \
+"""
+/// \endcond
+#endif // if defined(UDS_TP_ISOTP_C)
+
+""")
 
 
 with open(args.out_h, "w", encoding="utf-8") as f:
@@ -127,18 +107,28 @@ extern "C" {
         "src/client.h",
         "src/server.h",
     ]:
-        f.write(f"""
-#ifdef UDS_LINES
-#line 0 "{src}"
-#endif
+        f.write(transform(src))
+        f.write("\n")
+
+    f.write("""#if defined(UDS_TP_ISOTP_C)
+/// \cond DOXYGEN_SHOULD_SKIP_THIS
+
+#define ISO_TP_USER_SEND_CAN_ARG 1
+#define ISO_TP_NO_FORMATTED_ERRORS 1
+
+""" + "\n".join(
+    [
+        transform(f"src/tp/isotp-c/{h}") for h in [
+            "isotp_config.h",
+            "isotp_defines.h",
+            "isotp_user.h",
+            "isotp.h",
+        ]
+    ]) + \
+"""
+/// \endcond
+#endif // if defined(UDS_TP_ISOTP_C)
 """)
-        src_path = next((s for s in args.srcs if src in s))
-        with open(src_path, "r", encoding="utf-8") as src_file:
-            stripped = strip_includes(src_file.read())
-            f.write(stripped + "\n")
-
-    f.write(isotp_c_wrapped_h)
-
 
     for src in [
         "src/tp/isotp_c.h",
@@ -146,13 +136,8 @@ extern "C" {
         "src/tp/isotp_sock.h",
         "src/tp/isotp_mock.h",
     ]:
-        f.write(f"""
-#ifdef UDS_LINES
-#line 0 "{src}"
-#endif
-""")
-        with open(src) as src_file:
-            f.write(strip_includes(src_file.read()) + "\n")
+        f.write(transform(src))
+        f.write("\n")
 
     f.write("""
 #ifdef __cplusplus

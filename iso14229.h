@@ -14,15 +14,14 @@ extern "C" {
 
 
 #ifdef UDS_LINES
-#line 0 "src/version.h"
+#line 1 "src/version.h"
 #endif
 #define UDS_LIB_VERSION "0.11.0"
 
 
 #ifdef UDS_LINES
-#line 0 "src/sys.h"
+#line 1 "src/sys.h"
 #endif
-
 
 /**
  * @defgroup uds_sys_ valid values of UDS_SYS
@@ -102,9 +101,8 @@ extern "C" {
 
 
 #ifdef UDS_LINES
-#line 0 "src/config.h"
+#line 1 "src/config.h"
 #endif
-
 
 /**
  * @def UDS_SYS
@@ -211,9 +209,8 @@ TransferData request message from the client. */
 
 
 #ifdef UDS_LINES
-#line 0 "src/uds.h"
+#line 1 "src/uds.h"
 #endif
-
 
 /** @file */
 
@@ -535,9 +532,8 @@ typedef enum {
 
 
 #ifdef UDS_LINES
-#line 0 "src/tp.h"
+#line 1 "src/tp.h"
 #endif
-
 
 
 
@@ -634,9 +630,8 @@ UDSErr_t UDSTpPoll(UDSTp_t *hdl);   ///< call this at <5ms intervals
 
 
 #ifdef UDS_LINES
-#line 0 "src/util.h"
+#line 1 "src/util.h"
 #endif
-
 
 
 
@@ -674,9 +669,8 @@ const char *UDSEventToStr(UDSEvent_t evt);
 
 
 #ifdef UDS_LINES
-#line 0 "src/log.h"
+#line 1 "src/log.h"
 #endif
-
 
 /**
  * @brief logging for bring-up and unit tests.
@@ -814,9 +808,8 @@ static inline void UDS_LogSDUDummy(const char *tag, const uint8_t *buffer, size_
 
 
 #ifdef UDS_LINES
-#line 0 "src/client.h"
+#line 1 "src/client.h"
 #endif
-
 
 
 
@@ -943,9 +936,8 @@ UDSErr_t UDSUnpackRoutineControlResponse(
 
 
 #ifdef UDS_LINES
-#line 0 "src/server.h"
+#line 1 "src/server.h"
 #endif
-
 
 
 
@@ -1326,10 +1318,10 @@ void UDSServerPoll(UDSServer_t *srv);     ///< Call this at <5ms intervals
 #define ISO_TP_USER_SEND_CAN_ARG 1
 #define ISO_TP_NO_FORMATTED_ERRORS 1
 
-#ifdef UDS_LINES
-#line 0 "src/tp/isotp-c/isotp_config.h"
-#endif
 ////////////////////////////////////////////////////////////////////////
+#ifdef UDS_LINES
+#line 1 "src/tp/isotp-c/isotp_config.h"
+#endif
 //                  ___ ___  ___ _____ ___      ___                   //
 //                 |_ _/ __|/ _ \_   _| _ \___ / __|                  //
 //                  | |\__ \ (_) || | |  _/___| (__                   //
@@ -1485,10 +1477,10 @@ void UDSServerPoll(UDSServer_t *srv);     ///< Call this at <5ms intervals
 
 #endif // ISOTPC_CONFIG_H
 
-#ifdef UDS_LINES
-#line 0 "src/tp/isotp-c/isotp_defines.h"
-#endif
 #ifndef ISOTPC_USER_DEFINITIONS_H
+#ifdef UDS_LINES
+#line 1 "src/tp/isotp-c/isotp_defines.h"
+#endif
 #define ISOTPC_USER_DEFINITIONS_H
 
 /**
@@ -1884,10 +1876,10 @@ typedef enum { PCI_FLOW_STATUS_CONTINUE = 0x0, PCI_FLOW_STATUS_WAIT = 0x1, PCI_F
 
 #endif // ISOTPC_USER_DEFINITIONS_H
 
-#ifdef UDS_LINES
-#line 0 "src/tp/isotp-c/isotp_user.h"
-#endif
 ////////////////////////////////////////////////////////////////////////
+#ifdef UDS_LINES
+#line 1 "src/tp/isotp-c/isotp_user.h"
+#endif
 //                  ___ ___  ___ _____ ___      ___                   //
 //                 |_ _/ __|/ _ \_   _| _ \___ / __|                  //
 //                  | |\__ \ (_) || | |  _/___| (__                   //
@@ -1974,10 +1966,10 @@ uint32_t isotp_user_get_us(void);
 
 #endif // ISOTPC_USER_H
 
-#ifdef UDS_LINES
-#line 0 "src/tp/isotp-c/isotp.h"
-#endif
 ////////////////////////////////////////////////////////////////////////
+#ifdef UDS_LINES
+#line 1 "src/tp/isotp-c/isotp.h"
+#endif
 //                  ___ ___  ___ _____ ___      ___                   //
 //                 |_ _/ __|/ _ \_   _| _ \___ / __|                  //
 //                  | |\__ \ (_) || | |  _/___| (__                   //
@@ -2315,9 +2307,8 @@ void isotp_set_rx_done_cb(IsoTpLink* link, isotp_rx_done_cb cb, void* arg);
 #endif // if defined(UDS_TP_ISOTP_C)
 
 #ifdef UDS_LINES
-#line 0 "src/tp/isotp_c.h"
+#line 1 "src/tp/isotp_c.h"
 #endif
-
 #if defined(UDS_TP_ISOTP_C)
 
 
@@ -2372,9 +2363,8 @@ UDSErr_t UDSTpISOTpCPoll(UDSTp_t *tp);
 
 
 #ifdef UDS_LINES
-#line 0 "src/tp/isotp_c_socketcan.h"
+#line 1 "src/tp/isotp_c_socketcan.h"
 #endif
-
 
 #if defined(UDS_TP_ISOTP_C_SOCKETCAN)
 
@@ -2418,11 +2408,10 @@ void UDSTpISOTpCSocketCANDeinit(UDSTpISOTpCSocketCAN_t *tp); ///< release socket
 
 #endif
 
-
-#ifdef UDS_LINES
-#line 0 "src/tp/isotp_sock.h"
-#endif
 #if defined(UDS_TP_ISOTP_SOCK)
+#ifdef UDS_LINES
+#line 1 "src/tp/isotp_sock.h"
+#endif
 
 
 
@@ -2456,11 +2445,10 @@ void UDSTpIsoTpSockDeinit(const UDSTpIsoTpSock_t *tp);        ///< release socke
 
 #endif
 
-
-#ifdef UDS_LINES
-#line 0 "src/tp/isotp_mock.h"
-#endif
 #if defined(UDS_TP_ISOTP_MOCK)
+#ifdef UDS_LINES
+#line 1 "src/tp/isotp_mock.h"
+#endif
 
 
 

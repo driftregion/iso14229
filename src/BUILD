@@ -68,7 +68,6 @@ cc_library(
             "-Wextra",
             "-Wpedantic",
             "-Wno-gnu-zero-variadic-macro-arguments",
-            "-Wno-gnu-zero-line-directive", #makes `#line 0` not an error
             "-Wconversion",
             "-Wsign-conversion",
         ],

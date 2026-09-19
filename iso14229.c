@@ -8,9 +8,8 @@
 #include "iso14229.h"
 
 #ifdef UDS_LINES
-#line 0 "src/util_private.h"
+#line 1 "src/util_private.h"
 #endif
-
 
 
 
@@ -108,9 +107,8 @@ bool UDSErrIsNRC(UDSErr_t err);
 
 
 #ifdef UDS_LINES
-#line 0 "src/client.c"
+#line 1 "src/client.c"
 #endif
-
 
 
 
@@ -1034,9 +1032,8 @@ UDSErr_t UDSUnpackRDBIResponse(UDSClient_t *client, UDSRDBIVar_t *vars, uint16_t
 
 
 #ifdef UDS_LINES
-#line 0 "src/server.c"
+#line 1 "src/server.c"
 #endif
-
 
 
 
@@ -2727,9 +2724,8 @@ void UDSServerPoll(UDSServer_t *srv) {
 
 
 #ifdef UDS_LINES
-#line 0 "src/tp.c"
+#line 1 "src/tp.c"
 #endif
-
 
 
 
@@ -2757,9 +2753,8 @@ UDSErr_t UDSTpPoll(UDSTp_t *hdl) {
 
 
 #ifdef UDS_LINES
-#line 0 "src/util.c"
+#line 1 "src/util.c"
 #endif
-
 
 
 
@@ -3077,9 +3072,8 @@ bool UDSErrIsNRC(UDSErr_t err) {
 
 
 #ifdef UDS_LINES
-#line 0 "src/log.c"
+#line 1 "src/log.c"
 #endif
-
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -3104,11 +3098,10 @@ void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *bu
 }
 #endif
 
-
-#ifdef UDS_LINES
-#line 0 "src/tp/isotp_c.c"
-#endif
 #if defined(UDS_TP_ISOTP_C)
+#ifdef UDS_LINES
+#line 1 "src/tp/isotp_c.c"
+#endif
 
 
 
@@ -3265,11 +3258,10 @@ UDSErr_t UDSClientTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t source_addr, uint32_t
 
 #endif
 
-
-#ifdef UDS_LINES
-#line 0 "src/tp/isotp_c_socketcan.c"
-#endif
 #if defined(UDS_TP_ISOTP_C_SOCKETCAN)
+#ifdef UDS_LINES
+#line 1 "src/tp/isotp_c_socketcan.c"
+#endif
 
 
 
@@ -3420,11 +3412,10 @@ void UDSTpISOTpCSocketCANDeinit(UDSTpISOTpCSocketCAN_t *tp) {
 
 #endif
 
-
-#ifdef UDS_LINES
-#line 0 "src/tp/isotp_sock.c"
-#endif
 #if defined(UDS_TP_ISOTP_SOCK)
+#ifdef UDS_LINES
+#line 1 "src/tp/isotp_sock.c"
+#endif
 
 
 
@@ -3719,11 +3710,10 @@ void UDSTpIsoTpSockDeinit(const UDSTpIsoTpSock_t *tp) {
 
 #endif
 
-
-#ifdef UDS_LINES
-#line 0 "src/tp/isotp_mock.c"
-#endif
 #if defined(UDS_TP_ISOTP_MOCK)
+#ifdef UDS_LINES
+#line 1 "src/tp/isotp_mock.c"
+#endif
 
 /// \cond INTERNAL_INTERFACE
 
@@ -3963,10 +3953,10 @@ void ISOTPMockFree(UDSTp_t *tp) {
 #error "need this too"
 #endif
 
-#ifdef UDS_LINES
-#line 0 "src/tp/isotp-c/isotp.c"
-#endif
 ////////////////////////////////////////////////////////////////////////
+#ifdef UDS_LINES
+#line 1 "src/tp/isotp-c/isotp.c"
+#endif
 //                  ___ ___  ___ _____ ___      ___                   //
 //                 |_ _/ __|/ _ \_   _| _ \___ / __|                  //
 //                  | |\__ \ (_) || | |  _/___| (__                   //
