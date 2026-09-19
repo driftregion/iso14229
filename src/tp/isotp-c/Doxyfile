@@ -1,0 +1,83 @@
+# Doxygen configuration for the supported isotp-c public interface.
+
+DOXYFILE_ENCODING       = UTF-8
+PROJECT_NAME            = "isotp-c"
+PROJECT_NUMBER          =
+PROJECT_BRIEF           = "Platform-independent ISO 15765-2 transport for embedded C"
+OUTPUT_DIRECTORY        = .
+CREATE_SUBDIRS          = NO
+OUTPUT_LANGUAGE         = English
+
+OPTIMIZE_OUTPUT_FOR_C   = YES
+MARKDOWN_SUPPORT        = YES
+TOC_INCLUDE_HEADINGS    = 4
+AUTOLINK_SUPPORT        = YES
+
+EXTRACT_ALL             = NO
+EXTRACT_PRIVATE         = NO
+EXTRACT_STATIC          = NO
+HIDE_UNDOC_MEMBERS      = YES
+HIDE_UNDOC_CLASSES      = YES
+INTERNAL_DOCS           = NO
+
+QUIET                   = YES
+WARNINGS                = YES
+WARN_IF_UNDOCUMENTED    = YES
+WARN_IF_DOC_ERROR       = YES
+WARN_NO_PARAMDOC        = YES
+WARN_AS_ERROR           = YES
+WARN_FORMAT             = "$file:$line: $text"
+
+INPUT                   = README.md \
+                          isotp.h \
+                          isotp_config.h \
+                          isotp_defines.h \
+                          isotp_user.h
+FILE_PATTERNS           = *.h *.md
+RECURSIVE               = NO
+USE_MDFILE_AS_MAINPAGE  = README.md
+STRIP_FROM_PATH         = .
+
+EXAMPLE_PATH            = examples
+EXAMPLE_PATTERNS        = *.c
+EXAMPLE_RECURSIVE       = NO
+
+SOURCE_BROWSER          = YES
+INLINE_SOURCES          = NO
+REFERENCED_BY_RELATION  = NO
+REFERENCES_RELATION     = NO
+VERBATIM_HEADERS        = YES
+
+GENERATE_HTML           = YES
+HTML_OUTPUT             = html
+GENERATE_TREEVIEW       = YES
+FULL_SIDEBAR            = NO
+SEARCHENGINE            = YES
+HTML_EXTRA_STYLESHEET   = submodules/doxygen-awesome-css/doxygen-awesome.css \
+                          submodules/doxygen-awesome-css/doxygen-awesome-sidebar-only.css
+
+GENERATE_LATEX          = NO
+GENERATE_MAN            = NO
+GENERATE_XML            = NO
+
+ENABLE_PREPROCESSING    = YES
+MACRO_EXPANSION         = YES
+PREDEFINED              = DOXYGEN \
+                          ISO_TP_MAX_CAN_FRAME_SIZE=64 \
+                          ISO_TP_DEFAULT_TX_DL=64 \
+                          ISO_TP_USER_SEND_CAN_ARG \
+                          ISO_TP_USER_SEND_CAN_FLAGS \
+                          ISO_TP_CAN_FD_USE_BRS \
+                          ISO_TP_TRANSMIT_COMPLETE_CALLBACK \
+                          ISO_TP_RECEIVE_COMPLETE_CALLBACK \
+                          ISO_TP_ENABLE_STREAMING \
+                          ISO_TP_FRAME_PADDING
+
+HAVE_DOT                = YES
+COLLABORATION_GRAPH     = NO
+GROUP_GRAPHS            = YES
+INCLUDE_GRAPH           = YES
+INCLUDED_BY_GRAPH       = NO
+DIRECTORY_GRAPH         = NO
+DOT_IMAGE_FORMAT        = svg
+INTERACTIVE_SVG         = YES
