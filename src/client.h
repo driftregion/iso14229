@@ -106,7 +106,8 @@ UDSErr_t
 UDSSendRequestTransferExit(UDSClient_t *client); ///< Call this when finished with TransferData
 
 UDSErr_t UDSSendRequestFileTransfer(
-    UDSClient_t *client, uint8_t mode, const char *filePath, size_t fileSizeUncompressed,
+    UDSClient_t *client, uint8_t mode, const char *filePath, size_t filePathLen,
+    size_t fileSizeUncompressed,
     size_t fileSizeCompressed); ///< filesystem-based frontend to TransferData
 UDSErr_t UDSCtrlDTCSetting(UDSClient_t *client, uint8_t dtcSettingType,
                            const uint8_t *dtcSettingControlOptionRecord,

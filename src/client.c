@@ -430,11 +430,11 @@ UDSErr_t UDSSendRoutineCtrl(UDSClient_t *client, uint8_t type, uint16_t routineI
     client->send_buf[2] = routineIdentifier >> 8u;
     client->send_buf[3] = routineIdentifier & 0xFFu;
 
-    if (0 != size && data == NULL) {
+    if (0u != size && data == NULL) {
         return UDS_ERR_INVALID_ARG;
     }
 
-    const size_t send_size = UDS_0X31_REQ_BASE_LEN + size;
+    const size_t send_size = UDS_0X31_REQ_BASE_LEN + (size_t)size;
     if (send_size > sizeof(client->send_buf)) {
         return UDS_ERR_BUFSIZ;
     }
@@ -501,7 +501,8 @@ UDSErr_t UDSSendRequestUpload(UDSClient_t *client, uint8_t dataFormatIdentifier,
     }
     uint8_t numMemorySizeBytes = (uint8_t)((addressAndLengthFormatIdentifier & 0xF0u) >> 4u);
     uint8_t numMemoryAddressBytes = (uint8_t)(addressAndLengthFormatIdentifier & 0x0Fu);
-    if (sizeof(client->send_buf) < 3u + numMemoryAddressBytes + numMemorySizeBytes) {
+    const size_t send_size = 3u + (size_t)numMemoryAddressBytes + (size_t)numMemorySizeBytes;
+    if (sizeof(client->send_buf) < send_size) {
         return UDS_ERR_BUFSIZ;
     }
 
@@ -512,7 +513,7 @@ UDSErr_t UDSSendRequestUpload(UDSClient_t *client, uint8_t dataFormatIdentifier,
     PackBE(&client->send_buf[3], memoryAddress, numMemoryAddressBytes);
     PackBE(&client->send_buf[3u + numMemoryAddressBytes], memorySize, numMemorySizeBytes);
 
-    client->send_size = 3u + numMemoryAddressBytes + numMemorySizeBytes;
+    client->send_size = send_size;
     return SendRequest(client);
 }
 
@@ -546,7 +547,7 @@ UDSErr_t UDSSendTransferData(UDSClient_t *client, uint8_t blockSequenceCounter,
     client->send_buf[1] = blockSequenceCounter;
     memmove(&client->send_buf[UDS_0X36_REQ_BASE_LEN], data, size);
     UDS_LOGI(__FILE__, "size: %d, blocklength: %d", size, blockLength);
-    client->send_size = UDS_0X36_REQ_BASE_LEN + size;
+    client->send_size = UDS_0X36_REQ_BASE_LEN + (size_t)size;
     return SendRequest(client);
 }
 
@@ -588,8 +589,9 @@ UDSErr_t UDSSendRequestTransferExit(UDSClient_t *client) {
     return SendRequest(client);
 }
 
-UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, uint8_t mode, const char *filePath,
-                                    size_t fileSizeUncompressed, size_t fileSizeCompressed) {
+UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, const uint8_t mode, const char *filePath,
+                                    const size_t filePathLen, const size_t fileSizeUncompressed,
+                                    const size_t fileSizeCompressed) {
     UDSErr_t err = PreRequestCheck(client);
     if (err) {
         return err;
@@ -597,110 +599,94 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, uint8_t mode, const cha
     if (filePath == NULL) {
         return UDS_ERR_INVALID_ARG;
     }
-    const size_t filePathLenSize = strnlen(filePath, UINT16_MAX + 1);
-    if (filePathLenSize == 0u) {
+    if (filePathLen > UINT16_MAX) {
         return UDS_ERR_INVALID_ARG;
     }
-    if (filePathLenSize > (uint16_t)UINT16_MAX) {
-        return UDS_ERR_INVALID_ARG;
-    }
-    const uint16_t n_filePathLen = (uint16_t)filePathLenSize;
-
+    const uint16_t u16_filePathLen = (uint16_t)filePathLen;
     /*
     Pre-compute the request length based on the MOOP.
     For each field, "Y" denotes present and "_" denotes absent.
 
+                                ADDFILE -- AddFile
+                                |   DELFILE -- DeleteFile
+                                |   |   REPLFILE -- ReplaceFile
+                                |   |   |   RDFILE -- ReadFile
+                                |   |   |   |   RDDIR -- ReadDirectory
+                                |   |   |   |   |   RSFILE -- ResumeFile
+                                |   |   |   |   |   |
                         MOOP    1   2   3   4   5   6
-    field                                                   size (bytes)
-    Request SID                 Y   Y   Y   Y   Y   Y       1
-    modeOfOperation             Y   Y   Y   Y   Y   Y       1
-    filePathAndNameLength       Y   Y   Y   Y   Y   Y       2
-    filePathAndName             Y   Y   Y   Y   Y   Y       n_filePathLen
-    dataFormatIdentifier        Y   _   Y   Y   _   Y       1
-    fileSizeParameterLength     Y   _   Y   _   _   Y       1
-    fileSizeUncompressed        Y   _   Y   _   _   Y       cfg_file_size_parameter_length
-    fileSizeCompressed          Y   _   Y   _   _   Y       cfg_file_size_parameter_length
+    field                                              |  size (bytes)
+    Request SID                 Y   Y   Y   Y   Y   Y  |  1
+    modeOfOperation             Y   Y   Y   Y   Y   Y  |  1
+    filePathAndNameLength       Y   Y   Y   Y   Y   Y  |  2
+    filePathAndName             Y   Y   Y   Y   Y   Y  |  variable: u16_filePathLen
+    dataFormatIdentifier        Y   _   Y   Y   _   Y  |  1
+    fileSizeParameterLength     Y   _   Y   _   _   Y  |  1
+    fileSizeUncompressed        Y   _   Y   _   _   Y  |  variable: cfg_file_size_parameter_length
+    fileSizeCompressed          Y   _   Y   _   _   Y  |  variable: cfg_file_size_parameter_length
     */
-
-    if (sizeof(client->send_buf) < UDS_0X38_REQ_BASE_LEN) {
-        return UDS_ERR_BUFSIZ;
-    }
-
-    size_t bufSizeRequired = SIZE_MAX;
-    client->send_buf[0] = UDS_SID_REQUEST_FILE_TRANSFER; // Request SID
-    client->send_buf[1] = mode;                          // modeOfOperation
-    PackBE(&client->send_buf[2], n_filePathLen, 2);      // filePathAndNameLength
-
+    size_t send_size = SIZE_MAX; // set by the MOOP-specific case below
     switch (mode) {
-    case UDS_MOOP_ADDFILE: // 1
-        bufSizeRequired = 4u + n_filePathLen + 2u + 2u * client->cfg_file_size_parameter_length;
-        if (bufSizeRequired > sizeof(client->send_buf)) {
-            return UDS_ERR_BUFSIZ;
+    case UDS_MOOP_ADDFILE:  // MOOP = 1
+    case UDS_MOOP_REPLFILE: // MOOP = 3
+    case UDS_MOOP_RSFILE:   // MOOP = 6
+    {
+        send_size = 4u + u16_filePathLen + 2u + 2u * client->cfg_file_size_parameter_length;
+        if (send_size > sizeof(client->send_buf)) {
+            err = UDS_ERR_BUFSIZ;
+            goto done;
         }
-        memmove(&client->send_buf[4], filePath, n_filePathLen); // filePathAndName
-        client->send_buf[4u + n_filePathLen] = client->cfg_data_format_identifier;
-        client->send_buf[5u + n_filePathLen] = client->cfg_file_size_parameter_length;
-        PackBE(&client->send_buf[6u + n_filePathLen], fileSizeUncompressed,
+        client->send_buf[0] = UDS_SID_REQUEST_FILE_TRANSFER;
+        client->send_buf[1] = mode;
+        PackBE(&client->send_buf[2], u16_filePathLen, 2);         // filePathAndNameLength
+        memmove(&client->send_buf[4], filePath, u16_filePathLen); // filePathAndName
+        client->send_buf[4u + u16_filePathLen] = client->cfg_data_format_identifier;
+        client->send_buf[5u + u16_filePathLen] = client->cfg_file_size_parameter_length;
+        PackBE(&client->send_buf[6u + u16_filePathLen], fileSizeUncompressed,
                client->cfg_file_size_parameter_length);
-        PackBE(&client->send_buf[6u + n_filePathLen + client->cfg_file_size_parameter_length],
+        PackBE(&client->send_buf[6u + u16_filePathLen + client->cfg_file_size_parameter_length],
                fileSizeCompressed, client->cfg_file_size_parameter_length);
         break;
-    case UDS_MOOP_DELFILE: // 2
-        bufSizeRequired = 4u + n_filePathLen + 1u;
-        if (bufSizeRequired > sizeof(client->send_buf)) {
-            return UDS_ERR_BUFSIZ;
+    }
+    case UDS_MOOP_DELFILE: // MOOP = 2
+    case UDS_MOOP_RDDIR:   // MOOP = 5
+    {
+        send_size = 4u + u16_filePathLen + 1u;
+        if (send_size > sizeof(client->send_buf)) {
+            err = UDS_ERR_BUFSIZ;
+            goto done;
         }
-        memmove(&client->send_buf[4], filePath, n_filePathLen); // filePathAndName
+        client->send_buf[0] = UDS_SID_REQUEST_FILE_TRANSFER;
+        client->send_buf[1] = mode;
+        PackBE(&client->send_buf[2], u16_filePathLen, 2);         // filePathAndNameLength
+        memmove(&client->send_buf[4], filePath, u16_filePathLen); // filePathAndName
         break;
-    case UDS_MOOP_REPLFILE: // 3
-        bufSizeRequired = 4u + n_filePathLen + 2u + 2u * client->cfg_file_size_parameter_length;
-        if (bufSizeRequired > sizeof(client->send_buf)) {
-            return UDS_ERR_BUFSIZ;
+    }
+    case UDS_MOOP_RDFILE: { // MOOP = 4
+        send_size = 4u + u16_filePathLen + 1u;
+        if (send_size > sizeof(client->send_buf)) {
+            err = UDS_ERR_BUFSIZ;
+            goto done;
         }
-        memmove(&client->send_buf[4], filePath, n_filePathLen); // filePathAndName
-        client->send_buf[4u + n_filePathLen] = client->cfg_data_format_identifier;
-        client->send_buf[5u + n_filePathLen] = client->cfg_file_size_parameter_length;
-        PackBE(&client->send_buf[6u + n_filePathLen], fileSizeUncompressed,
-               client->cfg_file_size_parameter_length);
-        PackBE(&client->send_buf[6u + n_filePathLen + client->cfg_file_size_parameter_length],
-               fileSizeCompressed, client->cfg_file_size_parameter_length);
+        client->send_buf[0] = UDS_SID_REQUEST_FILE_TRANSFER;
+        client->send_buf[1] = mode;
+        PackBE(&client->send_buf[2], u16_filePathLen, 2);         // filePathAndNameLength
+        memmove(&client->send_buf[4], filePath, u16_filePathLen); // filePathAndName
+        client->send_buf[4u + u16_filePathLen] = client->cfg_data_format_identifier;
         break;
-    case UDS_MOOP_RDFILE: // 4
-        bufSizeRequired = 4u + n_filePathLen + 1u;
-        if (bufSizeRequired > sizeof(client->send_buf)) {
-            return UDS_ERR_BUFSIZ;
-        }
-        memmove(&client->send_buf[4], filePath, n_filePathLen); // filePathAndName
-        client->send_buf[4u + n_filePathLen] = client->cfg_data_format_identifier;
-        break;
-    case UDS_MOOP_RDDIR: // 5
-        bufSizeRequired = 4u + n_filePathLen;
-        if (bufSizeRequired > sizeof(client->send_buf)) {
-            return UDS_ERR_BUFSIZ;
-        }
-        memmove(&client->send_buf[4], filePath, n_filePathLen); // filePathAndName
-        break;
-    case UDS_MOOP_RSFILE: // 6
-        bufSizeRequired = 4u + n_filePathLen + 2u + 2u * client->cfg_file_size_parameter_length;
-        if (bufSizeRequired > sizeof(client->send_buf)) {
-            return UDS_ERR_BUFSIZ;
-        }
-        memmove(&client->send_buf[4], filePath, n_filePathLen); // filePathAndName
-        client->send_buf[4u + n_filePathLen] = client->cfg_data_format_identifier;
-        client->send_buf[5u + n_filePathLen] = client->cfg_file_size_parameter_length;
-        PackBE(&client->send_buf[6u + n_filePathLen], fileSizeUncompressed,
-               client->cfg_file_size_parameter_length);
-        PackBE(&client->send_buf[6u + n_filePathLen + client->cfg_file_size_parameter_length],
-               fileSizeCompressed, client->cfg_file_size_parameter_length);
-        break;
+    }
     default:
         UDS_ASSERT(0);
         break;
     }
     // Phew!
 
-    client->send_size = (uint16_t)bufSizeRequired;
-    return SendRequest(client);
+    UDS_ASSERT(send_size != SIZE_MAX);
+    client->send_size = send_size;
+    err = SendRequest(client);
+
+done:
+    return err;
 }
 
 /**

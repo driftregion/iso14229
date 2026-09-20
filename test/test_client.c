@@ -300,7 +300,8 @@ void test_0x34_format(void **state) {
 void test_0x38_format_add_file(void **state) {
     Env_t *e = *state;
     e->client->cfg_file_size_parameter_length = 3;
-    UDSErr_t err = UDSSendRequestFileTransfer(e->client, UDS_MOOP_ADDFILE, "/data/testfile.zip",
+    const char *path = "/data/testfile.zip";
+    UDSErr_t err = UDSSendRequestFileTransfer(e->client, UDS_MOOP_ADDFILE, path, strlen(path),
                                               0x112233, 0x001122);
     TEST_ERR_EQUAL(UDS_OK, err);
 
@@ -312,8 +313,9 @@ void test_0x38_format_add_file(void **state) {
 
 void test_0x38_format_delete_file(void **state) {
     Env_t *e = *state;
+    const char *path = "/data/testfile.zip";
     UDSErr_t err =
-        UDSSendRequestFileTransfer(e->client, UDS_MOOP_DELFILE, "/data/testfile.zip", 0, 0);
+        UDSSendRequestFileTransfer(e->client, UDS_MOOP_DELFILE, path, strlen(path), 0, 0);
     TEST_ERR_EQUAL(UDS_OK, err);
 
     const uint8_t CORRECT_REQUEST[] = {0x38, 0x02, 0x00, 0x12, 0x2F, 0x64, 0x61, 0x74,
