@@ -103,6 +103,7 @@ sh_test(
         "//src:iso14229.h",
         "//:CHANGELOG",
         "//:Doxyfile",
+        "//:VERSION",
     ],
 )
 

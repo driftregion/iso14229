@@ -5,6 +5,7 @@ package(default_visibility = ["//visibility:public"])
 exports_files([
     "CHANGELOG",
     "Doxyfile",
+    "VERSION",
 ])
 
 refresh_compile_commands(
@@ -104,12 +105,4 @@ genrule(
     ],
     outs = ["iso14229.zip"],
     cmd = "mkdir iso14229 && cp -L $(SRCS) iso14229/ && zip -r $(OUTS) iso14229",
-)
-
-genrule(
-    name = "gen_version_txt",
-    outs = ["VERSION"],
-    stamp = 1,
-    cmd = "$(location //tools:gen_version) bazel-out/stable-status.txt $(OUTS)",
-    tools = ["//tools:gen_version"],
 )
