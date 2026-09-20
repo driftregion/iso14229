@@ -1,3 +1,13 @@
+## 0.11.0
+- breaking API changes:
+    - made client flags into bitfield:
+| before                                       | after                                     |
+| -----------------------------------------------------------------------------------------|
+| `client->options |= UDS_SUPPRESS_POS_RESP`   | client->cfg_suppress_pos_resp = 1         |
+| `client->options |= UDS_FUNCTIONAL`          | client->cfg_send_functional = 1           |
+| `client->options |= UDS_IGNORE_SRV_TIMINGS`  | client->cfg_ignore_srv_sess_timing = 1    |
+
+
 ## 0.10.2
 - revised release checklist
 

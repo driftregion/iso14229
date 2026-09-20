@@ -246,7 +246,7 @@ void test_0x11_suppress_pos_resp(void **state) {
     e->client->fn_data = call_count;
 
     // when the suppressPositiveResponse flag is set
-    e->client->options |= UDS_SUPPRESS_POS_RESP;
+    e->client->cfg_suppress_pos_resp = 1;
     UDSSendECUReset(e->client, UDS_LEV_RT_HR);
     EnvRunMillis(e, 1000);
 

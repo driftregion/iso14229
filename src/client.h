@@ -13,21 +13,21 @@
  * @brief UDS client structure
  */
 typedef struct UDSClient {
-    uint16_t p2_ms;      /**< p2 timeout in milliseconds */
-    uint32_t p2_star_ms; /**< p2* timeout in milliseconds (for 0x78 response) */
+    // User-facing configuration options
     UDSTp_t *tp;         /**< transport layer handle */
-
-    uint32_t p2_timer; /**< p2 timer value */
-    uint8_t state;     /**< client request state, @see client_request_states */
-
-    uint8_t options;                        /**< current request options */
-    uint8_t defaultOptions;                 /**< default options for all requests */
-    uint8_t _options_copy;                  /**< copy of options at the time a request is made */
-    uint8_t cfg_data_format_identifier;     /**< 0x38 RequestFileTransfer dataFormatIdentifier */
-    uint8_t cfg_file_size_parameter_length; /**< 0x38 RequestFileTransfer fileSizeParameterLength */
-
     int (*fn)(struct UDSClient *client, UDSEvent_t evt, void *ev_data); /**< callback function */
     void *fn_data; /**< user-specified function data */
+    unsigned cfg_suppress_pos_resp : 1;         /**< suppress positive responses from the server  */
+    unsigned cfg_send_functional : 1;           /**< send functional (broadcast) requests */
+    unsigned cfg_ignore_srv_sess_timing : 1;  /**< do not heed the P2 and P2* timings sent by the server  */
+    uint8_t cfg_data_format_identifier;       /**< 0x38 RequestFileTransfer dataFormatIdentifier */
+    uint8_t cfg_file_size_parameter_length; /**< 0x38 RequestFileTransfer fileSizeParameterLength */
+
+    // private members
+    uint16_t p2_ms;      /**< p2 timeout in milliseconds */
+    uint32_t p2_star_ms; /**< p2* timeout in milliseconds (for 0x78 response) */
+    uint32_t p2_timer; /**< p2 timer value */
+    uint8_t state;     /**< client request state, @see client_request_states */
 
     size_t recv_size;                           /**< size of received data */
     size_t send_size;                           /**< size of data to send */

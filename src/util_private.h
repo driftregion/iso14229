@@ -18,7 +18,7 @@ static inline void PackBE(uint8_t *dst, uint64_t val, size_t n) {
  * @return UDS_OK if successful
  */
 static inline UDSErr_t UnpackBEsize(const uint8_t *src, size_t *dst, size_t n) {
-    if (NULL == src || NULL == dst || n > sizeof(*dst)) {
+    if ((NULL == src) || (NULL == dst) || (n > sizeof(*dst))) {
         return UDS_ERR_INVALID_ARG;
     }
     size_t val = 0;
@@ -37,7 +37,7 @@ static inline UDSErr_t UnpackBEsize(const uint8_t *src, size_t *dst, size_t n) {
  * @return UDS_OK if successful
  */
 static inline UDSErr_t UnpackBEuintptr(const uint8_t *src, uintptr_t *dst, size_t n) {
-    if (NULL == src || NULL == dst || n > sizeof(*dst)) {
+    if ((NULL == src) || (NULL == dst) || (n > sizeof(*dst))) {
         return UDS_ERR_INVALID_ARG;
     }
     uintptr_t val = 0;
@@ -56,7 +56,7 @@ static inline UDSErr_t UnpackBEuintptr(const uint8_t *src, uintptr_t *dst, size_
  * @return UDS_OK if successful
  */
 static inline UDSErr_t UnpackBEu32(const uint8_t *src, uint32_t *dst, size_t n) {
-    if (NULL == src || NULL == dst || n > sizeof(*dst)) {
+    if ((NULL == src) || (NULL == dst) || (n > sizeof(*dst))) {
         return UDS_ERR_INVALID_ARG;
     }
     uint32_t val = 0;
@@ -93,3 +93,14 @@ bool UDSSecurityAccessLevelIsReserved(uint8_t securityLevel);
 
 /// returns true if err is defined in ISO14229-1:2020 as an NRC
 bool UDSErrIsNRC(UDSErr_t err);
+
+/**
+ * @brief Check whether one timestamp is after another, correctly handling wrap-around
+ * @param a: timestamp to check
+ * @param b: reference timestamp
+ * @return true if `a` is after `b`
+ */
+static inline bool UDSTimeAfter(uint32_t a, uint32_t b) {
+    uint32_t diff = a - b;
+    return (diff != 0U) && ((diff & 0x80000000U) == 0U);
+}

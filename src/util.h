@@ -15,14 +15,6 @@
 #endif
 
 /**
- * @brief Check whether one timestamp is after another, correctly handling wrap-around
- * @param a: timestamp to check
- * @param b: reference timestamp
- * @return true if `a` is after `b`
- */
-static inline bool UDSTimeAfter(uint32_t a, uint32_t b) { return (int32_t)(a - b) > 0; }
-
-/**
  * @brief Get time in milliseconds
  * @return current time in milliseconds
  * @note implementers must ensure the return value is monotonically increasing between

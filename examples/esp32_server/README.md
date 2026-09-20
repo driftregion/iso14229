@@ -19,7 +19,7 @@ client:
 
 ## Setup: Server
 
-1. download and install `esp-idf`
+1. download and install [`esp-idf`](https://docs.espressif.com/projects/esp-idf/en/v5.4.4/esp32/get-started/linux-macos-setup.html)
 2. connect CAN board to ESP32
 
 ```sh
