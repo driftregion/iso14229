@@ -618,38 +618,8 @@ typedef int UDS_LogLevel_t; ///< one of @ref uds_log_level_
 #define UDS_LOG_LEVEL UDS_LOG_NONE
 #endif
 
-#ifndef UDS_CONFIG_LOG_COLORS
-#define UDS_CONFIG_LOG_COLORS 0U
-#endif
-
 /// \cond DOXYGEN_SHOULD_SKIP_THIS
-#if UDS_CONFIG_LOG_COLORS
-#define UDS_LOG_COLOR_BLACK "30"
-#define UDS_LOG_COLOR_RED "31"
-#define UDS_LOG_COLOR_GREEN "32"
-#define UDS_LOG_COLOR_BROWN "33"
-#define UDS_LOG_COLOR_BLUE "34"
-#define UDS_LOG_COLOR_PURPLE "35"
-#define UDS_LOG_COLOR_CYAN "36"
-#define LOG_COLOR(COLOR) ("\033[0;" COLOR "m")
-#define LOG_BOLD(COLOR) ("\033[1;" COLOR "m")
-#define UDS_LOG_RESET_COLOR "\033[0m"
-#define UDS_LOG_COLOR_E LOG_COLOR(UDS_LOG_COLOR_RED)
-#define UDS_LOG_COLOR_W LOG_COLOR(UDS_LOG_COLOR_BROWN)
-#define UDS_LOG_COLOR_I LOG_COLOR(UDS_LOG_COLOR_GREEN)
-#define UDS_LOG_COLOR_D
-#define UDS_LOG_COLOR_V
-#else // UDS_CONFIG_LOG_COLORS
-#define UDS_LOG_COLOR_E
-#define UDS_LOG_COLOR_W
-#define UDS_LOG_COLOR_I
-#define UDS_LOG_COLOR_D
-#define UDS_LOG_COLOR_V
-#define UDS_LOG_RESET_COLOR
-#endif // UDS_CONFIG_LOG_COLORS
-
-#define UDS_LOG_FORMAT(letter, format)                                                             \
-    UDS_LOG_COLOR_##letter #letter " (%" PRIu32 ") %s: " format UDS_LOG_RESET_COLOR "\n"
+#define UDS_LOG_FORMAT(letter, format) #letter " (%" PRIu32 ") %s: " format "\n"
 
 static_assert((UDS_LOG_LEVEL == UDS_LOG_NONE) || (UDS_LOG_LEVEL == UDS_LOG_ERROR) ||
                   (UDS_LOG_LEVEL == UDS_LOG_WARN) || (UDS_LOG_LEVEL == UDS_LOG_INFO) ||
@@ -960,6 +930,7 @@ typedef struct {
     uint8_t (*copy)(UDSServer_t *srv, const void *src,
                     uint16_t count); /**< function for copying data */
 
+    /* cppcheck-suppress [misra-c2012-19.2] */
     union {
         struct {
             uint8_t mask;           /**< DTC status mask */
@@ -1098,6 +1069,7 @@ typedef struct {
                               subFunc 0x03) */
     uint16_t dynamicDataId; /**< dynamicallyDefinedDataIdentifier */
 
+    /* cppcheck-suppress [misra-c2012-19.2] */
     union {
         struct {
             uint16_t sourceDataId; /**< source DataIdentifier */

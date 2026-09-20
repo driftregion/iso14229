@@ -127,7 +127,7 @@ static UDSErr_t mock_tp_recv(struct UDSTp *hdl, uint8_t *buf, size_t bufsiz, siz
         return UDS_FAIL;
     }
     *recvlen = tp->recv_len;
-    memmove(buf, tp->recv_buf, tp->recv_len);
+    (void)memmove(buf, tp->recv_buf, tp->recv_len);
     if (info != NULL) {
         *info = tp->recv_info;
     }

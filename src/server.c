@@ -486,15 +486,12 @@ static UDSErr_t decodeAddressAndLengthAt(UDSReq_t *r, uint8_t *const buf, void *
     *memoryAddress = NULL;
     *memorySize = 0;
 
-    UDS_ASSERT((buf >= r->recv_buf) && (buf <= (r->recv_buf + sizeof(r->recv_buf))));
-
     if (r->recv_len < 3u) {
         return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
-    uint8_t memorySizeLength = (buf[0] & 0xF0u) >> 4u;
-    uint8_t memoryAddressLength = buf[0] & 0x0Fu;
-    size_t offsetBytes = offset * ((size_t)memoryAddressLength + (size_t)memorySizeLength);
+    const uint8_t memorySizeLength = (buf[0] & 0xF0u) >> 4u;
+    const uint8_t memoryAddressLength = buf[0] & 0x0Fu;
 
     if ((memorySizeLength == 0u) || (memorySizeLength > sizeof(size_t))) {
         return NegativeResponse(r, UDS_NRC_RequestOutOfRange);
@@ -504,11 +501,9 @@ static UDSErr_t decodeAddressAndLengthAt(UDSReq_t *r, uint8_t *const buf, void *
         return NegativeResponse(r, UDS_NRC_RequestOutOfRange);
     }
 
-    const ptrdiff_t bufOffsetSigned = buf - r->recv_buf;
-    UDS_ASSERT(bufOffsetSigned >= 0);
-    const size_t bufOffset = (size_t)bufOffsetSigned;
+    const size_t offsetBytes = offset * ((size_t)memoryAddressLength + (size_t)memorySizeLength);
 
-    if ((bufOffset + 1u + offsetBytes + memorySizeLength + memoryAddressLength) > r->recv_len) {
+    if ((1u + offsetBytes + memorySizeLength + memoryAddressLength) > r->recv_len) {
         return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
@@ -1467,8 +1462,9 @@ static UDSErr_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
     uint8_t sid = r->recv_buf[0];
     UDSService service = getServiceForSID(sid);
 
-    if (NULL == srv->fn)
+    if (NULL == srv->fn) {
         return NegativeResponse(r, UDS_NRC_ServiceNotSupported);
+    }
     UDS_ASSERT(srv->fn); // service handler functions will call srv->fn. it must be valid
 
     switch (sid) {
@@ -1540,10 +1536,11 @@ static UDSErr_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
             r->send_len = 1;
 
             response = EmitEvent(srv, UDS_EVT_Custom, &args);
-            if (UDS_PositiveResponse != response)
+            if (UDS_PositiveResponse != response) {
                 return NegativeResponse(r, response);
+            }
+            break;
         }
-        break;
     }
     }
 
@@ -1564,7 +1561,6 @@ static UDSErr_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
         NoResponse(r);
     } else { /* send negative or positive response */
     }
-
     return response;
 }
 

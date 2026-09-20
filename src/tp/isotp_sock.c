@@ -188,7 +188,7 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool
     }
 
     struct can_isotp_options opts;
-    memset(&opts, 0, sizeof(opts));
+    (void)memset(&opts, 0, sizeof(opts));
 
     if (functional) {
         // configure the socket as listen-only to avoid sending FC frames

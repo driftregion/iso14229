@@ -14,6 +14,7 @@ cppcheck \
  -DUDS_SYS=UDS_SYS_UNIX \
 --checkers-report=cppcheck_reports/checkers.txt \
 --library=posix \
+--check-level=exhaustive \
 2>cppcheck_reports/cppcheck.txt
 # --output-format=sarif 2> report.sarif
 

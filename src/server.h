@@ -107,6 +107,7 @@ typedef struct {
     uint8_t (*copy)(UDSServer_t *srv, const void *src,
                     uint16_t count); /**< function for copying data */
 
+    /* cppcheck-suppress [misra-c2012-19.2] */
     union {
         struct {
             uint8_t mask;           /**< DTC status mask */
@@ -245,6 +246,7 @@ typedef struct {
                               subFunc 0x03) */
     uint16_t dynamicDataId; /**< dynamicallyDefinedDataIdentifier */
 
+    /* cppcheck-suppress [misra-c2012-19.2] */
     union {
         struct {
             uint16_t sourceDataId; /**< source DataIdentifier */

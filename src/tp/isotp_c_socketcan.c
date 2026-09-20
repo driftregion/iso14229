@@ -4,6 +4,8 @@
 #include "tp/isotp_c_private.h"
 #include "tp/isotp_c.h"
 #include "tp/isotp_c_socketcan.h"
+#include "util.h"
+#include "util_private.h"
 #include <linux/can.h>
 #include <linux/can/raw.h>
 #include <net/if.h>
@@ -111,6 +113,9 @@ static void SocketCANRecv(UDSTpISOTpCSocketCAN_t *tp) {
             }
             // TODO: reject if it's longer than a single frame
             isotp_on_can_message(&tp->hdl2.func_link, frame.data, frame.can_dlc);
+        } else {
+            UDS_LOGD(__FILE__, "received frame 0x%x not matching phys or func addresses",
+                     frame.can_id);
         }
     }
 }

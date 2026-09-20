@@ -1589,15 +1589,12 @@ static UDSErr_t decodeAddressAndLengthAt(UDSReq_t *r, uint8_t *const buf, void *
     *memoryAddress = NULL;
     *memorySize = 0;
 
-    UDS_ASSERT((buf >= r->recv_buf) && (buf <= (r->recv_buf + sizeof(r->recv_buf))));
-
     if (r->recv_len < 3u) {
         return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
-    uint8_t memorySizeLength = (buf[0] & 0xF0u) >> 4u;
-    uint8_t memoryAddressLength = buf[0] & 0x0Fu;
-    size_t offsetBytes = offset * ((size_t)memoryAddressLength + (size_t)memorySizeLength);
+    const uint8_t memorySizeLength = (buf[0] & 0xF0u) >> 4u;
+    const uint8_t memoryAddressLength = buf[0] & 0x0Fu;
 
     if ((memorySizeLength == 0u) || (memorySizeLength > sizeof(size_t))) {
         return NegativeResponse(r, UDS_NRC_RequestOutOfRange);
@@ -1607,11 +1604,9 @@ static UDSErr_t decodeAddressAndLengthAt(UDSReq_t *r, uint8_t *const buf, void *
         return NegativeResponse(r, UDS_NRC_RequestOutOfRange);
     }
 
-    const ptrdiff_t bufOffsetSigned = buf - r->recv_buf;
-    UDS_ASSERT(bufOffsetSigned >= 0);
-    const size_t bufOffset = (size_t)bufOffsetSigned;
+    const size_t offsetBytes = offset * ((size_t)memoryAddressLength + (size_t)memorySizeLength);
 
-    if ((bufOffset + 1u + offsetBytes + memorySizeLength + memoryAddressLength) > r->recv_len) {
+    if ((1u + offsetBytes + memorySizeLength + memoryAddressLength) > r->recv_len) {
         return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
@@ -2570,8 +2565,9 @@ static UDSErr_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
     uint8_t sid = r->recv_buf[0];
     UDSService service = getServiceForSID(sid);
 
-    if (NULL == srv->fn)
+    if (NULL == srv->fn) {
         return NegativeResponse(r, UDS_NRC_ServiceNotSupported);
+    }
     UDS_ASSERT(srv->fn); // service handler functions will call srv->fn. it must be valid
 
     switch (sid) {
@@ -2643,10 +2639,11 @@ static UDSErr_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
             r->send_len = 1;
 
             response = EmitEvent(srv, UDS_EVT_Custom, &args);
-            if (UDS_PositiveResponse != response)
+            if (UDS_PositiveResponse != response) {
                 return NegativeResponse(r, response);
+            }
+            break;
         }
-        break;
     }
     }
 
@@ -2667,7 +2664,6 @@ static UDSErr_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
         NoResponse(r);
     } else { /* send negative or positive response */
     }
-
     return response;
 }
 
@@ -2817,7 +2813,7 @@ UDSErr_t UDSTpPoll(UDSTp_t *hdl) {
 uint32_t UDSMillis(void) {
 #if UDS_SYS == UDS_SYS_UNIX
     struct timeval te;
-    gettimeofday(&te, NULL); // cppcheck-suppress misra-c2012-21.6
+    gettimeofday(&te, NULL);
     long long milliseconds = (te.tv_sec * 1000LL) + (te.tv_usec / 1000);
     return (uint32_t)milliseconds;
 #elif UDS_SYS == UDS_SYS_WINDOWS
@@ -3319,6 +3315,8 @@ UDSErr_t UDSClientTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t source_addr, uint32_t
 
 
 
+
+
 #include <linux/can.h>
 #include <linux/can/raw.h>
 #include <net/if.h>
@@ -3426,6 +3424,9 @@ static void SocketCANRecv(UDSTpISOTpCSocketCAN_t *tp) {
             }
             // TODO: reject if it's longer than a single frame
             isotp_on_can_message(&tp->hdl2.func_link, frame.data, frame.can_dlc);
+        } else {
+            UDS_LOGD(__FILE__, "received frame 0x%x not matching phys or func addresses",
+                     frame.can_id);
         }
     }
 }
@@ -3673,7 +3674,7 @@ static int LinuxSockBind(const char *if_name, uint32_t rxid, uint32_t txid, bool
     }
 
     struct can_isotp_options opts;
-    memset(&opts, 0, sizeof(opts));
+    (void)memset(&opts, 0, sizeof(opts));
 
     if (functional) {
         // configure the socket as listen-only to avoid sending FC frames
@@ -3911,7 +3912,7 @@ static UDSErr_t mock_tp_recv(struct UDSTp *hdl, uint8_t *buf, size_t bufsiz, siz
         return UDS_FAIL;
     }
     *recvlen = tp->recv_len;
-    memmove(buf, tp->recv_buf, tp->recv_len);
+    (void)memmove(buf, tp->recv_buf, tp->recv_len);
     if (info != NULL) {
         *info = tp->recv_info;
     }
