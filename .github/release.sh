@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION=`cat bazel-bin/VERSION`
+VERSION=`head -n1 VERSION`
 
 gh release create $VERSION \
 "bazel-bin/iso14229.zip#iso14229.zip" \

@@ -6,9 +6,3 @@ py_binary(
     srcs=["amalgamate.py"],
     legacy_create_init = False,
 )
-
-py_binary(
-    name = "gen_version",
-    srcs = ["gen_version.py"],
-    legacy_create_init = False,
-)

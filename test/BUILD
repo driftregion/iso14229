@@ -98,11 +98,11 @@ sh_test(
 sh_test(
     name = "test_version",
     srcs = ["test_version.sh"],
-    args = ["$(locations //src:iso14229.h)"],
     data = [
-        "//src:iso14229.h",
+        "//:iso14229.h",
         "//:CHANGELOG",
         "//:Doxyfile",
+        "//:VERSION",
     ],
 )
 
