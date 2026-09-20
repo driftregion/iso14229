@@ -62,6 +62,8 @@ Env_t *EnvNew();
 void EnvFree(Env_t *e);
 void EnvRunMillis(Env_t *env, uint32_t millis);
 
+static inline bool EnvTimeAfter(uint32_t a, uint32_t b) { return (int32_t)(a - b) > 0; }
+
 #define _TEST_INT_COND(a, b, cond)                                                                 \
     {                                                                                              \
         int _a = a;                                                                                \
@@ -145,7 +147,7 @@ void EnvRunMillis(Env_t *env, uint32_t millis);
 #define EXPECT_WHILE_MS(env, cond, duration)                                                            \
     {                                                                                              \
         uint32_t deadline = UDSMillis() + duration;                                                \
-        while (UDSTimeAfter(deadline, UDSMillis())) {                                              \
+        while (EnvTimeAfter(deadline, UDSMillis())) {                                              \
             assert_true(cond);                                                                     \
             EnvRunMillis(env, 1);                                                                      \
         }                                                                                          \
@@ -159,7 +161,7 @@ void EnvRunMillis(Env_t *env, uint32_t millis);
         const float tolerance = 0.1f;                                                              \
         uint32_t pre_deadline = UDSMillis() + (int)((duration) * (1.0f - tolerance));              \
         uint32_t post_deadline = UDSMillis() + (int)((duration) * (1.0f + tolerance));             \
-        while (UDSTimeAfter(pre_deadline, UDSMillis())) {                                          \
+        while (EnvTimeAfter(pre_deadline, UDSMillis())) {                                          \
             assert_true(!(cond));                                                                  \
             EnvRunMillis(env, 1);                                                                      \
         }                                                                                          \

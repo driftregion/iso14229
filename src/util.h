@@ -6,12 +6,10 @@
 
 /**
  * @def UDS_ASSERT(x)
- * @brief define this during library development.
- * It is a no-op by default for library users.
- * API misuse is expected to be covered by runtime checks, not by UDS_ASSERT
+ * @brief used to enforce runtime invariants within iso14229
  */
 #ifndef UDS_ASSERT
-#define UDS_ASSERT(x)
+#define UDS_ASSERT(x) assert(x)
 #endif
 
 /**

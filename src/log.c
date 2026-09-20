@@ -9,7 +9,7 @@ void UDS_LogWrite(UDS_LogLevel_t level, const char *tag, const char *format, ...
     (void)level;
     (void)tag;
     va_start(list, format);
-    vprintf(format, list);
+    (void)vprintf(format, list);
     va_end(list);
 }
 

@@ -29,6 +29,8 @@ typedef struct {
     uint32_t ta_func; // target address - functional messages are sent to this address
 } ISOTPMockArgs_t;
 
+static_assert(offsetof(ISOTPMock_t, hdl) == 0u, "ISOTPMock_t must not have any members before hdl");
+
 /**
  * @brief Create a mock transport. It is connected by default to a broadcast network of all other
  * mock transports in the same process.

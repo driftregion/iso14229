@@ -11,60 +11,55 @@ static inline void PackBE(uint8_t *dst, uint64_t val, size_t n) {
 }
 
 /**
- * @brief Unpack up to sizeof(size_t) big-endian bytes from src into dst.
+ * @brief Unpack up to sizeof(size_t) big-endian bytes from src.
  * @param src buffer
- * @param dst
  * @param n ranges from 0 to sizeof(size_t) inclusive
- * @return UDS_OK if successful
+ * @return unpacked quantity
  */
-static inline UDSErr_t UnpackBEsize(const uint8_t *src, size_t *dst, size_t n) {
-    if ((NULL == src) || (NULL == dst) || (n > sizeof(*dst))) {
-        return UDS_ERR_INVALID_ARG;
-    }
+static inline size_t UnpackBEsize(const uint8_t *src, size_t n) {
+    UDS_ASSERT(src != NULL);
+    UDS_ASSERT(n <= sizeof(size_t));
+
     size_t val = 0;
     for (size_t i = 0; i < n; i++) {
         val = (val << 8) | src[i];
     }
-    *dst = val;
-    return UDS_OK;
+    return val;
 }
 
 /**
- * @brief Unpack up to sizeof(uintptr_t) big-endian bytes from src into dst.
+ * @brief Unpack up to sizeof(uintptr_t) big-endian bytes from src.
  * @param src buffer
- * @param dst
  * @param n ranges from 0 to sizeof(uintptr_t) inclusive
- * @return UDS_OK if successful
+ * @return unpacked quantity
  */
-static inline UDSErr_t UnpackBEuintptr(const uint8_t *src, uintptr_t *dst, size_t n) {
-    if ((NULL == src) || (NULL == dst) || (n > sizeof(*dst))) {
-        return UDS_ERR_INVALID_ARG;
-    }
+static inline uintptr_t UnpackBEuintptr(const uint8_t *src, size_t n) {
+    UDS_ASSERT(src != NULL);
+    UDS_ASSERT(n <= sizeof(uintptr_t));
+
     uintptr_t val = 0;
     for (size_t i = 0; i < n; i++) {
         val = (val << 8) | src[i];
     }
-    *dst = val;
-    return UDS_OK;
+    return val;
 }
 
 /**
  * @brief Unpack up to 4 big-endian bytes from src into dst as uint32_t.
  * @param src buffer
- * @param dst pointer to destination
  * @param n ranges from 0 to 4 inclusive
- * @return UDS_OK if successful
+ * @return unpacked quantity
  */
-static inline UDSErr_t UnpackBEu32(const uint8_t *src, uint32_t *dst, size_t n) {
-    if ((NULL == src) || (NULL == dst) || (n > sizeof(*dst))) {
-        return UDS_ERR_INVALID_ARG;
-    }
+static inline uint32_t UnpackBEu32(const uint8_t *src, size_t n) {
+    UDS_ASSERT(src != NULL);
+    UDS_ASSERT(n <= sizeof(uint32_t));
+
     uint32_t val = 0;
     for (size_t i = 0; i < n; i++) {
         val = (val << 8) | src[i];
     }
-    *dst = val;
-    return UDS_OK;
+
+    return val;
 }
 
 /**
@@ -79,7 +74,7 @@ static inline uint16_t UnpackBEu16(const uint8_t *src) {
 }
 
 static inline uint8_t AsResponseSID(uint8_t request_sid) {
-    UDS_ASSERT(request_sid <= UINT8_MAX - 0x40u);
+    UDS_ASSERT(request_sid <= (UINT8_MAX - 0x40u));
     return request_sid + 0x40u;
 }
 

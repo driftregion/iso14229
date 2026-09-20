@@ -1,8 +1,13 @@
-misra-c2012-15.5 // Rule 15.5 Advisory A function should have a single point of exit at the end
 // A project should not contain unused macro definitions
 misra-c2012-2.5:src/uds.h // this file declares macros intended for external use, not all of which are used internally
 
+misra-c2012-15.1 // The goto statement should not be used 
+misra-c2012-15.5 // A function should have a single point of exit at the end
+
 // Don't warn on system header contents
 *:*/usr/include/*
+
+// Hi Simon!
+*:src/tp/isotp-c/*
 
 missingIncludeSystem

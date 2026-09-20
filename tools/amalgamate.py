@@ -46,6 +46,7 @@ with open(args.out_c, "w", encoding="utf-8") as f:
 #include "iso14229.h"
 """)
     for src in [
+        "src/uds_private.h",
         "src/util_private.h",
         "src/client.c",
         "src/server.c",

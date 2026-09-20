@@ -7,7 +7,7 @@ This page lists the public compile-time configuration API
 | \ref UDS_SYS | auto-detected | \ref uds_sys_ | target system |
 | UDS_CUSTOM_MILLIS | unset | set or unset | if unset (default), iso14229 provides UDSMillis() for the detected @ref UDS_SYS platform. If set, the library user must provide their own UDSMillis() implementation. |
 | UDS_TP_ISOTP_SOCK | unset | set or unset | builds transport: Linux kernel ISO-TP socket. Suitable for linux newer than 5.10. See \ref UDSServerTpIsoTpSockInit and \ref UDSClientTpIsoTpSockInit. |
-| UDS_TP_ISOTP_C_SOCKETCAN | unset | set or unset | builds transport: isotp-c over SocketCAN. Suitable for Linux newer than 2.6.25. See \ref UDSTpISOTpCSocketCANInit. |
+| UDS_TP_ISOTP_C_SOCKETCAN | unset | set or unset | builds transport: isotp-c over SocketCAN. Suitable for Linux newer than 2.6.25. See \ref UDSServerTpISOTpCSocketCANInit and \ref UDSClientTpISOTpCSocketCANInit. |
 | UDS_TP_ISOTP_C | unset* | set or unset | builds transport: isotp-c. Suitable for *everything*, but you must bring your own CAN interface. See \ref UDSServerTpISOTpCInit, \ref UDSClientTpISOTpCInit and the \ref porting-guide. |
 | \ref UDS_LOG_LEVEL | \ref UDS_LOG_NONE | \ref uds_log_level_ | iso14229 internal log level. Set UDS_LOG_LEVEL=UDS_LOG_DEBUG for a pleasant first-time bringup experience, then turn it off when you're finished. |
 | \ref UDS_SERVER_DEFAULT_P2_MS | 50 | - | Default P2 timeout (ms) |

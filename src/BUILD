@@ -10,6 +10,7 @@ filegroup(
         "tp.c",
         "util.c",
         "util_private.h",
+        "uds_private.h",
         "tp/isotp_c_socketcan.c",
         "tp/isotp_c.c",
         "tp/isotp_mock.c",

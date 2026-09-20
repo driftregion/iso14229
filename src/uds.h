@@ -129,6 +129,7 @@ typedef enum {
     /* 0x95 to 0xEF are reservedForSpecificConditionsNotCorrect */
     /* 0xF0 to 0xFE are vehicleManufacturerSpecificConditionsNotCorrect */
     /* 0xFF is ISOSAEReserved */
+    UDS_NRC_UNUSED_ISOSAEReserved = 0xFF,
 
     // The following values are not defined in ISO14229-1:2020
     UDS_ERR_TIMEOUT = 0x100,      // A request has timed out
@@ -150,10 +151,10 @@ typedef enum {
  * @see UDSSendDiagSessCtrl UDS_EVT_DiagSessCtrl
  * @{
  */
-#define UDS_LEV_DS_DS 1    ///< Default Session
-#define UDS_LEV_DS_PRGS 2  ///< Programming Session
-#define UDS_LEV_DS_EXTDS 3 ///< Extended Diagnostic Session
-#define UDS_LEV_DS_SSDS 4  ///< Safety System Diagnostic Session
+#define UDS_LEV_DS_DS 1u    ///< Default Session
+#define UDS_LEV_DS_PRGS 2u  ///< Programming Session
+#define UDS_LEV_DS_EXTDS 3u ///< Extended Diagnostic Session
+#define UDS_LEV_DS_SSDS 4u  ///< Safety System Diagnostic Session
 /** @} */
 
 /**
@@ -162,11 +163,11 @@ typedef enum {
  * @see UDSSendECUReset UDS_EVT_ECUReset
  * @{
  */
-#define UDS_LEV_RT_HR 1      ///< Hard Reset
-#define UDS_LEV_RT_KOFFONR 2 ///< Key Off On Reset
-#define UDS_LEV_RT_SR 3      ///< Soft Reset
-#define UDS_LEV_RT_ERPSD 4   ///< Enable Rapid Power Shut Down
-#define UDS_LEV_RT_DRPSD 5   ///< Disable Rapid Power Shut Down
+#define UDS_LEV_RT_HR 1u      ///< Hard Reset
+#define UDS_LEV_RT_KOFFONR 2u ///< Key Off On Reset
+#define UDS_LEV_RT_SR 3u      ///< Soft Reset
+#define UDS_LEV_RT_ERPSD 4u   ///< Enable Rapid Power Shut Down
+#define UDS_LEV_RT_DRPSD 5u   ///< Disable Rapid Power Shut Down
 /** @} */
 
 /**
@@ -175,10 +176,10 @@ typedef enum {
  * @see UDSSendCommCtrl UDS_EVT_CommCtrl
  * @{
  */
-#define UDS_LEV_CTRLTP_ERXTX 0  ///< EnableRxAndTx
-#define UDS_LEV_CTRLTP_ERXDTX 1 ///< EnableRxAndDisableTx
-#define UDS_LEV_CTRLTP_DRXETX 2 ///< DisableRxAndEnableTx
-#define UDS_LEV_CTRLTP_DRXTX 3  ///< DisableRxAndTx
+#define UDS_LEV_CTRLTP_ERXTX 0u  ///< EnableRxAndTx
+#define UDS_LEV_CTRLTP_ERXDTX 1u ///< EnableRxAndDisableTx
+#define UDS_LEV_CTRLTP_DRXETX 2u ///< DisableRxAndEnableTx
+#define UDS_LEV_CTRLTP_DRXTX 3u  ///< DisableRxAndTx
 /** @} */
 
 /**
@@ -187,10 +188,10 @@ typedef enum {
  * @see UDSSendCommCtrl UDS_EVT_CommCtrl
  * @{
  */
-#define UDS_CTP_NCM 1   ///< NormalCommunicationMessages
-#define UDS_CTP_NWMCM 2 ///< NetworkManagementCommunicationMessages
+#define UDS_CTP_NCM 1u   ///< NormalCommunicationMessages
+#define UDS_CTP_NWMCM 2u ///< NetworkManagementCommunicationMessages
 #define UDS_CTP_NWMCM_NCM                                                                          \
-    3 ///< NetworkManagementCommunicationMessagesAndNormalCommunicationMessages
+    3u ///< NetworkManagementCommunicationMessagesAndNormalCommunicationMessages
 /** @} */
 
 /**
@@ -199,9 +200,9 @@ typedef enum {
  * @see UDSSendRoutineCtrl UDS_EVT_RoutineCtrl
  * @{
  */
-#define UDS_LEV_RCTP_STR 1  ///< StartRoutine
-#define UDS_LEV_RCTP_STPR 2 ///< StopRoutine
-#define UDS_LEV_RCTP_RRR 3  ///< RequestRoutineResults
+#define UDS_LEV_RCTP_STR 1u  ///< StartRoutine
+#define UDS_LEV_RCTP_STPR 2u ///< StopRoutine
+#define UDS_LEV_RCTP_RRR 3u  ///< RequestRoutineResults
 /** @} */
 
 /**
@@ -210,12 +211,12 @@ typedef enum {
  * @see UDSSendRequestFileTransfer UDS_EVT_RequestFileTransfer
  * @{
  */
-#define UDS_MOOP_ADDFILE 1  ///< AddFile
-#define UDS_MOOP_DELFILE 2  ///< DeleteFile
-#define UDS_MOOP_REPLFILE 3 ///< ReplaceFile
-#define UDS_MOOP_RDFILE 4   ///< ReadFile
-#define UDS_MOOP_RDDIR 5    ///< ReadDirectory
-#define UDS_MOOP_RSFILE 6   ///< ResumeFile
+#define UDS_MOOP_ADDFILE 1u  ///< AddFile
+#define UDS_MOOP_DELFILE 2u  ///< DeleteFile
+#define UDS_MOOP_REPLFILE 3u ///< ReplaceFile
+#define UDS_MOOP_RDFILE 4u   ///< ReadFile
+#define UDS_MOOP_RDDIR 5u    ///< ReadDirectory
+#define UDS_MOOP_RSFILE 6u   ///< ResumeFile
 /** @} */
 
 /**
@@ -224,8 +225,8 @@ typedef enum {
  * @see UDSSendControlDTCSetting UDS_EVT_ControlDTCSetting
  * @{
  */
-#define UDS_LEV_DTCSTP_ON 1  ///< Resume updating DTCs
-#define UDS_LEV_DTCSTP_OFF 2 ///< Stop updating DTCs
+#define UDS_LEV_DTCSTP_ON 1u  ///< Resume updating DTCs
+#define UDS_LEV_DTCSTP_OFF 2u ///< Stop updating DTCs
 /** @} */
 
 /**
@@ -234,86 +235,7 @@ typedef enum {
  * @see UDSSendLinkControl UDS_EVT_LinkControl
  * @{
  */
-#define UDS_LEV_LCTP_VMTWFP 1 ///< VerifyModeTransitionWithFixedParameter
-#define UDS_LEV_LCTP_VMTWSP 2 ///< VerifyModeTransitionWithSpecificParameter
-#define UDS_LEV_LCTP_TM 3     ///< TransitionMode
+#define UDS_LEV_LCTP_VMTWFP 1u ///< VerifyModeTransitionWithFixedParameter
+#define UDS_LEV_LCTP_VMTWSP 2u ///< VerifyModeTransitionWithSpecificParameter
+#define UDS_LEV_LCTP_TM 3u     ///< TransitionMode
 /** @} */
-
-/// ISO-14229-1:2013 Table 2
-#define UDS_MAX_DIAGNOSTIC_SERVICES 0x7F
-
-/// \cond DOXYGEN_SHOULD_SKIP_THIS
-#define UDS_NEG_RESP_LEN 3U
-#define UDS_0X10_REQ_LEN 2U
-#define UDS_0X10_RESP_LEN 6U
-#define UDS_0X11_REQ_MIN_LEN 2U
-#define UDS_0X11_RESP_BASE_LEN 2U
-#define UDS_0X14_REQ_MIN_LEN 4U
-#define UDS_0X14_RESP_BASE_LEN 1U
-#define UDS_0X19_REQ_MIN_LEN 2U
-#define UDS_0X19_RESP_BASE_LEN 2U
-#define UDS_0X23_REQ_MIN_LEN 4U
-#define UDS_0X23_RESP_BASE_LEN 1U
-#define UDS_0X22_RESP_BASE_LEN 1U
-#define UDS_0X27_REQ_BASE_LEN 2U
-#define UDS_0X27_RESP_BASE_LEN 2U
-#define UDS_0X28_REQ_BASE_LEN 3U
-#define UDS_0X28_RESP_LEN 2U
-#define UDS_0X2C_REQ_MIN_LEN 2U
-#define UDS_0X2C_RESP_BASE_LEN 2U
-#define UDS_0X2E_REQ_BASE_LEN 3U
-#define UDS_0X2E_REQ_MIN_LEN 4U
-#define UDS_0X2E_RESP_LEN 3U
-#define UDS_0X2F_REQ_MIN_LEN 4U
-#define UDS_0X2F_RESP_BASE_LEN 4U
-#define UDS_0X31_REQ_MIN_LEN 4U
-#define UDS_0X31_REQ_BASE_LEN 4U
-#define UDS_0X31_RESP_MIN_LEN 4U
-#define UDS_0X34_REQ_BASE_LEN 3U
-#define UDS_0X34_RESP_BASE_LEN 2U
-#define UDS_0X35_REQ_BASE_LEN 3U
-#define UDS_0X35_RESP_BASE_LEN 2U
-#define UDS_0X36_REQ_BASE_LEN 2U
-#define UDS_0X36_RESP_BASE_LEN 2U
-#define UDS_0X37_REQ_BASE_LEN 1U
-#define UDS_0X37_RESP_BASE_LEN 1U
-#define UDS_0X38_REQ_BASE_LEN 5U
-#define UDS_0X38_RESP_BASE_LEN 2U
-#define UDS_0X3D_REQ_MIN_LEN 5U
-#define UDS_0X3D_RESP_BASE_LEN 2U
-#define UDS_0X3E_REQ_MIN_LEN 2U
-#define UDS_0X3E_REQ_MAX_LEN 2U
-#define UDS_0X3E_RESP_LEN 2U
-#define UDS_0X85_REQ_BASE_LEN 2U
-#define UDS_0X85_RESP_LEN 2U
-#define UDS_0X87_REQ_BASE_LEN 2U
-#define UDS_0X87_RESP_LEN 2U
-
-#define UDS_SID_DIAGNOSTIC_SESSION_CONTROL 0x10u
-#define UDS_SID_ECU_RESET 0x11u
-#define UDS_SID_CLEAR_DIAGNOSTIC_INFORMATION 0x14u
-#define UDS_SID_READ_DTC_INFORMATION 0x19u
-#define UDS_SID_READ_DATA_BY_IDENTIFIER 0x22u
-#define UDS_SID_READ_MEMORY_BY_ADDRESS 0x23u
-#define UDS_SID_READ_SCALING_DATA_BY_IDENTIFIER 0x24u
-#define UDS_SID_SECURITY_ACCESS 0x27u
-#define UDS_SID_COMMUNICATION_CONTROL 0x28u
-#define UDS_SID_READ_PERIODIC_DATA_BY_IDENTIFIER 0x2Au
-#define UDS_SID_DYNAMICALLY_DEFINE_DATA_IDENTIFIER 0x2Cu
-#define UDS_SID_WRITE_DATA_BY_IDENTIFIER 0x2Eu
-#define UDS_SID_IO_CONTROL_BY_IDENTIFIER 0x2Fu
-#define UDS_SID_ROUTINE_CONTROL 0x31u
-#define UDS_SID_REQUEST_DOWNLOAD 0x34u
-#define UDS_SID_REQUEST_UPLOAD 0x35u
-#define UDS_SID_TRANSFER_DATA 0x36u
-#define UDS_SID_REQUEST_TRANSFER_EXIT 0x37u
-#define UDS_SID_REQUEST_FILE_TRANSFER 0x38u
-#define UDS_SID_WRITE_MEMORY_BY_ADDRESS 0x3Du
-#define UDS_SID_TESTER_PRESENT 0x3Eu
-#define UDS_SID_ACCESS_TIMING_PARAMETER 0x83u
-#define UDS_SID_SECURED_DATA_TRANSMISSION 0x84u
-#define UDS_SID_CONTROL_DTC_SETTING 0x85u
-#define UDS_SID_RESPONSE_ON_EVENT 0x86u
-#define UDS_SID_LINK_CONTROL 0x87u
-
-/// \endcond

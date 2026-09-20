@@ -19,10 +19,14 @@ typedef struct {
     uint8_t recv_buf[UDS_ISOTP_MTU];
     uint8_t func_send_buf[8];
     uint8_t func_recv_buf[8];
-    uint32_t phys_sa, phys_ta;
-    uint32_t func_sa, func_ta;
+    uint32_t phys_sa;
+    uint32_t phys_ta;
+    uint32_t func_sa;
+    uint32_t func_ta;
     /// \endcond
 } UDSTpISOTpC_t;
+
+static_assert(offsetof(UDSTpISOTpC_t, hdl) == 0u, "hdl must be the first member");
 
 /**
  * @brief Initialize isotp-c transport for \ref UDSServer_t

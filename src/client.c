@@ -1,6 +1,7 @@
 #include "client.h"
 #include "config.h"
 #include "uds.h"
+#include "uds_private.h"
 #include "util.h"
 #include "util_private.h"
 #include "log.h"
@@ -22,7 +23,7 @@ UDSErr_t UDSClientInit(UDSClient_t *client) {
     if (NULL == client) {
         return UDS_ERR_INVALID_ARG;
     }
-    memset(client, 0, sizeof(*client));
+    (void)memset(client, 0, sizeof(*client));
     client->state = STATE_IDLE;
     client->cfg_data_format_identifier = 0x00;
     client->cfg_file_size_parameter_length = 0x04;
@@ -127,7 +128,7 @@ static UDSErr_t HandleServerResponse(UDSClient_t *client) {
         if ((uint8_t)(UDS_NRC_RequestCorrectlyReceived_ResponsePending) == client->recv_buf[2]) {
             client->p2_timer = UDSMillis() + client->p2_star_ms;
             UDS_LOGI(__FILE__, "got RCRRP, set p2 timer to %" PRIu32 "", client->p2_timer);
-            memset(client->recv_buf, 0, sizeof(client->recv_buf));
+            (void)memset(client->recv_buf, 0, sizeof(client->recv_buf));
             client->recv_size = 0;
             changeState(client, STATE_AWAIT_RESPONSE);
             return UDS_NRC_RequestCorrectlyReceived_ResponsePending;
@@ -147,7 +148,7 @@ static UDSErr_t HandleServerResponse(UDSClient_t *client) {
 
             if (client->cfg_ignore_srv_sess_timing) {
                 changeState(client, STATE_IDLE);
-                return UDS_OK;
+                break;
             }
 
             uint16_t p2 =
@@ -170,14 +171,19 @@ static UDSErr_t HandleServerResponse(UDSClient_t *client) {
  * @param client
  */
 static UDSErr_t PollLowLevel(UDSClient_t *client) {
-    UDSErr_t err = UDS_OK;
-    UDS_ASSERT(client);
-
     if ((NULL == client) || (NULL == client->tp) || (NULL == client->tp->poll)) {
         return UDS_ERR_MISUSE;
     }
+    UDS_ASSERT(client);
+    UDS_ASSERT(client->tp);
+    UDS_ASSERT(client->tp->poll);
 
-    UDSTpPoll(client->tp);
+    UDSErr_t err = UDSTpPoll(client->tp);
+
+    if (UDS_OK != err) {
+        goto done;
+    }
+
     switch (client->state) {
     case STATE_IDLE: {
         break;
@@ -201,11 +207,11 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
             }
         }
 
-        memset(client->recv_buf, 0, sizeof(client->recv_buf));
+        (void)memset(client->recv_buf, 0, sizeof(client->recv_buf));
         client->recv_size = 0;
 
-        UDS_A_TA_Type_t ta_type = client->cfg_send_functional ? UDS_A_TA_TYPE_FUNCTIONAL
-                                                                         : UDS_A_TA_TYPE_PHYSICAL;
+        UDS_A_TA_Type_t ta_type =
+            client->cfg_send_functional ? UDS_A_TA_TYPE_FUNCTIONAL : UDS_A_TA_TYPE_PHYSICAL;
         UDSSDU_t info = {
             .A_Mtype = UDS_A_MTYPE_DIAG,
             .A_TA_Type = ta_type,
@@ -271,6 +277,7 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
         UDS_ASSERT(0);
         break;
     }
+done:
     return err;
 }
 
@@ -292,32 +299,30 @@ static UDSErr_t PreRequestCheck(UDSClient_t *client) {
     if (STATE_IDLE != client->state) {
         return UDS_ERR_BUSY;
     }
-
-    client->recv_size = 0;
-    client->send_size = 0;
-
     if (client->tp == NULL) {
         return UDS_ERR_TPORT;
     }
+    client->recv_size = 0;
+    client->send_size = 0;
     return UDS_OK;
 }
 
 UDSErr_t UDSSendBytes(UDSClient_t *client, const uint8_t *data, uint16_t size) {
     UDSErr_t err = PreRequestCheck(client);
-    if (err) {
+    if (UDS_OK != err) {
         return err;
     }
     if (size > sizeof(client->send_buf)) {
         return UDS_ERR_BUFSIZ;
     }
-    memmove(client->send_buf, data, size);
+    (void)memmove(client->send_buf, data, size);
     client->send_size = size;
     return SendRequest(client);
 }
 
 UDSErr_t UDSSendECUReset(UDSClient_t *client, uint8_t type) {
     UDSErr_t err = PreRequestCheck(client);
-    if (err) {
+    if (UDS_OK != err) {
         return err;
     }
     client->send_buf[0] = UDS_SID_ECU_RESET;
@@ -328,7 +333,7 @@ UDSErr_t UDSSendECUReset(UDSClient_t *client, uint8_t type) {
 
 UDSErr_t UDSSendDiagSessCtrl(UDSClient_t *client, uint8_t mode) {
     UDSErr_t err = PreRequestCheck(client);
-    if (err) {
+    if (UDS_OK != err) {
         return err;
     }
     client->send_buf[0] = UDS_SID_DIAGNOSTIC_SESSION_CONTROL;
@@ -339,7 +344,7 @@ UDSErr_t UDSSendDiagSessCtrl(UDSClient_t *client, uint8_t mode) {
 
 UDSErr_t UDSSendCommCtrl(UDSClient_t *client, uint8_t ctrl, uint8_t comm) {
     UDSErr_t err = PreRequestCheck(client);
-    if (err) {
+    if (UDS_OK != err) {
         return err;
     }
     client->send_buf[0] = UDS_SID_COMMUNICATION_CONTROL;
@@ -351,7 +356,7 @@ UDSErr_t UDSSendCommCtrl(UDSClient_t *client, uint8_t ctrl, uint8_t comm) {
 
 UDSErr_t UDSSendTesterPresent(UDSClient_t *client) {
     UDSErr_t err = PreRequestCheck(client);
-    if (err) {
+    if (UDS_OK != err) {
         return err;
     }
     client->send_buf[0] = UDS_SID_TESTER_PRESENT;
@@ -363,7 +368,7 @@ UDSErr_t UDSSendTesterPresent(UDSClient_t *client) {
 UDSErr_t UDSSendRDBI(UDSClient_t *client, const uint16_t *didList,
                      const uint16_t numDataIdentifiers) {
     UDSErr_t err = PreRequestCheck(client);
-    if (err) {
+    if (UDS_OK != err) {
         return err;
     }
     if ((NULL == didList) || (0u == numDataIdentifiers)) {
@@ -378,7 +383,7 @@ UDSErr_t UDSSendRDBI(UDSClient_t *client, const uint16_t *didList,
     client->send_buf[0] = UDS_SID_READ_DATA_BY_IDENTIFIER;
     for (uint16_t i = 0u; i < numDataIdentifiers; i++) {
         uint16_t offset = (uint16_t)(1u + (i * 2u));
-        PackBE(client->send_buf + offset, didList[i], 2);
+        PackBE(&client->send_buf[offset], didList[i], 2);
     }
     client->send_size = send_size;
     return SendRequest(client);
@@ -387,7 +392,7 @@ UDSErr_t UDSSendRDBI(UDSClient_t *client, const uint16_t *didList,
 UDSErr_t UDSSendWDBI(UDSClient_t *client, uint16_t dataIdentifier, const uint8_t *data,
                      uint16_t size) {
     UDSErr_t err = PreRequestCheck(client);
-    if (err) {
+    if (UDS_OK != err) {
         return err;
     }
     if ((data == NULL) || (size == 0u)) {
@@ -400,7 +405,7 @@ UDSErr_t UDSSendWDBI(UDSClient_t *client, uint16_t dataIdentifier, const uint8_t
 
     client->send_buf[0] = UDS_SID_WRITE_DATA_BY_IDENTIFIER;
     PackBE(&client->send_buf[1], dataIdentifier, 2);
-    memmove(&client->send_buf[UDS_0X2E_REQ_BASE_LEN], data, size);
+    (void)memmove(&client->send_buf[UDS_0X2E_REQ_BASE_LEN], data, size);
     client->send_size = send_size;
     return SendRequest(client);
 }
@@ -419,7 +424,7 @@ UDSErr_t UDSSendWDBI(UDSClient_t *client, uint16_t dataIdentifier, const uint8_t
 UDSErr_t UDSSendRoutineCtrl(UDSClient_t *client, uint8_t type, uint16_t routineIdentifier,
                             const uint8_t *data, uint16_t size) {
     UDSErr_t err = PreRequestCheck(client);
-    if (err) {
+    if (UDS_OK != err) {
         return err;
     }
     client->send_buf[0] = UDS_SID_ROUTINE_CONTROL;
@@ -436,7 +441,7 @@ UDSErr_t UDSSendRoutineCtrl(UDSClient_t *client, uint8_t type, uint16_t routineI
         return UDS_ERR_BUFSIZ;
     }
 
-    memmove(&client->send_buf[UDS_0X31_REQ_BASE_LEN], data, size);
+    (void)memmove(&client->send_buf[UDS_0X31_REQ_BASE_LEN], data, size);
     client->send_size = send_size;
     return SendRequest(client);
 }
@@ -456,7 +461,7 @@ UDSErr_t UDSSendRequestDownload(UDSClient_t *client, uint8_t dataFormatIdentifie
                                 uint8_t addressAndLengthFormatIdentifier, size_t memoryAddress,
                                 size_t memorySize) {
     UDSErr_t err = PreRequestCheck(client);
-    if (err) {
+    if (UDS_OK != err) {
         return err;
     }
     uint8_t numMemorySizeBytes = (uint8_t)((addressAndLengthFormatIdentifier & 0xF0u) >> 4u);
@@ -493,7 +498,7 @@ UDSErr_t UDSSendRequestUpload(UDSClient_t *client, uint8_t dataFormatIdentifier,
                               uint8_t addressAndLengthFormatIdentifier, size_t memoryAddress,
                               size_t memorySize) {
     UDSErr_t err = PreRequestCheck(client);
-    if (err) {
+    if (UDS_OK != err) {
         return err;
     }
     uint8_t numMemorySizeBytes = (uint8_t)((addressAndLengthFormatIdentifier & 0xF0u) >> 4u);
@@ -527,7 +532,7 @@ UDSErr_t UDSSendRequestUpload(UDSClient_t *client, uint8_t dataFormatIdentifier,
 UDSErr_t UDSSendTransferData(UDSClient_t *client, uint8_t blockSequenceCounter,
                              const uint16_t blockLength, const uint8_t *data, uint16_t size) {
     UDSErr_t err = PreRequestCheck(client);
-    if (err) {
+    if (UDS_OK != err) {
         return err;
     }
 
@@ -542,7 +547,7 @@ UDSErr_t UDSSendTransferData(UDSClient_t *client, uint8_t blockSequenceCounter,
     }
     client->send_buf[0] = UDS_SID_TRANSFER_DATA;
     client->send_buf[1] = blockSequenceCounter;
-    memmove(&client->send_buf[UDS_0X36_REQ_BASE_LEN], data, size);
+    (void)memmove(&client->send_buf[UDS_0X36_REQ_BASE_LEN], data, size);
     UDS_LOGI(__FILE__, "size: %d, blocklength: %d", size, blockLength);
     client->send_size = UDS_0X36_REQ_BASE_LEN + (size_t)size;
     return SendRequest(client);
@@ -551,7 +556,7 @@ UDSErr_t UDSSendTransferData(UDSClient_t *client, uint8_t blockSequenceCounter,
 UDSErr_t UDSSendTransferDataStream(UDSClient_t *client, uint8_t blockSequenceCounter,
                                    const uint16_t blockLength, FILE *fd) {
     UDSErr_t err = PreRequestCheck(client);
-    if (err) {
+    if (UDS_OK != err) {
         return err;
     }
     // blockLength must include SID and sequenceCounter
@@ -571,7 +576,7 @@ UDSErr_t UDSSendTransferDataStream(UDSClient_t *client, uint8_t blockSequenceCou
     client->send_size = UDS_0X36_REQ_BASE_LEN + size_read;
 
     err = SendRequest(client);
-    done:
+done:
     return err;
 }
 
@@ -584,7 +589,7 @@ UDSErr_t UDSSendTransferDataStream(UDSClient_t *client, uint8_t blockSequenceCou
  */
 UDSErr_t UDSSendRequestTransferExit(UDSClient_t *client) {
     UDSErr_t err = PreRequestCheck(client);
-    if (err) {
+    if (UDS_OK != err) {
         return err;
     }
     client->send_buf[0] = UDS_SID_REQUEST_TRANSFER_EXIT;
@@ -596,7 +601,7 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, const uint8_t mode, con
                                     const size_t filePathLen, const size_t fileSizeUncompressed,
                                     const size_t fileSizeCompressed) {
     UDSErr_t err = PreRequestCheck(client);
-    if (err) {
+    if (UDS_OK != err) {
         return err;
     }
     if (filePath == NULL) {
@@ -641,8 +646,8 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, const uint8_t mode, con
         }
         client->send_buf[0] = UDS_SID_REQUEST_FILE_TRANSFER;
         client->send_buf[1] = mode;
-        PackBE(&client->send_buf[2], u16_filePathLen, 2);         // filePathAndNameLength
-        memmove(&client->send_buf[4], filePath, u16_filePathLen); // filePathAndName
+        PackBE(&client->send_buf[2], u16_filePathLen, 2);               // filePathAndNameLength
+        (void)memmove(&client->send_buf[4], filePath, u16_filePathLen); // filePathAndName
         client->send_buf[4u + u16_filePathLen] = client->cfg_data_format_identifier;
         client->send_buf[5u + u16_filePathLen] = client->cfg_file_size_parameter_length;
         PackBE(&client->send_buf[6u + u16_filePathLen], fileSizeUncompressed,
@@ -661,8 +666,8 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, const uint8_t mode, con
         }
         client->send_buf[0] = UDS_SID_REQUEST_FILE_TRANSFER;
         client->send_buf[1] = mode;
-        PackBE(&client->send_buf[2], u16_filePathLen, 2);         // filePathAndNameLength
-        memmove(&client->send_buf[4], filePath, u16_filePathLen); // filePathAndName
+        PackBE(&client->send_buf[2], u16_filePathLen, 2);               // filePathAndNameLength
+        (void)memmove(&client->send_buf[4], filePath, u16_filePathLen); // filePathAndName
         break;
     }
     case UDS_MOOP_RDFILE: { // MOOP = 4
@@ -673,8 +678,8 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, const uint8_t mode, con
         }
         client->send_buf[0] = UDS_SID_REQUEST_FILE_TRANSFER;
         client->send_buf[1] = mode;
-        PackBE(&client->send_buf[2], u16_filePathLen, 2);         // filePathAndNameLength
-        memmove(&client->send_buf[4], filePath, u16_filePathLen); // filePathAndName
+        PackBE(&client->send_buf[2], u16_filePathLen, 2);               // filePathAndNameLength
+        (void)memmove(&client->send_buf[4], filePath, u16_filePathLen); // filePathAndName
         client->send_buf[4u + u16_filePathLen] = client->cfg_data_format_identifier;
         break;
     }
@@ -705,33 +710,30 @@ done:
 UDSErr_t UDSCtrlDTCSetting(UDSClient_t *client, uint8_t dtcSettingType, const uint8_t *data,
                            uint16_t size) {
     UDSErr_t err = PreRequestCheck(client);
-    if (err) {
+    if (UDS_OK != err) {
         return err;
     }
 
     // these are reserved values
     if ((0x00u == dtcSettingType) || (0x7Fu == dtcSettingType) ||
-        (0x03u <= dtcSettingType && dtcSettingType <= 0x3Fu)) {
+        ((0x03u <= dtcSettingType) && (dtcSettingType <= 0x3Fu))) {
         return UDS_ERR_INVALID_ARG;
+    }
+
+    if ((size != 0u) && (NULL == data)) {
+        return UDS_ERR_INVALID_ARG;
+    }
+
+    const size_t send_size = 2u + (size_t)size;
+    if (send_size > sizeof(client->send_buf)) {
+        return UDS_ERR_BUFSIZ;
     }
 
     client->send_buf[0] = UDS_SID_CONTROL_DTC_SETTING;
     client->send_buf[1] = dtcSettingType;
+    (void)memmove(&client->send_buf[2], data, size);
 
-    if (NULL == data) {
-        if (size != 0u) {
-            return UDS_ERR_INVALID_ARG;
-        }
-    } else {
-        if (size == 0u) {
-            UDS_LOGI(__FILE__, "warning: size == 0 and data is non-null");
-        }
-        if (size > sizeof(client->send_buf) - 2u) {
-            return UDS_ERR_BUFSIZ;
-        }
-        memmove(&client->send_buf[2], data, size);
-    }
-    client->send_size = 2u + size;
+    client->send_size = send_size;
     return SendRequest(client);
 }
 
@@ -748,31 +750,27 @@ UDSErr_t UDSCtrlDTCSetting(UDSClient_t *client, uint8_t dtcSettingType, const ui
 UDSErr_t UDSSendSecurityAccess(UDSClient_t *client, uint8_t level, const uint8_t *data,
                                uint16_t size) {
     UDSErr_t err = PreRequestCheck(client);
-    if (err) {
+    if (UDS_OK != err) {
         return err;
     }
     if (UDSSecurityAccessLevelIsReserved(level)) {
         return UDS_ERR_INVALID_ARG;
     }
-    client->send_buf[0] = UDS_SID_SECURITY_ACCESS;
-    client->send_buf[1] = level;
 
-    if (size > sizeof(client->send_buf) - UDS_0X27_REQ_BASE_LEN) {
+    if ((NULL == data) && (0u != size)) {
+        return UDS_ERR_INVALID_ARG;
+    }
+
+    const size_t send_size = UDS_0X27_REQ_BASE_LEN + (size_t)size;
+    if (send_size > sizeof(client->send_buf)) {
         return UDS_ERR_BUFSIZ;
     }
-    if ((size == 0u) && (NULL != data)) {
-        UDS_LOGE(__FILE__, "size == 0 and data is non-null");
-        return UDS_ERR_INVALID_ARG;
-    }
-    if ((size > 0u) && (NULL == data)) {
-        UDS_LOGE(__FILE__, "size > 0 but data is null");
-        return UDS_ERR_INVALID_ARG;
-    }
-    if (size > 0u) {
-        memmove(&client->send_buf[UDS_0X27_REQ_BASE_LEN], data, size);
-    }
 
-    client->send_size = UDS_0X27_REQ_BASE_LEN + size;
+    client->send_buf[0] = UDS_SID_SECURITY_ACCESS;
+    client->send_buf[1] = level;
+    (void)memmove(&client->send_buf[UDS_0X27_REQ_BASE_LEN], data, size);
+
+    client->send_size = send_size;
     return SendRequest(client);
 }
 
@@ -848,17 +846,12 @@ UDSErr_t UDSUnpackRequestDownloadResponse(const UDSClient_t *client,
         return UDS_ERR_RESP_TOO_SHORT;
     }
     uint8_t mnrobSize = (client->recv_buf[1] & 0xF0u) >> 4u;
-    UDS_ASSERT(mnrobSize <= 15);
+    UDS_ASSERT(mnrobSize <= 15u);
 
     if (client->recv_size < (2u + mnrobSize)) {
         return UDS_ERR_RESP_TOO_SHORT;
     }
-
-    UDSErr_t err =
-        UnpackBEu32(&client->recv_buf[UDS_0X34_RESP_BASE_LEN], &resp->maxBlockLength, mnrobSize);
-    if (err) {
-        return err;
-    }
+    resp->maxBlockLength = UnpackBEu32(&client->recv_buf[UDS_0X34_RESP_BASE_LEN], mnrobSize);
 
     return UDS_OK;
 }
@@ -898,8 +891,8 @@ UDSErr_t UDSUnpackRDBIResponse(UDSClient_t *client, UDSRDBIVar_t *vars, uint16_t
         if ((offset + sizeof(uint16_t) + vars[i].len) > client->recv_size) {
             return UDS_ERR_RESP_TOO_SHORT;
         }
-        if (vars[i].UnpackFn) {
-            vars[i].UnpackFn(vars[i].data, client->recv_buf + offset + sizeof(uint16_t),
+        if (NULL != vars[i].UnpackFn) {
+            vars[i].UnpackFn(vars[i].data, &client->recv_buf[offset + sizeof(uint16_t)],
                              vars[i].len);
         } else {
             return UDS_ERR_INVALID_ARG;

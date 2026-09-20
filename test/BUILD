@@ -17,7 +17,6 @@ cc_library(
             "-g",
          ],
     }),
-    defines = [ "UDS_ASSERT=assert" ]
 )
 
 cc_test(

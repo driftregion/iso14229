@@ -120,7 +120,7 @@ extern "C" {
  * @see UDSMillis
  */
 
-#define UDS_ISOTP_MTU (4095) ///< ISO-TP Maximum Transmission Unit (ISO-15764-2-2004 section 5.3.3)
+#define UDS_ISOTP_MTU (4095u) ///< ISO-TP Maximum Transmission Unit (ISO-15764-2-2004 section 5.3.3)
 
 #ifndef UDS_TP_MTU
 /// ISOTP is the only supported tp type, so UDS inherits its MTU
@@ -192,12 +192,12 @@ static_assert((0 < UDS_SERVER_DEFAULT_P2_MS) &&
 
 /// Amount of time to wait after boot before accepting 0x27 requests.
 #ifndef UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_BOOT_DELAY_MS
-#define UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_BOOT_DELAY_MS (1000)
+#define UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_BOOT_DELAY_MS (1000u)
 #endif
 
 /// Amount of time to wait after an authentication failure before accepting another 0x27 request.
 #ifndef UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_AUTH_FAIL_DELAY_MS
-#define UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_AUTH_FAIL_DELAY_MS (1000)
+#define UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_AUTH_FAIL_DELAY_MS (1000u)
 #endif
 
 #ifndef UDS_SERVER_DEFAULT_XFER_DATA_MAX_BLOCKLENGTH
@@ -341,6 +341,7 @@ typedef enum {
     /* 0x95 to 0xEF are reservedForSpecificConditionsNotCorrect */
     /* 0xF0 to 0xFE are vehicleManufacturerSpecificConditionsNotCorrect */
     /* 0xFF is ISOSAEReserved */
+    UDS_NRC_UNUSED_ISOSAEReserved = 0xFF,
 
     // The following values are not defined in ISO14229-1:2020
     UDS_ERR_TIMEOUT = 0x100,      // A request has timed out
@@ -362,10 +363,10 @@ typedef enum {
  * @see UDSSendDiagSessCtrl UDS_EVT_DiagSessCtrl
  * @{
  */
-#define UDS_LEV_DS_DS 1    ///< Default Session
-#define UDS_LEV_DS_PRGS 2  ///< Programming Session
-#define UDS_LEV_DS_EXTDS 3 ///< Extended Diagnostic Session
-#define UDS_LEV_DS_SSDS 4  ///< Safety System Diagnostic Session
+#define UDS_LEV_DS_DS 1u    ///< Default Session
+#define UDS_LEV_DS_PRGS 2u  ///< Programming Session
+#define UDS_LEV_DS_EXTDS 3u ///< Extended Diagnostic Session
+#define UDS_LEV_DS_SSDS 4u  ///< Safety System Diagnostic Session
 /** @} */
 
 /**
@@ -374,11 +375,11 @@ typedef enum {
  * @see UDSSendECUReset UDS_EVT_ECUReset
  * @{
  */
-#define UDS_LEV_RT_HR 1      ///< Hard Reset
-#define UDS_LEV_RT_KOFFONR 2 ///< Key Off On Reset
-#define UDS_LEV_RT_SR 3      ///< Soft Reset
-#define UDS_LEV_RT_ERPSD 4   ///< Enable Rapid Power Shut Down
-#define UDS_LEV_RT_DRPSD 5   ///< Disable Rapid Power Shut Down
+#define UDS_LEV_RT_HR 1u      ///< Hard Reset
+#define UDS_LEV_RT_KOFFONR 2u ///< Key Off On Reset
+#define UDS_LEV_RT_SR 3u      ///< Soft Reset
+#define UDS_LEV_RT_ERPSD 4u   ///< Enable Rapid Power Shut Down
+#define UDS_LEV_RT_DRPSD 5u   ///< Disable Rapid Power Shut Down
 /** @} */
 
 /**
@@ -387,10 +388,10 @@ typedef enum {
  * @see UDSSendCommCtrl UDS_EVT_CommCtrl
  * @{
  */
-#define UDS_LEV_CTRLTP_ERXTX 0  ///< EnableRxAndTx
-#define UDS_LEV_CTRLTP_ERXDTX 1 ///< EnableRxAndDisableTx
-#define UDS_LEV_CTRLTP_DRXETX 2 ///< DisableRxAndEnableTx
-#define UDS_LEV_CTRLTP_DRXTX 3  ///< DisableRxAndTx
+#define UDS_LEV_CTRLTP_ERXTX 0u  ///< EnableRxAndTx
+#define UDS_LEV_CTRLTP_ERXDTX 1u ///< EnableRxAndDisableTx
+#define UDS_LEV_CTRLTP_DRXETX 2u ///< DisableRxAndEnableTx
+#define UDS_LEV_CTRLTP_DRXTX 3u  ///< DisableRxAndTx
 /** @} */
 
 /**
@@ -399,10 +400,10 @@ typedef enum {
  * @see UDSSendCommCtrl UDS_EVT_CommCtrl
  * @{
  */
-#define UDS_CTP_NCM 1   ///< NormalCommunicationMessages
-#define UDS_CTP_NWMCM 2 ///< NetworkManagementCommunicationMessages
+#define UDS_CTP_NCM 1u   ///< NormalCommunicationMessages
+#define UDS_CTP_NWMCM 2u ///< NetworkManagementCommunicationMessages
 #define UDS_CTP_NWMCM_NCM                                                                          \
-    3 ///< NetworkManagementCommunicationMessagesAndNormalCommunicationMessages
+    3u ///< NetworkManagementCommunicationMessagesAndNormalCommunicationMessages
 /** @} */
 
 /**
@@ -411,9 +412,9 @@ typedef enum {
  * @see UDSSendRoutineCtrl UDS_EVT_RoutineCtrl
  * @{
  */
-#define UDS_LEV_RCTP_STR 1  ///< StartRoutine
-#define UDS_LEV_RCTP_STPR 2 ///< StopRoutine
-#define UDS_LEV_RCTP_RRR 3  ///< RequestRoutineResults
+#define UDS_LEV_RCTP_STR 1u  ///< StartRoutine
+#define UDS_LEV_RCTP_STPR 2u ///< StopRoutine
+#define UDS_LEV_RCTP_RRR 3u  ///< RequestRoutineResults
 /** @} */
 
 /**
@@ -422,12 +423,12 @@ typedef enum {
  * @see UDSSendRequestFileTransfer UDS_EVT_RequestFileTransfer
  * @{
  */
-#define UDS_MOOP_ADDFILE 1  ///< AddFile
-#define UDS_MOOP_DELFILE 2  ///< DeleteFile
-#define UDS_MOOP_REPLFILE 3 ///< ReplaceFile
-#define UDS_MOOP_RDFILE 4   ///< ReadFile
-#define UDS_MOOP_RDDIR 5    ///< ReadDirectory
-#define UDS_MOOP_RSFILE 6   ///< ResumeFile
+#define UDS_MOOP_ADDFILE 1u  ///< AddFile
+#define UDS_MOOP_DELFILE 2u  ///< DeleteFile
+#define UDS_MOOP_REPLFILE 3u ///< ReplaceFile
+#define UDS_MOOP_RDFILE 4u   ///< ReadFile
+#define UDS_MOOP_RDDIR 5u    ///< ReadDirectory
+#define UDS_MOOP_RSFILE 6u   ///< ResumeFile
 /** @} */
 
 /**
@@ -436,8 +437,8 @@ typedef enum {
  * @see UDSSendControlDTCSetting UDS_EVT_ControlDTCSetting
  * @{
  */
-#define UDS_LEV_DTCSTP_ON 1  ///< Resume updating DTCs
-#define UDS_LEV_DTCSTP_OFF 2 ///< Stop updating DTCs
+#define UDS_LEV_DTCSTP_ON 1u  ///< Resume updating DTCs
+#define UDS_LEV_DTCSTP_OFF 2u ///< Stop updating DTCs
 /** @} */
 
 /**
@@ -446,89 +447,10 @@ typedef enum {
  * @see UDSSendLinkControl UDS_EVT_LinkControl
  * @{
  */
-#define UDS_LEV_LCTP_VMTWFP 1 ///< VerifyModeTransitionWithFixedParameter
-#define UDS_LEV_LCTP_VMTWSP 2 ///< VerifyModeTransitionWithSpecificParameter
-#define UDS_LEV_LCTP_TM 3     ///< TransitionMode
+#define UDS_LEV_LCTP_VMTWFP 1u ///< VerifyModeTransitionWithFixedParameter
+#define UDS_LEV_LCTP_VMTWSP 2u ///< VerifyModeTransitionWithSpecificParameter
+#define UDS_LEV_LCTP_TM 3u     ///< TransitionMode
 /** @} */
-
-/// ISO-14229-1:2013 Table 2
-#define UDS_MAX_DIAGNOSTIC_SERVICES 0x7F
-
-/// \cond DOXYGEN_SHOULD_SKIP_THIS
-#define UDS_NEG_RESP_LEN 3U
-#define UDS_0X10_REQ_LEN 2U
-#define UDS_0X10_RESP_LEN 6U
-#define UDS_0X11_REQ_MIN_LEN 2U
-#define UDS_0X11_RESP_BASE_LEN 2U
-#define UDS_0X14_REQ_MIN_LEN 4U
-#define UDS_0X14_RESP_BASE_LEN 1U
-#define UDS_0X19_REQ_MIN_LEN 2U
-#define UDS_0X19_RESP_BASE_LEN 2U
-#define UDS_0X23_REQ_MIN_LEN 4U
-#define UDS_0X23_RESP_BASE_LEN 1U
-#define UDS_0X22_RESP_BASE_LEN 1U
-#define UDS_0X27_REQ_BASE_LEN 2U
-#define UDS_0X27_RESP_BASE_LEN 2U
-#define UDS_0X28_REQ_BASE_LEN 3U
-#define UDS_0X28_RESP_LEN 2U
-#define UDS_0X2C_REQ_MIN_LEN 2U
-#define UDS_0X2C_RESP_BASE_LEN 2U
-#define UDS_0X2E_REQ_BASE_LEN 3U
-#define UDS_0X2E_REQ_MIN_LEN 4U
-#define UDS_0X2E_RESP_LEN 3U
-#define UDS_0X2F_REQ_MIN_LEN 4U
-#define UDS_0X2F_RESP_BASE_LEN 4U
-#define UDS_0X31_REQ_MIN_LEN 4U
-#define UDS_0X31_REQ_BASE_LEN 4U
-#define UDS_0X31_RESP_MIN_LEN 4U
-#define UDS_0X34_REQ_BASE_LEN 3U
-#define UDS_0X34_RESP_BASE_LEN 2U
-#define UDS_0X35_REQ_BASE_LEN 3U
-#define UDS_0X35_RESP_BASE_LEN 2U
-#define UDS_0X36_REQ_BASE_LEN 2U
-#define UDS_0X36_RESP_BASE_LEN 2U
-#define UDS_0X37_REQ_BASE_LEN 1U
-#define UDS_0X37_RESP_BASE_LEN 1U
-#define UDS_0X38_REQ_BASE_LEN 5U
-#define UDS_0X38_RESP_BASE_LEN 2U
-#define UDS_0X3D_REQ_MIN_LEN 5U
-#define UDS_0X3D_RESP_BASE_LEN 2U
-#define UDS_0X3E_REQ_MIN_LEN 2U
-#define UDS_0X3E_REQ_MAX_LEN 2U
-#define UDS_0X3E_RESP_LEN 2U
-#define UDS_0X85_REQ_BASE_LEN 2U
-#define UDS_0X85_RESP_LEN 2U
-#define UDS_0X87_REQ_BASE_LEN 2U
-#define UDS_0X87_RESP_LEN 2U
-
-#define UDS_SID_DIAGNOSTIC_SESSION_CONTROL 0x10u
-#define UDS_SID_ECU_RESET 0x11u
-#define UDS_SID_CLEAR_DIAGNOSTIC_INFORMATION 0x14u
-#define UDS_SID_READ_DTC_INFORMATION 0x19u
-#define UDS_SID_READ_DATA_BY_IDENTIFIER 0x22u
-#define UDS_SID_READ_MEMORY_BY_ADDRESS 0x23u
-#define UDS_SID_READ_SCALING_DATA_BY_IDENTIFIER 0x24u
-#define UDS_SID_SECURITY_ACCESS 0x27u
-#define UDS_SID_COMMUNICATION_CONTROL 0x28u
-#define UDS_SID_READ_PERIODIC_DATA_BY_IDENTIFIER 0x2Au
-#define UDS_SID_DYNAMICALLY_DEFINE_DATA_IDENTIFIER 0x2Cu
-#define UDS_SID_WRITE_DATA_BY_IDENTIFIER 0x2Eu
-#define UDS_SID_IO_CONTROL_BY_IDENTIFIER 0x2Fu
-#define UDS_SID_ROUTINE_CONTROL 0x31u
-#define UDS_SID_REQUEST_DOWNLOAD 0x34u
-#define UDS_SID_REQUEST_UPLOAD 0x35u
-#define UDS_SID_TRANSFER_DATA 0x36u
-#define UDS_SID_REQUEST_TRANSFER_EXIT 0x37u
-#define UDS_SID_REQUEST_FILE_TRANSFER 0x38u
-#define UDS_SID_WRITE_MEMORY_BY_ADDRESS 0x3Du
-#define UDS_SID_TESTER_PRESENT 0x3Eu
-#define UDS_SID_ACCESS_TIMING_PARAMETER 0x83u
-#define UDS_SID_SECURED_DATA_TRANSMISSION 0x84u
-#define UDS_SID_CONTROL_DTC_SETTING 0x85u
-#define UDS_SID_RESPONSE_ON_EVENT 0x86u
-#define UDS_SID_LINK_CONTROL 0x87u
-
-/// \endcond
 
 
 #ifdef UDS_LINES
@@ -547,18 +469,18 @@ typedef enum {
 /** private: transport message type
  * @defgroup uds_a_mtype
  */
-#define UDS_A_MTYPE_DIAG 0
-#define UDS_A_MTYPE_REMOTE_DIAG 1
-#define UDS_A_MTYPE_SECURE_DIAG 2
-#define UDS_A_MTYPE_SECURE_REMOTE_DIAG 3
+#define UDS_A_MTYPE_DIAG 0u
+#define UDS_A_MTYPE_REMOTE_DIAG 1u
+#define UDS_A_MTYPE_SECURE_DIAG 2u
+#define UDS_A_MTYPE_SECURE_REMOTE_DIAG 3u
 
 typedef uint8_t UDS_A_Mtype_t; ///< private: oneof @ref uds_a_mtype
 
 /** private: transport transmission type
  * @defgroup uds_a_ta_type
  */
-#define UDS_A_TA_TYPE_PHYSICAL 0   // unicast (1:1)
-#define UDS_A_TA_TYPE_FUNCTIONAL 1 // multicast
+#define UDS_A_TA_TYPE_PHYSICAL 0u   // unicast (1:1)
+#define UDS_A_TA_TYPE_FUNCTIONAL 1u // multicast
 
 typedef uint8_t UDS_A_TA_Type_t; ///< private: oneof @ref uds_a_ta_type
 
@@ -639,21 +561,11 @@ UDSErr_t UDSTpPoll(UDSTp_t *hdl);   ///< call this at <5ms intervals
 
 /**
  * @def UDS_ASSERT(x)
- * @brief define this during library development.
- * It is a no-op by default for library users.
- * API misuse is expected to be covered by runtime checks, not by UDS_ASSERT
+ * @brief used to enforce runtime invariants within iso14229
  */
 #ifndef UDS_ASSERT
-#define UDS_ASSERT(x)
+#define UDS_ASSERT(x) assert(x)
 #endif
-
-/**
- * @brief Check whether one timestamp is after another, correctly handling wrap-around
- * @param a: timestamp to check
- * @param b: reference timestamp
- * @return true if `a` is after `b`
- */
-static inline bool UDSTimeAfter(uint32_t a, uint32_t b) { return (int32_t)(a - b) > 0; }
 
 /**
  * @brief Get time in milliseconds
@@ -706,6 +618,10 @@ typedef int UDS_LogLevel_t; ///< one of @ref uds_log_level_
 #define UDS_LOG_LEVEL UDS_LOG_NONE
 #endif
 
+#ifndef UDS_CONFIG_LOG_COLORS
+#define UDS_CONFIG_LOG_COLORS 0U
+#endif
+
 /// \cond DOXYGEN_SHOULD_SKIP_THIS
 #if UDS_CONFIG_LOG_COLORS
 #define UDS_LOG_COLOR_BLACK "30"
@@ -715,8 +631,8 @@ typedef int UDS_LogLevel_t; ///< one of @ref uds_log_level_
 #define UDS_LOG_COLOR_BLUE "34"
 #define UDS_LOG_COLOR_PURPLE "35"
 #define UDS_LOG_COLOR_CYAN "36"
-#define LOG_COLOR(COLOR) "\033[0;" COLOR "m"
-#define LOG_BOLD(COLOR) "\033[1;" COLOR "m"
+#define LOG_COLOR(COLOR) ("\033[0;" COLOR "m")
+#define LOG_BOLD(COLOR) ("\033[1;" COLOR "m")
 #define UDS_LOG_RESET_COLOR "\033[0m"
 #define UDS_LOG_COLOR_E LOG_COLOR(UDS_LOG_COLOR_RED)
 #define UDS_LOG_COLOR_W LOG_COLOR(UDS_LOG_COLOR_BROWN)
@@ -735,9 +651,9 @@ typedef int UDS_LogLevel_t; ///< one of @ref uds_log_level_
 #define UDS_LOG_FORMAT(letter, format)                                                             \
     UDS_LOG_COLOR_##letter #letter " (%" PRIu32 ") %s: " format UDS_LOG_RESET_COLOR "\n"
 
-static_assert(UDS_LOG_LEVEL == UDS_LOG_NONE || UDS_LOG_LEVEL == UDS_LOG_ERROR ||
-                  UDS_LOG_LEVEL == UDS_LOG_WARN || UDS_LOG_LEVEL == UDS_LOG_INFO ||
-                  UDS_LOG_LEVEL == UDS_LOG_DEBUG || UDS_LOG_LEVEL == UDS_LOG_VERBOSE,
+static_assert((UDS_LOG_LEVEL == UDS_LOG_NONE) || (UDS_LOG_LEVEL == UDS_LOG_ERROR) ||
+                  (UDS_LOG_LEVEL == UDS_LOG_WARN) || (UDS_LOG_LEVEL == UDS_LOG_INFO) ||
+                  (UDS_LOG_LEVEL == UDS_LOG_DEBUG) || (UDS_LOG_LEVEL == UDS_LOG_VERBOSE),
               "unknown log level");
 
 #if UDS_LOG_LEVEL >= UDS_LOG_ERROR && UDS_LOG_LEVEL != UDS_LOG_NONE
@@ -816,29 +732,26 @@ static inline void UDS_LogSDUDummy(const char *tag, const uint8_t *buffer, size_
 
 
 
-#define UDS_SUPPRESS_POS_RESP 0x1u  ///< set the suppress positive response bit
-#define UDS_FUNCTIONAL 0x2u         ///< send the request as a functional request
-#define UDS_IGNORE_SRV_TIMINGS 0x8u ///< ignore the server-provided p2 and p2_star
-
 /**
  * @brief UDS client structure
  */
 typedef struct UDSClient {
-    uint16_t p2_ms;      /**< p2 timeout in milliseconds */
-    uint32_t p2_star_ms; /**< p2* timeout in milliseconds (for 0x78 response) */
-    UDSTp_t *tp;         /**< transport layer handle */
-
-    uint32_t p2_timer; /**< p2 timer value */
-    uint8_t state;     /**< client request state, @see client_request_states */
-
-    uint8_t options;                        /**< current request options */
-    uint8_t defaultOptions;                 /**< default options for all requests */
-    uint8_t _options_copy;                  /**< copy of options at the time a request is made */
+    // User-facing configuration options
+    UDSTp_t *tp; /**< transport layer handle */
+    int (*fn)(struct UDSClient *client, UDSEvent_t evt, void *ev_data); /**< callback function */
+    void *fn_data;                      /**< user-specified function data */
+    unsigned cfg_suppress_pos_resp : 1; /**< suppress positive responses from the server  */
+    unsigned cfg_send_functional : 1;   /**< send functional (broadcast) requests */
+    unsigned cfg_ignore_srv_sess_timing
+        : 1; /**< do not heed the P2 and P2* timings sent by the server  */
     uint8_t cfg_data_format_identifier;     /**< 0x38 RequestFileTransfer dataFormatIdentifier */
     uint8_t cfg_file_size_parameter_length; /**< 0x38 RequestFileTransfer fileSizeParameterLength */
 
-    int (*fn)(struct UDSClient *client, UDSEvent_t evt, void *ev_data); /**< callback function */
-    void *fn_data; /**< user-specified function data */
+    // private members
+    uint16_t p2_ms;      /**< p2 timeout in milliseconds */
+    uint32_t p2_star_ms; /**< p2* timeout in milliseconds (for 0x78 response) */
+    uint32_t p2_timer;   /**< p2 timer value */
+    uint8_t state;       /**< client request state, @see client_request_states */
 
     size_t recv_size;                           /**< size of received data */
     size_t send_size;                           /**< size of data to send */
@@ -917,7 +830,8 @@ UDSErr_t
 UDSSendRequestTransferExit(UDSClient_t *client); ///< Call this when finished with TransferData
 
 UDSErr_t UDSSendRequestFileTransfer(
-    UDSClient_t *client, uint8_t mode, const char *filePath, size_t fileSizeUncompressed,
+    UDSClient_t *client, uint8_t mode, const char *filePath, size_t filePathLen,
+    size_t fileSizeUncompressed,
     size_t fileSizeCompressed); ///< filesystem-based frontend to TransferData
 UDSErr_t UDSCtrlDTCSetting(UDSClient_t *client, uint8_t dtcSettingType,
                            const uint8_t *dtcSettingControlOptionRecord,
@@ -1049,36 +963,49 @@ typedef struct {
     union {
         struct {
             uint8_t mask;           /**< DTC status mask */
-        } numOfDTCByStatusMaskArgs, /**< args for number of DTCs by status mask */
-            dtcStatusByMaskArgs;    /**< args for DTCs by status mask */
+        } numOfDTCByStatusMaskArgs; /**< args for number of DTCs by status mask */
+        struct {
+            uint8_t mask;      /**< DTC status mask */
+        } dtcStatusByMaskArgs; /**< args for DTCs by status mask */
         struct {
             uint32_t dtc;                /**< DTC Mask Record */
             uint8_t snapshotNum;         /**< DTC Snaphot Record Number */
-            uint8_t memory;              /**< Memory Selection (only used when type == 0x18) */
-        } dtcSnapshotRecordbyDTCNumArgs, /**< args for DTC snapshot record by DTC number */
-            userDefMemDTCSnapshotRecordByDTCNumArgs; /**< args for user-defined-memory DTC snapshot
-                                                         record by DTC number */
+        } dtcSnapshotRecordbyDTCNumArgs; /**< args for DTC snapshot record by DTC number */
         struct {
-            uint8_t recordNum;               /**< DTC Data Record Number */
-        } dtcStoredDataByRecordNumArgs,      /**< args for DTC stored data by record number */
-            dtcExtDataRecordByRecordNumArgs, /**< args for DTC extended data record by record number
-                                              */
-            dtcExtDataRecordIdArgs;          /**< args for supported DTC extended data record ID */
+            uint32_t dtc;                          /**< DTC Mask Record */
+            uint8_t snapshotNum;                   /**< DTC Snaphot Record Number */
+            uint8_t memory;                        /**< Memory Selection */
+        } userDefMemDTCSnapshotRecordByDTCNumArgs; /**< args for user-defined-memory DTC snapshot
+                                                      record by DTC number */
+        struct {
+            uint8_t recordNum;          /**< DTC Data Record Number */
+        } dtcStoredDataByRecordNumArgs; /**< args for DTC stored data by record number */
+        struct {
+            uint8_t recordNum;             /**< DTC Data Record Number */
+        } dtcExtDataRecordByRecordNumArgs; /**< args for DTC extended data record by record number
+                                            */
+        struct {
+            uint8_t recordNum;    /**< DTC Data Record Number */
+        } dtcExtDataRecordIdArgs; /**< args for supported DTC extended data record ID */
         struct {
             uint32_t dtc;              /**< DTC Mask Record */
             uint8_t extDataRecNum;     /**< DTC Extended Data Record Number */
-            uint8_t memory;            /**< Memory Selection (only used when type == 0x19) */
-        } dtcExtDtaRecordByDTCNumArgs, /**< args for DTC extended data record by DTC number */
-            userDefMemDTCExtDataRecordByDTCNumArgs; /**< args for user-defined-memory DTC extended
+        } dtcExtDtaRecordByDTCNumArgs; /**< args for DTC extended data record by DTC number */
+        struct {
+            uint32_t dtc;                         /**< DTC Mask Record */
+            uint8_t extDataRecNum;                /**< DTC Extended Data Record Number */
+            uint8_t memory;                       /**< Memory Selection */
+        } userDefMemDTCExtDataRecordByDTCNumArgs; /**< args for user-defined-memory DTC extended
                                                         data record by DTC number */
         struct {
-            uint8_t
-                functionalGroup;  /**< Functional Group Identifier (only used when type == 0x42) */
-            uint8_t severityMask; /**< DTC Severity Mask */
-            uint8_t statusMask;   /**< DTC Status Mask */
-        } numOfDTCBySeverityMaskArgs, /**< args for number of DTCs by severity mask */
-            dtcBySeverityMaskArgs,    /**< args for DTCs by severity mask */
-            wwhobdDTCByMaskArgs;      /**< args for WWH-OBD DTCs by mask */
+            uint8_t severityMask;     /**< DTC Severity Mask */
+            uint8_t statusMask;       /**< DTC Status Mask */
+        } numOfDTCBySeverityMaskArgs; /**< args for number of DTCs by severity mask */
+        struct {
+            uint8_t functionalGroup; /**< Functional Group Identifier */
+            uint8_t severityMask;    /**< DTC Severity Mask */
+            uint8_t statusMask;      /**< DTC Status Mask */
+        } wwhobdDTCByMaskArgs;       /**< args for WWH-OBD DTCs by mask */
         struct {
             uint32_t dtc;        /**< DTC Mask Record */
         } severityInfoOfDTCArgs; /**< args for severity information of a DTC */
@@ -1087,11 +1014,12 @@ typedef struct {
             uint8_t memory;                 /**< Memory Selection */
         } userDefMemoryDTCByStatusMaskArgs; /**< args for user-defined-memory DTCs by status mask */
         struct {
-            uint8_t functionalGroup; /**< Functional Group Identifier */
-            uint8_t
-                readinessGroup; /**< DTC Readiness Group Identifier (only used when type == 0x56) */
-        } wwhobdDTCWithPermStatusArgs,        /**< args for WWH-OBD DTCs with permanent status */
-            dtcInfoByDTCReadinessGroupIdArgs; /**< args for DTCs by readiness group */
+            uint8_t functionalGroup;   /**< Functional Group Identifier */
+        } wwhobdDTCWithPermStatusArgs; /**< args for WWH-OBD DTCs with permanent status */
+        struct {
+            uint8_t functionalGroup;        /**< Functional Group Identifier */
+            uint8_t readinessGroup;         /**< DTC Readiness Group Identifier */
+        } dtcInfoByDTCReadinessGroupIdArgs; /**< args for DTCs by readiness group */
     } subFuncArgs; /**< subfunction-specific arguments, selected by \ref type */
 } UDSRDTCIArgs_t;
 
@@ -2329,10 +2257,14 @@ typedef struct {
     uint8_t recv_buf[UDS_ISOTP_MTU];
     uint8_t func_send_buf[8];
     uint8_t func_recv_buf[8];
-    uint32_t phys_sa, phys_ta;
-    uint32_t func_sa, func_ta;
+    uint32_t phys_sa;
+    uint32_t phys_ta;
+    uint32_t func_sa;
+    uint32_t func_ta;
     /// \endcond
 } UDSTpISOTpC_t;
+
+static_assert(offsetof(UDSTpISOTpC_t, hdl) == 0u, "hdl must be the first member");
 
 /**
  * @brief Initialize isotp-c transport for \ref UDSServer_t
@@ -2382,6 +2314,8 @@ typedef struct {
     /// \endcond
 } UDSTpISOTpCSocketCAN_t;
 
+static_assert(offsetof(UDSTpISOTpCSocketCAN_t, hdl2) == 0u, "hdl must be the first member");
+
 /**
  * @brief Initialize isotp-c over SocketCAN transport for \ref UDSServer_t
  * @param tp \ref UDSTpISOTpSocketCAN_t instance.
@@ -2429,11 +2363,15 @@ typedef struct {
     UDSSDU_t recv_info;
     int phys_fd;
     int func_fd;
-    uint32_t phys_sa, phys_ta;
-    uint32_t func_sa, func_ta;
+    uint32_t phys_sa;
+    uint32_t phys_ta;
+    uint32_t func_sa;
+    uint32_t func_ta;
     char tag[16];
     /// \endcond
 } UDSTpIsoTpSock_t;
+
+static_assert(offsetof(UDSTpIsoTpSock_t, hdl) == 0u, "hdl must be the first member");
 
 UDSErr_t UDSServerTpIsoTpSockInit(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
                                   uint32_t target_addr,
@@ -2478,6 +2416,8 @@ typedef struct {
     uint32_t sa_func; // source address - functional messages are sent from this address
     uint32_t ta_func; // target address - functional messages are sent to this address
 } ISOTPMockArgs_t;
+
+static_assert(offsetof(ISOTPMock_t, hdl) == 0u, "ISOTPMock_t must not have any members before hdl");
 
 /**
  * @brief Create a mock transport. It is connected by default to a broadcast network of all other

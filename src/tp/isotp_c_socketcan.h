@@ -16,6 +16,8 @@ typedef struct {
     /// \endcond
 } UDSTpISOTpCSocketCAN_t;
 
+static_assert(offsetof(UDSTpISOTpCSocketCAN_t, hdl2) == 0u, "hdl must be the first member");
+
 /**
  * @brief Initialize isotp-c over SocketCAN transport for \ref UDSServer_t
  * @param tp \ref UDSTpISOTpSocketCAN_t instance.

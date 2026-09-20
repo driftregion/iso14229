@@ -110,36 +110,49 @@ typedef struct {
     union {
         struct {
             uint8_t mask;           /**< DTC status mask */
-        } numOfDTCByStatusMaskArgs, /**< args for number of DTCs by status mask */
-            dtcStatusByMaskArgs;    /**< args for DTCs by status mask */
+        } numOfDTCByStatusMaskArgs; /**< args for number of DTCs by status mask */
+        struct {
+            uint8_t mask;      /**< DTC status mask */
+        } dtcStatusByMaskArgs; /**< args for DTCs by status mask */
         struct {
             uint32_t dtc;                /**< DTC Mask Record */
             uint8_t snapshotNum;         /**< DTC Snaphot Record Number */
-            uint8_t memory;              /**< Memory Selection (only used when type == 0x18) */
-        } dtcSnapshotRecordbyDTCNumArgs, /**< args for DTC snapshot record by DTC number */
-            userDefMemDTCSnapshotRecordByDTCNumArgs; /**< args for user-defined-memory DTC snapshot
-                                                         record by DTC number */
+        } dtcSnapshotRecordbyDTCNumArgs; /**< args for DTC snapshot record by DTC number */
         struct {
-            uint8_t recordNum;               /**< DTC Data Record Number */
-        } dtcStoredDataByRecordNumArgs,      /**< args for DTC stored data by record number */
-            dtcExtDataRecordByRecordNumArgs, /**< args for DTC extended data record by record number
-                                              */
-            dtcExtDataRecordIdArgs;          /**< args for supported DTC extended data record ID */
+            uint32_t dtc;                          /**< DTC Mask Record */
+            uint8_t snapshotNum;                   /**< DTC Snaphot Record Number */
+            uint8_t memory;                        /**< Memory Selection */
+        } userDefMemDTCSnapshotRecordByDTCNumArgs; /**< args for user-defined-memory DTC snapshot
+                                                      record by DTC number */
+        struct {
+            uint8_t recordNum;          /**< DTC Data Record Number */
+        } dtcStoredDataByRecordNumArgs; /**< args for DTC stored data by record number */
+        struct {
+            uint8_t recordNum;             /**< DTC Data Record Number */
+        } dtcExtDataRecordByRecordNumArgs; /**< args for DTC extended data record by record number
+                                            */
+        struct {
+            uint8_t recordNum;    /**< DTC Data Record Number */
+        } dtcExtDataRecordIdArgs; /**< args for supported DTC extended data record ID */
         struct {
             uint32_t dtc;              /**< DTC Mask Record */
             uint8_t extDataRecNum;     /**< DTC Extended Data Record Number */
-            uint8_t memory;            /**< Memory Selection (only used when type == 0x19) */
-        } dtcExtDtaRecordByDTCNumArgs, /**< args for DTC extended data record by DTC number */
-            userDefMemDTCExtDataRecordByDTCNumArgs; /**< args for user-defined-memory DTC extended
+        } dtcExtDtaRecordByDTCNumArgs; /**< args for DTC extended data record by DTC number */
+        struct {
+            uint32_t dtc;                         /**< DTC Mask Record */
+            uint8_t extDataRecNum;                /**< DTC Extended Data Record Number */
+            uint8_t memory;                       /**< Memory Selection */
+        } userDefMemDTCExtDataRecordByDTCNumArgs; /**< args for user-defined-memory DTC extended
                                                         data record by DTC number */
         struct {
-            uint8_t
-                functionalGroup;  /**< Functional Group Identifier (only used when type == 0x42) */
-            uint8_t severityMask; /**< DTC Severity Mask */
-            uint8_t statusMask;   /**< DTC Status Mask */
-        } numOfDTCBySeverityMaskArgs, /**< args for number of DTCs by severity mask */
-            dtcBySeverityMaskArgs,    /**< args for DTCs by severity mask */
-            wwhobdDTCByMaskArgs;      /**< args for WWH-OBD DTCs by mask */
+            uint8_t severityMask;     /**< DTC Severity Mask */
+            uint8_t statusMask;       /**< DTC Status Mask */
+        } numOfDTCBySeverityMaskArgs; /**< args for number of DTCs by severity mask */
+        struct {
+            uint8_t functionalGroup; /**< Functional Group Identifier */
+            uint8_t severityMask;    /**< DTC Severity Mask */
+            uint8_t statusMask;      /**< DTC Status Mask */
+        } wwhobdDTCByMaskArgs;       /**< args for WWH-OBD DTCs by mask */
         struct {
             uint32_t dtc;        /**< DTC Mask Record */
         } severityInfoOfDTCArgs; /**< args for severity information of a DTC */
@@ -148,11 +161,12 @@ typedef struct {
             uint8_t memory;                 /**< Memory Selection */
         } userDefMemoryDTCByStatusMaskArgs; /**< args for user-defined-memory DTCs by status mask */
         struct {
-            uint8_t functionalGroup; /**< Functional Group Identifier */
-            uint8_t
-                readinessGroup; /**< DTC Readiness Group Identifier (only used when type == 0x56) */
-        } wwhobdDTCWithPermStatusArgs,        /**< args for WWH-OBD DTCs with permanent status */
-            dtcInfoByDTCReadinessGroupIdArgs; /**< args for DTCs by readiness group */
+            uint8_t functionalGroup;   /**< Functional Group Identifier */
+        } wwhobdDTCWithPermStatusArgs; /**< args for WWH-OBD DTCs with permanent status */
+        struct {
+            uint8_t functionalGroup;        /**< Functional Group Identifier */
+            uint8_t readinessGroup;         /**< DTC Readiness Group Identifier */
+        } dtcInfoByDTCReadinessGroupIdArgs; /**< args for DTCs by readiness group */
     } subFuncArgs; /**< subfunction-specific arguments, selected by \ref type */
 } UDSRDTCIArgs_t;
 
