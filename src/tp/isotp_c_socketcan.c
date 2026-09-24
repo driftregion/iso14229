@@ -6,16 +6,7 @@
 #include "tp/isotp_c_socketcan.h"
 #include "util.h"
 #include "util_private.h"
-#include <linux/can.h>
-#include <linux/can/raw.h>
-#include <net/if.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <sys/ioctl.h>
-#include <unistd.h>
-#include <errno.h>
-#include <stdarg.h>
+#include "config_internal.h"
 
 static int SetupSocketCAN(const char *ifname) {
     struct sockaddr_can addr = {0};

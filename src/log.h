@@ -2,7 +2,7 @@
 
 /**
  * @brief logging for bring-up and unit tests.
- * This interface was copied from ESP-IDF.
+ * Attribution: the initial version of this API was copied from ESP-IDF.
  */
 
 #include "sys.h"
@@ -15,27 +15,20 @@
  * @brief configures logging verbosity
  * @{
  */
-#define UDS_LOG_NONE 0    /**< No log output */
-#define UDS_LOG_ERROR 1   /**< Log errors only */
-#define UDS_LOG_WARN 2    /**< Log warnings and errors */
-#define UDS_LOG_INFO 3    /**< Log info, warnings, and errors */
-#define UDS_LOG_DEBUG 4   /**< Log debug, info, warnings, and errors */
-#define UDS_LOG_VERBOSE 5 /**< Log verbose, debug, info, warnings, and errors */
+#define UDS_LOG_NONE 0U    /**< No log output */
+#define UDS_LOG_ERROR 1U   /**< Log errors only */
+#define UDS_LOG_WARN 2U    /**< Log warnings and errors */
+#define UDS_LOG_INFO 3U    /**< Log info, warnings, and errors */
+#define UDS_LOG_DEBUG 4U   /**< Log debug, info, warnings, and errors */
+#define UDS_LOG_VERBOSE 5U /**< Log verbose, debug, info, warnings, and errors */
 /** @} */
 
-typedef int UDS_LogLevel_t; ///< one of @ref uds_log_level_
+typedef unsigned int UDS_LogLevel_t; ///< one of @ref uds_log_level_
 
-/**
- * @def UDS_LOG_LEVEL
- * @brief sets the logging level
- * @see uds_log_level_ for valid values
- */
-#ifndef UDS_LOG_LEVEL
-#define UDS_LOG_LEVEL UDS_LOG_NONE
-#endif
-
+#if UDS_LOG_LEVEL > UDS_LOG_NONE
 /// \cond DOXYGEN_SHOULD_SKIP_THIS
 #define UDS_LOG_FORMAT(letter, format) #letter " (%" PRIu32 ") %s: " format "\n"
+#endif // UDS_LOG_LEVEL > UDS_LOG_NONE
 
 static_assert((UDS_LOG_LEVEL == UDS_LOG_NONE) || (UDS_LOG_LEVEL == UDS_LOG_ERROR) ||
                   (UDS_LOG_LEVEL == UDS_LOG_WARN) || (UDS_LOG_LEVEL == UDS_LOG_INFO) ||
@@ -88,11 +81,12 @@ static_assert((UDS_LOG_LEVEL == UDS_LOG_NONE) || (UDS_LOG_LEVEL == UDS_LOG_ERROR
 #endif
 
 #if UDS_LOG_LEVEL > UDS_LOG_NONE
+#define UDS_LOG_FORMAT(letter, format) #letter " (%" PRIu32 ") %s: " format "\n"
 void UDS_LogWrite(UDS_LogLevel_t level, const char *tag, const char *format, ...)
     UDS_PRINTF_FORMAT(3, 4);
 void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *buffer, size_t buflen,
                         const UDSSDU_t *info);
-#endif
+#endif // UDS_LOG_LEVEL > UDS_LOG_NONE
 
 // Dummy function that consumes arguments but does nothing
 static inline void UDS_LogDummy(const char *tag, const char *format, ...) {

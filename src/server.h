@@ -168,6 +168,7 @@ typedef struct {
             uint8_t functionalGroup;        /**< Functional Group Identifier */
             uint8_t readinessGroup;         /**< DTC Readiness Group Identifier */
         } dtcInfoByDTCReadinessGroupIdArgs; /**< args for DTCs by readiness group */
+        /* cppcheck-suppress [misra-c2012-19.2] */
     } subFuncArgs; /**< subfunction-specific arguments, selected by \ref type */
 } UDSRDTCIArgs_t;
 
@@ -257,7 +258,8 @@ typedef struct {
             void *memAddr;    /**< memory address to read from */
             size_t memSize;   /**< number of bytes to read */
         } defineByMemAddress; /**< args when defining from a memory address */
-    } subFuncArgs;            /**< subfunction-specific arguments, selected by \ref type */
+        /* cppcheck-suppress [misra-c2012-19.2] */
+    } subFuncArgs; /**< subfunction-specific arguments, selected by \ref type */
 } UDSDDDIArgs_t;
 
 /**

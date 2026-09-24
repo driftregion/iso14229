@@ -31,6 +31,13 @@ refresh_compile_commands(
 )
 
 refresh_compile_commands(
+    name = "foo_test_compile_commands",
+    targets = {
+        "//test:test_server": "",
+    }
+)
+
+refresh_compile_commands(
     name = "unamalgamated_compile_commands",
     targets = {
         "//:iso14229_unamalgamated": "",

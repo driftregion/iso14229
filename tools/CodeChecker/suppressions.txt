@@ -7,7 +7,7 @@ misra-c2012-15.5 // A function should have a single point of exit at the end
 // Don't warn on system header contents
 *:*/usr/include/*
 
-// Hi Simon!
-*:src/tp/isotp-c/*
-
 missingIncludeSystem
+
+// this project is a library
+unusedFunction

@@ -3,17 +3,7 @@
 #include "tp/isotp_sock.h"
 #include "uds.h"
 #include "log.h"
-#include <string.h>
-#include <errno.h>
-#include <linux/can.h>
-#include <linux/can/isotp.h>
-#include <net/if.h>
-#include <poll.h>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
+#include "include_private.h"
 
 static UDSErr_t isotp_sock_tp_poll(UDSTp_t *hdl) {
     const UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl; // cppcheck-suppress [misra-c2012-11.3]

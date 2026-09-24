@@ -1,27 +1,41 @@
+/**
+ * @file iso14229.h
+ * SPDX-License-Identifier: MIT
+ * @brief ISO 14229 (UDS) library
+ * @copyright Copyright (c) Nick Kirkby
+ * @see documentation at https://github.com/driftregion/iso14229
+ */
+
 #ifndef ISO14229_H
 #define ISO14229_H
 
-/**
- * @file iso14229.h
- * @brief ISO14229-1 (UDS) library
- * @copyright Copyright (c) Nick Kirkby
- * @see https://github.com/driftregion/iso14229
- */
-
 #ifdef __cplusplus
 extern "C" {
-#endif
+#endif // #ifdef __cplusplus
 
 
 #ifdef UDS_LINES
 #line 1 "src/version.h"
-#endif
+#endif // #ifdef UDS_LINES
 #define UDS_LIB_VERSION "0.10.2"
 
 
 #ifdef UDS_LINES
+#line 1 "src/include.h"
+#endif // #ifdef UDS_LINES
+
+#include <assert.h>
+#include <inttypes.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+
+
+#ifdef UDS_LINES
 #line 1 "src/sys.h"
-#endif
+#endif // #ifdef UDS_LINES
 
 /**
  * @defgroup uds_sys_ valid values of UDS_SYS
@@ -37,8 +51,7 @@ extern "C" {
 #define UDS_SYS_ZEPHYR 5
 /** @} */
 
-#if !defined(UDS_SYS)
-
+#ifndef UDS_SYS         // system auto-detection
 #if defined(__ZEPHYR__) // native_sim links w/host libc which also defines __unix__
 #define UDS_SYS UDS_SYS_ZEPHYR
 #elif defined(__unix__) || defined(__APPLE__)
@@ -53,56 +66,15 @@ extern "C" {
 #warning                                                                                           \
     "UDS_SYS was not detected, defaulting to UDS_SYS_CUSTOM. Remove this warning by defining UDS_SYS=UDS_SYS_CUSTOM in your build configuration"
 #define UDS_SYS UDS_SYS_CUSTOM
-#endif
-
-#endif
-
-#include <assert.h>
-#include <inttypes.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
-
-#if UDS_SYS == UDS_SYS_CUSTOM
-#define UDS_CUSTOM_MILLIS
-#endif // UDS_SYS == UDS_SYS_CUSTOM
-
-#if UDS_SYS == UDS_SYS_UNIX
-#include <sys/time.h>
-#include <sys/types.h>
-#include <time.h>
-#endif // if UDS_SYS == UDS_SYS_UNIX
-
-#if UDS_SYS == UDS_SYS_WINDOWS
-#include <stdlib.h>
-#include <time.h>
-#ifdef _MSC_VER
-#define strncasecmp _strnicmp
-#define strcasecmp _stricmp
-#endif // ifdef _MSC_VER
-#endif // if UDS_SYS == UDS_SYS_WINDOWS
-
-#if UDS_SYS == UDS_SYS_ARDUINO
-#include <Arduino.h>
-#define UDS_TP_ISOTP_C
-#endif // if UDS_SYS == UDS_SYS_ARDUINO
-
-#if UDS_SYS == UDS_SYS_ESP32
-#include <esp_timer.h>
-#define UDS_TP_ISOTP_C
-#endif // if UDS_SYS == UDS_SYS_ESP32
-
-#if UDS_SYS == UDS_SYS_ZEPHYR
-#include <zephyr/kernel.h>
-#define UDS_TP_ISOTP_C
-#endif // if UDS_SYS == UDS_SYS_ZEPHYR
+#endif // defined(__ZEPHYR__)
+#endif // #ifndef(UDS_SYS) // system auto-detection
 
 
 #ifdef UDS_LINES
 #line 1 "src/config.h"
-#endif
+#endif // #ifdef UDS_LINES
+
+
 
 /**
  * @def UDS_SYS
@@ -119,6 +91,16 @@ extern "C" {
  *
  * @see UDSMillis
  */
+
+/**
+ * @def UDS_LOG_LEVEL
+ * @brief sets the logging level
+ * @details set UDS_LOG_LEVEL to 0U (UDS_LOG_NONE) to remove logging entirely.
+ * @see uds_log_level_ for valid values
+ */
+#ifndef UDS_LOG_LEVEL
+#define UDS_LOG_LEVEL 0U
+#endif
 
 #define UDS_ISOTP_MTU (4095u) ///< ISO-TP Maximum Transmission Unit (ISO-15764-2-2004 section 5.3.3)
 
@@ -207,10 +189,72 @@ TransferData request message from the client. */
 #define UDS_SERVER_DEFAULT_XFER_DATA_MAX_BLOCKLENGTH (UDS_TP_MTU)
 #endif
 
+#ifndef UDS_AUTOSELECT_TP // transport auto-selection. Set -DUDS_AUTOSELECT_TP=0 to turn off
+                          // auto-selection
+#define UDS_AUTOSELECT_TP 1
+
+#if ((UDS_SYS == UDS_SYS_CUSTOM) || (UDS_SYS == UDS_SYS_ARDUINO) || (UDS_SYS == UDS_SYS_ESP32) ||  \
+     (UDS_SYS == UDS_SYS_ZEPHYR))
+#ifndef UDS_TP_ISOTP_C
+#define UDS_TP_ISOTP_C
+#endif // #ifndef UDS_TP_ISOTP_C
+#elif (UDS_SYS == UDS_SYS_UNIX)
+#ifndef UDS_TP_ISOTP_SOCK
+#define UDS_TP_ISOTP_SOCK
+#endif // #ifndef UDS_TP_ISOTP_SOCK
+#else
+// no default tp
+#endif // ((UDS_SYS == UDS_SYS_CUSTOM) || ... )
+
+#endif // #ifndef UDS_AUTOSELECT_TP
+
+
+#ifdef UDS_LINES
+#line 1 "src/config_internal.h"
+#endif // #ifdef UDS_LINES
+// non user-facing config
+
+#if UDS_SYS == UDS_SYS_CUSTOM
+#ifndef UDS_CUSTOM_MILLIS
+#define UDS_CUSTOM_MILLIS
+#endif // #ifndef UDS_CUSTOM_MILLIS
+#endif // UDS_SYS == UDS_SYS_CUSTOM
+
+#if UDS_SYS == UDS_SYS_WINDOWS
+#ifdef _MSC_VER
+#define strncasecmp _strnicmp
+#define strcasecmp _stricmp
+#endif // ifdef _MSC_VER
+#endif // if UDS_SYS == UDS_SYS_WINDOWS
+
+#if defined(UDS_TP_ISOTP_C_SOCKETCAN)
+#ifndef UDS_TP_ISOTP_C
+#define UDS_TP_ISOTP_C
+#endif // #ifndef (UDS_TP_ISOTP_C)
+#endif // #defined(UDS_TP_ISOTP_C_SOCKETCAN)
+
+#if defined(UDS_TP_ISOTP_C_SOCKETCAN)
+#ifndef UDS_TP_ISOTP_C
+#error "UDS_TP_ISOTP_C must be defined to use UDS_TP_ISOTP_C_SOCKETCAN"
+#endif // #ifndef UDS_TP_ISOTP_C
+#endif // defined(UDS_TP_ISOTP_C_SOCKETCAN)
+
+#if defined(UDS_TP_ISOTP_C)
+#ifdef ISO_TP_USER_SEND_CAN_ARG
+#error "this flag is set by iso14229"
+#endif // #ifdef ISO_TP_USER_SEND_CAN_ARG
+#define ISO_TP_USER_SEND_CAN_ARG 1
+
+#ifdef ISO_TP_NO_FORMATTED_ERRORS
+#error "this flag is set by iso14229"
+#endif
+#define ISO_TP_NO_FORMATTED_ERRORS 1
+#endif // defined(UDS_TP_ISOTP_C)
+
 
 #ifdef UDS_LINES
 #line 1 "src/uds.h"
-#endif
+#endif // #ifdef UDS_LINES
 
 /** @file */
 
@@ -455,7 +499,7 @@ typedef enum {
 
 #ifdef UDS_LINES
 #line 1 "src/tp.h"
-#endif
+#endif // #ifdef UDS_LINES
 
 
 
@@ -553,7 +597,7 @@ UDSErr_t UDSTpPoll(UDSTp_t *hdl);   ///< call this at <5ms intervals
 
 #ifdef UDS_LINES
 #line 1 "src/util.h"
-#endif
+#endif // #ifdef UDS_LINES
 
 
 
@@ -582,11 +626,11 @@ const char *UDSEventToStr(UDSEvent_t evt);
 
 #ifdef UDS_LINES
 #line 1 "src/log.h"
-#endif
+#endif // #ifdef UDS_LINES
 
 /**
  * @brief logging for bring-up and unit tests.
- * This interface was copied from ESP-IDF.
+ * Attribution: the initial version of this API was copied from ESP-IDF.
  */
 
 
@@ -599,27 +643,20 @@ const char *UDSEventToStr(UDSEvent_t evt);
  * @brief configures logging verbosity
  * @{
  */
-#define UDS_LOG_NONE 0    /**< No log output */
-#define UDS_LOG_ERROR 1   /**< Log errors only */
-#define UDS_LOG_WARN 2    /**< Log warnings and errors */
-#define UDS_LOG_INFO 3    /**< Log info, warnings, and errors */
-#define UDS_LOG_DEBUG 4   /**< Log debug, info, warnings, and errors */
-#define UDS_LOG_VERBOSE 5 /**< Log verbose, debug, info, warnings, and errors */
+#define UDS_LOG_NONE 0U    /**< No log output */
+#define UDS_LOG_ERROR 1U   /**< Log errors only */
+#define UDS_LOG_WARN 2U    /**< Log warnings and errors */
+#define UDS_LOG_INFO 3U    /**< Log info, warnings, and errors */
+#define UDS_LOG_DEBUG 4U   /**< Log debug, info, warnings, and errors */
+#define UDS_LOG_VERBOSE 5U /**< Log verbose, debug, info, warnings, and errors */
 /** @} */
 
-typedef int UDS_LogLevel_t; ///< one of @ref uds_log_level_
+typedef unsigned int UDS_LogLevel_t; ///< one of @ref uds_log_level_
 
-/**
- * @def UDS_LOG_LEVEL
- * @brief sets the logging level
- * @see uds_log_level_ for valid values
- */
-#ifndef UDS_LOG_LEVEL
-#define UDS_LOG_LEVEL UDS_LOG_NONE
-#endif
-
+#if UDS_LOG_LEVEL > UDS_LOG_NONE
 /// \cond DOXYGEN_SHOULD_SKIP_THIS
 #define UDS_LOG_FORMAT(letter, format) #letter " (%" PRIu32 ") %s: " format "\n"
+#endif // UDS_LOG_LEVEL > UDS_LOG_NONE
 
 static_assert((UDS_LOG_LEVEL == UDS_LOG_NONE) || (UDS_LOG_LEVEL == UDS_LOG_ERROR) ||
                   (UDS_LOG_LEVEL == UDS_LOG_WARN) || (UDS_LOG_LEVEL == UDS_LOG_INFO) ||
@@ -672,11 +709,12 @@ static_assert((UDS_LOG_LEVEL == UDS_LOG_NONE) || (UDS_LOG_LEVEL == UDS_LOG_ERROR
 #endif
 
 #if UDS_LOG_LEVEL > UDS_LOG_NONE
+#define UDS_LOG_FORMAT(letter, format) #letter " (%" PRIu32 ") %s: " format "\n"
 void UDS_LogWrite(UDS_LogLevel_t level, const char *tag, const char *format, ...)
     UDS_PRINTF_FORMAT(3, 4);
 void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *buffer, size_t buflen,
                         const UDSSDU_t *info);
-#endif
+#endif // UDS_LOG_LEVEL > UDS_LOG_NONE
 
 // Dummy function that consumes arguments but does nothing
 static inline void UDS_LogDummy(const char *tag, const char *format, ...) {
@@ -695,7 +733,7 @@ static inline void UDS_LogSDUDummy(const char *tag, const uint8_t *buffer, size_
 
 #ifdef UDS_LINES
 #line 1 "src/client.h"
-#endif
+#endif // #ifdef UDS_LINES
 
 
 
@@ -821,7 +859,7 @@ UDSErr_t UDSUnpackRoutineControlResponse(
 
 #ifdef UDS_LINES
 #line 1 "src/server.h"
-#endif
+#endif // #ifdef UDS_LINES
 
 
 
@@ -991,6 +1029,7 @@ typedef struct {
             uint8_t functionalGroup;        /**< Functional Group Identifier */
             uint8_t readinessGroup;         /**< DTC Readiness Group Identifier */
         } dtcInfoByDTCReadinessGroupIdArgs; /**< args for DTCs by readiness group */
+        /* cppcheck-suppress [misra-c2012-19.2] */
     } subFuncArgs; /**< subfunction-specific arguments, selected by \ref type */
 } UDSRDTCIArgs_t;
 
@@ -1080,7 +1119,8 @@ typedef struct {
             void *memAddr;    /**< memory address to read from */
             size_t memSize;   /**< number of bytes to read */
         } defineByMemAddress; /**< args when defining from a memory address */
-    } subFuncArgs;            /**< subfunction-specific arguments, selected by \ref type */
+        /* cppcheck-suppress [misra-c2012-19.2] */
+    } subFuncArgs; /**< subfunction-specific arguments, selected by \ref type */
 } UDSDDDIArgs_t;
 
 /**
@@ -1214,14 +1254,10 @@ void UDSServerPoll(UDSServer_t *srv);     ///< Call this at <5ms intervals
 
 #if defined(UDS_TP_ISOTP_C)
 /// \cond DOXYGEN_SHOULD_SKIP_THIS
-
-#define ISO_TP_USER_SEND_CAN_ARG 1
-#define ISO_TP_NO_FORMATTED_ERRORS 1
-
 ////////////////////////////////////////////////////////////////////////
 #ifdef UDS_LINES
 #line 1 "src/tp/isotp-c/isotp_config.h"
-#endif
+#endif // #ifdef UDS_LINES
 //                  ___ ___  ___ _____ ___      ___                   //
 //                 |_ _/ __|/ _ \_   _| _ \___ / __|                  //
 //                  | |\__ \ (_) || | |  _/___| (__                   //
@@ -1380,7 +1416,7 @@ void UDSServerPoll(UDSServer_t *srv);     ///< Call this at <5ms intervals
 #ifndef ISOTPC_USER_DEFINITIONS_H
 #ifdef UDS_LINES
 #line 1 "src/tp/isotp-c/isotp_defines.h"
-#endif
+#endif // #ifdef UDS_LINES
 #define ISOTPC_USER_DEFINITIONS_H
 
 /**
@@ -1388,7 +1424,7 @@ void UDSServerPoll(UDSServer_t *srv);     ///< Call this at <5ms intervals
  * @brief Public result codes, CAN frame constants, and callback types.
  */
 
-#include <stdint.h>
+
 
 
 
@@ -1414,7 +1450,7 @@ void UDSServerPoll(UDSServer_t *srv);     ///< Call this at <5ms intervals
 
     #define snprintf _snprintf
 
-    #include <windows.h>
+    
     #define ISOTP_BYTE_ORDER_LITTLE_ENDIAN
     #define __builtin_bswap8 _byteswap_uint8
     #define __builtin_bswap16 _byteswap_uint16
@@ -1779,7 +1815,7 @@ typedef enum { PCI_FLOW_STATUS_CONTINUE = 0x0, PCI_FLOW_STATUS_WAIT = 0x1, PCI_F
 ////////////////////////////////////////////////////////////////////////
 #ifdef UDS_LINES
 #line 1 "src/tp/isotp-c/isotp_user.h"
-#endif
+#endif // #ifdef UDS_LINES
 //                  ___ ___  ___ _____ ___      ___                   //
 //                 |_ _/ __|/ _ \_   _| _ \___ / __|                  //
 //                  | |\__ \ (_) || | |  _/___| (__                   //
@@ -1790,7 +1826,7 @@ typedef enum { PCI_FLOW_STATUS_CONTINUE = 0x0, PCI_FLOW_STATUS_WAIT = 0x1, PCI_F
 #ifndef ISOTPC_USER_H
 #define ISOTPC_USER_H
 
-#include <stdint.h>
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -1869,7 +1905,7 @@ uint32_t isotp_user_get_us(void);
 ////////////////////////////////////////////////////////////////////////
 #ifdef UDS_LINES
 #line 1 "src/tp/isotp-c/isotp.h"
-#endif
+#endif // #ifdef UDS_LINES
 //                  ___ ___  ___ _____ ___      ___                   //
 //                 |_ _/ __|/ _ \_   _| _ \___ / __|                  //
 //                  | |\__ \ (_) || | |  _/___| (__                   //
@@ -1880,12 +1916,12 @@ uint32_t isotp_user_get_us(void);
 #ifndef ISOTPC_H
 #define ISOTPC_H
 
-#include <stdbool.h>
-#include <stdio.h>
-#include <string.h>
+
+
+
 
 #ifdef __cplusplus
-    #include <stdint.h>
+    
 
 extern "C" {
 #endif
@@ -2203,12 +2239,13 @@ void isotp_set_rx_done_cb(IsoTpLink* link, isotp_rx_done_cb cb, void* arg);
 
 #endif // ISOTPC_H
 
+
 /// \endcond
 #endif // if defined(UDS_TP_ISOTP_C)
 
 #ifdef UDS_LINES
 #line 1 "src/tp/isotp_c.h"
-#endif
+#endif // #ifdef UDS_LINES
 #if defined(UDS_TP_ISOTP_C)
 
 
@@ -2268,7 +2305,7 @@ UDSErr_t UDSTpISOTpCPoll(UDSTp_t *tp);
 
 #ifdef UDS_LINES
 #line 1 "src/tp/isotp_c_socketcan.h"
-#endif
+#endif // #ifdef UDS_LINES
 
 #if defined(UDS_TP_ISOTP_C_SOCKETCAN)
 
@@ -2317,7 +2354,7 @@ void UDSTpISOTpCSocketCANDeinit(UDSTpISOTpCSocketCAN_t *tp); ///< release socket
 #if defined(UDS_TP_ISOTP_SOCK)
 #ifdef UDS_LINES
 #line 1 "src/tp/isotp_sock.h"
-#endif
+#endif // #ifdef UDS_LINES
 
 
 
@@ -2358,7 +2395,7 @@ void UDSTpIsoTpSockDeinit(const UDSTpIsoTpSock_t *tp);        ///< release socke
 #if defined(UDS_TP_ISOTP_MOCK)
 #ifdef UDS_LINES
 #line 1 "src/tp/isotp_mock.h"
-#endif
+#endif // #ifdef UDS_LINES
 
 
 
@@ -2420,6 +2457,5 @@ void ISOTPMockReset(void);
 
 #ifdef __cplusplus
 }
-#endif
-
-#endif
+#endif // #ifdef __cplusplus
+#endif // #ifndef ISO14229

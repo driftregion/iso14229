@@ -4,6 +4,7 @@ load("@rules_cc//cc:defs.bzl", "cc_library", "cc_binary")
 filegroup(
     name = "sources",
     srcs = [
+        "include_private.h",
         "client.c",
         "log.c",
         "server.c",
@@ -24,6 +25,8 @@ filegroup(
     srcs = [
         "client.h",
         "config.h",
+        "config_internal.h",
+        "include.h",
         "log.h",
         "server.h",
         "sys.h",
@@ -77,7 +80,6 @@ cc_library(
         "UDS_TP_ISOTP_MOCK",
         "UDS_CUSTOM_MILLIS",
         "UDS_LOG_LEVEL=UDS_LOG_VERBOSE",
-        "UDS_LINES",
     ] + select({
         "@platforms//os:windows": [],
         "//conditions:default": [

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <assert.h> // early include for static_assert
+
 /**
  * @def UDS_SYS
  * @brief Selects the host system iso14229 is compiled for.
@@ -15,6 +17,16 @@
  *
  * @see UDSMillis
  */
+
+/**
+ * @def UDS_LOG_LEVEL
+ * @brief sets the logging level
+ * @details set UDS_LOG_LEVEL to 0U (UDS_LOG_NONE) to remove logging entirely.
+ * @see uds_log_level_ for valid values
+ */
+#ifndef UDS_LOG_LEVEL
+#define UDS_LOG_LEVEL 0U
+#endif
 
 #define UDS_ISOTP_MTU (4095u) ///< ISO-TP Maximum Transmission Unit (ISO-15764-2-2004 section 5.3.3)
 
@@ -102,3 +114,22 @@ message to inform the client how many data bytes (maxNumberOfBlockLength) to inc
 TransferData request message from the client. */
 #define UDS_SERVER_DEFAULT_XFER_DATA_MAX_BLOCKLENGTH (UDS_TP_MTU)
 #endif
+
+#ifndef UDS_AUTOSELECT_TP // transport auto-selection. Set -DUDS_AUTOSELECT_TP=0 to turn off
+                          // auto-selection
+#define UDS_AUTOSELECT_TP 1
+
+#if ((UDS_SYS == UDS_SYS_CUSTOM) || (UDS_SYS == UDS_SYS_ARDUINO) || (UDS_SYS == UDS_SYS_ESP32) ||  \
+     (UDS_SYS == UDS_SYS_ZEPHYR))
+#ifndef UDS_TP_ISOTP_C
+#define UDS_TP_ISOTP_C
+#endif // #ifndef UDS_TP_ISOTP_C
+#elif (UDS_SYS == UDS_SYS_UNIX)
+#ifndef UDS_TP_ISOTP_SOCK
+#define UDS_TP_ISOTP_SOCK
+#endif // #ifndef UDS_TP_ISOTP_SOCK
+#else
+// no default tp
+#endif // ((UDS_SYS == UDS_SYS_CUSTOM) || ... )
+
+#endif // #ifndef UDS_AUTOSELECT_TP

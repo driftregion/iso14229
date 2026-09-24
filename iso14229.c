@@ -1,15 +1,77 @@
 /**
  * @file iso14229.c
- * @brief ISO14229-1 (UDS) library
+ * SPDX-License-Identifier: MIT
+ * @brief ISO 14229 (UDS) library
  * @copyright Copyright (c) Nick Kirkby
- * @see https://github.com/driftregion/iso14229
+ * @see documentation at https://github.com/driftregion/iso14229
  */
 
 #include "iso14229.h"
 
 #ifdef UDS_LINES
+#line 1 "src/include_private.h"
+#endif // #ifdef UDS_LINES
+
+
+#if UDS_SYS == UDS_SYS_UNIX
+#include <sys/time.h>
+#include <sys/types.h>
+#include <time.h>
+#endif // if UDS_SYS == UDS_SYS_UNIX
+
+#if UDS_SYS == UDS_SYS_WINDOWS
+#include <stdlib.h>
+#include <time.h>
+#endif // if UDS_SYS == UDS_SYS_WINDOWS
+
+#if UDS_SYS == UDS_SYS_ARDUINO
+#include <Arduino.h>
+#endif // if UDS_SYS == UDS_SYS_ARDUINO
+
+#if UDS_SYS == UDS_SYS_ESP32
+#include <esp_timer.h>
+#endif // if UDS_SYS == UDS_SYS_ESP32
+
+#if UDS_SYS == UDS_SYS_ZEPHYR
+#include <zephyr/kernel.h>
+#endif // if UDS_SYS == UDS_SYS_ZEPHYR
+
+#if UDS_LOG_LEVEL > UDS_LOG_NONE
+#include <stdio.h>
+#include <stdarg.h>
+#endif // UDS_LOG_LEVEL > UDS_LOG_NONE
+
+#if defined(UDS_TP_ISOTP_C_SOCKETCAN)
+#include <linux/can.h>
+#include <linux/can/raw.h>
+#include <net/if.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+#include <errno.h>
+#include <stdarg.h>
+#endif // defined(UDS_TP_ISOTP_C_SOCKETCAN)
+
+#if defined(UDS_TP_ISOTP_SOCK)
+#include <string.h>
+#include <errno.h>
+#include <linux/can.h>
+#include <linux/can/isotp.h>
+#include <net/if.h>
+#include <poll.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <unistd.h>
+#endif // defined(UDS_TP_ISOTP_SOCK)
+
+
+#ifdef UDS_LINES
 #line 1 "src/uds_private.h"
-#endif
+#endif // #ifdef UDS_LINES
 
 /// \cond DOXYGEN_SHOULD_SKIP_THIS
 #define UDS_NEG_RESP_LEN 3U
@@ -89,7 +151,7 @@
 
 #ifdef UDS_LINES
 #line 1 "src/util_private.h"
-#endif
+#endif // #ifdef UDS_LINES
 
 
 
@@ -194,14 +256,13 @@ static inline bool UDSTimeAfter(uint32_t a, uint32_t b) {
 
 #ifdef UDS_LINES
 #line 1 "src/client.c"
-#endif
+#endif // #ifdef UDS_LINES
 
 
 
 
 
 
-#include <stdint.h>
 
 /**
  * @defgroup client_request_states valid values of UDSClient_t::state
@@ -1101,7 +1162,7 @@ UDSErr_t UDSUnpackRDBIResponse(UDSClient_t *client, UDSRDBIVar_t *vars, uint16_t
 
 #ifdef UDS_LINES
 #line 1 "src/server.c"
-#endif
+#endif // #ifdef UDS_LINES
 
 
 
@@ -2774,7 +2835,7 @@ void UDSServerPoll(UDSServer_t *srv) {
 
 #ifdef UDS_LINES
 #line 1 "src/tp.c"
-#endif
+#endif // #ifdef UDS_LINES
 
 
 
@@ -2802,7 +2863,9 @@ UDSErr_t UDSTpPoll(UDSTp_t *hdl) {
 
 #ifdef UDS_LINES
 #line 1 "src/util.c"
-#endif
+#endif // #ifdef UDS_LINES
+
+
 
 
 
@@ -2837,11 +2900,11 @@ uint32_t UDSMillis(void) {
 bool UDSSecurityAccessLevelIsReserved(uint8_t subFunction) {
     if (0u == subFunction) {
         return true;
-    } else if ((subFunction >= 0x01u) && (subFunction < 0x43u)) {
+    } else if (subFunction <= 0x42u) {
         return false;
-    } else if ((subFunction >= 0x43u) && (subFunction <= 0x5Eu)) {
+    } else if (subFunction <= 0x5Eu) {
         return true;
-    } else if ((subFunction >= 0x5Fu) && (subFunction <= 0x7Eu)) {
+    } else if (subFunction <= 0x7Eu) {
         return false;
     } else {
         return true;
@@ -3122,10 +3185,9 @@ bool UDSErrIsNRC(UDSErr_t err) {
 
 #ifdef UDS_LINES
 #line 1 "src/log.c"
-#endif
+#endif // #ifdef UDS_LINES
 
-#include <stdio.h>
-#include <stdarg.h>
+
 
 #if UDS_LOG_LEVEL > UDS_LOG_NONE
 void UDS_LogWrite(UDS_LogLevel_t level, const char *tag, const char *format, ...) {
@@ -3145,12 +3207,12 @@ void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *bu
     }
     UDS_LogWrite(level, tag, "\n");
 }
-#endif
+#endif // UDS_LOG_LEVEL > UDS_LOG_NONE
 
 #if defined(UDS_TP_ISOTP_C)
 #ifdef UDS_LINES
 #line 1 "src/tp/isotp_c.c"
-#endif
+#endif // #ifdef UDS_LINES
 
 
 
@@ -3310,7 +3372,7 @@ UDSErr_t UDSClientTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t source_addr, uint32_t
 #if defined(UDS_TP_ISOTP_C_SOCKETCAN)
 #ifdef UDS_LINES
 #line 1 "src/tp/isotp_c_socketcan.c"
-#endif
+#endif // #ifdef UDS_LINES
 
 
 
@@ -3318,16 +3380,7 @@ UDSErr_t UDSClientTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t source_addr, uint32_t
 
 
 
-#include <linux/can.h>
-#include <linux/can/raw.h>
-#include <net/if.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <sys/ioctl.h>
-#include <unistd.h>
-#include <errno.h>
-#include <stdarg.h>
+
 
 static int SetupSocketCAN(const char *ifname) {
     struct sockaddr_can addr = {0};
@@ -3485,22 +3538,12 @@ void UDSTpISOTpCSocketCANDeinit(UDSTpISOTpCSocketCAN_t *tp) {
 #if defined(UDS_TP_ISOTP_SOCK)
 #ifdef UDS_LINES
 #line 1 "src/tp/isotp_sock.c"
-#endif
+#endif // #ifdef UDS_LINES
 
 
 
 
-#include <string.h>
-#include <errno.h>
-#include <linux/can.h>
-#include <linux/can/isotp.h>
-#include <net/if.h>
-#include <poll.h>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
+
 
 static UDSErr_t isotp_sock_tp_poll(UDSTp_t *hdl) {
     const UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl; // cppcheck-suppress [misra-c2012-11.3]
@@ -3784,17 +3827,17 @@ void UDSTpIsoTpSockDeinit(const UDSTpIsoTpSock_t *tp) {
 #if defined(UDS_TP_ISOTP_MOCK)
 #ifdef UDS_LINES
 #line 1 "src/tp/isotp_mock.c"
-#endif
+#endif // #ifdef UDS_LINES
 
 /// \cond INTERNAL_INTERFACE
 
 
 
-#include <assert.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
+
+
+
+
+
 
 #define MAX_NUM_TP 16u
 #define NUM_MSGS 8u
@@ -4041,7 +4084,7 @@ void ISOTPMockFree(UDSTp_t *tp) {
 ////////////////////////////////////////////////////////////////////////
 #ifdef UDS_LINES
 #line 1 "src/tp/isotp-c/isotp.c"
-#endif
+#endif // #ifdef UDS_LINES
 //                  ___ ___  ___ _____ ___      ___                   //
 //                 |_ _/ __|/ _ \_   _| _ \___ / __|                  //
 //                  | |\__ \ (_) || | |  _/___| (__                   //
@@ -4049,8 +4092,8 @@ void ISOTPMockFree(UDSTp_t *tp) {
 //                                                                    //
 ////////////////////////////////////////////////////////////////////////
 
-#include <assert.h>
-#include <stdint.h>
+
+
 
 
 

@@ -32,7 +32,6 @@ cc_test(
         "UDS_TP_ISOTP_MOCK",
         "UDS_CUSTOM_MILLIS",
         "UDS_LOG_LEVEL=UDS_LOG_VERBOSE",
-        "UDS_LINES",
     ],
 )
 

@@ -2,6 +2,8 @@
 #include "config.h"
 #include "util.h"
 #include "uds.h"
+#include "include.h"
+#include "include_private.h"
 
 #if defined(UDS_CUSTOM_MILLIS)
 // the user is expected to provide a UDSMillis implementation
@@ -33,11 +35,11 @@ uint32_t UDSMillis(void) {
 bool UDSSecurityAccessLevelIsReserved(uint8_t subFunction) {
     if (0u == subFunction) {
         return true;
-    } else if ((subFunction >= 0x01u) && (subFunction < 0x43u)) {
+    } else if (subFunction <= 0x42u) {
         return false;
-    } else if ((subFunction >= 0x43u) && (subFunction <= 0x5Eu)) {
+    } else if (subFunction <= 0x5Eu) {
         return true;
-    } else if ((subFunction >= 0x5Fu) && (subFunction <= 0x7Eu)) {
+    } else if (subFunction <= 0x7Eu) {
         return false;
     } else {
         return true;
