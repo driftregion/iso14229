@@ -2833,18 +2833,19 @@ uint32_t UDSMillis(void) {
 }
 #endif // defined(UDS_CUSTOM_MILLIS)
 
+// See ISO14229-1:2020 Table 42 — Request message SubFunction parameter definition
 bool UDSSecurityAccessLevelIsReserved(uint8_t subFunction) {
-    uint8_t securityLevel = subFunction & 0x3Fu;
-    if (0u == securityLevel) {
+    if (0u == subFunction) {
+        return true;
+    } else if ((subFunction >= 0x01u) && (subFunction < 0x43u)) {
+        return false;
+    } else if ((subFunction >= 0x43u) && (subFunction <= 0x5Eu)) {
+        return true;
+    } else if ((subFunction >= 0x5Fu) && (subFunction <= 0x7Eu)) {
+        return false;
+    } else {
         return true;
     }
-    if ((securityLevel >= 0x43u) && (securityLevel <= 0x5Eu)) {
-        return true;
-    }
-    if (securityLevel == 0x7Fu) {
-        return true;
-    }
-    return false;
 }
 
 const char *UDSErrToStr(UDSErr_t err) {
