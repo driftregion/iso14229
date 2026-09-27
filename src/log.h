@@ -5,10 +5,9 @@
  * Attribution: the initial version of this API was copied from ESP-IDF.
  */
 
-#include "sys.h"
-#include "config.h"
-#include "uds.h"
 #include "tp.h"
+#include "config.h"
+#include "includes.h"
 
 /**
  * @defgroup uds_log_level_ valid values for UDS_LOG_LEVEL
@@ -39,28 +38,28 @@ static_assert((UDS_LOG_LEVEL == UDS_LOG_NONE) || (UDS_LOG_LEVEL == UDS_LOG_ERROR
 #define UDS_LOGE(tag, format, ...)                                                                 \
     UDS_LogWrite(UDS_LOG_ERROR, tag, UDS_LOG_FORMAT(E, format), UDSMillis(), tag, ##__VA_ARGS__)
 #else
-#define UDS_LOGE(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
+#define UDS_LOGE(tag, format, ...) UDS_LogDummy(UDS_LOG_NONE, tag, format, ##__VA_ARGS__)
 #endif
 
 #if UDS_LOG_LEVEL >= UDS_LOG_WARN && UDS_LOG_LEVEL != UDS_LOG_NONE
 #define UDS_LOGW(tag, format, ...)                                                                 \
     UDS_LogWrite(UDS_LOG_WARN, tag, UDS_LOG_FORMAT(W, format), UDSMillis(), tag, ##__VA_ARGS__)
 #else
-#define UDS_LOGW(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
+#define UDS_LOGW(tag, format, ...) UDS_LogDummy(UDS_LOG_NONE, tag, format, ##__VA_ARGS__)
 #endif
 
 #if UDS_LOG_LEVEL >= UDS_LOG_INFO && UDS_LOG_LEVEL != UDS_LOG_NONE
 #define UDS_LOGI(tag, format, ...)                                                                 \
     UDS_LogWrite(UDS_LOG_INFO, tag, UDS_LOG_FORMAT(I, format), UDSMillis(), tag, ##__VA_ARGS__)
 #else
-#define UDS_LOGI(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
+#define UDS_LOGI(tag, format, ...) UDS_LogDummy(UDS_LOG_NONE, tag, format, ##__VA_ARGS__)
 #endif
 
 #if UDS_LOG_LEVEL >= UDS_LOG_DEBUG && UDS_LOG_LEVEL != UDS_LOG_NONE
 #define UDS_LOGD(tag, format, ...)                                                                 \
     UDS_LogWrite(UDS_LOG_DEBUG, tag, UDS_LOG_FORMAT(D, format), UDSMillis(), tag, ##__VA_ARGS__)
 #else
-#define UDS_LOGD(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
+#define UDS_LOGD(tag, format, ...) UDS_LogDummy(UDS_LOG_NONE, tag, format, ##__VA_ARGS__)
 #endif
 
 #if UDS_LOG_LEVEL >= UDS_LOG_VERBOSE
@@ -69,8 +68,8 @@ static_assert((UDS_LOG_LEVEL == UDS_LOG_NONE) || (UDS_LOG_LEVEL == UDS_LOG_ERROR
 #define UDS_LOG_SDU(tag, buffer, buff_len, info)                                                   \
     UDS_LogSDUInternal(UDS_LOG_DEBUG, tag, buffer, buff_len, info)
 #else
-#define UDS_LOGV(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
-#define UDS_LOG_SDU(tag, buffer, buff_len, info) UDS_LogSDUDummy(tag, buffer, buff_len, info)
+#define UDS_LOGV(tag, format, ...) UDS_LogDummy(UDS_LOG_NONE, tag, format, ##__VA_ARGS__)
+#define UDS_LOG_SDU(tag, buffer, buff_len, info) UDS_LogSDUDummy(UDS_LOG_NONE, tag, buffer, buff_len, info)
 #endif
 
 #if defined(__GNUC__) || defined(__clang__)
@@ -88,13 +87,14 @@ void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *bu
                         const UDSSDU_t *info);
 #endif // UDS_LOG_LEVEL > UDS_LOG_NONE
 
-// Dummy function that consumes arguments but does nothing
-static inline void UDS_LogDummy(const char *tag, const char *format, ...) {
+static inline void UDS_LogDummy(UDS_LogLevel_t level, const char *tag, const char *format, ...) {
+    (void)level;
     (void)tag;
     (void)format;
 }
-static inline void UDS_LogSDUDummy(const char *tag, const uint8_t *buffer, size_t buflen,
+static inline void UDS_LogSDUDummy(UDS_LogLevel_t level, const char *tag, const uint8_t *buffer, size_t buflen,
                                    const UDSSDU_t *info) {
+    (void)level;
     (void)tag;
     (void)buffer;
     (void)buflen;

@@ -767,7 +767,9 @@ UDSErr_t UDSSendSecurityAccess(UDSClient_t *client, uint8_t level, const uint8_t
 
     client->send_buf[0] = UDS_SID_SECURITY_ACCESS;
     client->send_buf[1] = level;
-    (void)memmove(&client->send_buf[UDS_0X27_REQ_BASE_LEN], data, size);
+    if (NULL != data) {
+        (void)memmove(&client->send_buf[UDS_0X27_REQ_BASE_LEN], data, size);
+    }
 
     client->send_size = send_size;
     return SendRequest(client);
