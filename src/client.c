@@ -60,19 +60,8 @@ static void changeState(UDSClient_t *client, uint8_t state) {
 
         client->state = state;
 
-        switch (state) {
-        case STATE_IDLE:
+        if (state == STATE_IDLE) {
             client->fn(client, UDS_EVT_Idle, NULL);
-            break;
-        case STATE_SENDING:
-            break;
-        case STATE_AWAIT_SEND_COMPLETE:
-            break;
-        case STATE_AWAIT_RESPONSE:
-            break;
-        default:
-            UDS_ASSERT(0);
-            break;
         }
     }
 }
@@ -88,30 +77,35 @@ static UDSErr_t ValidateServerResponse(const UDSClient_t *client) {
         return UDS_ERR_RESP_TOO_SHORT;
     }
 
-    if (0x7FU == client->recv_buf[0]) { // Negative response
+    // It's a negative response
+    if (0x7FU == client->recv_buf[0]) {
+        if (client->send_buf[0] != client->recv_buf[1]) {
+            return UDS_ERR_SID_MISMATCH;
+        }
         if (client->recv_size < 2U) {
             return UDS_ERR_RESP_TOO_SHORT;
-        } else if (client->send_buf[0] != client->recv_buf[1]) {
-            return UDS_ERR_SID_MISMATCH;
-        } else if ((uint8_t)UDS_NRC_RequestCorrectlyReceived_ResponsePending ==
-                   client->recv_buf[2]) {
+        }
+        const UDSErr_t nrc = client->recv_buf[2];
+        if (nrc == UDS_NRC_RequestCorrectlyReceived_ResponsePending) {
             return UDS_OK;
-        } else {
-            return client->recv_buf[2];
         }
+        if (!UDSErrIsNRC(nrc)) {
+            UDS_LOGW(__FILE__, "nrc 0x%X not recognized", nrc);
+        }
+        return nrc;
+    }
 
-    } else { // Positive response
-        if (AsResponseSID(client->send_buf[0]) != client->recv_buf[0]) {
-            return UDS_ERR_SID_MISMATCH;
+    // It's a positive response
+    UDS_ASSERT(0x7FU != client->recv_buf[0]);
+    if (AsResponseSID(client->send_buf[0]) != client->recv_buf[0]) {
+        return UDS_ERR_SID_MISMATCH;
+    }
+    if (client->send_buf[0] == UDS_SID_ECU_RESET) {
+        if (client->recv_size < 2U) {
+            return UDS_ERR_RESP_TOO_SHORT;
         }
-        if (client->send_buf[0] == UDS_SID_ECU_RESET) {
-            if (client->recv_size < 2U) {
-                return UDS_ERR_RESP_TOO_SHORT;
-            } else if (client->send_buf[1] != client->recv_buf[1]) {
-                return UDS_ERR_SUBFUNCTION_MISMATCH;
-            } else {
-                ;
-            }
+        if (client->send_buf[1] != client->recv_buf[1]) {
+            return UDS_ERR_SUBFUNCTION_MISMATCH;
         }
     }
 
@@ -124,16 +118,15 @@ static UDSErr_t ValidateServerResponse(const UDSClient_t *client) {
  */
 static UDSErr_t HandleServerResponse(UDSClient_t *client) {
     if (0x7FU == client->recv_buf[0]) {
-        if ((uint8_t)(UDS_NRC_RequestCorrectlyReceived_ResponsePending) == client->recv_buf[2]) {
+        if ((uint8_t)UDS_NRC_RequestCorrectlyReceived_ResponsePending == client->recv_buf[2]) {
             client->p2_timer = UDSMillis() + client->p2_star_ms;
             UDS_LOGI(__FILE__, "got RCRRP, set p2 timer to %" PRIu32 "", client->p2_timer);
             (void)memset(client->recv_buf, 0, sizeof(client->recv_buf));
             client->recv_size = 0;
             changeState(client, STATE_AWAIT_RESPONSE);
             return UDS_NRC_RequestCorrectlyReceived_ResponsePending;
-        } else {
-            ;
         }
+        // else: fall-through
     } else {
         uint8_t respSid = client->recv_buf[0];
         switch (AsRequestSID(respSid)) {
@@ -150,9 +143,8 @@ static UDSErr_t HandleServerResponse(UDSClient_t *client) {
                 break;
             }
 
-            uint16_t p2 =
-                (uint16_t)(((uint16_t)client->recv_buf[2] << 8) | (uint16_t)client->recv_buf[3]);
-            uint32_t p2_star = (uint32_t)((client->recv_buf[4] << 8) + client->recv_buf[5]) * 10U;
+            uint16_t p2 = UnpackBEu16(&client->recv_buf[2]);
+            uint32_t p2_star = (uint32_t)UnpackBEu16(&client->recv_buf[4]) * 10U;
             UDS_LOGI(__FILE__, "received new timings: p2: %" PRIu16 ", p2*: %" PRIu32, p2, p2_star);
             client->p2_ms = p2;
             client->p2_star_ms = p2_star;
@@ -163,6 +155,96 @@ static UDSErr_t HandleServerResponse(UDSClient_t *client) {
         }
     }
     return UDS_OK;
+}
+
+static void WarnIfRecvWhileSending(UDSClient_t *client) {
+    UDSSDU_t recvinfo = {0};
+    size_t recvlen = 0;
+    UDSErr_t err =
+        UDSTpRecv(client->tp, client->recv_buf, sizeof(client->recv_buf), &recvlen, &recvinfo);
+    if (UDS_OK != err) {
+        UDS_LOGE(__FILE__, "transport returned error %s", UDSErrToStr(err));
+    } else if (recvlen == 0U) {
+        ; // expected
+    } else {
+        UDS_LOGW(__FILE__, "received %zd unexpected bytes:", recvlen);
+        UDS_LOG_SDU(__FILE__, client->recv_buf, recvlen, &recvinfo);
+    }
+}
+
+static UDSErr_t Handle_SENDING(UDSClient_t *client) {
+
+    // While sending, we expect that nothing should be received,
+    // but sometimes data is received due to e.g. misconfiguration.
+    WarnIfRecvWhileSending(client);
+
+    (void)memset(client->recv_buf, 0, sizeof(client->recv_buf));
+    client->recv_size = 0;
+
+    UDS_A_TA_Type_t ta_type =
+        client->cfg_send_functional ? UDS_A_TA_TYPE_FUNCTIONAL : UDS_A_TA_TYPE_PHYSICAL;
+    UDSSDU_t info = {
+        .A_Mtype = UDS_A_MTYPE_DIAG,
+        .A_TA_Type = ta_type,
+    };
+    UDSErr_t err = UDSTpSend(client->tp, client->send_buf, client->send_size, &info);
+    if (UDS_OK != err) {
+        UDS_LOGE(__FILE__, "tport err: %s", UDSErrToStr(err));
+    } else {
+        changeState(client, STATE_AWAIT_SEND_COMPLETE);
+    }
+    return err;
+}
+
+static UDSErr_t Handle_AWAIT_SEND_COMPLETE(UDSClient_t *client) {
+    if (client->cfg_send_functional) {
+        // "The Functional addressing is applied only to single frame transmission"
+        // Specification of Diagnostic Communication (Diagnostic on CAN - Network Layer)
+        changeState(client, STATE_IDLE);
+    }
+    if (client->tp->status.is_sending) {
+        ; // await send complete
+    } else {
+        client->fn(client, UDS_EVT_SendComplete, NULL);
+        if (client->cfg_suppress_pos_resp) {
+            changeState(client, STATE_IDLE);
+        } else {
+            changeState(client, STATE_AWAIT_RESPONSE);
+            client->p2_timer = UDSMillis() + client->p2_ms;
+        }
+    }
+    return UDS_OK;
+}
+
+static UDSErr_t Handle_AWAIT_RESPONSE(UDSClient_t *client) {
+    UDSSDU_t info = {0};
+    size_t recvlen = 0;
+    UDSErr_t err =
+        UDSTpRecv(client->tp, client->recv_buf, sizeof(client->recv_buf), &recvlen, &info);
+    if (UDS_OK != err) {
+        changeState(client, STATE_IDLE);
+    } else if (0U == recvlen) {
+        if (UDSTimeAfter(UDSMillis(), client->p2_timer)) {
+            UDS_LOGI(__FILE__, "p2 timeout");
+            err = UDS_ERR_TIMEOUT;
+            changeState(client, STATE_IDLE);
+        }
+    } else {
+        UDS_LOGD(__FILE__, "received %zd bytes. Processing...", recvlen);
+        UDS_ASSERT(recvlen <= UINT16_MAX);
+        client->recv_size = recvlen;
+
+        err = ValidateServerResponse(client);
+        if (UDS_OK == err) {
+            err = HandleServerResponse(client);
+        }
+
+        if (UDS_OK == err) {
+            client->fn(client, UDS_EVT_ResponseReceived, NULL);
+            changeState(client, STATE_IDLE);
+        }
+    }
+    return err;
 }
 
 /**
@@ -188,92 +270,19 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
         break;
     }
     case STATE_SENDING: {
-        {
-            // warn if anything is received. TODO (easy): make into a function
-            // While sending, we expect that nothing should be received,
-            // but sometimes data is received due to e.g. misconfiguration.
-            UDSSDU_t info = {0};
-            size_t recvlen = 0;
-            err =
-                UDSTpRecv(client->tp, client->recv_buf, sizeof(client->recv_buf), &recvlen, &info);
-            if (UDS_OK != err) {
-                UDS_LOGE(__FILE__, "transport returned error %s", UDSErrToStr(err));
-            } else if (recvlen == 0U) {
-                ; // expected
-            } else {
-                UDS_LOGW(__FILE__, "received %zd unexpected bytes:", recvlen);
-                UDS_LOG_SDU(__FILE__, client->recv_buf, recvlen, &info);
-            }
-        }
-
-        (void)memset(client->recv_buf, 0, sizeof(client->recv_buf));
-        client->recv_size = 0;
-
-        UDS_A_TA_Type_t ta_type =
-            client->cfg_send_functional ? UDS_A_TA_TYPE_FUNCTIONAL : UDS_A_TA_TYPE_PHYSICAL;
-        UDSSDU_t info = {
-            .A_Mtype = UDS_A_MTYPE_DIAG,
-            .A_TA_Type = ta_type,
-        };
-        err = UDSTpSend(client->tp, client->send_buf, client->send_size, &info);
-        if (UDS_OK != err) {
-            UDS_LOGE(__FILE__, "tport err: %s", UDSErrToStr(err));
-        } else {
-            changeState(client, STATE_AWAIT_SEND_COMPLETE);
-        }
+        err = Handle_SENDING(client);
         break;
     }
     case STATE_AWAIT_SEND_COMPLETE: {
-        if (client->cfg_send_functional) {
-            // "The Functional addressing is applied only to single frame transmission"
-            // Specification of Diagnostic Communication (Diagnostic on CAN - Network Layer)
-            changeState(client, STATE_IDLE);
-        }
-        if (client->tp->status.is_sending) {
-            ; // await send complete
-        } else {
-            client->fn(client, UDS_EVT_SendComplete, NULL);
-            if (client->cfg_suppress_pos_resp) {
-                changeState(client, STATE_IDLE);
-            } else {
-                changeState(client, STATE_AWAIT_RESPONSE);
-                client->p2_timer = UDSMillis() + client->p2_ms;
-            }
-        }
+        err = Handle_AWAIT_SEND_COMPLETE(client);
         break;
     }
     case STATE_AWAIT_RESPONSE: {
-        UDSSDU_t info = {0};
-        size_t recvlen = 0;
-        err = UDSTpRecv(client->tp, client->recv_buf, sizeof(client->recv_buf), &recvlen, &info);
-        if (UDS_OK != err) {
-            changeState(client, STATE_IDLE);
-        } else if (0U == recvlen) {
-            if (UDSTimeAfter(UDSMillis(), client->p2_timer)) {
-                UDS_LOGI(__FILE__, "p2 timeout");
-                err = UDS_ERR_TIMEOUT;
-                changeState(client, STATE_IDLE);
-            }
-        } else {
-            UDS_LOGD(__FILE__, "received %zd bytes. Processing...", recvlen);
-            UDS_ASSERT(recvlen <= UINT16_MAX);
-            client->recv_size = recvlen;
-
-            err = ValidateServerResponse(client);
-            if (UDS_OK == err) {
-                err = HandleServerResponse(client);
-            }
-
-            if (UDS_OK == err) {
-                client->fn(client, UDS_EVT_ResponseReceived, NULL);
-                changeState(client, STATE_IDLE);
-            }
-        }
+        err = Handle_AWAIT_RESPONSE(client);
         break;
     }
-
     default:
-        UDS_ASSERT(0);
+        UDS_ASSERT(false);
         break;
     }
 done:
@@ -374,7 +383,7 @@ UDSErr_t UDSSendRDBI(UDSClient_t *client, const uint16_t *didList,
         return UDS_ERR_INVALID_ARG;
     }
 
-    const size_t send_size = 1U + (size_t)numDataIdentifiers * 2U;
+    const size_t send_size = 1U + ((size_t)numDataIdentifiers * 2U);
     if (send_size > sizeof(client->send_buf)) {
         return UDS_ERR_BUFSIZ;
     }
@@ -656,7 +665,7 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, const uint8_t mode, con
         break;
     }
     default:
-        UDS_ASSERT(0);
+        UDS_ASSERT(false);
         break;
     }
     // Phew!

@@ -1,14 +1,15 @@
 Checks: '
   *,
-  -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,
-  -llvmlibc-restrict-system-libc-headers,
-  -cppcoreguidelines-macro-to-enum,
-  -modernize-macro-to-enum,
+  -altera-struct-pack-align,
   -altera-unroll-loops,
-  -readability-identifier-length,
+  -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,
+  -concurrency-mt-unsafe,
   -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-macro-to-enum,
+  -llvmlibc-restrict-system-libc-headers,
+  -modernize-macro-to-enum,
+  -readability-identifier-length,
   -readability-magic-numbers,
   -readability-use-concise-preprocessor-directives,
-  -concurrency-mt-unsafe,
 '
 WarningsAsErrors: ''

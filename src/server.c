@@ -129,7 +129,7 @@ static UDSErr_t Handle_0x14_ClearDiagnosticInformation(UDSServer_t *srv, UDSReq_
     r->send_len = UDS_0X14_RESP_BASE_LEN;
 
     UDSCDIArgs_t args = {
-        .groupOfDTC = (uint32_t)((r->recv_buf[1] << 16) | (r->recv_buf[2] << 8) | r->recv_buf[3]),
+        .groupOfDTC = (uint32_t)((r->recv_buf[1] << 16U) | (r->recv_buf[2] << 8U) | r->recv_buf[3]),
         .hasMemorySelection = (r->recv_len >= 5U),
         .memorySelection = (r->recv_len >= 5U) ? r->recv_buf[4] : 0U,
     };
@@ -150,7 +150,7 @@ static uint8_t safe_copy(UDSServer_t *srv, const void *src, uint16_t count) {
     if (src == NULL) {
         return UDS_NRC_GeneralReject;
     }
-    UDSReq_t *r = (UDSReq_t *)&srv->r;
+    UDSReq_t *r = &srv->r;
     if (count <= sizeof(r->send_buf) - r->send_len) {
         (void)memmove(&r->send_buf[r->send_len], src, count);
         r->send_len += count;
@@ -421,19 +421,18 @@ respond_to_0x19_malformed_response:
 }
 
 static UDSErr_t Handle_0x22_ReadDataByIdentifier(UDSServer_t *srv, UDSReq_t *r) {
-    uint8_t numDIDs;
-    r->send_buf[0] = AsResponseSID(UDS_SID_READ_DATA_BY_IDENTIFIER);
-    r->send_len = 1;
-
     if (0U != (r->recv_len - 1U) % sizeof(uint16_t)) {
         return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
-    numDIDs = (uint8_t)(r->recv_len / sizeof(uint16_t));
+    const uint8_t numDIDs = (uint8_t)(r->recv_len / sizeof(uint16_t));
 
     if (0U == numDIDs) {
         return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
+
+    r->send_buf[0] = AsResponseSID(UDS_SID_READ_DATA_BY_IDENTIFIER);
+    r->send_len = 1;
 
     for (uint16_t did = 0; did < numDIDs; did++) {
         uint16_t idx = (uint16_t)(1U + (did * 2U));
