@@ -10,7 +10,7 @@ filegroup(
         "server.c",
         "tp.c",
         "util.c",
-        "util_private.h",
+        "util_static.c",
         "uds_private.h",
         "tp/isotp_c_socketcan.c",
         "tp/isotp_c.c",

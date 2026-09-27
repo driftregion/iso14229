@@ -111,7 +111,7 @@ with open(args.out_c, "w", encoding="utf-8") as f:
     f.write(transform("src/include_private.h", strip_sys_hdrs=False) + "\n")
     for src in [
         "src/uds_private.h",
-        "src/util_private.h",
+        "src/util_static.c",
         "src/client.c",
         "src/server.c",
         "src/tp.c",

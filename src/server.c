@@ -5,6 +5,7 @@
 #include "util.h"
 #include "util_private.h"
 #include "log.h"
+#include "util_static.c"
 
 static inline UDSErr_t NegativeResponse(UDSReq_t *r, const UDSErr_t nrc) {
     UDSErr_t ret = nrc;

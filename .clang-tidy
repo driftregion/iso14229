@@ -8,5 +8,7 @@ Checks: '
   -readability-identifier-length,
   -cppcoreguidelines-avoid-magic-numbers,
   -readability-magic-numbers,
+  -readability-use-concise-preprocessor-directives,
+  -concurrency-mt-unsafe,
 '
 WarningsAsErrors: ''

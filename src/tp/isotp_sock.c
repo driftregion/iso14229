@@ -36,15 +36,12 @@ static UDSErr_t isotp_sock_tp_poll(UDSTp_t *hdl) {
                 socklen_t len = sizeof(pending_err);
                 if (0 == getsockopt(fds[i], SOL_SOCKET, SO_ERROR, &pending_err, &len) &&
                     pending_err) {
-                    switch (pending_err) {
-                    case ECOMM:
+                    if (ECOMM == pending_err) {
                         UDS_LOGE(__FILE__, "ECOMM: Communication error on send");
                         err = UDS_ERR_TPORT;
-                        break;
-                    default:
+                    } else {
                         UDS_LOGE(__FILE__, "Asynchronous socket error: %s (%d)",
                                  strerror(pending_err), pending_err);
-                        break;
                     }
                 } else {
                     UDS_LOGE(__FILE__, "POLLERR was set, but no error returned via SO_ERROR?");

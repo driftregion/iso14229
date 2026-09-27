@@ -5,6 +5,7 @@
 #include "util.h"
 #include "util_private.h"
 #include "log.h"
+#include "util_static.c"
 
 /**
  * @defgroup client_request_states valid values of UDSClient_t::state

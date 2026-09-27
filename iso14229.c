@@ -15,7 +15,6 @@
 
 #if UDS_SYS == UDS_SYS_UNIX
 #include <sys/time.h>
-#include <sys/types.h>
 #include <time.h>
 #endif // if UDS_SYS == UDS_SYS_UNIX
 
@@ -42,29 +41,27 @@
 #endif // UDS_LOG_LEVEL > UDS_LOG_NONE
 
 #ifdef UDS_TP_ISOTP_C_SOCKETCAN
+#include <errno.h>
 #include <linux/can.h>
 #include <linux/can/raw.h>
 #include <net/if.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
-#include <errno.h>
-#include <stdarg.h>
 #endif // defined(UDS_TP_ISOTP_C_SOCKETCAN)
 
 #ifdef UDS_TP_ISOTP_SOCK
-#include <string.h>
 #include <errno.h>
 #include <linux/can.h>
 #include <linux/can/isotp.h>
 #include <net/if.h>
 #include <poll.h>
+#include <string.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
-#include <sys/socket.h>
-#include <sys/types.h>
 #include <unistd.h>
 #endif // defined(UDS_TP_ISOTP_SOCK)
 
@@ -150,14 +147,14 @@
 /// \endcond
 
 #ifdef UDS_LINES
-#line 1 "src/util_private.h"
+#line 1 "src/util_static.c"
 #endif // #ifdef UDS_LINES
 
 
 
 
 /// Serializes n bytes of val to *dst in big-endian format.
-static inline void PackBE(uint8_t *dst, uint64_t val, size_t n) {
+static void PackBE(uint8_t *dst, uint64_t val, size_t n) {
     for (size_t i = 0; i < n; i++) {
         dst[i] = (uint8_t)(val >> (8U * (n - 1U - i)));
     }
@@ -169,13 +166,13 @@ static inline void PackBE(uint8_t *dst, uint64_t val, size_t n) {
  * @param n ranges from 0 to sizeof(size_t) inclusive
  * @return unpacked quantity
  */
-static inline size_t UnpackBEsize(const uint8_t *src, size_t n) {
+static size_t UnpackBEsize(const uint8_t *src, size_t n) {
     UDS_ASSERT(src != NULL);
     UDS_ASSERT(n <= sizeof(size_t));
 
     size_t val = 0;
     for (size_t i = 0; i < n; i++) {
-        val = (val << 8) | src[i];
+        val = (val << 8U) | src[i];
     }
     return val;
 }
@@ -186,13 +183,13 @@ static inline size_t UnpackBEsize(const uint8_t *src, size_t n) {
  * @param n ranges from 0 to sizeof(uintptr_t) inclusive
  * @return unpacked quantity
  */
-static inline uintptr_t UnpackBEuintptr(const uint8_t *src, size_t n) {
+static uintptr_t UnpackBEuintptr(const uint8_t *src, size_t n) {
     UDS_ASSERT(src != NULL);
     UDS_ASSERT(n <= sizeof(uintptr_t));
 
     uintptr_t val = 0;
     for (size_t i = 0; i < n; i++) {
-        val = (val << 8) | src[i];
+        val = (val << 8U) | src[i];
     }
     return val;
 }
@@ -203,13 +200,13 @@ static inline uintptr_t UnpackBEuintptr(const uint8_t *src, size_t n) {
  * @param n ranges from 0 to 4 inclusive
  * @return unpacked quantity
  */
-static inline uint32_t UnpackBEu32(const uint8_t *src, size_t n) {
+static uint32_t UnpackBEu32(const uint8_t *src, size_t n) {
     UDS_ASSERT(src != NULL);
     UDS_ASSERT(n <= sizeof(uint32_t));
 
     uint32_t val = 0;
     for (size_t i = 0; i < n; i++) {
-        val = (val << 8) | src[i];
+        val = (val << 8U) | src[i];
     }
 
     return val;
@@ -221,26 +218,20 @@ static inline uint32_t UnpackBEu32(const uint8_t *src, size_t n) {
  * @param dst pointer to destination
  * @return UDS_OK if successful
  */
-static inline uint16_t UnpackBEu16(const uint8_t *src) {
+static uint16_t UnpackBEu16(const uint8_t *src) {
     UDS_ASSERT(src);
-    return (uint16_t)((uint16_t)(src[0] << 8) | (uint16_t)src[1]);
+    return (uint16_t)((uint16_t)(src[0] << 8U) | (uint16_t)src[1]);
 }
 
-static inline uint8_t AsResponseSID(uint8_t request_sid) {
+static uint8_t AsResponseSID(uint8_t request_sid) {
     UDS_ASSERT(request_sid <= (UINT8_MAX - 0x40U));
     return request_sid + 0x40U;
 }
 
-static inline uint8_t AsRequestSID(uint8_t response_sid) {
+static uint8_t AsRequestSID(uint8_t response_sid) {
     UDS_ASSERT(response_sid >= 0x40U);
     return response_sid - 0x40U;
 }
-
-/// returns true if a security level is reserved per ISO14229-1:2020 Table 42
-bool UDSSecurityAccessLevelIsReserved(uint8_t securityLevel);
-
-/// returns true if err is defined in ISO14229-1:2020 as an NRC
-bool UDSErrIsNRC(UDSErr_t err);
 
 /**
  * @brief Check whether one timestamp is after another, correctly handling wrap-around
@@ -248,15 +239,103 @@ bool UDSErrIsNRC(UDSErr_t err);
  * @param b: reference timestamp
  * @return true if `a` is after `b`
  */
-static inline bool UDSTimeAfter(uint32_t a, uint32_t b) {
+static bool UDSTimeAfter(uint32_t a, uint32_t b) {
     uint32_t diff = a - b;
     return (diff != 0U) && ((diff & 0x80000000U) == 0U);
+}
+
+/// returns true if a security level is reserved per ISO14229-1:2020 Table 42
+// See ISO14229-1:2020 Table 42 — Request message SubFunction parameter definition
+static bool UDSSecurityAccessLevelIsReserved(uint8_t subFunction) {
+    if (0U == subFunction) {
+        return true;
+    }
+    if (subFunction <= 0x42U) {
+        return false;
+    }
+    if (subFunction <= 0x5EU) {
+        return true;
+    }
+    if (subFunction <= 0x7EU) {
+        return false;
+    }
+    return true;
+}
+
+/// returns true if err is defined in ISO14229-1:2020 as an NRC
+static bool UDSErrIsNRC(UDSErr_t err) {
+    switch (err) {
+    case UDS_PositiveResponse:
+    case UDS_NRC_GeneralReject:
+    case UDS_NRC_ServiceNotSupported:
+    case UDS_NRC_SubFunctionNotSupported:
+    case UDS_NRC_IncorrectMessageLengthOrInvalidFormat:
+    case UDS_NRC_ResponseTooLong:
+    case UDS_NRC_BusyRepeatRequest:
+    case UDS_NRC_ConditionsNotCorrect:
+    case UDS_NRC_RequestSequenceError:
+    case UDS_NRC_NoResponseFromSubnetComponent:
+    case UDS_NRC_FailurePreventsExecutionOfRequestedAction:
+    case UDS_NRC_RequestOutOfRange:
+    case UDS_NRC_SecurityAccessDenied:
+    case UDS_NRC_AuthenticationRequired:
+    case UDS_NRC_InvalidKey:
+    case UDS_NRC_ExceedNumberOfAttempts:
+    case UDS_NRC_RequiredTimeDelayNotExpired:
+    case UDS_NRC_SecureDataTransmissionRequired:
+    case UDS_NRC_SecureDataTransmissionNotAllowed:
+    case UDS_NRC_SecureDataVerificationFailed:
+    case UDS_NRC_CertficateVerificationFailedInvalidTimePeriod:
+    case UDS_NRC_CertficateVerificationFailedInvalidSignature:
+    case UDS_NRC_CertficateVerificationFailedInvalidChainOfTrust:
+    case UDS_NRC_CertficateVerificationFailedInvalidType:
+    case UDS_NRC_CertficateVerificationFailedInvalidFormat:
+    case UDS_NRC_CertficateVerificationFailedInvalidContent:
+    case UDS_NRC_CertficateVerificationFailedInvalidScope:
+    case UDS_NRC_CertficateVerificationFailedInvalidCertificate:
+    case UDS_NRC_OwnershipVerificationFailed:
+    case UDS_NRC_ChallengeCalculationFailed:
+    case UDS_NRC_SettingAccessRightsFailed:
+    case UDS_NRC_SessionKeyCreationOrDerivationFailed:
+    case UDS_NRC_ConfigurationDataUsageFailed:
+    case UDS_NRC_DeAuthenticationFailed:
+    case UDS_NRC_UploadDownloadNotAccepted:
+    case UDS_NRC_TransferDataSuspended:
+    case UDS_NRC_GeneralProgrammingFailure:
+    case UDS_NRC_WrongBlockSequenceCounter:
+    case UDS_NRC_RequestCorrectlyReceived_ResponsePending:
+    case UDS_NRC_SubFunctionNotSupportedInActiveSession:
+    case UDS_NRC_ServiceNotSupportedInActiveSession:
+    case UDS_NRC_RpmTooHigh:
+    case UDS_NRC_RpmTooLow:
+    case UDS_NRC_EngineIsRunning:
+    case UDS_NRC_EngineIsNotRunning:
+    case UDS_NRC_EngineRunTimeTooLow:
+    case UDS_NRC_TemperatureTooHigh:
+    case UDS_NRC_TemperatureTooLow:
+    case UDS_NRC_VehicleSpeedTooHigh:
+    case UDS_NRC_VehicleSpeedTooLow:
+    case UDS_NRC_ThrottlePedalTooHigh:
+    case UDS_NRC_ThrottlePedalTooLow:
+    case UDS_NRC_TransmissionRangeNotInNeutral:
+    case UDS_NRC_TransmissionRangeNotInGear:
+    case UDS_NRC_BrakeSwitchNotClosed:
+    case UDS_NRC_ShifterLeverNotInPark:
+    case UDS_NRC_TorqueConverterClutchLocked:
+    case UDS_NRC_VoltageTooHigh:
+    case UDS_NRC_VoltageTooLow:
+    case UDS_NRC_ResourceTemporarilyNotAvailable:
+        return true;
+    default:
+        return false;
+    }
 }
 
 
 #ifdef UDS_LINES
 #line 1 "src/client.c"
 #endif // #ifdef UDS_LINES
+
 
 
 
@@ -1165,6 +1244,7 @@ UDSErr_t UDSUnpackRDBIResponse(UDSClient_t *client, UDSRDBIVar_t *vars, uint16_t
 #ifdef UDS_LINES
 #line 1 "src/server.c"
 #endif // #ifdef UDS_LINES
+
 
 
 
@@ -2908,21 +2988,6 @@ uint32_t UDSMillis(void) {
 }
 #endif // defined(UDS_CUSTOM_MILLIS)
 
-// See ISO14229-1:2020 Table 42 — Request message SubFunction parameter definition
-bool UDSSecurityAccessLevelIsReserved(uint8_t subFunction) {
-    if (0U == subFunction) {
-        return true;
-    } else if (subFunction <= 0x42U) {
-        return false;
-    } else if (subFunction <= 0x5EU) {
-        return true;
-    } else if (subFunction <= 0x7EU) {
-        return false;
-    } else {
-        return true;
-    }
-}
-
 const char *UDSErrToStr(UDSErr_t err) {
     switch (err) {
     case UDS_OK:
@@ -3123,74 +3188,6 @@ const char *UDSEventToStr(UDSEvent_t evt) {
         return "UDS_EVT_MAX";
     default:
         return "unknown";
-    }
-}
-
-bool UDSErrIsNRC(UDSErr_t err) {
-    switch (err) {
-    case UDS_PositiveResponse:
-    case UDS_NRC_GeneralReject:
-    case UDS_NRC_ServiceNotSupported:
-    case UDS_NRC_SubFunctionNotSupported:
-    case UDS_NRC_IncorrectMessageLengthOrInvalidFormat:
-    case UDS_NRC_ResponseTooLong:
-    case UDS_NRC_BusyRepeatRequest:
-    case UDS_NRC_ConditionsNotCorrect:
-    case UDS_NRC_RequestSequenceError:
-    case UDS_NRC_NoResponseFromSubnetComponent:
-    case UDS_NRC_FailurePreventsExecutionOfRequestedAction:
-    case UDS_NRC_RequestOutOfRange:
-    case UDS_NRC_SecurityAccessDenied:
-    case UDS_NRC_AuthenticationRequired:
-    case UDS_NRC_InvalidKey:
-    case UDS_NRC_ExceedNumberOfAttempts:
-    case UDS_NRC_RequiredTimeDelayNotExpired:
-    case UDS_NRC_SecureDataTransmissionRequired:
-    case UDS_NRC_SecureDataTransmissionNotAllowed:
-    case UDS_NRC_SecureDataVerificationFailed:
-    case UDS_NRC_CertficateVerificationFailedInvalidTimePeriod:
-    case UDS_NRC_CertficateVerificationFailedInvalidSignature:
-    case UDS_NRC_CertficateVerificationFailedInvalidChainOfTrust:
-    case UDS_NRC_CertficateVerificationFailedInvalidType:
-    case UDS_NRC_CertficateVerificationFailedInvalidFormat:
-    case UDS_NRC_CertficateVerificationFailedInvalidContent:
-    case UDS_NRC_CertficateVerificationFailedInvalidScope:
-    case UDS_NRC_CertficateVerificationFailedInvalidCertificate:
-    case UDS_NRC_OwnershipVerificationFailed:
-    case UDS_NRC_ChallengeCalculationFailed:
-    case UDS_NRC_SettingAccessRightsFailed:
-    case UDS_NRC_SessionKeyCreationOrDerivationFailed:
-    case UDS_NRC_ConfigurationDataUsageFailed:
-    case UDS_NRC_DeAuthenticationFailed:
-    case UDS_NRC_UploadDownloadNotAccepted:
-    case UDS_NRC_TransferDataSuspended:
-    case UDS_NRC_GeneralProgrammingFailure:
-    case UDS_NRC_WrongBlockSequenceCounter:
-    case UDS_NRC_RequestCorrectlyReceived_ResponsePending:
-    case UDS_NRC_SubFunctionNotSupportedInActiveSession:
-    case UDS_NRC_ServiceNotSupportedInActiveSession:
-    case UDS_NRC_RpmTooHigh:
-    case UDS_NRC_RpmTooLow:
-    case UDS_NRC_EngineIsRunning:
-    case UDS_NRC_EngineIsNotRunning:
-    case UDS_NRC_EngineRunTimeTooLow:
-    case UDS_NRC_TemperatureTooHigh:
-    case UDS_NRC_TemperatureTooLow:
-    case UDS_NRC_VehicleSpeedTooHigh:
-    case UDS_NRC_VehicleSpeedTooLow:
-    case UDS_NRC_ThrottlePedalTooHigh:
-    case UDS_NRC_ThrottlePedalTooLow:
-    case UDS_NRC_TransmissionRangeNotInNeutral:
-    case UDS_NRC_TransmissionRangeNotInGear:
-    case UDS_NRC_BrakeSwitchNotClosed:
-    case UDS_NRC_ShifterLeverNotInPark:
-    case UDS_NRC_TorqueConverterClutchLocked:
-    case UDS_NRC_VoltageTooHigh:
-    case UDS_NRC_VoltageTooLow:
-    case UDS_NRC_ResourceTemporarilyNotAvailable:
-        return true;
-    default:
-        return false;
     }
 }
 
@@ -3588,15 +3585,12 @@ static UDSErr_t isotp_sock_tp_poll(UDSTp_t *hdl) {
                 socklen_t len = sizeof(pending_err);
                 if (0 == getsockopt(fds[i], SOL_SOCKET, SO_ERROR, &pending_err, &len) &&
                     pending_err) {
-                    switch (pending_err) {
-                    case ECOMM:
+                    if (ECOMM == pending_err) {
                         UDS_LOGE(__FILE__, "ECOMM: Communication error on send");
                         err = UDS_ERR_TPORT;
-                        break;
-                    default:
+                    } else {
                         UDS_LOGE(__FILE__, "Asynchronous socket error: %s (%d)",
                                  strerror(pending_err), pending_err);
-                        break;
                     }
                 } else {
                     UDS_LOGE(__FILE__, "POLLERR was set, but no error returned via SO_ERROR?");

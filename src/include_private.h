@@ -3,7 +3,6 @@
 
 #if UDS_SYS == UDS_SYS_UNIX
 #include <sys/time.h>
-#include <sys/types.h>
 #include <time.h>
 #endif // if UDS_SYS == UDS_SYS_UNIX
 
@@ -30,28 +29,26 @@
 #endif // UDS_LOG_LEVEL > UDS_LOG_NONE
 
 #ifdef UDS_TP_ISOTP_C_SOCKETCAN
+#include <errno.h>
 #include <linux/can.h>
 #include <linux/can/raw.h>
 #include <net/if.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
-#include <errno.h>
-#include <stdarg.h>
 #endif // defined(UDS_TP_ISOTP_C_SOCKETCAN)
 
 #ifdef UDS_TP_ISOTP_SOCK
-#include <string.h>
 #include <errno.h>
 #include <linux/can.h>
 #include <linux/can/isotp.h>
 #include <net/if.h>
 #include <poll.h>
+#include <string.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
-#include <sys/socket.h>
-#include <sys/types.h>
 #include <unistd.h>
 #endif // defined(UDS_TP_ISOTP_SOCK)
