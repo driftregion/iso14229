@@ -1,4 +1,4 @@
-#if defined(UDS_TP_ISOTP_MOCK)
+#ifdef UDS_TP_ISOTP_MOCK
 
 /// \cond INTERNAL_INTERFACE
 
@@ -10,8 +10,8 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define MAX_NUM_TP 16u
-#define NUM_MSGS 8u
+#define MAX_NUM_TP 16U
+#define NUM_MSGS 8U
 static ISOTPMock_t TPs[MAX_NUM_TP];
 static const char ZeroTestBlock[sizeof(ISOTPMock_t)];
 static unsigned TPCount = 0;
@@ -37,7 +37,7 @@ static void NetworkPoll(void) {
                 }
                 if ((tp->sa_phys == msgs[i].info.A_TA) || (tp->sa_func == msgs[i].info.A_TA)) {
                     found = true;
-                    if (tp->recv_len > 0u) {
+                    if (tp->recv_len > 0U) {
                         UDS_LOGW(__FILE__,
                                  "TPMock: %s recv buffer is already full. Message dropped",
                                  tp->name);
@@ -61,8 +61,8 @@ static void NetworkPoll(void) {
                 UDS_LOGW(__FILE__, "TPMock: no matching receiver for message");
             }
 
-            for (unsigned j = i + 1u; j < MsgCount; j++) {
-                msgs[j - 1u] = msgs[j];
+            for (unsigned j = i + 1U; j < MsgCount; j++) {
+                msgs[j - 1U] = msgs[j];
             }
             MsgCount--;
         } else {
@@ -84,7 +84,7 @@ static UDSErr_t mock_tp_send(struct UDSTp *hdl, const uint8_t *buf, size_t len,
     UDS_A_TA_Type_t ta_type =
         (info == NULL) ? (UDS_A_TA_Type_t)UDS_A_TA_TYPE_PHYSICAL : (UDS_A_TA_Type_t)info->A_TA_Type;
     m->len = len;
-    m->info.A_AE = (info == NULL) ? 0u : info->A_AE;
+    m->info.A_AE = (info == NULL) ? 0U : info->A_AE;
     if (UDS_A_TA_TYPE_PHYSICAL == ta_type) {
         m->info.A_TA = tp->ta_phys;
         m->info.A_SA = tp->sa_phys;
@@ -93,7 +93,7 @@ static UDSErr_t mock_tp_send(struct UDSTp *hdl, const uint8_t *buf, size_t len,
         // This condition is only true for standard CAN.
         // Technically CAN-FD may also be used in ISO-TP.
         // TODO: add profiles to isotp_mock
-        if (len > 7u) {
+        if (len > 7U) {
             UDS_LOGW(__FILE__, "mock_tp_send: functional message too long: %zu", len);
             return UDS_FAIL;
         }
@@ -119,7 +119,7 @@ static UDSErr_t mock_tp_recv(struct UDSTp *hdl, uint8_t *buf, size_t bufsiz, siz
                              UDSSDU_t *info) {
     UDS_ASSERT(hdl);
     ISOTPMock_t *tp = (ISOTPMock_t *)hdl; // cppcheck-suppress [misra-c2012-11.3]
-    if (tp->recv_len == 0u) {
+    if (tp->recv_len == 0U) {
         return UDS_OK;
     }
     if (bufsiz < tp->recv_len) {

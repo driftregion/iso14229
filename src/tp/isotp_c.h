@@ -1,5 +1,5 @@
 #pragma once
-#if defined(UDS_TP_ISOTP_C)
+#ifdef UDS_TP_ISOTP_C
 
 #include "sys.h"
 #include "config.h"
@@ -26,7 +26,7 @@ typedef struct {
     /// \endcond
 } UDSTpISOTpC_t;
 
-static_assert(offsetof(UDSTpISOTpC_t, hdl) == 0u, "hdl must be the first member");
+static_assert(offsetof(UDSTpISOTpC_t, hdl) == 0U, "hdl must be the first member");
 
 /**
  * @brief Initialize isotp-c transport for \ref UDSServer_t

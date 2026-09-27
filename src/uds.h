@@ -151,10 +151,10 @@ typedef enum {
  * @see UDSSendDiagSessCtrl UDS_EVT_DiagSessCtrl
  * @{
  */
-#define UDS_LEV_DS_DS 1u    ///< Default Session
-#define UDS_LEV_DS_PRGS 2u  ///< Programming Session
-#define UDS_LEV_DS_EXTDS 3u ///< Extended Diagnostic Session
-#define UDS_LEV_DS_SSDS 4u  ///< Safety System Diagnostic Session
+#define UDS_LEV_DS_DS 1U    ///< Default Session
+#define UDS_LEV_DS_PRGS 2U  ///< Programming Session
+#define UDS_LEV_DS_EXTDS 3U ///< Extended Diagnostic Session
+#define UDS_LEV_DS_SSDS 4U  ///< Safety System Diagnostic Session
 /** @} */
 
 /**
@@ -163,11 +163,11 @@ typedef enum {
  * @see UDSSendECUReset UDS_EVT_ECUReset
  * @{
  */
-#define UDS_LEV_RT_HR 1u      ///< Hard Reset
-#define UDS_LEV_RT_KOFFONR 2u ///< Key Off On Reset
-#define UDS_LEV_RT_SR 3u      ///< Soft Reset
-#define UDS_LEV_RT_ERPSD 4u   ///< Enable Rapid Power Shut Down
-#define UDS_LEV_RT_DRPSD 5u   ///< Disable Rapid Power Shut Down
+#define UDS_LEV_RT_HR 1U      ///< Hard Reset
+#define UDS_LEV_RT_KOFFONR 2U ///< Key Off On Reset
+#define UDS_LEV_RT_SR 3U      ///< Soft Reset
+#define UDS_LEV_RT_ERPSD 4U   ///< Enable Rapid Power Shut Down
+#define UDS_LEV_RT_DRPSD 5U   ///< Disable Rapid Power Shut Down
 /** @} */
 
 /**
@@ -176,10 +176,10 @@ typedef enum {
  * @see UDSSendCommCtrl UDS_EVT_CommCtrl
  * @{
  */
-#define UDS_LEV_CTRLTP_ERXTX 0u  ///< EnableRxAndTx
-#define UDS_LEV_CTRLTP_ERXDTX 1u ///< EnableRxAndDisableTx
-#define UDS_LEV_CTRLTP_DRXETX 2u ///< DisableRxAndEnableTx
-#define UDS_LEV_CTRLTP_DRXTX 3u  ///< DisableRxAndTx
+#define UDS_LEV_CTRLTP_ERXTX 0U  ///< EnableRxAndTx
+#define UDS_LEV_CTRLTP_ERXDTX 1U ///< EnableRxAndDisableTx
+#define UDS_LEV_CTRLTP_DRXETX 2U ///< DisableRxAndEnableTx
+#define UDS_LEV_CTRLTP_DRXTX 3U  ///< DisableRxAndTx
 /** @} */
 
 /**
@@ -188,10 +188,10 @@ typedef enum {
  * @see UDSSendCommCtrl UDS_EVT_CommCtrl
  * @{
  */
-#define UDS_CTP_NCM 1u   ///< NormalCommunicationMessages
-#define UDS_CTP_NWMCM 2u ///< NetworkManagementCommunicationMessages
+#define UDS_CTP_NCM 1U   ///< NormalCommunicationMessages
+#define UDS_CTP_NWMCM 2U ///< NetworkManagementCommunicationMessages
 #define UDS_CTP_NWMCM_NCM                                                                          \
-    3u ///< NetworkManagementCommunicationMessagesAndNormalCommunicationMessages
+    3U ///< NetworkManagementCommunicationMessagesAndNormalCommunicationMessages
 /** @} */
 
 /**
@@ -200,9 +200,9 @@ typedef enum {
  * @see UDSSendRoutineCtrl UDS_EVT_RoutineCtrl
  * @{
  */
-#define UDS_LEV_RCTP_STR 1u  ///< StartRoutine
-#define UDS_LEV_RCTP_STPR 2u ///< StopRoutine
-#define UDS_LEV_RCTP_RRR 3u  ///< RequestRoutineResults
+#define UDS_LEV_RCTP_STR 1U  ///< StartRoutine
+#define UDS_LEV_RCTP_STPR 2U ///< StopRoutine
+#define UDS_LEV_RCTP_RRR 3U  ///< RequestRoutineResults
 /** @} */
 
 /**
@@ -211,12 +211,12 @@ typedef enum {
  * @see UDSSendRequestFileTransfer UDS_EVT_RequestFileTransfer
  * @{
  */
-#define UDS_MOOP_ADDFILE 1u  ///< AddFile
-#define UDS_MOOP_DELFILE 2u  ///< DeleteFile
-#define UDS_MOOP_REPLFILE 3u ///< ReplaceFile
-#define UDS_MOOP_RDFILE 4u   ///< ReadFile
-#define UDS_MOOP_RDDIR 5u    ///< ReadDirectory
-#define UDS_MOOP_RSFILE 6u   ///< ResumeFile
+#define UDS_MOOP_ADDFILE 1U  ///< AddFile
+#define UDS_MOOP_DELFILE 2U  ///< DeleteFile
+#define UDS_MOOP_REPLFILE 3U ///< ReplaceFile
+#define UDS_MOOP_RDFILE 4U   ///< ReadFile
+#define UDS_MOOP_RDDIR 5U    ///< ReadDirectory
+#define UDS_MOOP_RSFILE 6U   ///< ResumeFile
 /** @} */
 
 /**
@@ -225,8 +225,8 @@ typedef enum {
  * @see UDSSendControlDTCSetting UDS_EVT_ControlDTCSetting
  * @{
  */
-#define UDS_LEV_DTCSTP_ON 1u  ///< Resume updating DTCs
-#define UDS_LEV_DTCSTP_OFF 2u ///< Stop updating DTCs
+#define UDS_LEV_DTCSTP_ON 1U  ///< Resume updating DTCs
+#define UDS_LEV_DTCSTP_OFF 2U ///< Stop updating DTCs
 /** @} */
 
 /**
@@ -235,7 +235,7 @@ typedef enum {
  * @see UDSSendLinkControl UDS_EVT_LinkControl
  * @{
  */
-#define UDS_LEV_LCTP_VMTWFP 1u ///< VerifyModeTransitionWithFixedParameter
-#define UDS_LEV_LCTP_VMTWSP 2u ///< VerifyModeTransitionWithSpecificParameter
-#define UDS_LEV_LCTP_TM 3u     ///< TransitionMode
+#define UDS_LEV_LCTP_VMTWFP 1U ///< VerifyModeTransitionWithFixedParameter
+#define UDS_LEV_LCTP_VMTWSP 2U ///< VerifyModeTransitionWithSpecificParameter
+#define UDS_LEV_LCTP_TM 3U     ///< TransitionMode
 /** @} */

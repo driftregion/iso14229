@@ -1,4 +1,4 @@
-#if defined(UDS_TP_ISOTP_C)
+#ifdef UDS_TP_ISOTP_C
 
 #include "util.h"
 #include "log.h"
@@ -38,7 +38,7 @@ static UDSErr_t tp_send(UDSTp_t *hdl, const uint8_t *buf, size_t len, const UDSS
         break;
     case UDS_A_TA_TYPE_FUNCTIONAL:
         link = &tp->func_link;
-        if (len > 7u) {
+        if (len > 7U) {
             UDS_LOGE(__FILE__, "Cannot send more than 7 bytes via functional addressing");
             return UDS_ERR_MISUSE;
         }

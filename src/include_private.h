@@ -29,7 +29,7 @@
 #include <stdarg.h>
 #endif // UDS_LOG_LEVEL > UDS_LOG_NONE
 
-#if defined(UDS_TP_ISOTP_C_SOCKETCAN)
+#ifdef UDS_TP_ISOTP_C_SOCKETCAN
 #include <linux/can.h>
 #include <linux/can/raw.h>
 #include <net/if.h>
@@ -42,7 +42,7 @@
 #include <stdarg.h>
 #endif // defined(UDS_TP_ISOTP_C_SOCKETCAN)
 
-#if defined(UDS_TP_ISOTP_SOCK)
+#ifdef UDS_TP_ISOTP_SOCK
 #include <string.h>
 #include <errno.h>
 #include <linux/can.h>

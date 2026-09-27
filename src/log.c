@@ -1,6 +1,6 @@
 #include "log.h"
 #include "tp.h"
-#include "include.c"
+#include "include_private.h"
 
 #if UDS_LOG_LEVEL > UDS_LOG_NONE
 void UDS_LogWrite(UDS_LogLevel_t level, const char *tag, const char *format, ...) {

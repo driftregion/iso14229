@@ -1,4 +1,4 @@
-#if defined(UDS_TP_ISOTP_MOCK)
+#ifdef UDS_TP_ISOTP_MOCK
 
 #pragma once
 
@@ -29,7 +29,7 @@ typedef struct {
     uint32_t ta_func; // target address - functional messages are sent to this address
 } ISOTPMockArgs_t;
 
-static_assert(offsetof(ISOTPMock_t, hdl) == 0u, "ISOTPMock_t must not have any members before hdl");
+static_assert(offsetof(ISOTPMock_t, hdl) == 0U, "ISOTPMock_t must not have any members before hdl");
 
 /**
  * @brief Create a mock transport. It is connected by default to a broadcast network of all other

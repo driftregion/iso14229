@@ -24,13 +24,13 @@ extern "C" {
 #line 1 "src/include.h"
 #endif // #ifdef UDS_LINES
 
-#if ((!defined(__STDC_VERSION__)) || (__STDC_VERSION__ < 201112L))
-    #ifdef static_assert
-        #undef static_assert
-    #endif
-    #define static_assert(expr, msg)
-    #define _Static_assert(expr, msg) 
-#endif // ((!defined(__STDC_VERSION__)) || (__STDC_VERSION__ < 201112L))
+#if !defined(__cplusplus) && ((!defined(__STDC_VERSION__)) || (__STDC_VERSION__ < 201112L))
+#ifdef static_assert
+#undef static_assert
+#endif
+#define static_assert(expr, msg)
+#define _Static_assert(expr, msg)
+#endif
 
 #include <assert.h>
 #include <inttypes.h>
@@ -59,8 +59,8 @@ extern "C" {
 #define UDS_SYS_ZEPHYR 5
 /** @} */
 
-#ifndef UDS_SYS         // system auto-detection
-#if defined(__ZEPHYR__) // native_sim links w/host libc which also defines __unix__
+#ifndef UDS_SYS   // system auto-detection
+#ifdef __ZEPHYR__ // native_sim links w/host libc which also defines __unix__
 #define UDS_SYS UDS_SYS_ZEPHYR
 #elif defined(__unix__) || defined(__APPLE__)
 #define UDS_SYS UDS_SYS_UNIX
@@ -110,7 +110,7 @@ extern "C" {
 #define UDS_LOG_LEVEL 0U
 #endif
 
-#define UDS_ISOTP_MTU (4095u) ///< ISO-TP Maximum Transmission Unit (ISO-15764-2-2004 section 5.3.3)
+#define UDS_ISOTP_MTU (4095U) ///< ISO-TP Maximum Transmission Unit (ISO-15764-2-2004 section 5.3.3)
 
 #ifndef UDS_TP_MTU
 /// ISOTP is the only supported tp type, so UDS inherits its MTU
@@ -182,12 +182,12 @@ static_assert((0 < UDS_SERVER_DEFAULT_P2_MS) &&
 
 /// Amount of time to wait after boot before accepting 0x27 requests.
 #ifndef UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_BOOT_DELAY_MS
-#define UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_BOOT_DELAY_MS (1000u)
+#define UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_BOOT_DELAY_MS (1000U)
 #endif
 
 /// Amount of time to wait after an authentication failure before accepting another 0x27 request.
 #ifndef UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_AUTH_FAIL_DELAY_MS
-#define UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_AUTH_FAIL_DELAY_MS (1000u)
+#define UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_AUTH_FAIL_DELAY_MS (1000U)
 #endif
 
 #ifndef UDS_SERVER_DEFAULT_XFER_DATA_MAX_BLOCKLENGTH
@@ -235,19 +235,19 @@ TransferData request message from the client. */
 #endif // ifdef _MSC_VER
 #endif // if UDS_SYS == UDS_SYS_WINDOWS
 
-#if defined(UDS_TP_ISOTP_C_SOCKETCAN)
+#ifdef UDS_TP_ISOTP_C_SOCKETCAN
 #ifndef UDS_TP_ISOTP_C
 #define UDS_TP_ISOTP_C
 #endif // #ifndef (UDS_TP_ISOTP_C)
 #endif // #defined(UDS_TP_ISOTP_C_SOCKETCAN)
 
-#if defined(UDS_TP_ISOTP_C_SOCKETCAN)
+#ifdef UDS_TP_ISOTP_C_SOCKETCAN
 #ifndef UDS_TP_ISOTP_C
 #error "UDS_TP_ISOTP_C must be defined to use UDS_TP_ISOTP_C_SOCKETCAN"
 #endif // #ifndef UDS_TP_ISOTP_C
 #endif // defined(UDS_TP_ISOTP_C_SOCKETCAN)
 
-#if defined(UDS_TP_ISOTP_C)
+#ifdef UDS_TP_ISOTP_C
 #ifdef ISO_TP_USER_SEND_CAN_ARG
 #error "this flag is set by iso14229"
 #endif // #ifdef ISO_TP_USER_SEND_CAN_ARG
@@ -415,10 +415,10 @@ typedef enum {
  * @see UDSSendDiagSessCtrl UDS_EVT_DiagSessCtrl
  * @{
  */
-#define UDS_LEV_DS_DS 1u    ///< Default Session
-#define UDS_LEV_DS_PRGS 2u  ///< Programming Session
-#define UDS_LEV_DS_EXTDS 3u ///< Extended Diagnostic Session
-#define UDS_LEV_DS_SSDS 4u  ///< Safety System Diagnostic Session
+#define UDS_LEV_DS_DS 1U    ///< Default Session
+#define UDS_LEV_DS_PRGS 2U  ///< Programming Session
+#define UDS_LEV_DS_EXTDS 3U ///< Extended Diagnostic Session
+#define UDS_LEV_DS_SSDS 4U  ///< Safety System Diagnostic Session
 /** @} */
 
 /**
@@ -427,11 +427,11 @@ typedef enum {
  * @see UDSSendECUReset UDS_EVT_ECUReset
  * @{
  */
-#define UDS_LEV_RT_HR 1u      ///< Hard Reset
-#define UDS_LEV_RT_KOFFONR 2u ///< Key Off On Reset
-#define UDS_LEV_RT_SR 3u      ///< Soft Reset
-#define UDS_LEV_RT_ERPSD 4u   ///< Enable Rapid Power Shut Down
-#define UDS_LEV_RT_DRPSD 5u   ///< Disable Rapid Power Shut Down
+#define UDS_LEV_RT_HR 1U      ///< Hard Reset
+#define UDS_LEV_RT_KOFFONR 2U ///< Key Off On Reset
+#define UDS_LEV_RT_SR 3U      ///< Soft Reset
+#define UDS_LEV_RT_ERPSD 4U   ///< Enable Rapid Power Shut Down
+#define UDS_LEV_RT_DRPSD 5U   ///< Disable Rapid Power Shut Down
 /** @} */
 
 /**
@@ -440,10 +440,10 @@ typedef enum {
  * @see UDSSendCommCtrl UDS_EVT_CommCtrl
  * @{
  */
-#define UDS_LEV_CTRLTP_ERXTX 0u  ///< EnableRxAndTx
-#define UDS_LEV_CTRLTP_ERXDTX 1u ///< EnableRxAndDisableTx
-#define UDS_LEV_CTRLTP_DRXETX 2u ///< DisableRxAndEnableTx
-#define UDS_LEV_CTRLTP_DRXTX 3u  ///< DisableRxAndTx
+#define UDS_LEV_CTRLTP_ERXTX 0U  ///< EnableRxAndTx
+#define UDS_LEV_CTRLTP_ERXDTX 1U ///< EnableRxAndDisableTx
+#define UDS_LEV_CTRLTP_DRXETX 2U ///< DisableRxAndEnableTx
+#define UDS_LEV_CTRLTP_DRXTX 3U  ///< DisableRxAndTx
 /** @} */
 
 /**
@@ -452,10 +452,10 @@ typedef enum {
  * @see UDSSendCommCtrl UDS_EVT_CommCtrl
  * @{
  */
-#define UDS_CTP_NCM 1u   ///< NormalCommunicationMessages
-#define UDS_CTP_NWMCM 2u ///< NetworkManagementCommunicationMessages
+#define UDS_CTP_NCM 1U   ///< NormalCommunicationMessages
+#define UDS_CTP_NWMCM 2U ///< NetworkManagementCommunicationMessages
 #define UDS_CTP_NWMCM_NCM                                                                          \
-    3u ///< NetworkManagementCommunicationMessagesAndNormalCommunicationMessages
+    3U ///< NetworkManagementCommunicationMessagesAndNormalCommunicationMessages
 /** @} */
 
 /**
@@ -464,9 +464,9 @@ typedef enum {
  * @see UDSSendRoutineCtrl UDS_EVT_RoutineCtrl
  * @{
  */
-#define UDS_LEV_RCTP_STR 1u  ///< StartRoutine
-#define UDS_LEV_RCTP_STPR 2u ///< StopRoutine
-#define UDS_LEV_RCTP_RRR 3u  ///< RequestRoutineResults
+#define UDS_LEV_RCTP_STR 1U  ///< StartRoutine
+#define UDS_LEV_RCTP_STPR 2U ///< StopRoutine
+#define UDS_LEV_RCTP_RRR 3U  ///< RequestRoutineResults
 /** @} */
 
 /**
@@ -475,12 +475,12 @@ typedef enum {
  * @see UDSSendRequestFileTransfer UDS_EVT_RequestFileTransfer
  * @{
  */
-#define UDS_MOOP_ADDFILE 1u  ///< AddFile
-#define UDS_MOOP_DELFILE 2u  ///< DeleteFile
-#define UDS_MOOP_REPLFILE 3u ///< ReplaceFile
-#define UDS_MOOP_RDFILE 4u   ///< ReadFile
-#define UDS_MOOP_RDDIR 5u    ///< ReadDirectory
-#define UDS_MOOP_RSFILE 6u   ///< ResumeFile
+#define UDS_MOOP_ADDFILE 1U  ///< AddFile
+#define UDS_MOOP_DELFILE 2U  ///< DeleteFile
+#define UDS_MOOP_REPLFILE 3U ///< ReplaceFile
+#define UDS_MOOP_RDFILE 4U   ///< ReadFile
+#define UDS_MOOP_RDDIR 5U    ///< ReadDirectory
+#define UDS_MOOP_RSFILE 6U   ///< ResumeFile
 /** @} */
 
 /**
@@ -489,8 +489,8 @@ typedef enum {
  * @see UDSSendControlDTCSetting UDS_EVT_ControlDTCSetting
  * @{
  */
-#define UDS_LEV_DTCSTP_ON 1u  ///< Resume updating DTCs
-#define UDS_LEV_DTCSTP_OFF 2u ///< Stop updating DTCs
+#define UDS_LEV_DTCSTP_ON 1U  ///< Resume updating DTCs
+#define UDS_LEV_DTCSTP_OFF 2U ///< Stop updating DTCs
 /** @} */
 
 /**
@@ -499,9 +499,9 @@ typedef enum {
  * @see UDSSendLinkControl UDS_EVT_LinkControl
  * @{
  */
-#define UDS_LEV_LCTP_VMTWFP 1u ///< VerifyModeTransitionWithFixedParameter
-#define UDS_LEV_LCTP_VMTWSP 2u ///< VerifyModeTransitionWithSpecificParameter
-#define UDS_LEV_LCTP_TM 3u     ///< TransitionMode
+#define UDS_LEV_LCTP_VMTWFP 1U ///< VerifyModeTransitionWithFixedParameter
+#define UDS_LEV_LCTP_VMTWSP 2U ///< VerifyModeTransitionWithSpecificParameter
+#define UDS_LEV_LCTP_TM 3U     ///< TransitionMode
 /** @} */
 
 
@@ -512,7 +512,7 @@ typedef enum {
 
 
 
-#if defined UDS_TP_ISOTP_C_SOCKETCAN
+#ifdef UDS_TP_ISOTP_C_SOCKETCAN
 #ifndef UDS_TP_ISOTP_C
 #define UDS_TP_ISOTP_C
 #endif
@@ -521,18 +521,18 @@ typedef enum {
 /** private: transport message type
  * @defgroup uds_a_mtype
  */
-#define UDS_A_MTYPE_DIAG 0u
-#define UDS_A_MTYPE_REMOTE_DIAG 1u
-#define UDS_A_MTYPE_SECURE_DIAG 2u
-#define UDS_A_MTYPE_SECURE_REMOTE_DIAG 3u
+#define UDS_A_MTYPE_DIAG 0U
+#define UDS_A_MTYPE_REMOTE_DIAG 1U
+#define UDS_A_MTYPE_SECURE_DIAG 2U
+#define UDS_A_MTYPE_SECURE_REMOTE_DIAG 3U
 
 typedef uint8_t UDS_A_Mtype_t; ///< private: oneof @ref uds_a_mtype
 
 /** private: transport transmission type
  * @defgroup uds_a_ta_type
  */
-#define UDS_A_TA_TYPE_PHYSICAL 0u   // unicast (1:1)
-#define UDS_A_TA_TYPE_FUNCTIONAL 1u // multicast
+#define UDS_A_TA_TYPE_PHYSICAL 0U   // unicast (1:1)
+#define UDS_A_TA_TYPE_FUNCTIONAL 1U // multicast
 
 typedef uint8_t UDS_A_TA_Type_t; ///< private: oneof @ref uds_a_ta_type
 
@@ -705,7 +705,8 @@ static_assert((UDS_LOG_LEVEL == UDS_LOG_NONE) || (UDS_LOG_LEVEL == UDS_LOG_ERROR
     UDS_LogSDUInternal(UDS_LOG_DEBUG, tag, buffer, buff_len, info)
 #else
 #define UDS_LOGV(tag, format, ...) UDS_LogDummy(UDS_LOG_NONE, tag, format, ##__VA_ARGS__)
-#define UDS_LOG_SDU(tag, buffer, buff_len, info) UDS_LogSDUDummy(UDS_LOG_NONE, tag, buffer, buff_len, info)
+#define UDS_LOG_SDU(tag, buffer, buff_len, info)                                                   \
+    UDS_LogSDUDummy(UDS_LOG_NONE, tag, buffer, buff_len, info)
 #endif
 
 #if defined(__GNUC__) || defined(__clang__)
@@ -728,8 +729,8 @@ static inline void UDS_LogDummy(UDS_LogLevel_t level, const char *tag, const cha
     (void)tag;
     (void)format;
 }
-static inline void UDS_LogSDUDummy(UDS_LogLevel_t level, const char *tag, const uint8_t *buffer, size_t buflen,
-                                   const UDSSDU_t *info) {
+static inline void UDS_LogSDUDummy(UDS_LogLevel_t level, const char *tag, const uint8_t *buffer,
+                                   size_t buflen, const UDSSDU_t *info) {
     (void)level;
     (void)tag;
     (void)buffer;
@@ -2254,7 +2255,7 @@ void isotp_set_rx_done_cb(IsoTpLink* link, isotp_rx_done_cb cb, void* arg);
 #ifdef UDS_LINES
 #line 1 "src/tp/isotp_c.h"
 #endif // #ifdef UDS_LINES
-#if defined(UDS_TP_ISOTP_C)
+#ifdef UDS_TP_ISOTP_C
 
 
 
@@ -2281,7 +2282,7 @@ typedef struct {
     /// \endcond
 } UDSTpISOTpC_t;
 
-static_assert(offsetof(UDSTpISOTpC_t, hdl) == 0u, "hdl must be the first member");
+static_assert(offsetof(UDSTpISOTpC_t, hdl) == 0U, "hdl must be the first member");
 
 /**
  * @brief Initialize isotp-c transport for \ref UDSServer_t
@@ -2315,7 +2316,7 @@ UDSErr_t UDSTpISOTpCPoll(UDSTp_t *tp);
 #line 1 "src/tp/isotp_c_socketcan.h"
 #endif // #ifdef UDS_LINES
 
-#if defined(UDS_TP_ISOTP_C_SOCKETCAN)
+#ifdef UDS_TP_ISOTP_C_SOCKETCAN
 
 
 
@@ -2331,7 +2332,7 @@ typedef struct {
     /// \endcond
 } UDSTpISOTpCSocketCAN_t;
 
-static_assert(offsetof(UDSTpISOTpCSocketCAN_t, hdl2) == 0u, "hdl must be the first member");
+static_assert(offsetof(UDSTpISOTpCSocketCAN_t, hdl2) == 0U, "hdl must be the first member");
 
 /**
  * @brief Initialize isotp-c over SocketCAN transport for \ref UDSServer_t
@@ -2359,7 +2360,7 @@ void UDSTpISOTpCSocketCANDeinit(UDSTpISOTpCSocketCAN_t *tp); ///< release socket
 
 #endif
 
-#if defined(UDS_TP_ISOTP_SOCK)
+#ifdef UDS_TP_ISOTP_SOCK
 #ifdef UDS_LINES
 #line 1 "src/tp/isotp_sock.h"
 #endif // #ifdef UDS_LINES
@@ -2388,7 +2389,7 @@ typedef struct {
     /// \endcond
 } UDSTpIsoTpSock_t;
 
-static_assert(offsetof(UDSTpIsoTpSock_t, hdl) == 0u, "hdl must be the first member");
+static_assert(offsetof(UDSTpIsoTpSock_t, hdl) == 0U, "hdl must be the first member");
 
 UDSErr_t UDSServerTpIsoTpSockInit(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
                                   uint32_t target_addr,
@@ -2400,7 +2401,7 @@ void UDSTpIsoTpSockDeinit(const UDSTpIsoTpSock_t *tp);        ///< release socke
 
 #endif
 
-#if defined(UDS_TP_ISOTP_MOCK)
+#ifdef UDS_TP_ISOTP_MOCK
 #ifdef UDS_LINES
 #line 1 "src/tp/isotp_mock.h"
 #endif // #ifdef UDS_LINES
@@ -2434,7 +2435,7 @@ typedef struct {
     uint32_t ta_func; // target address - functional messages are sent to this address
 } ISOTPMockArgs_t;
 
-static_assert(offsetof(ISOTPMock_t, hdl) == 0u, "ISOTPMock_t must not have any members before hdl");
+static_assert(offsetof(ISOTPMock_t, hdl) == 0U, "ISOTPMock_t must not have any members before hdl");
 
 /**
  * @brief Create a mock transport. It is connected by default to a broadcast network of all other

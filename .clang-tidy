@@ -1,0 +1,12 @@
+Checks: '
+  *,
+  -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,
+  -llvmlibc-restrict-system-libc-headers,
+  -cppcoreguidelines-macro-to-enum,
+  -modernize-macro-to-enum,
+  -altera-unroll-loops,
+  -readability-identifier-length,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -readability-magic-numbers,
+'
+WarningsAsErrors: ''

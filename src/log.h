@@ -7,7 +7,7 @@
 
 #include "tp.h"
 #include "config.h"
-#include "includes.h"
+#include "include.h"
 
 /**
  * @defgroup uds_log_level_ valid values for UDS_LOG_LEVEL
@@ -69,7 +69,8 @@ static_assert((UDS_LOG_LEVEL == UDS_LOG_NONE) || (UDS_LOG_LEVEL == UDS_LOG_ERROR
     UDS_LogSDUInternal(UDS_LOG_DEBUG, tag, buffer, buff_len, info)
 #else
 #define UDS_LOGV(tag, format, ...) UDS_LogDummy(UDS_LOG_NONE, tag, format, ##__VA_ARGS__)
-#define UDS_LOG_SDU(tag, buffer, buff_len, info) UDS_LogSDUDummy(UDS_LOG_NONE, tag, buffer, buff_len, info)
+#define UDS_LOG_SDU(tag, buffer, buff_len, info)                                                   \
+    UDS_LogSDUDummy(UDS_LOG_NONE, tag, buffer, buff_len, info)
 #endif
 
 #if defined(__GNUC__) || defined(__clang__)
@@ -92,8 +93,8 @@ static inline void UDS_LogDummy(UDS_LogLevel_t level, const char *tag, const cha
     (void)tag;
     (void)format;
 }
-static inline void UDS_LogSDUDummy(UDS_LogLevel_t level, const char *tag, const uint8_t *buffer, size_t buflen,
-                                   const UDSSDU_t *info) {
+static inline void UDS_LogSDUDummy(UDS_LogLevel_t level, const char *tag, const uint8_t *buffer,
+                                   size_t buflen, const UDSSDU_t *info) {
     (void)level;
     (void)tag;
     (void)buffer;

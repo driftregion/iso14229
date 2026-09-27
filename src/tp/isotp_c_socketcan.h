@@ -1,6 +1,6 @@
 #pragma once
 
-#if defined(UDS_TP_ISOTP_C_SOCKETCAN)
+#ifdef UDS_TP_ISOTP_C_SOCKETCAN
 
 #include "tp.h"
 #include "tp/isotp_c.h"
@@ -16,7 +16,7 @@ typedef struct {
     /// \endcond
 } UDSTpISOTpCSocketCAN_t;
 
-static_assert(offsetof(UDSTpISOTpCSocketCAN_t, hdl2) == 0u, "hdl must be the first member");
+static_assert(offsetof(UDSTpISOTpCSocketCAN_t, hdl2) == 0U, "hdl must be the first member");
 
 /**
  * @brief Initialize isotp-c over SocketCAN transport for \ref UDSServer_t

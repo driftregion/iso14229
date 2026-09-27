@@ -5,7 +5,7 @@
 #include "include.h"
 #include "include_private.h"
 
-#if defined(UDS_CUSTOM_MILLIS)
+#ifdef UDS_CUSTOM_MILLIS
 // the user is expected to provide a UDSMillis implementation
 #else
 uint32_t UDSMillis(void) {
@@ -33,13 +33,13 @@ uint32_t UDSMillis(void) {
 
 // See ISO14229-1:2020 Table 42 — Request message SubFunction parameter definition
 bool UDSSecurityAccessLevelIsReserved(uint8_t subFunction) {
-    if (0u == subFunction) {
+    if (0U == subFunction) {
         return true;
-    } else if (subFunction <= 0x42u) {
+    } else if (subFunction <= 0x42U) {
         return false;
-    } else if (subFunction <= 0x5Eu) {
+    } else if (subFunction <= 0x5EU) {
         return true;
-    } else if (subFunction <= 0x7Eu) {
+    } else if (subFunction <= 0x7EU) {
         return false;
     } else {
         return true;

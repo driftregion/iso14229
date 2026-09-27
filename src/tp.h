@@ -3,7 +3,7 @@
 #include "sys.h"
 #include "uds.h"
 
-#if defined UDS_TP_ISOTP_C_SOCKETCAN
+#ifdef UDS_TP_ISOTP_C_SOCKETCAN
 #ifndef UDS_TP_ISOTP_C
 #define UDS_TP_ISOTP_C
 #endif
@@ -12,18 +12,18 @@
 /** private: transport message type
  * @defgroup uds_a_mtype
  */
-#define UDS_A_MTYPE_DIAG 0u
-#define UDS_A_MTYPE_REMOTE_DIAG 1u
-#define UDS_A_MTYPE_SECURE_DIAG 2u
-#define UDS_A_MTYPE_SECURE_REMOTE_DIAG 3u
+#define UDS_A_MTYPE_DIAG 0U
+#define UDS_A_MTYPE_REMOTE_DIAG 1U
+#define UDS_A_MTYPE_SECURE_DIAG 2U
+#define UDS_A_MTYPE_SECURE_REMOTE_DIAG 3U
 
 typedef uint8_t UDS_A_Mtype_t; ///< private: oneof @ref uds_a_mtype
 
 /** private: transport transmission type
  * @defgroup uds_a_ta_type
  */
-#define UDS_A_TA_TYPE_PHYSICAL 0u   // unicast (1:1)
-#define UDS_A_TA_TYPE_FUNCTIONAL 1u // multicast
+#define UDS_A_TA_TYPE_PHYSICAL 0U   // unicast (1:1)
+#define UDS_A_TA_TYPE_FUNCTIONAL 1U // multicast
 
 typedef uint8_t UDS_A_TA_Type_t; ///< private: oneof @ref uds_a_ta_type
 

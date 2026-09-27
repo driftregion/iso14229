@@ -1,4 +1,4 @@
-#if defined(UDS_TP_ISOTP_SOCK)
+#ifdef UDS_TP_ISOTP_SOCK
 
 #include "tp/isotp_sock.h"
 #include "uds.h"
@@ -81,7 +81,7 @@ static UDSErr_t tp_recv_once(int fd, uint8_t *buf, const size_t bufsiz, size_t *
         }
     }
 
-    *recvlen = (ret < 0) ? 0u : (size_t)ret;
+    *recvlen = (ret < 0) ? 0U : (size_t)ret;
     return err;
 }
 
@@ -135,7 +135,7 @@ static UDSErr_t isotp_sock_tp_send(UDSTp_t *hdl, const uint8_t *buf, const size_
         fd = impl->phys_fd;
         break;
     case UDS_A_TA_TYPE_FUNCTIONAL: {
-        if (len > 7u) {
+        if (len > 7U) {
             UDS_LOGE(__FILE__, "UDSTpIsoTpSock: functional request too large");
             return UDS_ERR_MISUSE;
         }

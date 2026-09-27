@@ -1,4 +1,4 @@
-#if defined(UDS_TP_ISOTP_C_SOCKETCAN)
+#ifdef UDS_TP_ISOTP_C_SOCKETCAN
 
 #include "tp/isotp-c/isotp.h"
 #include "tp/isotp_c_private.h"
@@ -41,7 +41,7 @@ done:
     return sockfd;
 }
 
-uint32_t isotp_user_get_us(void) { return UDSMillis() * 1000u; }
+uint32_t isotp_user_get_us(void) { return UDSMillis() * 1000U; }
 
 __attribute__((format(printf, 1, 2))) void isotp_user_debug(const char *message, ...) {
     va_list args;

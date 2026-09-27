@@ -28,7 +28,7 @@
 #define UDS_LOG_LEVEL 0U
 #endif
 
-#define UDS_ISOTP_MTU (4095u) ///< ISO-TP Maximum Transmission Unit (ISO-15764-2-2004 section 5.3.3)
+#define UDS_ISOTP_MTU (4095U) ///< ISO-TP Maximum Transmission Unit (ISO-15764-2-2004 section 5.3.3)
 
 #ifndef UDS_TP_MTU
 /// ISOTP is the only supported tp type, so UDS inherits its MTU
@@ -100,12 +100,12 @@ static_assert((0 < UDS_SERVER_DEFAULT_P2_MS) &&
 
 /// Amount of time to wait after boot before accepting 0x27 requests.
 #ifndef UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_BOOT_DELAY_MS
-#define UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_BOOT_DELAY_MS (1000u)
+#define UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_BOOT_DELAY_MS (1000U)
 #endif
 
 /// Amount of time to wait after an authentication failure before accepting another 0x27 request.
 #ifndef UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_AUTH_FAIL_DELAY_MS
-#define UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_AUTH_FAIL_DELAY_MS (1000u)
+#define UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_AUTH_FAIL_DELAY_MS (1000U)
 #endif
 
 #ifndef UDS_SERVER_DEFAULT_XFER_DATA_MAX_BLOCKLENGTH
