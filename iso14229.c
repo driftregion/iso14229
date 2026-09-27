@@ -342,7 +342,6 @@ static bool UDSErrIsNRC(UDSErr_t err) {
 
 
 
-
 /**
  * @defgroup client_request_states valid values of UDSClient_t::state
  * @brief internal state machine states for a single client request
@@ -1244,7 +1243,6 @@ UDSErr_t UDSUnpackRDBIResponse(UDSClient_t *client, UDSRDBIVar_t *vars, uint16_t
 #ifdef UDS_LINES
 #line 1 "src/server.c"
 #endif // #ifdef UDS_LINES
-
 
 
 

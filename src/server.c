@@ -3,7 +3,6 @@
 #include "uds.h"
 #include "uds_private.h"
 #include "util.h"
-#include "util_private.h"
 #include "log.h"
 #include "util_static.c"
 

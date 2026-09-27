@@ -512,6 +512,7 @@ typedef enum {
 
 
 
+
 #ifdef UDS_TP_ISOTP_C_SOCKETCAN
 #ifndef UDS_TP_ISOTP_C
 #define UDS_TP_ISOTP_C
@@ -606,6 +607,7 @@ UDSErr_t UDSTpPoll(UDSTp_t *hdl);   ///< call this at <5ms intervals
 #ifdef UDS_LINES
 #line 1 "src/util.h"
 #endif // #ifdef UDS_LINES
+
 
 
 

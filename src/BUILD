@@ -10,7 +10,6 @@ filegroup(
         "server.c",
         "tp.c",
         "util.c",
-        "util_static.c",
         "uds_private.h",
         "tp/isotp_c_socketcan.c",
         "tp/isotp_c.c",
@@ -33,6 +32,7 @@ filegroup(
         "tp.h",
         "uds.h",
         "util.h",
+        "util_static.c",
         "version.h",
         "tp/isotp_c_socketcan.h",
         "tp/isotp_c.h",
@@ -87,4 +87,11 @@ cc_library(
             "UDS_TP_ISOTP_SOCK",
         ],
     }),
+)
+
+cc_library(
+    name="unamalgamated",
+    srcs=[ "//src:sources", ],
+    hdrs = [ "//src:headers", ],
+    copts = [ "-Wno-unused-function", ],
 )
