@@ -1524,7 +1524,17 @@ static UDSErr_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
     default: {
         if (service != NULL) {
             response = service(srv, r);
-        } else { /* getServiceForSID(sid) returned NULL*/
+        } else { 
+            // this branch handles SIDs for which there is no registered handler.
+            UDS_ASSERT(NULL == getServiceForSID(sid));
+
+            // The standard says that the response ID (RID) is SID-0x40.
+            // Both SID and RID are uint8_t, therefore no SID can be 
+            // greater than 0xFF-0x40 = 0xBF
+            if (sid > 0xBF) {
+                return NegativeResponse(r, UDS_NRC_ServiceNotSupported);
+            }
+
             UDSCustomArgs_t args = {
                 .sid = sid,
                 .optionRecord = &r->recv_buf[1],

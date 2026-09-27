@@ -16,7 +16,7 @@ update_srcs:
 	tools/update_srcs.sh
 
 coverage:
-	tools/canifup.sh
+	tools/enable_vcan0.sh
 	tools/coverage_run.sh
 
 coverage-html:
