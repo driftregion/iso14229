@@ -22,6 +22,8 @@ mkdir -p reports/cppcheck
 iso14229.c \
 --platform=unix64 \
 --enable=all \
+--check-level=exhaustive \
+--inconclusive \
 --addon=tools/cppcheck/misra.json \
 --inline-suppr \
 --suppressions-list=tools/cppcheck/suppressions.txt \

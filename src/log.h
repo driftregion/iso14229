@@ -24,11 +24,6 @@
 
 typedef unsigned int UDS_LogLevel_t; ///< one of @ref uds_log_level_
 
-#if UDS_LOG_LEVEL > UDS_LOG_NONE
-/// \cond DOXYGEN_SHOULD_SKIP_THIS
-#define UDS_LOG_FORMAT(letter, format) #letter " (%" PRIu32 ") %s: " format "\n"
-#endif // UDS_LOG_LEVEL > UDS_LOG_NONE
-
 static_assert((UDS_LOG_LEVEL == UDS_LOG_NONE) || (UDS_LOG_LEVEL == UDS_LOG_ERROR) ||
                   (UDS_LOG_LEVEL == UDS_LOG_WARN) || (UDS_LOG_LEVEL == UDS_LOG_INFO) ||
                   (UDS_LOG_LEVEL == UDS_LOG_DEBUG) || (UDS_LOG_LEVEL == UDS_LOG_VERBOSE),
@@ -81,6 +76,7 @@ static_assert((UDS_LOG_LEVEL == UDS_LOG_NONE) || (UDS_LOG_LEVEL == UDS_LOG_ERROR
 #endif
 
 #if UDS_LOG_LEVEL > UDS_LOG_NONE
+/* cppcheck-suppress [misra-c2012-20.10] string logging is not subject to MISRA */
 #define UDS_LOG_FORMAT(letter, format) #letter " (%" PRIu32 ") %s: " format "\n"
 void UDS_LogWrite(UDS_LogLevel_t level, const char *tag, const char *format, ...)
     UDS_PRINTF_FORMAT(3, 4);

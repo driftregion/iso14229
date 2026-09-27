@@ -552,33 +552,6 @@ UDSErr_t UDSSendTransferData(UDSClient_t *client, uint8_t blockSequenceCounter,
     return SendRequest(client);
 }
 
-UDSErr_t UDSSendTransferDataStream(UDSClient_t *client, uint8_t blockSequenceCounter,
-                                   const uint16_t blockLength, FILE *fd) {
-    UDSErr_t err = PreRequestCheck(client);
-    if (UDS_OK != err) {
-        return err;
-    }
-    // blockLength must include SID and sequenceCounter
-    if (blockLength <= 2U) {
-        return UDS_ERR_INVALID_ARG;
-    }
-    const size_t max_send_size = (size_t)blockLength;
-    if (max_send_size > sizeof(client->send_buf)) {
-        err = UDS_ERR_BUFSIZ;
-        goto done;
-    }
-
-    client->send_buf[0] = UDS_SID_TRANSFER_DATA;
-    client->send_buf[1] = blockSequenceCounter;
-    const size_t size_read = fread(&client->send_buf[2], 1, blockLength - 2U, fd);
-    UDS_LOGI(__FILE__, "size: %zu, blocklength: %d", size_read, blockLength);
-    client->send_size = UDS_0X36_REQ_BASE_LEN + size_read;
-
-    err = SendRequest(client);
-done:
-    return err;
-}
-
 /**
  * @brief
  *
@@ -706,8 +679,8 @@ done:
  * @return UDSErr_t
  * @addtogroup controlDTCSetting_0x85
  */
-UDSErr_t UDSCtrlDTCSetting(UDSClient_t *client, uint8_t dtcSettingType, const uint8_t *data,
-                           uint16_t size) {
+UDSErr_t UDSCtrlDTCSetting(UDSClient_t *client, uint8_t dtcSettingType,
+                           const uint8_t *dtcSettingControlOptionRecord, uint16_t len) {
     UDSErr_t err = PreRequestCheck(client);
     if (UDS_OK != err) {
         return err;
@@ -719,18 +692,18 @@ UDSErr_t UDSCtrlDTCSetting(UDSClient_t *client, uint8_t dtcSettingType, const ui
         return UDS_ERR_INVALID_ARG;
     }
 
-    if ((size != 0U) && (NULL == data)) {
+    if ((len != 0U) && (NULL == dtcSettingControlOptionRecord)) {
         return UDS_ERR_INVALID_ARG;
     }
 
-    const size_t send_size = 2U + (size_t)size;
+    const size_t send_size = 2U + (size_t)len;
     if (send_size > sizeof(client->send_buf)) {
         return UDS_ERR_BUFSIZ;
     }
 
     client->send_buf[0] = UDS_SID_CONTROL_DTC_SETTING;
     client->send_buf[1] = dtcSettingType;
-    (void)memmove(&client->send_buf[2], data, size);
+    (void)memmove(&client->send_buf[2], dtcSettingControlOptionRecord, len);
 
     client->send_size = send_size;
     return SendRequest(client);

@@ -25,11 +25,13 @@ extern "C" {
 #endif // #ifdef UDS_LINES
 
 #if !defined(__cplusplus) && ((!defined(__STDC_VERSION__)) || (__STDC_VERSION__ < 201112L))
-#ifdef static_assert
-#undef static_assert
-#endif
+#ifndef static_assert
+/* cppcheck-suppress [misra-c2012-19.2,misra-c2012-20.4] Patch static_assert for pre-C11 toolchains
+ */
 #define static_assert(expr, msg)
-#define _Static_assert(expr, msg)
+#else // #ifndef static_assert
+#warning "using static_assert of unknown provenance; Please check that the signature is correct"
+#endif // #ifndef static_assert
 #endif
 
 #include <assert.h>
@@ -662,11 +664,6 @@ const char *UDSEventToStr(UDSEvent_t evt);
 
 typedef unsigned int UDS_LogLevel_t; ///< one of @ref uds_log_level_
 
-#if UDS_LOG_LEVEL > UDS_LOG_NONE
-/// \cond DOXYGEN_SHOULD_SKIP_THIS
-#define UDS_LOG_FORMAT(letter, format) #letter " (%" PRIu32 ") %s: " format "\n"
-#endif // UDS_LOG_LEVEL > UDS_LOG_NONE
-
 static_assert((UDS_LOG_LEVEL == UDS_LOG_NONE) || (UDS_LOG_LEVEL == UDS_LOG_ERROR) ||
                   (UDS_LOG_LEVEL == UDS_LOG_WARN) || (UDS_LOG_LEVEL == UDS_LOG_INFO) ||
                   (UDS_LOG_LEVEL == UDS_LOG_DEBUG) || (UDS_LOG_LEVEL == UDS_LOG_VERBOSE),
@@ -719,6 +716,7 @@ static_assert((UDS_LOG_LEVEL == UDS_LOG_NONE) || (UDS_LOG_LEVEL == UDS_LOG_ERROR
 #endif
 
 #if UDS_LOG_LEVEL > UDS_LOG_NONE
+/* cppcheck-suppress [misra-c2012-20.10] string logging is not subject to MISRA */
 #define UDS_LOG_FORMAT(letter, format) #letter " (%" PRIu32 ") %s: " format "\n"
 void UDS_LogWrite(UDS_LogLevel_t level, const char *tag, const char *format, ...)
     UDS_PRINTF_FORMAT(3, 4);
@@ -842,9 +840,6 @@ UDSErr_t UDSSendRequestUpload(UDSClient_t *client, uint8_t dataFormatIdentifier,
 UDSErr_t UDSSendTransferData(UDSClient_t *client, uint8_t blockSequenceCounter,
                              const uint16_t blockLength, const uint8_t *data,
                              uint16_t size); ///< Transfer Data to/from a buffer
-UDSErr_t UDSSendTransferDataStream(UDSClient_t *client, uint8_t blockSequenceCounter,
-                                   const uint16_t blockLength,
-                                   FILE *fd); ///< Transfer Data to/from a file
 UDSErr_t
 UDSSendRequestTransferExit(UDSClient_t *client); ///< Call this when finished with TransferData
 
@@ -1449,24 +1444,20 @@ void UDSServerPoll(UDSServer_t *srv);     ///< Call this at <5ms intervals
     #else
         #error "unsupported byte ordering"
     #endif
-
-    #define ISOTP_PACKED_STRUCT(content) typedef struct __attribute__((packed)) content
 #endif
 
 /**************************************************************
  * OS specific defines
  *************************************************************/
 #ifdef _MSC_VER
-    #define ISOTP_PACKED_STRUCT(content) __pragma(pack(push, 1)) typedef struct content __pragma(pack(pop))
-
-    #define snprintf _snprintf
-
     
     #define ISOTP_BYTE_ORDER_LITTLE_ENDIAN
-    #define __builtin_bswap8 _byteswap_uint8
-    #define __builtin_bswap16 _byteswap_uint16
-    #define __builtin_bswap32 _byteswap_uint32
-    #define __builtin_bswap64 _byteswap_uint64
+#endif
+
+#if defined(_MSC_VER) && _MSC_VER < 1900
+    #define ISOTP_SNPRINTF _snprintf
+#else 
+    #define ISOTP_SNPRINTF snprintf
 #endif
 
 #define LE32TOH(le) ((uint32_t)(((le) << 24) | (((le) & 0x0000FF00) << 8) | (((le) & 0x00FF0000) >> 8) | ((le) >> 24)))
@@ -1599,13 +1590,15 @@ typedef struct {
     uint8_t data[ISO_TP_MAX_CAN_FRAME_SIZE - 2];
 } IsoTpFirstFrameShort;
 
-ISOTP_PACKED_STRUCT({
+#pragma pack(push, 1)
+typedef struct {
     uint8_t  set_to_zero_high : 4;
     uint8_t  type             : 4;
     uint8_t  set_to_zero_low;
     uint32_t FF_DL;
     uint8_t  data[ISO_TP_MAX_CAN_FRAME_SIZE - 6];
-} IsoTpFirstFrameLong);
+} IsoTpFirstFrameLong;
+#pragma pack(pop)
 
 typedef struct {
     uint8_t SN   : 4;
@@ -1689,13 +1682,15 @@ typedef struct {
  * | PCIType = 1 | unused=0  | escape sequence = 0   | FF_DL                                 |
  * +-------------+-----------+-----------------------+---------------------------------------+
  */
-ISOTP_PACKED_STRUCT({
+#pragma pack(push, 1)
+typedef struct {
     uint8_t  type             : 4;
     uint8_t  set_to_zero_high : 4;
     uint8_t  set_to_zero_low;
     uint32_t FF_DL;
     uint8_t  data[ISO_TP_MAX_CAN_FRAME_SIZE - 6];
-} IsoTpFirstFrameLong);
+} IsoTpFirstFrameLong;
+#pragma pack(pop)
 
 /*
  * consecutive frame
