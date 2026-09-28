@@ -11,6 +11,15 @@ mkdir -p reports/cppcheck
 #
 # override with CPPCHECK=/path/to/cppcheck
 CPPCHECK="${CPPCHECK:-../cppcheck/build/bin/cppcheck}"
+# set SARIF=path/to/out.sarif to write SARIF instead of the text report (used in CI)
+SARIF="${SARIF:-}"
+
+TEXT_REPORT=reports/cppcheck/report_MISRA.txt
+if [ -n "$SARIF" ]; then
+    OUTPUT_ARGS=(--output-format=sarif "--output-file=$SARIF")
+else
+    OUTPUT_ARGS=("--output-file=$TEXT_REPORT")
+fi
 
 status=0
 "$CPPCHECK" \
@@ -33,9 +42,19 @@ iso14229.c \
 --suppressions-list=tools/cppcheck/suppressions.txt \
 --checkers-report=reports/cppcheck/checkers.txt \
 --error-exitcode=1 \
-2>reports/cppcheck/report_MISRA.txt || status=$?
+"${OUTPUT_ARGS[@]}" || status=$?
 
-cat reports/cppcheck/report_MISRA.txt
+if [ -n "$SARIF" ]; then
+    python3 - "$SARIF" <<'PY'
+import json, sys
+for r in json.load(open(sys.argv[1]))["runs"][0]["results"]:
+    loc = r["locations"][0]["physicalLocation"]
+    print(f'{loc["artifactLocation"]["uri"]}:{loc["region"]["startLine"]}: '
+          f'{r["level"]}: {r["message"]["text"]} [{r["ruleId"]}]')
+PY
+else
+    cat "$TEXT_REPORT"
+fi
 exit $status
 
 

@@ -10,6 +10,10 @@ jobs:
       - checkout
 
       - run:
+          name: Checkout isotp-c
+          command: git submodule update --init src/tp/isotp-c
+
+      - run:
           name: Install kernel extras + tools
           command: |
             sudo apt-get update
@@ -75,6 +79,10 @@ jobs:
     resource_class: medium
     steps:
       - checkout
+
+      - run:
+          name: Checkout isotp-c
+          command: git submodule update --init src/tp/isotp-c
 
       - run:
           name: Install dependencies

@@ -31,7 +31,13 @@ jobs:
         repository-cache: true
 
     - name: run unit tests
-      run: bazel test --features=asan --features=ubsan --config=llvm //test:all --test_tag_filters=-vcan
+      run: |
+        bazel test \
+        --features=asan \
+        --features=ubsan \
+        --config=llvm \
+        //test:all \
+        --test_tag_filters=-vcan,-fuzz
 
   windows:
     runs-on: windows-latest
@@ -52,7 +58,11 @@ jobs:
         repository-cache: true
 
     - name: run unit tests
-      run: bazel test //test:all --verbose_failures --test_output=all 
+      run: |
+        bazel test \
+        --verbose_failures --test_output=all \
+        //test:all \
+        --test_tag_filters=-fuzz
 
 
   arduino:

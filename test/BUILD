@@ -92,6 +92,7 @@ sh_test(
     data = [":test_log_disable_c"],
     args = ["$(locations :test_log_disable_c)"],
     size = "small",
+    target_compatible_with = ["@platforms//os:linux"],
 )
 
 sh_test(
@@ -103,6 +104,7 @@ sh_test(
         "//:Doxyfile",
         "//:VERSION",
     ],
+    target_compatible_with = ["@platforms//os:linux"],
 )
 
 [
@@ -151,7 +153,8 @@ cc_fuzz_test(
     size = "small",
     corpus = [
         ":corpus_filegroup"
-    ]
+    ],
+    tags = [ "fuzz" ]
 )
 
 filegroup(

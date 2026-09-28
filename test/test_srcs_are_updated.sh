@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # test that /iso14229.c/.h matches the generated version in src/iso14229.c/.h
 # This test does not run under bazel 

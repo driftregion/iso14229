@@ -3828,7 +3828,7 @@ void UDSTpIsoTpSockDeinit(const UDSTpIsoTpSock_t *tp) {
 #define MAX_NUM_TP 16U
 #define NUM_MSGS 8U
 static ISOTPMock_t TPs[MAX_NUM_TP];
-static const char ZeroTestBlock[sizeof(ISOTPMock_t)];
+static const char ZeroTestBlock[sizeof(ISOTPMock_t)] = {0};
 static unsigned TPCount = 0;
 static FILE *LogFile = NULL;
 static struct Msg {

@@ -40,6 +40,9 @@ jobs:
 
   clang-tidy:
     runs-on: ubuntu-latest
+    env:
+      CLANG_TIDY_SARIF_VERSION: 0.8.0
+      CLANG_TIDY_SARIF_SHA256: 7198518c1d01830cf368c5f924df5ac177ce5ada4f6f54bcc4a1dd8841d07202
 
     steps:
     - name: checkout
@@ -57,7 +60,40 @@ jobs:
         repository-cache: true
 
     - name: clang-tidy
-      run: WARNINGS_AS_ERRORS=1 ./tools/run_clang_tidy.sh
+      shell: bash
+      run: |
+        mkdir -p reports/clang-tidy
+        WARNINGS_AS_ERRORS=1 ./tools/run_clang_tidy.sh 2>&1 | tee reports/clang-tidy/clang-tidy.txt
+
+    - name: Install clang-tidy-sarif
+      if: always() && hashFiles('reports/clang-tidy/clang-tidy.txt') != ''
+      run: |
+        curl -sSfL -o "$RUNNER_TEMP/clang-tidy-sarif" \
+          "https://github.com/psastras/sarif-rs/releases/download/clang-tidy-sarif-v${CLANG_TIDY_SARIF_VERSION}/clang-tidy-sarif-x86_64-unknown-linux-gnu"
+        echo "$CLANG_TIDY_SARIF_SHA256  $RUNNER_TEMP/clang-tidy-sarif" | sha256sum -c -
+        chmod +x "$RUNNER_TEMP/clang-tidy-sarif"
+
+    - name: Convert clang-tidy output to SARIF
+      if: always() && hashFiles('reports/clang-tidy/clang-tidy.txt') != ''
+      run: |
+        # clang-tidy reports absolute paths; code scanning needs repo-relative paths
+        sed "s|^$GITHUB_WORKSPACE/||" reports/clang-tidy/clang-tidy.txt \
+          | "$RUNNER_TEMP/clang-tidy-sarif" --output reports/clang-tidy/clang-tidy.sarif
+
+    - name: Upload SARIF results to GitHub Code Scanning
+      uses: github/codeql-action/upload-sarif@v3
+      if: always() && hashFiles('reports/clang-tidy/clang-tidy.sarif') != ''
+      with:
+        sarif_file: reports/clang-tidy/clang-tidy.sarif
+        category: clang-tidy
+
+    - name: Upload clang-tidy reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: clang-tidy-reports
+        path: reports/clang-tidy/
+        retention-days: 30
 
   cppcheck:
     runs-on: ubuntu-latest
@@ -67,7 +103,7 @@ jobs:
       # https://github.com/cppcheck-opensource/cppcheck/pull/8876
       # https://github.com/cppcheck-opensource/simplecpp/pull/704
       CPPCHECK_REPO: https://github.com/driftregion/cppcheck.git
-      CPPCHECK_SHA: d13e40e5b91c886e643fdc583d3a1cdbd03f3bdd
+      CPPCHECK_REF: integration
 
     steps:
     - name: checkout
@@ -77,19 +113,26 @@ jobs:
       run: |
         git submodule update --init src/tp/isotp-c
 
+    - name: Resolve cppcheck commit
+      id: cppcheck-sha
+      run: |
+        sha=$(git ls-remote "$CPPCHECK_REPO" "refs/heads/$CPPCHECK_REF" | cut -f1)
+        test -n "$sha"
+        echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
     - name: Cache cppcheck build
       id: cache-cppcheck
       uses: actions/cache@v4
       with:
         path: ${{ runner.temp }}/cppcheck/build
-        key: ${{ runner.os }}-cppcheck-${{ env.CPPCHECK_SHA }}
+        key: ${{ runner.os }}-cppcheck-${{ steps.cppcheck-sha.outputs.sha }}
 
     - name: Build cppcheck
       if: steps.cache-cppcheck.outputs.cache-hit != 'true'
       run: |
         git init "$RUNNER_TEMP/cppcheck"
         cd "$RUNNER_TEMP/cppcheck"
-        git fetch --depth 1 "$CPPCHECK_REPO" "$CPPCHECK_SHA"
+        git fetch --depth 1 "$CPPCHECK_REPO" "${{ steps.cppcheck-sha.outputs.sha }}"
         git checkout FETCH_HEAD
         cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
         cmake --build build -j "$(nproc)"
@@ -101,7 +144,17 @@ jobs:
       run: make tools/cppcheck/misra_c_2023__headlines_for_cppcheck.txt
 
     - name: cppcheck MISRA
-      run: CPPCHECK=$RUNNER_TEMP/cppcheck/build/bin/cppcheck ./tools/cppcheck/run_MISRA.sh
+      run: |
+        CPPCHECK=$RUNNER_TEMP/cppcheck/build/bin/cppcheck \
+        SARIF=reports/cppcheck/cppcheck.sarif \
+        ./tools/cppcheck/run_MISRA.sh
+
+    - name: Upload SARIF results to GitHub Code Scanning
+      uses: github/codeql-action/upload-sarif@v3
+      if: always() && hashFiles('reports/cppcheck/cppcheck.sarif') != ''
+      with:
+        sarif_file: reports/cppcheck/cppcheck.sarif
+        category: cppcheck-misra
 
     - name: Upload cppcheck reports
       uses: actions/upload-artifact@v4
