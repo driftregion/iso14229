@@ -262,31 +262,22 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
     UDSErr_t err = UDSTpPoll(client->tp);
 
     if (UDS_OK != err) {
-        goto done;
+        return err;
     }
 
     switch (client->state) {
-    case STATE_IDLE: {
-        break;
-    }
-    case STATE_SENDING: {
-        err = Handle_SENDING(client);
-        break;
-    }
-    case STATE_AWAIT_SEND_COMPLETE: {
-        err = Handle_AWAIT_SEND_COMPLETE(client);
-        break;
-    }
-    case STATE_AWAIT_RESPONSE: {
-        err = Handle_AWAIT_RESPONSE(client);
-        break;
-    }
+    case STATE_IDLE:
+        return UDS_OK;
+    case STATE_SENDING:
+        return Handle_SENDING(client);
+    case STATE_AWAIT_SEND_COMPLETE:
+        return Handle_AWAIT_SEND_COMPLETE(client);
+    case STATE_AWAIT_RESPONSE:
+        return Handle_AWAIT_RESPONSE(client);
     default:
         UDS_ASSERT(false);
-        break;
+        return UDS_FAIL;
     }
-done:
-    return err;
 }
 
 static UDSErr_t SendRequest(UDSClient_t *client) {
@@ -622,8 +613,7 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, const uint8_t mode, con
     {
         send_size = 4U + filePathLen + 2U + (size_t)(2U * client->cfg_file_size_parameter_length);
         if (send_size > sizeof(client->send_buf)) {
-            err = UDS_ERR_BUFSIZ;
-            goto done;
+            return UDS_ERR_BUFSIZ;
         }
         client->send_buf[0] = UDS_SID_REQUEST_FILE_TRANSFER;
         client->send_buf[1] = mode;
@@ -642,8 +632,7 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, const uint8_t mode, con
     {
         send_size = 4U + filePathLen + 1U;
         if (send_size > sizeof(client->send_buf)) {
-            err = UDS_ERR_BUFSIZ;
-            goto done;
+            return UDS_ERR_BUFSIZ;
         }
         client->send_buf[0] = UDS_SID_REQUEST_FILE_TRANSFER;
         client->send_buf[1] = mode;
@@ -654,8 +643,7 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, const uint8_t mode, con
     case UDS_MOOP_RDFILE: { // MOOP = 4
         send_size = 4U + filePathLen + 1U;
         if (send_size > sizeof(client->send_buf)) {
-            err = UDS_ERR_BUFSIZ;
-            goto done;
+            return UDS_ERR_BUFSIZ;
         }
         client->send_buf[0] = UDS_SID_REQUEST_FILE_TRANSFER;
         client->send_buf[1] = mode;
@@ -672,10 +660,7 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, const uint8_t mode, con
 
     UDS_ASSERT(send_size != SIZE_MAX);
     client->send_size = send_size;
-    err = SendRequest(client);
-
-done:
-    return err;
+    return SendRequest(client);
 }
 
 /**

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "include.h"
-#include "sys.h"
 #include "uds.h"
 
 #ifdef UDS_TP_ISOTP_C_SOCKETCAN

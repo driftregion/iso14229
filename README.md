@@ -11,7 +11,7 @@
 - ISO-TP (ISO15765-2) transports are included. Choose from: [`isotp-c`](https://github.com/SimonCahill/isotp-c), linux isotp sockets, or bring your own.
 - Static memory allocation. (no `malloc`)
 - Examples for esp32, Arduino, NXP S32K144, STM32, Zephyr
-- Heavily tested: unit, fuzz, coverage
+- Extensively tested
 - MISRA deviations [documented here](./docs/MISRA.md)
 
 API status: Major version zero (0.y.z) **(not yet stable)**. Anything MAY change at any time.

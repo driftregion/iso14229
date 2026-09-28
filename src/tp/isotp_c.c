@@ -90,7 +90,7 @@ static UDSErr_t tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsiz, size_t *recvl
 
     err = safe_api_shim_isotp_receive(&tp->phys_link, buf, bufsiz, recvlen, &ret);
     if (UDS_OK != err) {
-        goto done;
+        return err;
     }
     if (ISOTP_RET_OK == ret) {
         UDS_LOGI(__FILE__, "phys link received %zd bytes", *recvlen);
@@ -102,7 +102,7 @@ static UDSErr_t tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsiz, size_t *recvl
     } else if (ISOTP_RET_NO_DATA == ret) {
         err = safe_api_shim_isotp_receive(&tp->func_link, buf, bufsiz, recvlen, &ret);
         if (UDS_OK != err) {
-            goto done;
+            return err;
         }
         if (ISOTP_RET_OK == ret) {
             UDS_LOGI(__FILE__, "func link received %zd bytes", *recvlen);
@@ -112,15 +112,14 @@ static UDSErr_t tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsiz, size_t *recvl
                 info->A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL;
             }
         } else if (ISOTP_RET_NO_DATA == ret) {
-            goto done;
+            return 0;
         } else {
             UDS_LOGE(__FILE__, "unhandled return code from func link %d\n", ret);
         }
     } else {
         UDS_LOGE(__FILE__, "unhandled return code from phys link %d\n", ret);
     }
-done:
-    return err;
+    return 0;
 }
 
 UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t sa, uint32_t ta, uint32_t sa_func,

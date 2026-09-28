@@ -607,31 +607,22 @@ static UDSErr_t PollLowLevel(UDSClient_t *client) {
     UDSErr_t err = UDSTpPoll(client->tp);
 
     if (UDS_OK != err) {
-        goto done;
+        return err;
     }
 
     switch (client->state) {
-    case STATE_IDLE: {
-        break;
-    }
-    case STATE_SENDING: {
-        err = Handle_SENDING(client);
-        break;
-    }
-    case STATE_AWAIT_SEND_COMPLETE: {
-        err = Handle_AWAIT_SEND_COMPLETE(client);
-        break;
-    }
-    case STATE_AWAIT_RESPONSE: {
-        err = Handle_AWAIT_RESPONSE(client);
-        break;
-    }
+    case STATE_IDLE:
+        return UDS_OK;
+    case STATE_SENDING:
+        return Handle_SENDING(client);
+    case STATE_AWAIT_SEND_COMPLETE:
+        return Handle_AWAIT_SEND_COMPLETE(client);
+    case STATE_AWAIT_RESPONSE:
+        return Handle_AWAIT_RESPONSE(client);
     default:
         UDS_ASSERT(false);
-        break;
+        return UDS_FAIL;
     }
-done:
-    return err;
 }
 
 static UDSErr_t SendRequest(UDSClient_t *client) {
@@ -967,8 +958,7 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, const uint8_t mode, con
     {
         send_size = 4U + filePathLen + 2U + (size_t)(2U * client->cfg_file_size_parameter_length);
         if (send_size > sizeof(client->send_buf)) {
-            err = UDS_ERR_BUFSIZ;
-            goto done;
+            return UDS_ERR_BUFSIZ;
         }
         client->send_buf[0] = UDS_SID_REQUEST_FILE_TRANSFER;
         client->send_buf[1] = mode;
@@ -987,8 +977,7 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, const uint8_t mode, con
     {
         send_size = 4U + filePathLen + 1U;
         if (send_size > sizeof(client->send_buf)) {
-            err = UDS_ERR_BUFSIZ;
-            goto done;
+            return UDS_ERR_BUFSIZ;
         }
         client->send_buf[0] = UDS_SID_REQUEST_FILE_TRANSFER;
         client->send_buf[1] = mode;
@@ -999,8 +988,7 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, const uint8_t mode, con
     case UDS_MOOP_RDFILE: { // MOOP = 4
         send_size = 4U + filePathLen + 1U;
         if (send_size > sizeof(client->send_buf)) {
-            err = UDS_ERR_BUFSIZ;
-            goto done;
+            return UDS_ERR_BUFSIZ;
         }
         client->send_buf[0] = UDS_SID_REQUEST_FILE_TRANSFER;
         client->send_buf[1] = mode;
@@ -1017,10 +1005,7 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, const uint8_t mode, con
 
     UDS_ASSERT(send_size != SIZE_MAX);
     client->send_size = send_size;
-    err = SendRequest(client);
-
-done:
-    return err;
+    return SendRequest(client);
 }
 
 /**
@@ -2326,22 +2311,18 @@ static UDSErr_t Handle_0x37_RequestTransferExit(UDSServer_t *srv, UDSReq_t *r) {
 }
 
 static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
-    UDSErr_t err = UDS_PositiveResponse;
 
     if (srv->xferIsActive) {
-        err = UDS_NRC_ConditionsNotCorrect;
-        goto done;
+        return UDS_NRC_ConditionsNotCorrect;
     }
     if (r->recv_len < UDS_0X38_REQ_BASE_LEN) {
-        err = UDS_NRC_IncorrectMessageLengthOrInvalidFormat;
-        goto done;
+        return UDS_NRC_IncorrectMessageLengthOrInvalidFormat;
     }
 
     const uint8_t mode_of_operation = r->recv_buf[1];
 
     if ((mode_of_operation < UDS_MOOP_ADDFILE) || (mode_of_operation > UDS_MOOP_RSFILE)) {
-        err = UDS_NRC_IncorrectMessageLengthOrInvalidFormat;
-        goto done;
+        return UDS_NRC_IncorrectMessageLengthOrInvalidFormat;
     }
 
     const uint16_t file_path_len = UnpackBEu16(&r->recv_buf[2]);
@@ -2352,8 +2333,7 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
     size_t byte_idx = 4U + (size_t)file_path_len;
 
     if (byte_idx > r->recv_len) {
-        err = UDS_NRC_IncorrectMessageLengthOrInvalidFormat;
-        goto done;
+        return UDS_NRC_IncorrectMessageLengthOrInvalidFormat;
     }
 
     if ((mode_of_operation == UDS_MOOP_DELFILE) || (mode_of_operation == UDS_MOOP_RDDIR)) {
@@ -2378,14 +2358,12 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
         static_assert(sizeof(file_size_uncompressed) == sizeof(file_size_compressed),
                       "Both should be k-byte numbers per Table 480");
         if (file_size_parameter_length > sizeof(file_size_compressed)) {
-            err = UDS_NRC_RequestOutOfRange;
-            goto done;
+            return UDS_NRC_RequestOutOfRange;
         }
         // the remaining two request fields (fileSizeUncompressed and fileSizeCompressed) are each
         // file_size_parameter_length (k) bytes long
         if ((byte_idx + (2U * (size_t)file_size_parameter_length)) > r->recv_len) {
-            err = UDS_NRC_RequestOutOfRange;
-            goto done;
+            return UDS_NRC_RequestOutOfRange;
         }
         for (uint8_t i = 0; i < file_size_parameter_length; i++) {
             uint8_t data_byte = r->recv_buf[byte_idx];
@@ -2412,10 +2390,10 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
         .filePosition = 0,
     };
 
-    err = EmitEvent(srv, UDS_EVT_RequestFileTransfer, &args);
+    UDSErr_t err = EmitEvent(srv, UDS_EVT_RequestFileTransfer, &args);
 
     if (UDS_PositiveResponse != err) {
-        goto done;
+        return err;
     }
 
     r->send_buf[0] = AsResponseSID(UDS_SID_REQUEST_FILE_TRANSFER);
@@ -2423,7 +2401,7 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
 
     if (mode_of_operation == UDS_MOOP_DELFILE) {
         r->send_len = 2;
-        goto done;
+        return UDS_OK;
     }
 
     if (args.maxNumberOfBlockLength > UDS_TP_MTU) {
@@ -2480,9 +2458,7 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
         PackBE(&r->send_buf[r->send_len], args.filePosition, sizeof(args.filePosition));
         r->send_len += sizeof(args.filePosition);
     }
-
-done:
-    return err;
+    return UDS_OK;
 }
 
 static UDSErr_t Handle_0x3D_WriteMemoryByAddress(UDSServer_t *srv, UDSReq_t *r) {
@@ -3286,7 +3262,7 @@ static UDSErr_t tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsiz, size_t *recvl
 
     err = safe_api_shim_isotp_receive(&tp->phys_link, buf, bufsiz, recvlen, &ret);
     if (UDS_OK != err) {
-        goto done;
+        return err;
     }
     if (ISOTP_RET_OK == ret) {
         UDS_LOGI(__FILE__, "phys link received %zd bytes", *recvlen);
@@ -3298,7 +3274,7 @@ static UDSErr_t tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsiz, size_t *recvl
     } else if (ISOTP_RET_NO_DATA == ret) {
         err = safe_api_shim_isotp_receive(&tp->func_link, buf, bufsiz, recvlen, &ret);
         if (UDS_OK != err) {
-            goto done;
+            return err;
         }
         if (ISOTP_RET_OK == ret) {
             UDS_LOGI(__FILE__, "func link received %zd bytes", *recvlen);
@@ -3308,15 +3284,14 @@ static UDSErr_t tp_recv(UDSTp_t *hdl, uint8_t *buf, size_t bufsiz, size_t *recvl
                 info->A_TA_Type = UDS_A_TA_TYPE_FUNCTIONAL;
             }
         } else if (ISOTP_RET_NO_DATA == ret) {
-            goto done;
+            return 0;
         } else {
             UDS_LOGE(__FILE__, "unhandled return code from func link %d\n", ret);
         }
     } else {
         UDS_LOGE(__FILE__, "unhandled return code from phys link %d\n", ret);
     }
-done:
-    return err;
+    return 0;
 }
 
 UDSErr_t UDSTpISOTpCInit(UDSTpISOTpC_t *tp, uint32_t sa, uint32_t ta, uint32_t sa_func,
@@ -3371,7 +3346,7 @@ static int SetupSocketCAN(const char *ifname) {
 
     if (sockfd < 0) {
         perror("socket");
-        goto done;
+        return sockfd;
     }
 
     (void)memset(&ifr, 0, sizeof(ifr));
@@ -3380,8 +3355,7 @@ static int SetupSocketCAN(const char *ifname) {
         if (close(sockfd) < 0) {
             perror("close");
         }
-        sockfd = -1;
-        goto done;
+        return -1;
     }
     if (ioctl(sockfd, SIOCGIFINDEX, &ifr) < 0) {
         perror("ioctl");
@@ -3392,8 +3366,6 @@ static int SetupSocketCAN(const char *ifname) {
     if (bind(sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
         perror("bind");
     }
-
-done:
     return sockfd;
 }
 

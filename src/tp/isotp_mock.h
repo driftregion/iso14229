@@ -22,14 +22,14 @@ typedef struct ISOTPMock {
     char name[32];             // name for logging
 } ISOTPMock_t;
 
+static_assert(offsetof(ISOTPMock_t, hdl) == 0U, "ISOTPMock_t must not have any members before hdl");
+
 typedef struct {
     uint32_t sa_phys; // source address - physical messages are sent from this address
     uint32_t ta_phys; // target address - physical messages are sent to this address
     uint32_t sa_func; // source address - functional messages are sent from this address
     uint32_t ta_func; // target address - functional messages are sent to this address
 } ISOTPMockArgs_t;
-
-static_assert(offsetof(ISOTPMock_t, hdl) == 0U, "ISOTPMock_t must not have any members before hdl");
 
 /**
  * @brief Create a mock transport. It is connected by default to a broadcast network of all other

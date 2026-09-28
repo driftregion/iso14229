@@ -15,7 +15,7 @@ static int SetupSocketCAN(const char *ifname) {
 
     if (sockfd < 0) {
         perror("socket");
-        goto done;
+        return sockfd;
     }
 
     (void)memset(&ifr, 0, sizeof(ifr));
@@ -24,8 +24,7 @@ static int SetupSocketCAN(const char *ifname) {
         if (close(sockfd) < 0) {
             perror("close");
         }
-        sockfd = -1;
-        goto done;
+        return -1;
     }
     if (ioctl(sockfd, SIOCGIFINDEX, &ifr) < 0) {
         perror("ioctl");
@@ -36,8 +35,6 @@ static int SetupSocketCAN(const char *ifname) {
     if (bind(sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
         perror("bind");
     }
-
-done:
     return sockfd;
 }
 
