@@ -2327,7 +2327,6 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
 
     const uint16_t file_path_len = UnpackBEu16(&r->recv_buf[2]);
     uint8_t data_format_identifier = 0;
-    uint8_t file_size_parameter_length = 0; // also called "k" in ISO14229:2020
     size_t file_size_uncompressed = 0;
     size_t file_size_compressed = 0;
     size_t byte_idx = 4U + (size_t)file_path_len;
@@ -2352,7 +2351,8 @@ static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
         // (ReadDir) these parameters [fileSizeParameterLength, fileSizeUncompressed,
         // fileSizeCompressed] shall not be included in the request message.
     } else {
-        file_size_parameter_length = r->recv_buf[byte_idx];
+        // also called "k" in ISO14229:2020
+        const uint8_t file_size_parameter_length = r->recv_buf[byte_idx];
         byte_idx++;
 
         static_assert(sizeof(file_size_uncompressed) == sizeof(file_size_compressed),
