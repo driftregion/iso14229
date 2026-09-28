@@ -21,6 +21,10 @@ jobs:
     - name: checkout
       uses: actions/checkout@v4
 
+    - name: checkout isotp-c
+      run: |
+        git submodule update --init src/tp/isotp-c
+
     - name: Setup Bazel
       uses: bazel-contrib/setup-bazel@0.15.0
       with:
@@ -34,35 +38,19 @@ jobs:
     - name: lint
       run: CHECK_FORMAT=1 ./tools/run_clang_format.sh
 
-  CodeChecker:
+  clang-tidy:
     runs-on: ubuntu-latest
+    env:
+      CLANG_TIDY_SARIF_VERSION: 0.8.0
+      CLANG_TIDY_SARIF_SHA256: 7198518c1d01830cf368c5f924df5ac177ce5ada4f6f54bcc4a1dd8841d07202
 
     steps:
     - name: checkout
       uses: actions/checkout@v4
 
-    - name: Cache pip packages
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-codechecker-${{ hashFiles('**/requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-codechecker-
-          ${{ runner.os }}-pip-
-
-    - name: Cache apt packages
-      uses: awalsh128/cache-apt-pkgs-action@latest
-      with:
-        packages: build-essential cmake jq cppcheck
-        version: 1.0
-
-    - name: Install Python dependencies
+    - name: checkout isotp-c
       run: |
-        pip3 install codechecker requests
-
-    - name: Verify analyzers
-      run: |
-        CodeChecker analyzers --details
+        git submodule update --init src/tp/isotp-c
 
     - name: Setup Bazel
       uses: bazel-contrib/setup-bazel@0.15.0
@@ -71,46 +59,109 @@ jobs:
         disk-cache: ${{ github.workflow }}
         repository-cache: true
 
-    - name: Build compile commands
+    - name: clang-tidy
+      shell: bash
       run: |
-        make compile_commands.json
+        mkdir -p reports/clang-tidy
+        WARNINGS_AS_ERRORS=1 ./tools/run_clang_tidy.sh 2>&1 | tee reports/clang-tidy/clang-tidy.txt
 
-    - name: Analyze with CodeChecker
+    - name: Install clang-tidy-sarif
+      if: always() && hashFiles('reports/clang-tidy/clang-tidy.txt') != ''
       run: |
-        make static_analysis
+        curl -sSfL -o "$RUNNER_TEMP/clang-tidy-sarif" \
+          "https://github.com/psastras/sarif-rs/releases/download/clang-tidy-sarif-v${CLANG_TIDY_SARIF_VERSION}/clang-tidy-sarif-x86_64-unknown-linux-gnu"
+        echo "$CLANG_TIDY_SARIF_SHA256  $RUNNER_TEMP/clang-tidy-sarif" | sha256sum -c -
+        chmod +x "$RUNNER_TEMP/clang-tidy-sarif"
 
-    - name: Print report summary
+    - name: Convert clang-tidy output to SARIF
+      if: always() && hashFiles('reports/clang-tidy/clang-tidy.txt') != ''
       run: |
-        CodeChecker parse reports --print-steps || echo "No issues found"
-
-    - name: Generate SARIF report
-      run: |
-        # CodeChecker parse exit codes: 0 = no findings, 2 = findings present (both OK here
-        # since the SARIF file is uploaded either way); only a real error (1) should fail CI.
-        # `set +e` is needed to capture the real exit code below: GitHub Actions runs steps
-        # with `bash -e` by default, which would otherwise abort on the non-zero exit before
-        # `code=$?` is reached.
-        set +e
-        CodeChecker parse reports --export sarif -o results.sarif
-        code=$?
-        set -e
-        if [ "$code" -ne 0 ] && [ "$code" -ne 2 ]; then
-          exit "$code"
-        fi
+        sed "s|^$GITHUB_WORKSPACE/||" reports/clang-tidy/clang-tidy.txt \
+          | "$RUNNER_TEMP/clang-tidy-sarif" \
+          | jq '(.runs[].results[] | select(has("relatedLocations")) | .relatedLocations)
+                |= reduce .[] as $l ([]; if index([$l]) then . else . + [$l] end)' \
+          > reports/clang-tidy/clang-tidy.sarif
 
     - name: Upload SARIF results to GitHub Code Scanning
-      uses: github/codeql-action/upload-sarif@v3
-      if: always()
+      uses: github/codeql-action/upload-sarif@v4
+      if: always() && hashFiles('reports/clang-tidy/clang-tidy.sarif') != ''
       with:
-        sarif_file: results.sarif
-        category: "CodeChecker Static Analysis"
+        sarif_file: reports/clang-tidy/clang-tidy.sarif
+        category: clang-tidy
 
-    - name: Upload analysis reports
+    - name: Upload clang-tidy reports
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: static-analysis-reports
-        path: |
-          reports/
-          results.sarif
+        name: clang-tidy-reports
+        path: reports/clang-tidy/
+        retention-days: 30
+
+  cppcheck:
+    runs-on: ubuntu-latest
+    env:
+      # driftregion/cppcheck integration branch: upstream cppcheck plus
+      # https://github.com/cppcheck-opensource/cppcheck/pull/8879
+      # https://github.com/cppcheck-opensource/cppcheck/pull/8876
+      # https://github.com/cppcheck-opensource/simplecpp/pull/704
+      CPPCHECK_REPO: https://github.com/driftregion/cppcheck.git
+      CPPCHECK_REF: integration
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v4
+
+    - name: checkout isotp-c
+      run: |
+        git submodule update --init src/tp/isotp-c
+
+    - name: Resolve cppcheck commit
+      id: cppcheck-sha
+      run: |
+        sha=$(git ls-remote "$CPPCHECK_REPO" "refs/heads/$CPPCHECK_REF" | cut -f1)
+        test -n "$sha"
+        echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+    - name: Cache cppcheck build
+      id: cache-cppcheck
+      uses: actions/cache@v4
+      with:
+        path: ${{ runner.temp }}/cppcheck/build
+        key: ${{ runner.os }}-cppcheck-${{ steps.cppcheck-sha.outputs.sha }}
+
+    - name: Build cppcheck
+      if: steps.cache-cppcheck.outputs.cache-hit != 'true'
+      run: |
+        git init "$RUNNER_TEMP/cppcheck"
+        cd "$RUNNER_TEMP/cppcheck"
+        git fetch --depth 1 "$CPPCHECK_REPO" "${{ steps.cppcheck-sha.outputs.sha }}"
+        git checkout FETCH_HEAD
+        cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+        cmake --build build -j "$(nproc)"
+
+    - name: Verify cppcheck
+      run: $RUNNER_TEMP/cppcheck/build/bin/cppcheck --version
+
+    - name: Download MISRA rule texts
+      run: make tools/cppcheck/misra_c_2023__headlines_for_cppcheck.txt
+
+    - name: cppcheck MISRA
+      run: |
+        CPPCHECK=$RUNNER_TEMP/cppcheck/build/bin/cppcheck \
+        SARIF=reports/cppcheck/cppcheck.sarif \
+        ./tools/cppcheck/run_MISRA.sh
+
+    - name: Upload SARIF results to GitHub Code Scanning
+      uses: github/codeql-action/upload-sarif@v4
+      if: always() && hashFiles('reports/cppcheck/cppcheck.sarif') != ''
+      with:
+        sarif_file: reports/cppcheck/cppcheck.sarif
+        category: cppcheck-misra
+
+    - name: Upload cppcheck reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: cppcheck-reports
+        path: reports/cppcheck/
         retention-days: 30

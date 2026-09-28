@@ -37,32 +37,23 @@ while (client.state != UDS_CLIENT_IDLE) {
 }
 ```
 
-## Client Structure
+## Client Configuration 
 
-The \ref UDSClient_t structure contains:
+Some client behavior is configurable at runtime.
+After initialization, the library never modifies the values of these flags.
 
-- **Timeouts**: `p2_ms`, `p2_star_ms` - Server response timing parameters
-- **Transport**: `tp` - Pointer to ISO-TP transport layer
-- **State**: `state` - Current client state
-- **Options**: `options`, `defaultOptions` - Request behavior flags
-- **Callback**: `fn`, `fn_data` - Event handler and user data
-- **Buffers**: `recv_buf`, `send_buf` - Internal message buffers
-
-## Request Options
-
-Combine these flags when sending requests:
-
-| Flag | Description |
-|------|-------------|
-| `UDS_SUPPRESS_POS_RESP` | Suppress positive response (0x80 bit) |
-| `UDS_FUNCTIONAL` | Send as functional request (broadcast) |
-| `UDS_IGNORE_SRV_TIMINGS` | Ignore the server-provided P2/P2* values returned by a successful call to DiagnosticSessionControl |
+| Option | Description | Valid Range | Default Value |
+|-|-|-|
+| `cfg_suppress_pos_resp`   | When sending requests, ask that the server not send positive responses (0x80 bit) | 0-1 | 0 | 
+| `cfg_send_functional`     | Send requests as functional (broadcast) | 0-1 | 0 | 
+| `cfg_ignore_srv_sess_timing` | Ignore the server-provided P2/P2* values returned by a successful call to DiagnosticSessionControl | 0-1 | 0 | 
+| `cfg_data_format_identifier` | See Upload/Download functional unit | 0-255 | 0 | 
+| `cfg_file_size_parameter_length` | See Upload/Download functional unit | 0-255 | 4 | 
 
 Example:
 ```c
-client.options = UDS_SUPPRESS_POS_RESP | UDS_FUNCTIONAL;
-UDSSendTesterPresent(&client);
-// client.options is cleared automatically after each request
+client.suppress_pos_resp = 1;
+UDSSendTesterPresent(&client); // sends 
 ```
 
 ## Event-Driven API

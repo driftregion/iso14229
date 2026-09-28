@@ -1,4 +1,4 @@
-#if defined(UDS_TP_ISOTP_SOCK)
+#ifdef UDS_TP_ISOTP_SOCK
 
 #pragma once
 #include "tp.h"
@@ -16,11 +16,15 @@ typedef struct {
     UDSSDU_t recv_info;
     int phys_fd;
     int func_fd;
-    uint32_t phys_sa, phys_ta;
-    uint32_t func_sa, func_ta;
+    uint32_t phys_sa;
+    uint32_t phys_ta;
+    uint32_t func_sa;
+    uint32_t func_ta;
     char tag[16];
     /// \endcond
 } UDSTpIsoTpSock_t;
+
+static_assert(offsetof(UDSTpIsoTpSock_t, hdl) == 0U, "hdl must be the first member");
 
 UDSErr_t UDSServerTpIsoTpSockInit(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
                                   uint32_t target_addr,

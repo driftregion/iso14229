@@ -2,98 +2,59 @@
 
 /**
  * @brief logging for bring-up and unit tests.
- * This interface was copied from ESP-IDF.
+ * Attribution: the initial version of this API was copied from ESP-IDF.
  */
 
-#include "sys.h"
-#include "config.h"
-#include "uds.h"
 #include "tp.h"
+#include "config.h"
+#include "include.h"
 
 /**
  * @defgroup uds_log_level_ valid values for UDS_LOG_LEVEL
  * @brief configures logging verbosity
  * @{
  */
-#define UDS_LOG_NONE 0    /**< No log output */
-#define UDS_LOG_ERROR 1   /**< Log errors only */
-#define UDS_LOG_WARN 2    /**< Log warnings and errors */
-#define UDS_LOG_INFO 3    /**< Log info, warnings, and errors */
-#define UDS_LOG_DEBUG 4   /**< Log debug, info, warnings, and errors */
-#define UDS_LOG_VERBOSE 5 /**< Log verbose, debug, info, warnings, and errors */
+#define UDS_LOG_NONE 0U    /**< No log output */
+#define UDS_LOG_ERROR 1U   /**< Log errors only */
+#define UDS_LOG_WARN 2U    /**< Log warnings and errors */
+#define UDS_LOG_INFO 3U    /**< Log info, warnings, and errors */
+#define UDS_LOG_DEBUG 4U   /**< Log debug, info, warnings, and errors */
+#define UDS_LOG_VERBOSE 5U /**< Log verbose, debug, info, warnings, and errors */
 /** @} */
 
-typedef int UDS_LogLevel_t; ///< one of @ref uds_log_level_
+typedef unsigned int UDS_LogLevel_t; ///< one of @ref uds_log_level_
 
-/**
- * @def UDS_LOG_LEVEL
- * @brief sets the logging level
- * @see uds_log_level_ for valid values
- */
-#ifndef UDS_LOG_LEVEL
-#define UDS_LOG_LEVEL UDS_LOG_NONE
-#endif
-
-/// \cond DOXYGEN_SHOULD_SKIP_THIS
-#if UDS_CONFIG_LOG_COLORS
-#define UDS_LOG_COLOR_BLACK "30"
-#define UDS_LOG_COLOR_RED "31"
-#define UDS_LOG_COLOR_GREEN "32"
-#define UDS_LOG_COLOR_BROWN "33"
-#define UDS_LOG_COLOR_BLUE "34"
-#define UDS_LOG_COLOR_PURPLE "35"
-#define UDS_LOG_COLOR_CYAN "36"
-#define LOG_COLOR(COLOR) "\033[0;" COLOR "m"
-#define LOG_BOLD(COLOR) "\033[1;" COLOR "m"
-#define UDS_LOG_RESET_COLOR "\033[0m"
-#define UDS_LOG_COLOR_E LOG_COLOR(UDS_LOG_COLOR_RED)
-#define UDS_LOG_COLOR_W LOG_COLOR(UDS_LOG_COLOR_BROWN)
-#define UDS_LOG_COLOR_I LOG_COLOR(UDS_LOG_COLOR_GREEN)
-#define UDS_LOG_COLOR_D
-#define UDS_LOG_COLOR_V
-#else // UDS_CONFIG_LOG_COLORS
-#define UDS_LOG_COLOR_E
-#define UDS_LOG_COLOR_W
-#define UDS_LOG_COLOR_I
-#define UDS_LOG_COLOR_D
-#define UDS_LOG_COLOR_V
-#define UDS_LOG_RESET_COLOR
-#endif // UDS_CONFIG_LOG_COLORS
-
-#define UDS_LOG_FORMAT(letter, format)                                                             \
-    UDS_LOG_COLOR_##letter #letter " (%" PRIu32 ") %s: " format UDS_LOG_RESET_COLOR "\n"
-
-static_assert(UDS_LOG_LEVEL == UDS_LOG_NONE || UDS_LOG_LEVEL == UDS_LOG_ERROR ||
-                  UDS_LOG_LEVEL == UDS_LOG_WARN || UDS_LOG_LEVEL == UDS_LOG_INFO ||
-                  UDS_LOG_LEVEL == UDS_LOG_DEBUG || UDS_LOG_LEVEL == UDS_LOG_VERBOSE,
+static_assert((bool)((UDS_LOG_LEVEL == UDS_LOG_NONE) || (UDS_LOG_LEVEL == UDS_LOG_ERROR) ||
+                     (UDS_LOG_LEVEL == UDS_LOG_WARN) || (UDS_LOG_LEVEL == UDS_LOG_INFO) ||
+                     (UDS_LOG_LEVEL == UDS_LOG_DEBUG) || (UDS_LOG_LEVEL == UDS_LOG_VERBOSE)),
               "unknown log level");
 
 #if UDS_LOG_LEVEL >= UDS_LOG_ERROR && UDS_LOG_LEVEL != UDS_LOG_NONE
 #define UDS_LOGE(tag, format, ...)                                                                 \
     UDS_LogWrite(UDS_LOG_ERROR, tag, UDS_LOG_FORMAT(E, format), UDSMillis(), tag, ##__VA_ARGS__)
 #else
-#define UDS_LOGE(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
+#define UDS_LOGE(tag, format, ...) UDS_LogDummy(UDS_LOG_NONE, tag, format, ##__VA_ARGS__)
 #endif
 
 #if UDS_LOG_LEVEL >= UDS_LOG_WARN && UDS_LOG_LEVEL != UDS_LOG_NONE
 #define UDS_LOGW(tag, format, ...)                                                                 \
     UDS_LogWrite(UDS_LOG_WARN, tag, UDS_LOG_FORMAT(W, format), UDSMillis(), tag, ##__VA_ARGS__)
 #else
-#define UDS_LOGW(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
+#define UDS_LOGW(tag, format, ...) UDS_LogDummy(UDS_LOG_NONE, tag, format, ##__VA_ARGS__)
 #endif
 
 #if UDS_LOG_LEVEL >= UDS_LOG_INFO && UDS_LOG_LEVEL != UDS_LOG_NONE
 #define UDS_LOGI(tag, format, ...)                                                                 \
     UDS_LogWrite(UDS_LOG_INFO, tag, UDS_LOG_FORMAT(I, format), UDSMillis(), tag, ##__VA_ARGS__)
 #else
-#define UDS_LOGI(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
+#define UDS_LOGI(tag, format, ...) UDS_LogDummy(UDS_LOG_NONE, tag, format, ##__VA_ARGS__)
 #endif
 
 #if UDS_LOG_LEVEL >= UDS_LOG_DEBUG && UDS_LOG_LEVEL != UDS_LOG_NONE
 #define UDS_LOGD(tag, format, ...)                                                                 \
     UDS_LogWrite(UDS_LOG_DEBUG, tag, UDS_LOG_FORMAT(D, format), UDSMillis(), tag, ##__VA_ARGS__)
 #else
-#define UDS_LOGD(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
+#define UDS_LOGD(tag, format, ...) UDS_LogDummy(UDS_LOG_NONE, tag, format, ##__VA_ARGS__)
 #endif
 
 #if UDS_LOG_LEVEL >= UDS_LOG_VERBOSE
@@ -102,8 +63,9 @@ static_assert(UDS_LOG_LEVEL == UDS_LOG_NONE || UDS_LOG_LEVEL == UDS_LOG_ERROR ||
 #define UDS_LOG_SDU(tag, buffer, buff_len, info)                                                   \
     UDS_LogSDUInternal(UDS_LOG_DEBUG, tag, buffer, buff_len, info)
 #else
-#define UDS_LOGV(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
-#define UDS_LOG_SDU(tag, buffer, buff_len, info) UDS_LogSDUDummy(tag, buffer, buff_len, info)
+#define UDS_LOGV(tag, format, ...) UDS_LogDummy(UDS_LOG_NONE, tag, format, ##__VA_ARGS__)
+#define UDS_LOG_SDU(tag, buffer, buff_len, info)                                                   \
+    UDS_LogSDUDummy(UDS_LOG_NONE, tag, buffer, buff_len, info)
 #endif
 
 #if defined(__GNUC__) || defined(__clang__)
@@ -114,19 +76,22 @@ static_assert(UDS_LOG_LEVEL == UDS_LOG_NONE || UDS_LOG_LEVEL == UDS_LOG_ERROR ||
 #endif
 
 #if UDS_LOG_LEVEL > UDS_LOG_NONE
+/* cppcheck-suppress [misra-c2012-20.10] string logging is not subject to MISRA */
+#define UDS_LOG_FORMAT(letter, format) #letter " (%" PRIu32 ") %s: " format "\n"
 void UDS_LogWrite(UDS_LogLevel_t level, const char *tag, const char *format, ...)
     UDS_PRINTF_FORMAT(3, 4);
 void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *buffer, size_t buflen,
                         const UDSSDU_t *info);
-#endif
+#endif // UDS_LOG_LEVEL > UDS_LOG_NONE
 
-// Dummy function that consumes arguments but does nothing
-static inline void UDS_LogDummy(const char *tag, const char *format, ...) {
+static inline void UDS_LogDummy(UDS_LogLevel_t level, const char *tag, const char *format, ...) {
+    (void)level;
     (void)tag;
     (void)format;
 }
-static inline void UDS_LogSDUDummy(const char *tag, const uint8_t *buffer, size_t buflen,
-                                   const UDSSDU_t *info) {
+static inline void UDS_LogSDUDummy(UDS_LogLevel_t level, const char *tag, const uint8_t *buffer,
+                                   size_t buflen, const UDSSDU_t *info) {
+    (void)level;
     (void)tag;
     (void)buffer;
     (void)buflen;

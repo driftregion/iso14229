@@ -4,7 +4,7 @@ MISRA_RULES_TXT = tools/cppcheck/misra_c_2023__headlines_for_cppcheck.txt
 
 $(MISRA_RULES_TXT):
 	mkdir -p tools/cppcheck
-	wget -O $(MISRA_RULES_TXT) https://gitlab.com/MISRA/MISRA-C/MISRA-C-2012/tools/-/raw/main/misra_c_2023__headlines_for_cppcheck.txt?ref_type=heads&inline=false
+	wget -O $(MISRA_RULES_TXT) 'https://gitlab.com/MISRA/MISRA-C/MISRA-C-2012/tools/-/raw/main/misra_c_2023__headlines_for_cppcheck.txt?ref_type=heads&inline=false'
 
 compile_commands.json:
 	bazel build //:iso14229 && bazel run //:lib_compile_commands
@@ -16,7 +16,7 @@ update_srcs:
 	tools/update_srcs.sh
 
 coverage:
-	tools/canifup.sh
+	tools/enable_vcan0.sh
 	tools/coverage_run.sh
 
 coverage-html:

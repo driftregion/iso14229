@@ -1,5 +1,6 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test", "cc_binary")
+load("@rules_fuzzing//fuzzing:cc_defs.bzl", "cc_fuzz_test")
 
 cc_library(
     name = "env",
@@ -17,7 +18,6 @@ cc_library(
             "-g",
          ],
     }),
-    defines = [ "UDS_ASSERT=assert" ]
 )
 
 cc_test(
@@ -33,7 +33,6 @@ cc_test(
         "UDS_TP_ISOTP_MOCK",
         "UDS_CUSTOM_MILLIS",
         "UDS_LOG_LEVEL=UDS_LOG_VERBOSE",
-        "UDS_LINES",
     ],
 )
 
@@ -93,6 +92,7 @@ sh_test(
     data = [":test_log_disable_c"],
     args = ["$(locations :test_log_disable_c)"],
     size = "small",
+    target_compatible_with = ["@platforms//os:linux"],
 )
 
 sh_test(
@@ -104,6 +104,7 @@ sh_test(
         "//:Doxyfile",
         "//:VERSION",
     ],
+    target_compatible_with = ["@platforms//os:linux"],
 )
 
 [
@@ -132,3 +133,31 @@ sh_test(
     ]
 ]
 
+
+cc_fuzz_test(
+    name = "fuzz_server",
+    srcs = [
+        "fuzz_server.cc",
+        "//src:iso14229.h",
+        "//src:iso14229.c",
+    ],
+    defines = [
+        "UDS_TP_ISOTP_MOCK",
+        "UDS_CUSTOM_MILLIS",
+        "UDS_LINES",
+    ],
+    copts = [
+        "-g",
+        "-O0"
+    ],
+    size = "small",
+    corpus = [
+        ":corpus_filegroup"
+    ],
+    tags = [ "fuzz" ]
+)
+
+filegroup(
+    name = "corpus_filegroup",
+    srcs = glob(["fuzz_outputs/corpus/**"], allow_empty=True),
+)

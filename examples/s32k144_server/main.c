@@ -24,18 +24,9 @@ static uint8_t fn(UDSServer_t *srv, UDSEvent_t ev, const void *arg) { return UDS
 int main() {
     BSPInit();
     UDSServerInit(&server);
+    UDSServerTpISOTpCInit(&tp, 0x7E8, 0x7E0, 0x7DF);
     server.fn = fn;
     server.tp = &tp.hdl;
-
-    UDSTpISOTpCSocketCANInit(&tp, &(UDSTpISOTpCSocketCANConfig_t){
-                                      .source_addr = 0x7E8,
-                                      .target_addr = 0x7E0,
-                                      .source_addr_func = 0x7DF,
-                                      .target_addr_func = 0,
-                                      .user_data = NULL,
-                                      .isotp_user_send_can = isotp_user_send_can,
-                                      .isotp_user_debug = isotp_debug,
-                                  });
 
     uint8_t data[] = {0xf0, 0xf0};
     while (1) {

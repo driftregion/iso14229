@@ -10,6 +10,10 @@ jobs:
       - checkout
 
       - run:
+          name: Checkout isotp-c
+          command: git submodule update --init src/tp/isotp-c
+
+      - run:
           name: Install kernel extras + tools
           command: |
             sudo apt-get update
@@ -50,18 +54,24 @@ jobs:
             pkill isotprecv || true
 
       - run:
-          name: coverage
+          name: coverage_unit
           command: |
-            set -euxo pipefail
-            tools/coverage_run.sh
-            cp "$(bazel info output_path)/_coverage/_coverage_report.dat" coverage.lcov
+            tools/gen_coverage_unit.sh
+
+      - run:
+          name: coverage_fuzz
+          command: |
+            tools/gen_coverage_fuzz.sh
 
       - run:
           name: coverage upload
           command: |
             curl -Os https://cli.codecov.io/latest/linux/codecov
             chmod +x codecov
-            ./codecov --verbose upload-process --fail-on-error -t $CODECOV_TOKEN -F unittests --name "CircleCI Unit Tests Coverage"
+            ./codecov create-commit -t $CODECOV_TOKEN
+            ./codecov create-report -t $CODECOV_TOKEN
+            ./codecov --verbose do-upload -Z -t $CODECOV_TOKEN -F unit --name "unit test coverage" -f reports/coverage_unit.lcov 
+            ./codecov --verbose do-upload -Z -t $CODECOV_TOKEN -F fuzz --name "fuzz test coverage" -f reports/coverage_fuzz.lcov 
 
   build-examples:
     machine:
@@ -69,6 +79,10 @@ jobs:
     resource_class: medium
     steps:
       - checkout
+
+      - run:
+          name: Checkout isotp-c
+          command: git submodule update --init src/tp/isotp-c
 
       - run:
           name: Install dependencies

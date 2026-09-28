@@ -1,27 +1,52 @@
+/**
+ * @file iso14229.h
+ * SPDX-License-Identifier: MIT
+ * @brief ISO 14229 (UDS) library
+ * @copyright Copyright (c) Nick Kirkby
+ * @see documentation at https://github.com/driftregion/iso14229
+ */
+
 #ifndef ISO14229_H
 #define ISO14229_H
 
-/**
- * @file iso14229.h
- * @brief ISO14229-1 (UDS) library
- * @copyright Copyright (c) Nick Kirkby
- * @see https://github.com/driftregion/iso14229
- */
-
 #ifdef __cplusplus
 extern "C" {
-#endif
+#endif // #ifdef __cplusplus
 
 
 #ifdef UDS_LINES
 #line 1 "src/version.h"
+#endif // #ifdef UDS_LINES
+#define UDS_LIB_VERSION "0.11.0"
+
+
+#ifdef UDS_LINES
+#line 1 "src/include.h"
+#endif // #ifdef UDS_LINES
+
+#include <assert.h> // early includes for static_assert
+
+#if !defined(__cplusplus) && ((!defined(__STDC_VERSION__)) || (__STDC_VERSION__ < 201112L))
+#ifndef static_assert
+/* cppcheck-suppress [misra-c2012-19.2,misra-c2012-20.4] Patch static_assert for pre-C11 toolchains
+ */
+#define static_assert(expr, msg)
+#else // #ifndef static_assert
+#warning "using static_assert of unknown provenance; Please check that the signature is correct"
+#endif // #ifndef static_assert
 #endif
-#define UDS_LIB_VERSION "0.10.2"
+
+#include <inttypes.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
 
 
 #ifdef UDS_LINES
 #line 1 "src/sys.h"
-#endif
+#endif // #ifdef UDS_LINES
 
 /**
  * @defgroup uds_sys_ valid values of UDS_SYS
@@ -37,9 +62,8 @@ extern "C" {
 #define UDS_SYS_ZEPHYR 5
 /** @} */
 
-#if !defined(UDS_SYS)
-
-#if defined(__ZEPHYR__) // native_sim links w/host libc which also defines __unix__
+#ifndef UDS_SYS   // system auto-detection
+#ifdef __ZEPHYR__ // native_sim links w/host libc which also defines __unix__
 #define UDS_SYS UDS_SYS_ZEPHYR
 #elif defined(__unix__) || defined(__APPLE__)
 #define UDS_SYS UDS_SYS_UNIX
@@ -53,56 +77,13 @@ extern "C" {
 #warning                                                                                           \
     "UDS_SYS was not detected, defaulting to UDS_SYS_CUSTOM. Remove this warning by defining UDS_SYS=UDS_SYS_CUSTOM in your build configuration"
 #define UDS_SYS UDS_SYS_CUSTOM
-#endif
-
-#endif
-
-#include <assert.h>
-#include <inttypes.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
-
-#if UDS_SYS == UDS_SYS_CUSTOM
-#define UDS_CUSTOM_MILLIS
-#endif // UDS_SYS == UDS_SYS_CUSTOM
-
-#if UDS_SYS == UDS_SYS_UNIX
-#include <sys/time.h>
-#include <sys/types.h>
-#include <time.h>
-#endif // if UDS_SYS == UDS_SYS_UNIX
-
-#if UDS_SYS == UDS_SYS_WINDOWS
-#include <stdlib.h>
-#include <time.h>
-#ifdef _MSC_VER
-#define strncasecmp _strnicmp
-#define strcasecmp _stricmp
-#endif // ifdef _MSC_VER
-#endif // if UDS_SYS == UDS_SYS_WINDOWS
-
-#if UDS_SYS == UDS_SYS_ARDUINO
-#include <Arduino.h>
-#define UDS_TP_ISOTP_C
-#endif // if UDS_SYS == UDS_SYS_ARDUINO
-
-#if UDS_SYS == UDS_SYS_ESP32
-#include <esp_timer.h>
-#define UDS_TP_ISOTP_C
-#endif // if UDS_SYS == UDS_SYS_ESP32
-
-#if UDS_SYS == UDS_SYS_ZEPHYR
-#include <zephyr/kernel.h>
-#define UDS_TP_ISOTP_C
-#endif // if UDS_SYS == UDS_SYS_ZEPHYR
+#endif // defined(__ZEPHYR__)
+#endif // #ifndef(UDS_SYS) // system auto-detection
 
 
 #ifdef UDS_LINES
 #line 1 "src/config.h"
-#endif
+#endif // #ifdef UDS_LINES
 
 /**
  * @def UDS_SYS
@@ -120,7 +101,17 @@ extern "C" {
  * @see UDSMillis
  */
 
-#define UDS_ISOTP_MTU (4095) ///< ISO-TP Maximum Transmission Unit (ISO-15764-2-2004 section 5.3.3)
+/**
+ * @def UDS_LOG_LEVEL
+ * @brief sets the logging level
+ * @details set UDS_LOG_LEVEL to 0U (UDS_LOG_NONE) to remove logging entirely.
+ * @see uds_log_level_ for valid values
+ */
+#ifndef UDS_LOG_LEVEL
+#define UDS_LOG_LEVEL 0U
+#endif
+
+#define UDS_ISOTP_MTU (4095U) ///< ISO-TP Maximum Transmission Unit (ISO-15764-2-2004 section 5.3.3)
 
 #ifndef UDS_TP_MTU
 /// ISOTP is the only supported tp type, so UDS inherits its MTU
@@ -174,9 +165,9 @@ static_assert(UDS_CLIENT_DEFAULT_P2_STAR_MS > UDS_CLIENT_DEFAULT_P2_MS, "");
     (5100) ///< default S3 duration (ISO14229-2 2013 Table 5: 5000 -0/+200 ms)
 #endif
 
-static_assert((0 < UDS_SERVER_DEFAULT_P2_MS) &&
-                  (UDS_SERVER_DEFAULT_P2_MS < UDS_SERVER_DEFAULT_P2_STAR_MS) &&
-                  (UDS_SERVER_DEFAULT_P2_STAR_MS < UDS_SERVER_DEFAULT_S3_MS),
+static_assert((bool)((0 < UDS_SERVER_DEFAULT_P2_MS) &&
+                     (UDS_SERVER_DEFAULT_P2_MS < UDS_SERVER_DEFAULT_P2_STAR_MS) &&
+                     (UDS_SERVER_DEFAULT_P2_STAR_MS < UDS_SERVER_DEFAULT_S3_MS)),
               "");
 
 /// Duration between the server sending a positive response to an ECU reset request and the emission
@@ -192,12 +183,12 @@ static_assert((0 < UDS_SERVER_DEFAULT_P2_MS) &&
 
 /// Amount of time to wait after boot before accepting 0x27 requests.
 #ifndef UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_BOOT_DELAY_MS
-#define UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_BOOT_DELAY_MS (1000)
+#define UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_BOOT_DELAY_MS (1000U)
 #endif
 
 /// Amount of time to wait after an authentication failure before accepting another 0x27 request.
 #ifndef UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_AUTH_FAIL_DELAY_MS
-#define UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_AUTH_FAIL_DELAY_MS (1000)
+#define UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_AUTH_FAIL_DELAY_MS (1000U)
 #endif
 
 #ifndef UDS_SERVER_DEFAULT_XFER_DATA_MAX_BLOCKLENGTH
@@ -207,10 +198,72 @@ TransferData request message from the client. */
 #define UDS_SERVER_DEFAULT_XFER_DATA_MAX_BLOCKLENGTH (UDS_TP_MTU)
 #endif
 
+#ifndef UDS_AUTOSELECT_TP // transport auto-selection. Set -DUDS_AUTOSELECT_TP=0 to turn off
+                          // auto-selection
+#define UDS_AUTOSELECT_TP 1
+
+#if ((UDS_SYS == UDS_SYS_CUSTOM) || (UDS_SYS == UDS_SYS_ARDUINO) || (UDS_SYS == UDS_SYS_ESP32) ||  \
+     (UDS_SYS == UDS_SYS_ZEPHYR))
+#ifndef UDS_TP_ISOTP_C
+#define UDS_TP_ISOTP_C
+#endif // #ifndef UDS_TP_ISOTP_C
+#elif (UDS_SYS == UDS_SYS_UNIX)
+#ifndef UDS_TP_ISOTP_SOCK
+#define UDS_TP_ISOTP_SOCK
+#endif // #ifndef UDS_TP_ISOTP_SOCK
+#else
+// no default tp
+#endif // ((UDS_SYS == UDS_SYS_CUSTOM) || ... )
+
+#endif // #ifndef UDS_AUTOSELECT_TP
+
+
+#ifdef UDS_LINES
+#line 1 "src/config_internal.h"
+#endif // #ifdef UDS_LINES
+// non user-facing config
+
+#if UDS_SYS == UDS_SYS_CUSTOM
+#ifndef UDS_CUSTOM_MILLIS
+#define UDS_CUSTOM_MILLIS
+#endif // #ifndef UDS_CUSTOM_MILLIS
+#endif // UDS_SYS == UDS_SYS_CUSTOM
+
+#if UDS_SYS == UDS_SYS_WINDOWS
+#ifdef _MSC_VER
+#define strncasecmp _strnicmp
+#define strcasecmp _stricmp
+#endif // ifdef _MSC_VER
+#endif // if UDS_SYS == UDS_SYS_WINDOWS
+
+#ifdef UDS_TP_ISOTP_C_SOCKETCAN
+#ifndef UDS_TP_ISOTP_C
+#define UDS_TP_ISOTP_C
+#endif // #ifndef (UDS_TP_ISOTP_C)
+#endif // #defined(UDS_TP_ISOTP_C_SOCKETCAN)
+
+#ifdef UDS_TP_ISOTP_C_SOCKETCAN
+#ifndef UDS_TP_ISOTP_C
+#error "UDS_TP_ISOTP_C must be defined to use UDS_TP_ISOTP_C_SOCKETCAN"
+#endif // #ifndef UDS_TP_ISOTP_C
+#endif // defined(UDS_TP_ISOTP_C_SOCKETCAN)
+
+#ifdef UDS_TP_ISOTP_C
+#ifdef ISO_TP_USER_SEND_CAN_ARG
+#error "this flag is set by iso14229"
+#endif // #ifdef ISO_TP_USER_SEND_CAN_ARG
+#define ISO_TP_USER_SEND_CAN_ARG 1
+
+#ifdef ISO_TP_NO_FORMATTED_ERRORS
+#error "this flag is set by iso14229"
+#endif
+#define ISO_TP_NO_FORMATTED_ERRORS 1
+#endif // defined(UDS_TP_ISOTP_C)
+
 
 #ifdef UDS_LINES
 #line 1 "src/uds.h"
-#endif
+#endif // #ifdef UDS_LINES
 
 /** @file */
 
@@ -341,17 +394,19 @@ typedef enum {
     /* 0x95 to 0xEF are reservedForSpecificConditionsNotCorrect */
     /* 0xF0 to 0xFE are vehicleManufacturerSpecificConditionsNotCorrect */
     /* 0xFF is ISOSAEReserved */
+    UDS_NRC_UNUSED_ISOSAEReserved = 0xFF,
 
     // The following values are not defined in ISO14229-1:2020
     UDS_ERR_TIMEOUT = 0x100,      // A request has timed out
-    UDS_ERR_DID_MISMATCH,         // The response DID does not match the request DID
-    UDS_ERR_SID_MISMATCH,         // The response SID does not match the request SID
-    UDS_ERR_SUBFUNCTION_MISMATCH, // The response SubFunction does not match the request SubFunction
-    UDS_ERR_RESP_TOO_SHORT,       // The response is too short
-    UDS_ERR_BUFSIZ,               // The buffer is not large enough
-    UDS_ERR_INVALID_ARG,          // The function has been called with invalid arguments
-    UDS_ERR_BUSY,                 // The client is busy and cannot process the request
-    UDS_ERR_MISUSE,               // The library is used incorrectly
+    UDS_ERR_DID_MISMATCH = 0x101, // The response DID does not match the request DID
+    UDS_ERR_SID_MISMATCH = 0x102, // The response SID does not match the request SID
+    UDS_ERR_SUBFUNCTION_MISMATCH =
+        0x103, // The response SubFunction does not match the request SubFunction
+    UDS_ERR_RESP_TOO_SHORT = 0x104, // The response is too short
+    UDS_ERR_BUFSIZ = 0x105,         // The buffer is not large enough
+    UDS_ERR_INVALID_ARG = 0x106,    // The function has been called with invalid arguments
+    UDS_ERR_BUSY = 0x107,           // The client is busy and cannot process the request
+    UDS_ERR_MISUSE = 0x108,         // The library is used incorrectly
 
     UDS_ERR_TPORT = 0x200, // Transport error
 } UDSErr_t;
@@ -362,10 +417,10 @@ typedef enum {
  * @see UDSSendDiagSessCtrl UDS_EVT_DiagSessCtrl
  * @{
  */
-#define UDS_LEV_DS_DS 1    ///< Default Session
-#define UDS_LEV_DS_PRGS 2  ///< Programming Session
-#define UDS_LEV_DS_EXTDS 3 ///< Extended Diagnostic Session
-#define UDS_LEV_DS_SSDS 4  ///< Safety System Diagnostic Session
+#define UDS_LEV_DS_DS 1U    ///< Default Session
+#define UDS_LEV_DS_PRGS 2U  ///< Programming Session
+#define UDS_LEV_DS_EXTDS 3U ///< Extended Diagnostic Session
+#define UDS_LEV_DS_SSDS 4U  ///< Safety System Diagnostic Session
 /** @} */
 
 /**
@@ -374,11 +429,11 @@ typedef enum {
  * @see UDSSendECUReset UDS_EVT_ECUReset
  * @{
  */
-#define UDS_LEV_RT_HR 1      ///< Hard Reset
-#define UDS_LEV_RT_KOFFONR 2 ///< Key Off On Reset
-#define UDS_LEV_RT_SR 3      ///< Soft Reset
-#define UDS_LEV_RT_ERPSD 4   ///< Enable Rapid Power Shut Down
-#define UDS_LEV_RT_DRPSD 5   ///< Disable Rapid Power Shut Down
+#define UDS_LEV_RT_HR 1U      ///< Hard Reset
+#define UDS_LEV_RT_KOFFONR 2U ///< Key Off On Reset
+#define UDS_LEV_RT_SR 3U      ///< Soft Reset
+#define UDS_LEV_RT_ERPSD 4U   ///< Enable Rapid Power Shut Down
+#define UDS_LEV_RT_DRPSD 5U   ///< Disable Rapid Power Shut Down
 /** @} */
 
 /**
@@ -387,10 +442,10 @@ typedef enum {
  * @see UDSSendCommCtrl UDS_EVT_CommCtrl
  * @{
  */
-#define UDS_LEV_CTRLTP_ERXTX 0  ///< EnableRxAndTx
-#define UDS_LEV_CTRLTP_ERXDTX 1 ///< EnableRxAndDisableTx
-#define UDS_LEV_CTRLTP_DRXETX 2 ///< DisableRxAndEnableTx
-#define UDS_LEV_CTRLTP_DRXTX 3  ///< DisableRxAndTx
+#define UDS_LEV_CTRLTP_ERXTX 0U  ///< EnableRxAndTx
+#define UDS_LEV_CTRLTP_ERXDTX 1U ///< EnableRxAndDisableTx
+#define UDS_LEV_CTRLTP_DRXETX 2U ///< DisableRxAndEnableTx
+#define UDS_LEV_CTRLTP_DRXTX 3U  ///< DisableRxAndTx
 /** @} */
 
 /**
@@ -399,10 +454,10 @@ typedef enum {
  * @see UDSSendCommCtrl UDS_EVT_CommCtrl
  * @{
  */
-#define UDS_CTP_NCM 1   ///< NormalCommunicationMessages
-#define UDS_CTP_NWMCM 2 ///< NetworkManagementCommunicationMessages
+#define UDS_CTP_NCM 1U   ///< NormalCommunicationMessages
+#define UDS_CTP_NWMCM 2U ///< NetworkManagementCommunicationMessages
 #define UDS_CTP_NWMCM_NCM                                                                          \
-    3 ///< NetworkManagementCommunicationMessagesAndNormalCommunicationMessages
+    3U ///< NetworkManagementCommunicationMessagesAndNormalCommunicationMessages
 /** @} */
 
 /**
@@ -411,9 +466,9 @@ typedef enum {
  * @see UDSSendRoutineCtrl UDS_EVT_RoutineCtrl
  * @{
  */
-#define UDS_LEV_RCTP_STR 1  ///< StartRoutine
-#define UDS_LEV_RCTP_STPR 2 ///< StopRoutine
-#define UDS_LEV_RCTP_RRR 3  ///< RequestRoutineResults
+#define UDS_LEV_RCTP_STR 1U  ///< StartRoutine
+#define UDS_LEV_RCTP_STPR 2U ///< StopRoutine
+#define UDS_LEV_RCTP_RRR 3U  ///< RequestRoutineResults
 /** @} */
 
 /**
@@ -422,12 +477,12 @@ typedef enum {
  * @see UDSSendRequestFileTransfer UDS_EVT_RequestFileTransfer
  * @{
  */
-#define UDS_MOOP_ADDFILE 1  ///< AddFile
-#define UDS_MOOP_DELFILE 2  ///< DeleteFile
-#define UDS_MOOP_REPLFILE 3 ///< ReplaceFile
-#define UDS_MOOP_RDFILE 4   ///< ReadFile
-#define UDS_MOOP_RDDIR 5    ///< ReadDirectory
-#define UDS_MOOP_RSFILE 6   ///< ResumeFile
+#define UDS_MOOP_ADDFILE 1U  ///< AddFile
+#define UDS_MOOP_DELFILE 2U  ///< DeleteFile
+#define UDS_MOOP_REPLFILE 3U ///< ReplaceFile
+#define UDS_MOOP_RDFILE 4U   ///< ReadFile
+#define UDS_MOOP_RDDIR 5U    ///< ReadDirectory
+#define UDS_MOOP_RSFILE 6U   ///< ResumeFile
 /** @} */
 
 /**
@@ -436,8 +491,8 @@ typedef enum {
  * @see UDSSendControlDTCSetting UDS_EVT_ControlDTCSetting
  * @{
  */
-#define UDS_LEV_DTCSTP_ON 1  ///< Resume updating DTCs
-#define UDS_LEV_DTCSTP_OFF 2 ///< Stop updating DTCs
+#define UDS_LEV_DTCSTP_ON 1U  ///< Resume updating DTCs
+#define UDS_LEV_DTCSTP_OFF 2U ///< Stop updating DTCs
 /** @} */
 
 /**
@@ -446,99 +501,20 @@ typedef enum {
  * @see UDSSendLinkControl UDS_EVT_LinkControl
  * @{
  */
-#define UDS_LEV_LCTP_VMTWFP 1 ///< VerifyModeTransitionWithFixedParameter
-#define UDS_LEV_LCTP_VMTWSP 2 ///< VerifyModeTransitionWithSpecificParameter
-#define UDS_LEV_LCTP_TM 3     ///< TransitionMode
+#define UDS_LEV_LCTP_VMTWFP 1U ///< VerifyModeTransitionWithFixedParameter
+#define UDS_LEV_LCTP_VMTWSP 2U ///< VerifyModeTransitionWithSpecificParameter
+#define UDS_LEV_LCTP_TM 3U     ///< TransitionMode
 /** @} */
-
-/// ISO-14229-1:2013 Table 2
-#define UDS_MAX_DIAGNOSTIC_SERVICES 0x7F
-
-/// \cond DOXYGEN_SHOULD_SKIP_THIS
-#define UDS_NEG_RESP_LEN 3U
-#define UDS_0X10_REQ_LEN 2U
-#define UDS_0X10_RESP_LEN 6U
-#define UDS_0X11_REQ_MIN_LEN 2U
-#define UDS_0X11_RESP_BASE_LEN 2U
-#define UDS_0X14_REQ_MIN_LEN 4U
-#define UDS_0X14_RESP_BASE_LEN 1U
-#define UDS_0X19_REQ_MIN_LEN 2U
-#define UDS_0X19_RESP_BASE_LEN 2U
-#define UDS_0X23_REQ_MIN_LEN 4U
-#define UDS_0X23_RESP_BASE_LEN 1U
-#define UDS_0X22_RESP_BASE_LEN 1U
-#define UDS_0X27_REQ_BASE_LEN 2U
-#define UDS_0X27_RESP_BASE_LEN 2U
-#define UDS_0X28_REQ_BASE_LEN 3U
-#define UDS_0X28_RESP_LEN 2U
-#define UDS_0X2C_REQ_MIN_LEN 2U
-#define UDS_0X2C_RESP_BASE_LEN 2U
-#define UDS_0X2E_REQ_BASE_LEN 3U
-#define UDS_0X2E_REQ_MIN_LEN 4U
-#define UDS_0X2E_RESP_LEN 3U
-#define UDS_0X2F_REQ_MIN_LEN 4U
-#define UDS_0X2F_RESP_BASE_LEN 4U
-#define UDS_0X31_REQ_MIN_LEN 4U
-#define UDS_0X31_REQ_BASE_LEN 4U
-#define UDS_0X31_RESP_MIN_LEN 4U
-#define UDS_0X34_REQ_BASE_LEN 3U
-#define UDS_0X34_RESP_BASE_LEN 2U
-#define UDS_0X35_REQ_BASE_LEN 3U
-#define UDS_0X35_RESP_BASE_LEN 2U
-#define UDS_0X36_REQ_BASE_LEN 2U
-#define UDS_0X36_RESP_BASE_LEN 2U
-#define UDS_0X37_REQ_BASE_LEN 1U
-#define UDS_0X37_RESP_BASE_LEN 1U
-#define UDS_0X38_REQ_BASE_LEN 5U
-#define UDS_0X38_RESP_BASE_LEN 2U
-#define UDS_0X3D_REQ_MIN_LEN 5U
-#define UDS_0X3D_RESP_BASE_LEN 2U
-#define UDS_0X3E_REQ_MIN_LEN 2U
-#define UDS_0X3E_REQ_MAX_LEN 2U
-#define UDS_0X3E_RESP_LEN 2U
-#define UDS_0X85_REQ_BASE_LEN 2U
-#define UDS_0X85_RESP_LEN 2U
-#define UDS_0X87_REQ_BASE_LEN 2U
-#define UDS_0X87_RESP_LEN 2U
-
-#define UDS_SID_DIAGNOSTIC_SESSION_CONTROL 0x10u
-#define UDS_SID_ECU_RESET 0x11u
-#define UDS_SID_CLEAR_DIAGNOSTIC_INFORMATION 0x14u
-#define UDS_SID_READ_DTC_INFORMATION 0x19u
-#define UDS_SID_READ_DATA_BY_IDENTIFIER 0x22u
-#define UDS_SID_READ_MEMORY_BY_ADDRESS 0x23u
-#define UDS_SID_READ_SCALING_DATA_BY_IDENTIFIER 0x24u
-#define UDS_SID_SECURITY_ACCESS 0x27u
-#define UDS_SID_COMMUNICATION_CONTROL 0x28u
-#define UDS_SID_READ_PERIODIC_DATA_BY_IDENTIFIER 0x2Au
-#define UDS_SID_DYNAMICALLY_DEFINE_DATA_IDENTIFIER 0x2Cu
-#define UDS_SID_WRITE_DATA_BY_IDENTIFIER 0x2Eu
-#define UDS_SID_IO_CONTROL_BY_IDENTIFIER 0x2Fu
-#define UDS_SID_ROUTINE_CONTROL 0x31u
-#define UDS_SID_REQUEST_DOWNLOAD 0x34u
-#define UDS_SID_REQUEST_UPLOAD 0x35u
-#define UDS_SID_TRANSFER_DATA 0x36u
-#define UDS_SID_REQUEST_TRANSFER_EXIT 0x37u
-#define UDS_SID_REQUEST_FILE_TRANSFER 0x38u
-#define UDS_SID_WRITE_MEMORY_BY_ADDRESS 0x3Du
-#define UDS_SID_TESTER_PRESENT 0x3Eu
-#define UDS_SID_ACCESS_TIMING_PARAMETER 0x83u
-#define UDS_SID_SECURED_DATA_TRANSMISSION 0x84u
-#define UDS_SID_CONTROL_DTC_SETTING 0x85u
-#define UDS_SID_RESPONSE_ON_EVENT 0x86u
-#define UDS_SID_LINK_CONTROL 0x87u
-
-/// \endcond
 
 
 #ifdef UDS_LINES
 #line 1 "src/tp.h"
-#endif
+#endif // #ifdef UDS_LINES
 
 
 
 
-#if defined UDS_TP_ISOTP_C_SOCKETCAN
+#ifdef UDS_TP_ISOTP_C_SOCKETCAN
 #ifndef UDS_TP_ISOTP_C
 #define UDS_TP_ISOTP_C
 #endif
@@ -547,18 +523,18 @@ typedef enum {
 /** private: transport message type
  * @defgroup uds_a_mtype
  */
-#define UDS_A_MTYPE_DIAG 0
-#define UDS_A_MTYPE_REMOTE_DIAG 1
-#define UDS_A_MTYPE_SECURE_DIAG 2
-#define UDS_A_MTYPE_SECURE_REMOTE_DIAG 3
+#define UDS_A_MTYPE_DIAG 0U
+#define UDS_A_MTYPE_REMOTE_DIAG 1U
+#define UDS_A_MTYPE_SECURE_DIAG 2U
+#define UDS_A_MTYPE_SECURE_REMOTE_DIAG 3U
 
 typedef uint8_t UDS_A_Mtype_t; ///< private: oneof @ref uds_a_mtype
 
 /** private: transport transmission type
  * @defgroup uds_a_ta_type
  */
-#define UDS_A_TA_TYPE_PHYSICAL 0   // unicast (1:1)
-#define UDS_A_TA_TYPE_FUNCTIONAL 1 // multicast
+#define UDS_A_TA_TYPE_PHYSICAL 0U   // unicast (1:1)
+#define UDS_A_TA_TYPE_FUNCTIONAL 1U // multicast
 
 typedef uint8_t UDS_A_TA_Type_t; ///< private: oneof @ref uds_a_ta_type
 
@@ -622,16 +598,17 @@ typedef struct UDSTp {
     } status;
 } UDSTp_t;
 
-UDSErr_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, const size_t len,
+UDSErr_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, size_t len,
                    const UDSSDU_t *info); ///< Send to transport
-UDSErr_t UDSTpRecv(UDSTp_t *hdl, uint8_t *buf, const size_t bufsiz, size_t *recvlen,
+UDSErr_t UDSTpRecv(UDSTp_t *hdl, uint8_t *buf, size_t bufsiz, size_t *recvlen,
                    UDSSDU_t *info); ///< Receive from transport
 UDSErr_t UDSTpPoll(UDSTp_t *hdl);   ///< call this at <5ms intervals
 
 
 #ifdef UDS_LINES
 #line 1 "src/util.h"
-#endif
+#endif // #ifdef UDS_LINES
+
 
 
 
@@ -639,21 +616,11 @@ UDSErr_t UDSTpPoll(UDSTp_t *hdl);   ///< call this at <5ms intervals
 
 /**
  * @def UDS_ASSERT(x)
- * @brief define this during library development.
- * It is a no-op by default for library users.
- * API misuse is expected to be covered by runtime checks, not by UDS_ASSERT
+ * @brief used to enforce runtime invariants within iso14229
  */
 #ifndef UDS_ASSERT
-#define UDS_ASSERT(x)
+#define UDS_ASSERT(x) assert(x)
 #endif
-
-/**
- * @brief Check whether one timestamp is after another, correctly handling wrap-around
- * @param a: timestamp to check
- * @param b: reference timestamp
- * @return true if `a` is after `b`
- */
-static inline bool UDSTimeAfter(uint32_t a, uint32_t b) { return (int32_t)(a - b) > 0; }
 
 /**
  * @brief Get time in milliseconds
@@ -670,13 +637,12 @@ const char *UDSEventToStr(UDSEvent_t evt);
 
 #ifdef UDS_LINES
 #line 1 "src/log.h"
-#endif
+#endif // #ifdef UDS_LINES
 
 /**
  * @brief logging for bring-up and unit tests.
- * This interface was copied from ESP-IDF.
+ * Attribution: the initial version of this API was copied from ESP-IDF.
  */
-
 
 
 
@@ -687,85 +653,47 @@ const char *UDSEventToStr(UDSEvent_t evt);
  * @brief configures logging verbosity
  * @{
  */
-#define UDS_LOG_NONE 0    /**< No log output */
-#define UDS_LOG_ERROR 1   /**< Log errors only */
-#define UDS_LOG_WARN 2    /**< Log warnings and errors */
-#define UDS_LOG_INFO 3    /**< Log info, warnings, and errors */
-#define UDS_LOG_DEBUG 4   /**< Log debug, info, warnings, and errors */
-#define UDS_LOG_VERBOSE 5 /**< Log verbose, debug, info, warnings, and errors */
+#define UDS_LOG_NONE 0U    /**< No log output */
+#define UDS_LOG_ERROR 1U   /**< Log errors only */
+#define UDS_LOG_WARN 2U    /**< Log warnings and errors */
+#define UDS_LOG_INFO 3U    /**< Log info, warnings, and errors */
+#define UDS_LOG_DEBUG 4U   /**< Log debug, info, warnings, and errors */
+#define UDS_LOG_VERBOSE 5U /**< Log verbose, debug, info, warnings, and errors */
 /** @} */
 
-typedef int UDS_LogLevel_t; ///< one of @ref uds_log_level_
+typedef unsigned int UDS_LogLevel_t; ///< one of @ref uds_log_level_
 
-/**
- * @def UDS_LOG_LEVEL
- * @brief sets the logging level
- * @see uds_log_level_ for valid values
- */
-#ifndef UDS_LOG_LEVEL
-#define UDS_LOG_LEVEL UDS_LOG_NONE
-#endif
-
-/// \cond DOXYGEN_SHOULD_SKIP_THIS
-#if UDS_CONFIG_LOG_COLORS
-#define UDS_LOG_COLOR_BLACK "30"
-#define UDS_LOG_COLOR_RED "31"
-#define UDS_LOG_COLOR_GREEN "32"
-#define UDS_LOG_COLOR_BROWN "33"
-#define UDS_LOG_COLOR_BLUE "34"
-#define UDS_LOG_COLOR_PURPLE "35"
-#define UDS_LOG_COLOR_CYAN "36"
-#define LOG_COLOR(COLOR) "\033[0;" COLOR "m"
-#define LOG_BOLD(COLOR) "\033[1;" COLOR "m"
-#define UDS_LOG_RESET_COLOR "\033[0m"
-#define UDS_LOG_COLOR_E LOG_COLOR(UDS_LOG_COLOR_RED)
-#define UDS_LOG_COLOR_W LOG_COLOR(UDS_LOG_COLOR_BROWN)
-#define UDS_LOG_COLOR_I LOG_COLOR(UDS_LOG_COLOR_GREEN)
-#define UDS_LOG_COLOR_D
-#define UDS_LOG_COLOR_V
-#else // UDS_CONFIG_LOG_COLORS
-#define UDS_LOG_COLOR_E
-#define UDS_LOG_COLOR_W
-#define UDS_LOG_COLOR_I
-#define UDS_LOG_COLOR_D
-#define UDS_LOG_COLOR_V
-#define UDS_LOG_RESET_COLOR
-#endif // UDS_CONFIG_LOG_COLORS
-
-#define UDS_LOG_FORMAT(letter, format)                                                             \
-    UDS_LOG_COLOR_##letter #letter " (%" PRIu32 ") %s: " format UDS_LOG_RESET_COLOR "\n"
-
-static_assert(UDS_LOG_LEVEL == UDS_LOG_NONE || UDS_LOG_LEVEL == UDS_LOG_ERROR ||
-                  UDS_LOG_LEVEL == UDS_LOG_WARN || UDS_LOG_LEVEL == UDS_LOG_INFO ||
-                  UDS_LOG_LEVEL == UDS_LOG_DEBUG || UDS_LOG_LEVEL == UDS_LOG_VERBOSE,
+static_assert((bool)((UDS_LOG_LEVEL == UDS_LOG_NONE) || (UDS_LOG_LEVEL == UDS_LOG_ERROR) ||
+                     (UDS_LOG_LEVEL == UDS_LOG_WARN) || (UDS_LOG_LEVEL == UDS_LOG_INFO) ||
+                     (UDS_LOG_LEVEL == UDS_LOG_DEBUG) || (UDS_LOG_LEVEL == UDS_LOG_VERBOSE)),
               "unknown log level");
 
 #if UDS_LOG_LEVEL >= UDS_LOG_ERROR && UDS_LOG_LEVEL != UDS_LOG_NONE
 #define UDS_LOGE(tag, format, ...)                                                                 \
     UDS_LogWrite(UDS_LOG_ERROR, tag, UDS_LOG_FORMAT(E, format), UDSMillis(), tag, ##__VA_ARGS__)
 #else
-#define UDS_LOGE(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
+#define UDS_LOGE(tag, format, ...) UDS_LogDummy(UDS_LOG_NONE, tag, format, ##__VA_ARGS__)
 #endif
 
 #if UDS_LOG_LEVEL >= UDS_LOG_WARN && UDS_LOG_LEVEL != UDS_LOG_NONE
 #define UDS_LOGW(tag, format, ...)                                                                 \
     UDS_LogWrite(UDS_LOG_WARN, tag, UDS_LOG_FORMAT(W, format), UDSMillis(), tag, ##__VA_ARGS__)
 #else
-#define UDS_LOGW(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
+#define UDS_LOGW(tag, format, ...) UDS_LogDummy(UDS_LOG_NONE, tag, format, ##__VA_ARGS__)
 #endif
 
 #if UDS_LOG_LEVEL >= UDS_LOG_INFO && UDS_LOG_LEVEL != UDS_LOG_NONE
 #define UDS_LOGI(tag, format, ...)                                                                 \
     UDS_LogWrite(UDS_LOG_INFO, tag, UDS_LOG_FORMAT(I, format), UDSMillis(), tag, ##__VA_ARGS__)
 #else
-#define UDS_LOGI(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
+#define UDS_LOGI(tag, format, ...) UDS_LogDummy(UDS_LOG_NONE, tag, format, ##__VA_ARGS__)
 #endif
 
 #if UDS_LOG_LEVEL >= UDS_LOG_DEBUG && UDS_LOG_LEVEL != UDS_LOG_NONE
 #define UDS_LOGD(tag, format, ...)                                                                 \
     UDS_LogWrite(UDS_LOG_DEBUG, tag, UDS_LOG_FORMAT(D, format), UDSMillis(), tag, ##__VA_ARGS__)
 #else
-#define UDS_LOGD(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
+#define UDS_LOGD(tag, format, ...) UDS_LogDummy(UDS_LOG_NONE, tag, format, ##__VA_ARGS__)
 #endif
 
 #if UDS_LOG_LEVEL >= UDS_LOG_VERBOSE
@@ -774,8 +702,9 @@ static_assert(UDS_LOG_LEVEL == UDS_LOG_NONE || UDS_LOG_LEVEL == UDS_LOG_ERROR ||
 #define UDS_LOG_SDU(tag, buffer, buff_len, info)                                                   \
     UDS_LogSDUInternal(UDS_LOG_DEBUG, tag, buffer, buff_len, info)
 #else
-#define UDS_LOGV(tag, format, ...) UDS_LogDummy(tag, format, ##__VA_ARGS__)
-#define UDS_LOG_SDU(tag, buffer, buff_len, info) UDS_LogSDUDummy(tag, buffer, buff_len, info)
+#define UDS_LOGV(tag, format, ...) UDS_LogDummy(UDS_LOG_NONE, tag, format, ##__VA_ARGS__)
+#define UDS_LOG_SDU(tag, buffer, buff_len, info)                                                   \
+    UDS_LogSDUDummy(UDS_LOG_NONE, tag, buffer, buff_len, info)
 #endif
 
 #if defined(__GNUC__) || defined(__clang__)
@@ -786,19 +715,22 @@ static_assert(UDS_LOG_LEVEL == UDS_LOG_NONE || UDS_LOG_LEVEL == UDS_LOG_ERROR ||
 #endif
 
 #if UDS_LOG_LEVEL > UDS_LOG_NONE
+/* cppcheck-suppress [misra-c2012-20.10] string logging is not subject to MISRA */
+#define UDS_LOG_FORMAT(letter, format) #letter " (%" PRIu32 ") %s: " format "\n"
 void UDS_LogWrite(UDS_LogLevel_t level, const char *tag, const char *format, ...)
     UDS_PRINTF_FORMAT(3, 4);
 void UDS_LogSDUInternal(UDS_LogLevel_t level, const char *tag, const uint8_t *buffer, size_t buflen,
                         const UDSSDU_t *info);
-#endif
+#endif // UDS_LOG_LEVEL > UDS_LOG_NONE
 
-// Dummy function that consumes arguments but does nothing
-static inline void UDS_LogDummy(const char *tag, const char *format, ...) {
+static inline void UDS_LogDummy(UDS_LogLevel_t level, const char *tag, const char *format, ...) {
+    (void)level;
     (void)tag;
     (void)format;
 }
-static inline void UDS_LogSDUDummy(const char *tag, const uint8_t *buffer, size_t buflen,
-                                   const UDSSDU_t *info) {
+static inline void UDS_LogSDUDummy(UDS_LogLevel_t level, const char *tag, const uint8_t *buffer,
+                                   size_t buflen, const UDSSDU_t *info) {
+    (void)level;
     (void)tag;
     (void)buffer;
     (void)buflen;
@@ -809,36 +741,32 @@ static inline void UDS_LogSDUDummy(const char *tag, const uint8_t *buffer, size_
 
 #ifdef UDS_LINES
 #line 1 "src/client.h"
-#endif
+#endif // #ifdef UDS_LINES
 
 
 
 
-
-
-#define UDS_SUPPRESS_POS_RESP 0x1u  ///< set the suppress positive response bit
-#define UDS_FUNCTIONAL 0x2u         ///< send the request as a functional request
-#define UDS_IGNORE_SRV_TIMINGS 0x8u ///< ignore the server-provided p2 and p2_star
 
 /**
  * @brief UDS client structure
  */
 typedef struct UDSClient {
-    uint16_t p2_ms;      /**< p2 timeout in milliseconds */
-    uint32_t p2_star_ms; /**< p2* timeout in milliseconds (for 0x78 response) */
-    UDSTp_t *tp;         /**< transport layer handle */
-
-    uint32_t p2_timer; /**< p2 timer value */
-    uint8_t state;     /**< client request state, @see client_request_states */
-
-    uint8_t options;                        /**< current request options */
-    uint8_t defaultOptions;                 /**< default options for all requests */
-    uint8_t _options_copy;                  /**< copy of options at the time a request is made */
+    // User-facing configuration options
+    UDSTp_t *tp; /**< transport layer handle */
+    int (*fn)(struct UDSClient *client, UDSEvent_t evt, void *ev_data); /**< callback function */
+    void *fn_data;                      /**< user-specified function data */
+    unsigned cfg_suppress_pos_resp : 1; /**< suppress positive responses from the server  */
+    unsigned cfg_send_functional : 1;   /**< send functional (broadcast) requests */
+    unsigned cfg_ignore_srv_sess_timing
+        : 1; /**< do not heed the P2 and P2* timings sent by the server  */
     uint8_t cfg_data_format_identifier;     /**< 0x38 RequestFileTransfer dataFormatIdentifier */
     uint8_t cfg_file_size_parameter_length; /**< 0x38 RequestFileTransfer fileSizeParameterLength */
 
-    int (*fn)(struct UDSClient *client, UDSEvent_t evt, void *ev_data); /**< callback function */
-    void *fn_data; /**< user-specified function data */
+    // private members
+    uint16_t p2_ms;      /**< p2 timeout in milliseconds */
+    uint32_t p2_star_ms; /**< p2* timeout in milliseconds (for 0x78 response) */
+    uint32_t p2_timer;   /**< p2 timer value */
+    uint8_t state;       /**< client request state, @see client_request_states */
 
     size_t recv_size;                           /**< size of received data */
     size_t send_size;                           /**< size of data to send */
@@ -893,7 +821,7 @@ UDSErr_t UDSSendSecurityAccess(UDSClient_t *client, uint8_t level, const uint8_t
 UDSErr_t UDSSendCommCtrl(UDSClient_t *client, uint8_t ctrl,
                          uint8_t comm); ///< Change communication settings
 UDSErr_t UDSSendRDBI(UDSClient_t *client, const uint16_t *didList,
-                     const uint16_t numDataIdentifiers); ///< Read Data By Identifier
+                     uint16_t numDataIdentifiers); ///< Read Data By Identifier
 UDSErr_t UDSSendWDBI(UDSClient_t *client, uint16_t dataIdentifier, const uint8_t *data,
                      uint16_t size);                ///< Write Data By Identifier
 UDSErr_t UDSSendTesterPresent(UDSClient_t *client); ///< What's up?
@@ -908,16 +836,14 @@ UDSErr_t UDSSendRequestUpload(UDSClient_t *client, uint8_t dataFormatIdentifier,
                               uint8_t addressAndLengthFormatIdentifier, size_t memoryAddress,
                               size_t memorySize); ///< Request to Upload via TransferData
 UDSErr_t UDSSendTransferData(UDSClient_t *client, uint8_t blockSequenceCounter,
-                             const uint16_t blockLength, const uint8_t *data,
+                             uint16_t blockLength, const uint8_t *data,
                              uint16_t size); ///< Transfer Data to/from a buffer
-UDSErr_t UDSSendTransferDataStream(UDSClient_t *client, uint8_t blockSequenceCounter,
-                                   const uint16_t blockLength,
-                                   FILE *fd); ///< Transfer Data to/from a file
 UDSErr_t
 UDSSendRequestTransferExit(UDSClient_t *client); ///< Call this when finished with TransferData
 
 UDSErr_t UDSSendRequestFileTransfer(
-    UDSClient_t *client, uint8_t mode, const char *filePath, size_t fileSizeUncompressed,
+    UDSClient_t *client, uint8_t mode, const char *filePath, size_t filePathLen,
+    size_t fileSizeUncompressed,
     size_t fileSizeCompressed); ///< filesystem-based frontend to TransferData
 UDSErr_t UDSCtrlDTCSetting(UDSClient_t *client, uint8_t dtcSettingType,
                            const uint8_t *dtcSettingControlOptionRecord,
@@ -937,8 +863,7 @@ UDSErr_t UDSUnpackRoutineControlResponse(
 
 #ifdef UDS_LINES
 #line 1 "src/server.h"
-#endif
-
+#endif // #ifdef UDS_LINES
 
 
 
@@ -1046,39 +971,53 @@ typedef struct {
     uint8_t (*copy)(UDSServer_t *srv, const void *src,
                     uint16_t count); /**< function for copying data */
 
+    /* cppcheck-suppress [misra-c2012-19.2] */
     union {
         struct {
             uint8_t mask;           /**< DTC status mask */
-        } numOfDTCByStatusMaskArgs, /**< args for number of DTCs by status mask */
-            dtcStatusByMaskArgs;    /**< args for DTCs by status mask */
+        } numOfDTCByStatusMaskArgs; /**< args for number of DTCs by status mask */
+        struct {
+            uint8_t mask;      /**< DTC status mask */
+        } dtcStatusByMaskArgs; /**< args for DTCs by status mask */
         struct {
             uint32_t dtc;                /**< DTC Mask Record */
             uint8_t snapshotNum;         /**< DTC Snaphot Record Number */
-            uint8_t memory;              /**< Memory Selection (only used when type == 0x18) */
-        } dtcSnapshotRecordbyDTCNumArgs, /**< args for DTC snapshot record by DTC number */
-            userDefMemDTCSnapshotRecordByDTCNumArgs; /**< args for user-defined-memory DTC snapshot
-                                                         record by DTC number */
+        } dtcSnapshotRecordbyDTCNumArgs; /**< args for DTC snapshot record by DTC number */
         struct {
-            uint8_t recordNum;               /**< DTC Data Record Number */
-        } dtcStoredDataByRecordNumArgs,      /**< args for DTC stored data by record number */
-            dtcExtDataRecordByRecordNumArgs, /**< args for DTC extended data record by record number
-                                              */
-            dtcExtDataRecordIdArgs;          /**< args for supported DTC extended data record ID */
+            uint32_t dtc;                          /**< DTC Mask Record */
+            uint8_t snapshotNum;                   /**< DTC Snaphot Record Number */
+            uint8_t memory;                        /**< Memory Selection */
+        } userDefMemDTCSnapshotRecordByDTCNumArgs; /**< args for user-defined-memory DTC snapshot
+                                                      record by DTC number */
+        struct {
+            uint8_t recordNum;          /**< DTC Data Record Number */
+        } dtcStoredDataByRecordNumArgs; /**< args for DTC stored data by record number */
+        struct {
+            uint8_t recordNum;             /**< DTC Data Record Number */
+        } dtcExtDataRecordByRecordNumArgs; /**< args for DTC extended data record by record number
+                                            */
+        struct {
+            uint8_t recordNum;    /**< DTC Data Record Number */
+        } dtcExtDataRecordIdArgs; /**< args for supported DTC extended data record ID */
         struct {
             uint32_t dtc;              /**< DTC Mask Record */
             uint8_t extDataRecNum;     /**< DTC Extended Data Record Number */
-            uint8_t memory;            /**< Memory Selection (only used when type == 0x19) */
-        } dtcExtDtaRecordByDTCNumArgs, /**< args for DTC extended data record by DTC number */
-            userDefMemDTCExtDataRecordByDTCNumArgs; /**< args for user-defined-memory DTC extended
+        } dtcExtDtaRecordByDTCNumArgs; /**< args for DTC extended data record by DTC number */
+        struct {
+            uint32_t dtc;                         /**< DTC Mask Record */
+            uint8_t extDataRecNum;                /**< DTC Extended Data Record Number */
+            uint8_t memory;                       /**< Memory Selection */
+        } userDefMemDTCExtDataRecordByDTCNumArgs; /**< args for user-defined-memory DTC extended
                                                         data record by DTC number */
         struct {
-            uint8_t
-                functionalGroup;  /**< Functional Group Identifier (only used when type == 0x42) */
-            uint8_t severityMask; /**< DTC Severity Mask */
-            uint8_t statusMask;   /**< DTC Status Mask */
-        } numOfDTCBySeverityMaskArgs, /**< args for number of DTCs by severity mask */
-            dtcBySeverityMaskArgs,    /**< args for DTCs by severity mask */
-            wwhobdDTCByMaskArgs;      /**< args for WWH-OBD DTCs by mask */
+            uint8_t severityMask;     /**< DTC Severity Mask */
+            uint8_t statusMask;       /**< DTC Status Mask */
+        } numOfDTCBySeverityMaskArgs; /**< args for number of DTCs by severity mask */
+        struct {
+            uint8_t functionalGroup; /**< Functional Group Identifier */
+            uint8_t severityMask;    /**< DTC Severity Mask */
+            uint8_t statusMask;      /**< DTC Status Mask */
+        } wwhobdDTCByMaskArgs;       /**< args for WWH-OBD DTCs by mask */
         struct {
             uint32_t dtc;        /**< DTC Mask Record */
         } severityInfoOfDTCArgs; /**< args for severity information of a DTC */
@@ -1087,11 +1026,13 @@ typedef struct {
             uint8_t memory;                 /**< Memory Selection */
         } userDefMemoryDTCByStatusMaskArgs; /**< args for user-defined-memory DTCs by status mask */
         struct {
-            uint8_t functionalGroup; /**< Functional Group Identifier */
-            uint8_t
-                readinessGroup; /**< DTC Readiness Group Identifier (only used when type == 0x56) */
-        } wwhobdDTCWithPermStatusArgs,        /**< args for WWH-OBD DTCs with permanent status */
-            dtcInfoByDTCReadinessGroupIdArgs; /**< args for DTCs by readiness group */
+            uint8_t functionalGroup;   /**< Functional Group Identifier */
+        } wwhobdDTCWithPermStatusArgs; /**< args for WWH-OBD DTCs with permanent status */
+        struct {
+            uint8_t functionalGroup;        /**< Functional Group Identifier */
+            uint8_t readinessGroup;         /**< DTC Readiness Group Identifier */
+        } dtcInfoByDTCReadinessGroupIdArgs; /**< args for DTCs by readiness group */
+        /* cppcheck-suppress [misra-c2012-19.2] */
     } subFuncArgs; /**< subfunction-specific arguments, selected by \ref type */
 } UDSRDTCIArgs_t;
 
@@ -1108,8 +1049,8 @@ typedef struct {
  * @brief Read memory by address arguments
  */
 typedef struct {
-    const void *memAddr;  /**< requested server memory address */
-    const size_t memSize; /**< requested size */
+    const uintptr_t memAddr; /**< requested server memory address */
+    const size_t memSize;    /**< requested size */
     uint8_t (*copy)(UDSServer_t *srv, const void *src,
                     uint16_t count); /**< function for copying data to response */
 } UDSReadMemByAddrArgs_t;
@@ -1156,7 +1097,7 @@ typedef struct {
  * @brief Write memory by address arguments
  */
 typedef struct {
-    const void *memAddr;       /**< pointer to memory address */
+    const uintptr_t memAddr;   /**< pointer to memory address */
     const size_t memSize;      /**< size of memory */
     const uint8_t *const data; /**< pointer to data */
 } UDSWriteMemByAddrArgs_t;
@@ -1170,6 +1111,7 @@ typedef struct {
                               subFunc 0x03) */
     uint16_t dynamicDataId; /**< dynamicallyDefinedDataIdentifier */
 
+    /* cppcheck-suppress [misra-c2012-19.2] */
     union {
         struct {
             uint16_t sourceDataId; /**< source DataIdentifier */
@@ -1177,10 +1119,11 @@ typedef struct {
             uint8_t size;          /**< number of bytes to be copied */
         } defineById; /**< args when defining from an existing source data identifier */
         struct {
-            void *memAddr;    /**< memory address to read from */
-            size_t memSize;   /**< number of bytes to read */
-        } defineByMemAddress; /**< args when defining from a memory address */
-    } subFuncArgs;            /**< subfunction-specific arguments, selected by \ref type */
+            uintptr_t memAddr; /**< memory address to read from */
+            size_t memSize;    /**< number of bytes to read */
+        } defineByMemAddress;  /**< args when defining from a memory address */
+        /* cppcheck-suppress [misra-c2012-19.2] */
+    } subFuncArgs; /**< subfunction-specific arguments, selected by \ref type */
 } UDSDDDIArgs_t;
 
 /**
@@ -1211,7 +1154,7 @@ typedef struct {
  * @brief Request download arguments
  */
 typedef struct {
-    const void *addr;                   /**< requested address */
+    const uintptr_t addr;               /**< requested address */
     const size_t size;                  /**< requested download size */
     const uint8_t dataFormatIdentifier; /**< optional specifier for format of data */
     uint16_t maxNumberOfBlockLength;    /**< optional response: inform client how many data bytes to
@@ -1222,7 +1165,7 @@ typedef struct {
  * @brief Request upload arguments
  */
 typedef struct {
-    const void *addr;                   /**< requested address */
+    const uintptr_t addr;               /**< requested address */
     const size_t size;                  /**< requested download size */
     const uint8_t dataFormatIdentifier; /**< optional specifier for format of data */
     uint16_t maxNumberOfBlockLength;    /**< optional response: inform client how many data bytes to
@@ -1314,14 +1257,10 @@ void UDSServerPoll(UDSServer_t *srv);     ///< Call this at <5ms intervals
 
 #if defined(UDS_TP_ISOTP_C)
 /// \cond DOXYGEN_SHOULD_SKIP_THIS
-
-#define ISO_TP_USER_SEND_CAN_ARG 1
-#define ISO_TP_NO_FORMATTED_ERRORS 1
-
 ////////////////////////////////////////////////////////////////////////
 #ifdef UDS_LINES
 #line 1 "src/tp/isotp-c/isotp_config.h"
-#endif
+#endif // #ifdef UDS_LINES
 //                  ___ ___  ___ _____ ___      ___                   //
 //                 |_ _/ __|/ _ \_   _| _ \___ / __|                  //
 //                  | |\__ \ (_) || | |  _/___| (__                   //
@@ -1480,7 +1419,7 @@ void UDSServerPoll(UDSServer_t *srv);     ///< Call this at <5ms intervals
 #ifndef ISOTPC_USER_DEFINITIONS_H
 #ifdef UDS_LINES
 #line 1 "src/tp/isotp-c/isotp_defines.h"
-#endif
+#endif // #ifdef UDS_LINES
 #define ISOTPC_USER_DEFINITIONS_H
 
 /**
@@ -1488,7 +1427,7 @@ void UDSServerPoll(UDSServer_t *srv);     ///< Call this at <5ms intervals
  * @brief Public result codes, CAN frame constants, and callback types.
  */
 
-#include <stdint.h>
+
 
 
 
@@ -1502,24 +1441,20 @@ void UDSServerPoll(UDSServer_t *srv);     ///< Call this at <5ms intervals
     #else
         #error "unsupported byte ordering"
     #endif
-
-    #define ISOTP_PACKED_STRUCT(content) typedef struct __attribute__((packed)) content
 #endif
 
 /**************************************************************
  * OS specific defines
  *************************************************************/
 #ifdef _MSC_VER
-    #define ISOTP_PACKED_STRUCT(content) __pragma(pack(push, 1)) typedef struct content __pragma(pack(pop))
-
-    #define snprintf _snprintf
-
-    #include <windows.h>
+    
     #define ISOTP_BYTE_ORDER_LITTLE_ENDIAN
-    #define __builtin_bswap8 _byteswap_uint8
-    #define __builtin_bswap16 _byteswap_uint16
-    #define __builtin_bswap32 _byteswap_uint32
-    #define __builtin_bswap64 _byteswap_uint64
+#endif
+
+#if defined(_MSC_VER) && _MSC_VER < 1900
+    #define ISOTP_SNPRINTF _snprintf
+#else 
+    #define ISOTP_SNPRINTF snprintf
 #endif
 
 #define LE32TOH(le) ((uint32_t)(((le) << 24) | (((le) & 0x0000FF00) << 8) | (((le) & 0x00FF0000) >> 8) | ((le) >> 24)))
@@ -1652,13 +1587,15 @@ typedef struct {
     uint8_t data[ISO_TP_MAX_CAN_FRAME_SIZE - 2];
 } IsoTpFirstFrameShort;
 
-ISOTP_PACKED_STRUCT({
+#pragma pack(push, 1)
+typedef struct {
     uint8_t  set_to_zero_high : 4;
     uint8_t  type             : 4;
     uint8_t  set_to_zero_low;
     uint32_t FF_DL;
     uint8_t  data[ISO_TP_MAX_CAN_FRAME_SIZE - 6];
-} IsoTpFirstFrameLong);
+} IsoTpFirstFrameLong;
+#pragma pack(pop)
 
 typedef struct {
     uint8_t SN   : 4;
@@ -1742,13 +1679,15 @@ typedef struct {
  * | PCIType = 1 | unused=0  | escape sequence = 0   | FF_DL                                 |
  * +-------------+-----------+-----------------------+---------------------------------------+
  */
-ISOTP_PACKED_STRUCT({
+#pragma pack(push, 1)
+typedef struct {
     uint8_t  type             : 4;
     uint8_t  set_to_zero_high : 4;
     uint8_t  set_to_zero_low;
     uint32_t FF_DL;
     uint8_t  data[ISO_TP_MAX_CAN_FRAME_SIZE - 6];
-} IsoTpFirstFrameLong);
+} IsoTpFirstFrameLong;
+#pragma pack(pop)
 
 /*
  * consecutive frame
@@ -1879,7 +1818,7 @@ typedef enum { PCI_FLOW_STATUS_CONTINUE = 0x0, PCI_FLOW_STATUS_WAIT = 0x1, PCI_F
 ////////////////////////////////////////////////////////////////////////
 #ifdef UDS_LINES
 #line 1 "src/tp/isotp-c/isotp_user.h"
-#endif
+#endif // #ifdef UDS_LINES
 //                  ___ ___  ___ _____ ___      ___                   //
 //                 |_ _/ __|/ _ \_   _| _ \___ / __|                  //
 //                  | |\__ \ (_) || | |  _/___| (__                   //
@@ -1890,7 +1829,7 @@ typedef enum { PCI_FLOW_STATUS_CONTINUE = 0x0, PCI_FLOW_STATUS_WAIT = 0x1, PCI_F
 #ifndef ISOTPC_USER_H
 #define ISOTPC_USER_H
 
-#include <stdint.h>
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -1969,7 +1908,7 @@ uint32_t isotp_user_get_us(void);
 ////////////////////////////////////////////////////////////////////////
 #ifdef UDS_LINES
 #line 1 "src/tp/isotp-c/isotp.h"
-#endif
+#endif // #ifdef UDS_LINES
 //                  ___ ___  ___ _____ ___      ___                   //
 //                 |_ _/ __|/ _ \_   _| _ \___ / __|                  //
 //                  | |\__ \ (_) || | |  _/___| (__                   //
@@ -1980,12 +1919,12 @@ uint32_t isotp_user_get_us(void);
 #ifndef ISOTPC_H
 #define ISOTPC_H
 
-#include <stdbool.h>
-#include <stdio.h>
-#include <string.h>
+
+
+
 
 #ifdef __cplusplus
-    #include <stdint.h>
+    
 
 extern "C" {
 #endif
@@ -2303,13 +2242,14 @@ void isotp_set_rx_done_cb(IsoTpLink* link, isotp_rx_done_cb cb, void* arg);
 
 #endif // ISOTPC_H
 
+
 /// \endcond
 #endif // if defined(UDS_TP_ISOTP_C)
 
 #ifdef UDS_LINES
 #line 1 "src/tp/isotp_c.h"
-#endif
-#if defined(UDS_TP_ISOTP_C)
+#endif // #ifdef UDS_LINES
+#ifdef UDS_TP_ISOTP_C
 
 
 
@@ -2329,10 +2269,14 @@ typedef struct {
     uint8_t recv_buf[UDS_ISOTP_MTU];
     uint8_t func_send_buf[8];
     uint8_t func_recv_buf[8];
-    uint32_t phys_sa, phys_ta;
-    uint32_t func_sa, func_ta;
+    uint32_t phys_sa;
+    uint32_t phys_ta;
+    uint32_t func_sa;
+    uint32_t func_ta;
     /// \endcond
 } UDSTpISOTpC_t;
+
+static_assert(offsetof(UDSTpISOTpC_t, hdl) == 0U, "hdl must be the first member");
 
 /**
  * @brief Initialize isotp-c transport for \ref UDSServer_t
@@ -2364,9 +2308,9 @@ UDSErr_t UDSTpISOTpCPoll(UDSTp_t *tp);
 
 #ifdef UDS_LINES
 #line 1 "src/tp/isotp_c_socketcan.h"
-#endif
+#endif // #ifdef UDS_LINES
 
-#if defined(UDS_TP_ISOTP_C_SOCKETCAN)
+#ifdef UDS_TP_ISOTP_C_SOCKETCAN
 
 
 
@@ -2381,6 +2325,8 @@ typedef struct {
     char tag[16];
     /// \endcond
 } UDSTpISOTpCSocketCAN_t;
+
+static_assert(offsetof(UDSTpISOTpCSocketCAN_t, hdl2) == 0U, "hdl must be the first member");
 
 /**
  * @brief Initialize isotp-c over SocketCAN transport for \ref UDSServer_t
@@ -2408,10 +2354,10 @@ void UDSTpISOTpCSocketCANDeinit(UDSTpISOTpCSocketCAN_t *tp); ///< release socket
 
 #endif
 
-#if defined(UDS_TP_ISOTP_SOCK)
+#ifdef UDS_TP_ISOTP_SOCK
 #ifdef UDS_LINES
 #line 1 "src/tp/isotp_sock.h"
-#endif
+#endif // #ifdef UDS_LINES
 
 
 
@@ -2429,11 +2375,15 @@ typedef struct {
     UDSSDU_t recv_info;
     int phys_fd;
     int func_fd;
-    uint32_t phys_sa, phys_ta;
-    uint32_t func_sa, func_ta;
+    uint32_t phys_sa;
+    uint32_t phys_ta;
+    uint32_t func_sa;
+    uint32_t func_ta;
     char tag[16];
     /// \endcond
 } UDSTpIsoTpSock_t;
+
+static_assert(offsetof(UDSTpIsoTpSock_t, hdl) == 0U, "hdl must be the first member");
 
 UDSErr_t UDSServerTpIsoTpSockInit(UDSTpIsoTpSock_t *tp, const char *ifname, uint32_t source_addr,
                                   uint32_t target_addr,
@@ -2445,10 +2395,10 @@ void UDSTpIsoTpSockDeinit(const UDSTpIsoTpSock_t *tp);        ///< release socke
 
 #endif
 
-#if defined(UDS_TP_ISOTP_MOCK)
+#ifdef UDS_TP_ISOTP_MOCK
 #ifdef UDS_LINES
 #line 1 "src/tp/isotp_mock.h"
-#endif
+#endif // #ifdef UDS_LINES
 
 
 
@@ -2471,6 +2421,8 @@ typedef struct ISOTPMock {
     uint32_t send_buf_size;    // simulated size of the send buffer
     char name[32];             // name for logging
 } ISOTPMock_t;
+
+static_assert(offsetof(ISOTPMock_t, hdl) == 0U, "ISOTPMock_t must not have any members before hdl");
 
 typedef struct {
     uint32_t sa_phys; // source address - physical messages are sent from this address
@@ -2508,6 +2460,5 @@ void ISOTPMockReset(void);
 
 #ifdef __cplusplus
 }
-#endif
-
-#endif
+#endif // #ifdef __cplusplus
+#endif // #ifndef ISO14229

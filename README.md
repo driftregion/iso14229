@@ -2,20 +2,17 @@
 
 <p align="center">
 <a href="https://github.com/driftregion/iso14229/actions"><img src="https://github.com/driftregion/iso14229/actions/workflows/unit_tests.yml/badge.svg" alt="Build Status"></a>
-<a href="https://codecov.io/github/driftregion/iso14229" > 
-<img src="https://codecov.io/github/driftregion/iso14229/graph/badge.svg?token=SZP3Q3Y0YE"/> 
-</a>
+<a href="https://codecov.io/github/driftregion/iso14229" ><img src="https://codecov.io/github/driftregion/iso14229/graph/badge.svg?token=SZP3Q3Y0YE"/> 
+<a href="https://scan.coverity.com/projects/driftregion-iso14229"><img alt="Coverity Scan Build Status" src="https://scan.coverity.com/projects/33287/badge.svg?flat=1"></a>
 <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
 </p>
 
 - Two files: `iso14229.c` and `iso14229.h` -> download the latest [release here](https://github.com/driftregion/iso14229/releases).
-- ISO-TP (ISO15765-2) transports included.
-- Server and Client included.
-- Highly portable. Write your implementation once, it works everywhere.
-- Static memory allocation. (no `malloc`, `calloc`, ...)
-- Built-in ISO-TP transports: isotp-c, linux isotp sockets
+- ISO-TP (ISO15765-2) transports are included. Choose from: [`isotp-c`](https://github.com/SimonCahill/isotp-c), linux isotp sockets, or bring your own.
+- Static memory allocation. (no `malloc`)
 - Examples for esp32, Arduino, NXP S32K144, STM32, Zephyr
-- Heavily tested: unit, fuzz, coverage
+- Extensively tested
+- MISRA deviations [documented here](./docs/MISRA.md)
 
 API status: Major version zero (0.y.z) **(not yet stable)**. Anything MAY change at any time.
 

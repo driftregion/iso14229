@@ -9,8 +9,13 @@
 tools/run_clang_format.sh && make update_srcs && test/test_version.sh
 ```
 - [ ] commit, push, confirm that all checks pass in CI 
-- [ ] paste and run:
+- [ ] start a Coverity scan
+```sh
+tools/coverity_scan.sh
+```
+- [ ] create and push a tag named `$(cat VERSION)`.
+paste and run:
 ```sh
 bazel build //:release && ./.github/release.sh
 ```
-This creates a tag named with the contents of the `VERSION` file.
+

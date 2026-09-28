@@ -1,26 +1,17 @@
 #pragma once
 
+#include "include.h"
 #include "sys.h"
 #include "config.h"
 #include "uds.h"
 
 /**
  * @def UDS_ASSERT(x)
- * @brief define this during library development.
- * It is a no-op by default for library users.
- * API misuse is expected to be covered by runtime checks, not by UDS_ASSERT
+ * @brief used to enforce runtime invariants within iso14229
  */
 #ifndef UDS_ASSERT
-#define UDS_ASSERT(x)
+#define UDS_ASSERT(x) assert(x)
 #endif
-
-/**
- * @brief Check whether one timestamp is after another, correctly handling wrap-around
- * @param a: timestamp to check
- * @param b: reference timestamp
- * @return true if `a` is after `b`
- */
-static inline bool UDSTimeAfter(uint32_t a, uint32_t b) { return (int32_t)(a - b) > 0; }
 
 /**
  * @brief Get time in milliseconds

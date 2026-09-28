@@ -4,12 +4,13 @@ load("@rules_cc//cc:defs.bzl", "cc_library", "cc_binary")
 filegroup(
     name = "sources",
     srcs = [
+        "include_private.h",
         "client.c",
         "log.c",
         "server.c",
         "tp.c",
         "util.c",
-        "util_private.h",
+        "uds_private.h",
         "tp/isotp_c_socketcan.c",
         "tp/isotp_c.c",
         "tp/isotp_mock.c",
@@ -23,12 +24,15 @@ filegroup(
     srcs = [
         "client.h",
         "config.h",
+        "config_internal.h",
+        "include.h",
         "log.h",
         "server.h",
         "sys.h",
         "tp.h",
         "uds.h",
         "util.h",
+        "util_static.c",
         "version.h",
         "tp/isotp_c_socketcan.h",
         "tp/isotp_c.h",
@@ -76,7 +80,6 @@ cc_library(
         "UDS_TP_ISOTP_MOCK",
         "UDS_CUSTOM_MILLIS",
         "UDS_LOG_LEVEL=UDS_LOG_VERBOSE",
-        "UDS_LINES",
     ] + select({
         "@platforms//os:windows": [],
         "//conditions:default": [
@@ -84,4 +87,11 @@ cc_library(
             "UDS_TP_ISOTP_SOCK",
         ],
     }),
+)
+
+cc_library(
+    name="unamalgamated",
+    srcs=[ "//src:sources", ],
+    hdrs = [ "//src:headers", ],
+    copts = [ "-Wno-unused-function", ],
 )

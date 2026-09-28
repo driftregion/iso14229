@@ -1,4 +1,4 @@
-#if defined(UDS_TP_ISOTP_MOCK)
+#ifdef UDS_TP_ISOTP_MOCK
 
 #pragma once
 
@@ -21,6 +21,8 @@ typedef struct ISOTPMock {
     uint32_t send_buf_size;    // simulated size of the send buffer
     char name[32];             // name for logging
 } ISOTPMock_t;
+
+static_assert(offsetof(ISOTPMock_t, hdl) == 0U, "ISOTPMock_t must not have any members before hdl");
 
 typedef struct {
     uint32_t sa_phys; // source address - physical messages are sent from this address

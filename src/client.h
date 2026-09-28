@@ -1,33 +1,29 @@
 #pragma once
 
-#include "sys.h"
 #include "config.h"
 #include "tp.h"
 #include "uds.h"
-
-#define UDS_SUPPRESS_POS_RESP 0x1u  ///< set the suppress positive response bit
-#define UDS_FUNCTIONAL 0x2u         ///< send the request as a functional request
-#define UDS_IGNORE_SRV_TIMINGS 0x8u ///< ignore the server-provided p2 and p2_star
 
 /**
  * @brief UDS client structure
  */
 typedef struct UDSClient {
-    uint16_t p2_ms;      /**< p2 timeout in milliseconds */
-    uint32_t p2_star_ms; /**< p2* timeout in milliseconds (for 0x78 response) */
-    UDSTp_t *tp;         /**< transport layer handle */
-
-    uint32_t p2_timer; /**< p2 timer value */
-    uint8_t state;     /**< client request state, @see client_request_states */
-
-    uint8_t options;                        /**< current request options */
-    uint8_t defaultOptions;                 /**< default options for all requests */
-    uint8_t _options_copy;                  /**< copy of options at the time a request is made */
+    // User-facing configuration options
+    UDSTp_t *tp; /**< transport layer handle */
+    int (*fn)(struct UDSClient *client, UDSEvent_t evt, void *ev_data); /**< callback function */
+    void *fn_data;                      /**< user-specified function data */
+    unsigned cfg_suppress_pos_resp : 1; /**< suppress positive responses from the server  */
+    unsigned cfg_send_functional : 1;   /**< send functional (broadcast) requests */
+    unsigned cfg_ignore_srv_sess_timing
+        : 1; /**< do not heed the P2 and P2* timings sent by the server  */
     uint8_t cfg_data_format_identifier;     /**< 0x38 RequestFileTransfer dataFormatIdentifier */
     uint8_t cfg_file_size_parameter_length; /**< 0x38 RequestFileTransfer fileSizeParameterLength */
 
-    int (*fn)(struct UDSClient *client, UDSEvent_t evt, void *ev_data); /**< callback function */
-    void *fn_data; /**< user-specified function data */
+    // private members
+    uint16_t p2_ms;      /**< p2 timeout in milliseconds */
+    uint32_t p2_star_ms; /**< p2* timeout in milliseconds (for 0x78 response) */
+    uint32_t p2_timer;   /**< p2 timer value */
+    uint8_t state;       /**< client request state, @see client_request_states */
 
     size_t recv_size;                           /**< size of received data */
     size_t send_size;                           /**< size of data to send */
@@ -82,7 +78,7 @@ UDSErr_t UDSSendSecurityAccess(UDSClient_t *client, uint8_t level, const uint8_t
 UDSErr_t UDSSendCommCtrl(UDSClient_t *client, uint8_t ctrl,
                          uint8_t comm); ///< Change communication settings
 UDSErr_t UDSSendRDBI(UDSClient_t *client, const uint16_t *didList,
-                     const uint16_t numDataIdentifiers); ///< Read Data By Identifier
+                     uint16_t numDataIdentifiers); ///< Read Data By Identifier
 UDSErr_t UDSSendWDBI(UDSClient_t *client, uint16_t dataIdentifier, const uint8_t *data,
                      uint16_t size);                ///< Write Data By Identifier
 UDSErr_t UDSSendTesterPresent(UDSClient_t *client); ///< What's up?
@@ -97,16 +93,14 @@ UDSErr_t UDSSendRequestUpload(UDSClient_t *client, uint8_t dataFormatIdentifier,
                               uint8_t addressAndLengthFormatIdentifier, size_t memoryAddress,
                               size_t memorySize); ///< Request to Upload via TransferData
 UDSErr_t UDSSendTransferData(UDSClient_t *client, uint8_t blockSequenceCounter,
-                             const uint16_t blockLength, const uint8_t *data,
+                             uint16_t blockLength, const uint8_t *data,
                              uint16_t size); ///< Transfer Data to/from a buffer
-UDSErr_t UDSSendTransferDataStream(UDSClient_t *client, uint8_t blockSequenceCounter,
-                                   const uint16_t blockLength,
-                                   FILE *fd); ///< Transfer Data to/from a file
 UDSErr_t
 UDSSendRequestTransferExit(UDSClient_t *client); ///< Call this when finished with TransferData
 
 UDSErr_t UDSSendRequestFileTransfer(
-    UDSClient_t *client, uint8_t mode, const char *filePath, size_t fileSizeUncompressed,
+    UDSClient_t *client, uint8_t mode, const char *filePath, size_t filePathLen,
+    size_t fileSizeUncompressed,
     size_t fileSizeCompressed); ///< filesystem-based frontend to TransferData
 UDSErr_t UDSCtrlDTCSetting(UDSClient_t *client, uint8_t dtcSettingType,
                            const uint8_t *dtcSettingControlOptionRecord,

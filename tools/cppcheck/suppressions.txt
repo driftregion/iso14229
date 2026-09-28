@@ -1,0 +1,14 @@
+
+// this project is a library which exports macros and functions, so these checks are noise
+misra-c2012-2.5 // A project should not contain unused macro definitions
+misra-c2012-8.7 // Functions and objects should not be defined with external linkage if they are referenced in only one translation unit
+unusedFunction
+staticFunction
+
+misra-c2012-15.1 // The goto statement should not be used 
+misra-c2012-15.5 // A function should have a single point of exit at the end
+
+// Don't warn on system header contents
+*:*/usr/include/*
+
+missingIncludeSystem

@@ -1,0 +1,35 @@
+Checks:
+  - '*'
+  - -altera-struct-pack-align
+  - -altera-unroll-loops
+
+  # too noisy -- see https://github.com/llvm/llvm-project/issues/61098
+  - -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling
+
+  # this library is single-threaded
+  - -concurrency-mt-unsafe
+
+  # most magic numbers come from the standard, #defining them adds noise
+  - -cppcoreguidelines-avoid-magic-numbers
+  - -readability-magic-numbers
+
+  # noise -- revisit
+  - -cppcoreguidelines-macro-to-enum
+  - -modernize-macro-to-enum
+  - -llvm-header-guard
+  - -llvmlibc-restrict-system-libc-headers
+  - -readability-identifier-length
+  - -readability-use-concise-preprocessor-directives
+
+  # revisit -- this is mainly coming from the client API pre-refactor
+  - -bugprone-easily-swappable-parameters
+
+  - -google-readability-todo
+
+WarningsAsErrors: ''
+CheckOptions:
+  # glibc declares POSIX symbols in internal headers that are included indirectly:
+  # <poll.h> -> <sys/poll.h>, <sys/time.h> -> <bits/types/struct_timeval.h>,
+  # <errno.h>, <sys/socket.h> -> linux kernel <asm-generic/*.h>
+  misc-include-cleaner.IgnoreHeaders: 'sys/poll\.h;bits/.*;asm-generic/.*'
+  readability-function-cognitive-complexity.Threshold: 100

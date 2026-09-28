@@ -1,5 +1,5 @@
 #pragma once
-
+#include "include.h"
 /**
  * @def UDS_SYS
  * @brief Selects the host system iso14229 is compiled for.
@@ -16,7 +16,17 @@
  * @see UDSMillis
  */
 
-#define UDS_ISOTP_MTU (4095) ///< ISO-TP Maximum Transmission Unit (ISO-15764-2-2004 section 5.3.3)
+/**
+ * @def UDS_LOG_LEVEL
+ * @brief sets the logging level
+ * @details set UDS_LOG_LEVEL to 0U (UDS_LOG_NONE) to remove logging entirely.
+ * @see uds_log_level_ for valid values
+ */
+#ifndef UDS_LOG_LEVEL
+#define UDS_LOG_LEVEL 0U
+#endif
+
+#define UDS_ISOTP_MTU (4095U) ///< ISO-TP Maximum Transmission Unit (ISO-15764-2-2004 section 5.3.3)
 
 #ifndef UDS_TP_MTU
 /// ISOTP is the only supported tp type, so UDS inherits its MTU
@@ -70,9 +80,9 @@ static_assert(UDS_CLIENT_DEFAULT_P2_STAR_MS > UDS_CLIENT_DEFAULT_P2_MS, "");
     (5100) ///< default S3 duration (ISO14229-2 2013 Table 5: 5000 -0/+200 ms)
 #endif
 
-static_assert((0 < UDS_SERVER_DEFAULT_P2_MS) &&
-                  (UDS_SERVER_DEFAULT_P2_MS < UDS_SERVER_DEFAULT_P2_STAR_MS) &&
-                  (UDS_SERVER_DEFAULT_P2_STAR_MS < UDS_SERVER_DEFAULT_S3_MS),
+static_assert((bool)((0 < UDS_SERVER_DEFAULT_P2_MS) &&
+                     (UDS_SERVER_DEFAULT_P2_MS < UDS_SERVER_DEFAULT_P2_STAR_MS) &&
+                     (UDS_SERVER_DEFAULT_P2_STAR_MS < UDS_SERVER_DEFAULT_S3_MS)),
               "");
 
 /// Duration between the server sending a positive response to an ECU reset request and the emission
@@ -88,12 +98,12 @@ static_assert((0 < UDS_SERVER_DEFAULT_P2_MS) &&
 
 /// Amount of time to wait after boot before accepting 0x27 requests.
 #ifndef UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_BOOT_DELAY_MS
-#define UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_BOOT_DELAY_MS (1000)
+#define UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_BOOT_DELAY_MS (1000U)
 #endif
 
 /// Amount of time to wait after an authentication failure before accepting another 0x27 request.
 #ifndef UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_AUTH_FAIL_DELAY_MS
-#define UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_AUTH_FAIL_DELAY_MS (1000)
+#define UDS_SERVER_0x27_BRUTE_FORCE_MITIGATION_AUTH_FAIL_DELAY_MS (1000U)
 #endif
 
 #ifndef UDS_SERVER_DEFAULT_XFER_DATA_MAX_BLOCKLENGTH
@@ -102,3 +112,22 @@ message to inform the client how many data bytes (maxNumberOfBlockLength) to inc
 TransferData request message from the client. */
 #define UDS_SERVER_DEFAULT_XFER_DATA_MAX_BLOCKLENGTH (UDS_TP_MTU)
 #endif
+
+#ifndef UDS_AUTOSELECT_TP // transport auto-selection. Set -DUDS_AUTOSELECT_TP=0 to turn off
+                          // auto-selection
+#define UDS_AUTOSELECT_TP 1
+
+#if ((UDS_SYS == UDS_SYS_CUSTOM) || (UDS_SYS == UDS_SYS_ARDUINO) || (UDS_SYS == UDS_SYS_ESP32) ||  \
+     (UDS_SYS == UDS_SYS_ZEPHYR))
+#ifndef UDS_TP_ISOTP_C
+#define UDS_TP_ISOTP_C
+#endif // #ifndef UDS_TP_ISOTP_C
+#elif (UDS_SYS == UDS_SYS_UNIX)
+#ifndef UDS_TP_ISOTP_SOCK
+#define UDS_TP_ISOTP_SOCK
+#endif // #ifndef UDS_TP_ISOTP_SOCK
+#else
+// no default tp
+#endif // ((UDS_SYS == UDS_SYS_CUSTOM) || ... )
+
+#endif // #ifndef UDS_AUTOSELECT_TP

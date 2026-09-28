@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # test that all version listings are consistent
 
