@@ -133,14 +133,15 @@ typedef enum {
 
     // The following values are not defined in ISO14229-1:2020
     UDS_ERR_TIMEOUT = 0x100,      // A request has timed out
-    UDS_ERR_DID_MISMATCH,         // The response DID does not match the request DID
-    UDS_ERR_SID_MISMATCH,         // The response SID does not match the request SID
-    UDS_ERR_SUBFUNCTION_MISMATCH, // The response SubFunction does not match the request SubFunction
-    UDS_ERR_RESP_TOO_SHORT,       // The response is too short
-    UDS_ERR_BUFSIZ,               // The buffer is not large enough
-    UDS_ERR_INVALID_ARG,          // The function has been called with invalid arguments
-    UDS_ERR_BUSY,                 // The client is busy and cannot process the request
-    UDS_ERR_MISUSE,               // The library is used incorrectly
+    UDS_ERR_DID_MISMATCH = 0x101, // The response DID does not match the request DID
+    UDS_ERR_SID_MISMATCH = 0x102, // The response SID does not match the request SID
+    UDS_ERR_SUBFUNCTION_MISMATCH =
+        0x103, // The response SubFunction does not match the request SubFunction
+    UDS_ERR_RESP_TOO_SHORT = 0x104, // The response is too short
+    UDS_ERR_BUFSIZ = 0x105,         // The buffer is not large enough
+    UDS_ERR_INVALID_ARG = 0x106,    // The function has been called with invalid arguments
+    UDS_ERR_BUSY = 0x107,           // The client is busy and cannot process the request
+    UDS_ERR_MISUSE = 0x108,         // The library is used incorrectly
 
     UDS_ERR_TPORT = 0x200, // Transport error
 } UDSErr_t;

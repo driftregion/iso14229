@@ -13,6 +13,9 @@
 #endif // #ifdef UDS_LINES
 
 
+#include <assert.h>
+#include <inttypes.h>
+
 #if UDS_SYS == UDS_SYS_UNIX
 #include <sys/time.h>
 /* cppcheck-suppress [misra-c2012-21.10]. This is a platform-specific port. */
@@ -239,10 +242,15 @@ static uint8_t AsRequestSID(uint8_t response_sid) {
  * @param a: timestamp to check
  * @param b: reference timestamp
  * @return true if `a` is after `b`
+ * @note Do not use for durations > 10 days.
+ *
+ * The upper limit is 2**32 / 2 / 1000 / 60 / 60 / 24 = 24.8 days.
+ * TODO: There is likely some buggy behavior after this time has elapsed. Mitigate this.
+ *
  */
 static bool UDSTimeAfter(uint32_t a, uint32_t b) {
     uint32_t diff = a - b;
-    return (diff != 0U) && ((diff & 0x80000000U) == 0U);
+    return (diff - 1U) < 0x7FFFFFFFU;
 }
 
 /// returns true if a security level is reserved per ISO14229-1:2020 Table 42
@@ -466,7 +474,7 @@ static UDSErr_t HandleServerResponse(UDSClient_t *client) {
         // else: fall-through
     } else {
         uint8_t respSid = client->recv_buf[0];
-        switch (AsRequestSID(respSid)) {
+        switch (AsRequestSID(respSid)) { // NOLINT(readability-trivial-switch) response handler
         case UDS_SID_DIAGNOSTIC_SESSION_CONTROL: {
             if (client->recv_size < UDS_0X10_RESP_LEN) {
                 UDS_LOGI(__FILE__, "Error: SID %x response too short",
@@ -957,7 +965,7 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, const uint8_t mode, con
     case UDS_MOOP_REPLFILE: // MOOP = 3
     case UDS_MOOP_RSFILE:   // MOOP = 6
     {
-        send_size = 4U + filePathLen + 2U + (2U * client->cfg_file_size_parameter_length);
+        send_size = 4U + filePathLen + 2U + (size_t)(2U * client->cfg_file_size_parameter_length);
         if (send_size > sizeof(client->send_buf)) {
             err = UDS_ERR_BUFSIZ;
             goto done;
@@ -1356,7 +1364,7 @@ static UDSErr_t Handle_0x14_ClearDiagnosticInformation(UDSServer_t *srv, UDSReq_
     r->send_len = UDS_0X14_RESP_BASE_LEN;
 
     UDSCDIArgs_t args = {
-        .groupOfDTC = (uint32_t)((r->recv_buf[1] << 16U) | (r->recv_buf[2] << 8U) | r->recv_buf[3]),
+        .groupOfDTC = UnpackBEu32(&r->recv_buf[1], 3),
         .hasMemorySelection = (r->recv_len >= 5U),
         .memorySelection = (r->recv_len >= 5U) ? r->recv_buf[4] : 0U,
     };
@@ -1435,9 +1443,7 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        args.subFuncArgs.dtcSnapshotRecordbyDTCNumArgs.dtc =
-            (uint32_t)((r->recv_buf[2] << 16U) | (r->recv_buf[3] << 8U) | (r->recv_buf[4])) &
-            0x00FFFFFFU;
+        args.subFuncArgs.dtcSnapshotRecordbyDTCNumArgs.dtc = UnpackBEu32(&r->recv_buf[2], 3);
         args.subFuncArgs.dtcSnapshotRecordbyDTCNumArgs.snapshotNum = r->recv_buf[5];
         break;
     case 0x05: /* reportDTCStoredDataByRecordNumber */
@@ -1454,9 +1460,7 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        args.subFuncArgs.dtcExtDtaRecordByDTCNumArgs.dtc =
-            (uint32_t)((r->recv_buf[2] << 16U) | (r->recv_buf[3] << 8U) | (r->recv_buf[4])) &
-            0x00FFFFFFU;
+        args.subFuncArgs.dtcExtDtaRecordByDTCNumArgs.dtc = UnpackBEu32(&r->recv_buf[2], 3);
         args.subFuncArgs.dtcExtDtaRecordByDTCNumArgs.extDataRecNum = r->recv_buf[5];
         break;
     case 0x07: /* reportNumberOfDTCBySeverityMaskRecord */
@@ -1473,9 +1477,7 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
             return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
         }
 
-        args.subFuncArgs.severityInfoOfDTCArgs.dtc =
-            (uint32_t)((r->recv_buf[2] << 16U) | (r->recv_buf[3] << 8U) | (r->recv_buf[4])) &
-            0x00FFFFFFU;
+        args.subFuncArgs.severityInfoOfDTCArgs.dtc = UnpackBEu32(&r->recv_buf[2], 3);
         break;
     case 0x17: /* reportUserDefMemoryDTCByStatusMask */
         if (r->recv_len < (UDS_0X19_REQ_MIN_LEN + 2U)) {
@@ -1491,8 +1493,7 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
         }
 
         args.subFuncArgs.userDefMemDTCSnapshotRecordByDTCNumArgs.dtc =
-            (uint32_t)((r->recv_buf[2] << 16U) | (r->recv_buf[3] << 8U) | (r->recv_buf[4])) &
-            0x00FFFFFFU;
+            UnpackBEu32(&r->recv_buf[2], 3);
         args.subFuncArgs.userDefMemDTCSnapshotRecordByDTCNumArgs.snapshotNum = r->recv_buf[5];
         args.subFuncArgs.userDefMemDTCSnapshotRecordByDTCNumArgs.memory = r->recv_buf[6];
         break;
@@ -1502,8 +1503,7 @@ static UDSErr_t Handle_0x19_ReadDTCInformation(UDSServer_t *srv, UDSReq_t *r) {
         }
 
         args.subFuncArgs.userDefMemDTCExtDataRecordByDTCNumArgs.dtc =
-            (uint32_t)((r->recv_buf[2] << 16U) | (r->recv_buf[3] << 8U) | (r->recv_buf[4])) &
-            0x00FFFFFFU;
+            UnpackBEu32(&r->recv_buf[2], 3);
         args.subFuncArgs.userDefMemDTCExtDataRecordByDTCNumArgs.extDataRecNum = r->recv_buf[5];
         args.subFuncArgs.userDefMemDTCExtDataRecordByDTCNumArgs.memory = r->recv_buf[6];
         break;
@@ -1697,19 +1697,19 @@ static UDSErr_t Handle_0x22_ReadDataByIdentifier(UDSServer_t *srv, UDSReq_t *r) 
  * @brief decodes addressAndLength at a nonzero offset within the receive buffer.
  * @see ISO 14229-1:2020(E) Annex H
  *
- * @param srv
+ * @param r request buffer
  * @param buf pointer to addressAndDataLengthFormatIdentifier in recv_buf
  * @param memoryAddress the decoded memory address
  * @param memorySize the decoded memory size
  * @param offset how many elements (addres and size pairs) away from the format identifier
- * @return uint8_t
+ * @return UDSErr_t
  */
-static UDSErr_t decodeAddressAndLengthAt(UDSReq_t *r, uint8_t *const buf, void **memoryAddress,
+static UDSErr_t decodeAddressAndLengthAt(UDSReq_t *r, uint8_t *const buf, uintptr_t *memoryAddress,
                                          size_t *memorySize, size_t offset) {
     UDS_ASSERT(r);
     UDS_ASSERT(memoryAddress);
     UDS_ASSERT(memorySize);
-    *memoryAddress = NULL;
+    *memoryAddress = 0;
     *memorySize = 0;
 
     if (r->recv_len < 3U) {
@@ -1733,8 +1733,7 @@ static UDSErr_t decodeAddressAndLengthAt(UDSReq_t *r, uint8_t *const buf, void *
         return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
-    const uintptr_t tmp = UnpackBEuintptr(&buf[1U + offsetBytes], memoryAddressLength);
-    (void)memmove(memoryAddress, &tmp, sizeof(void *));
+    *memoryAddress = UnpackBEuintptr(&buf[1U + offsetBytes], memoryAddressLength);
     *memorySize = UnpackBEsize(&buf[1U + offsetBytes + memoryAddressLength], memorySizeLength);
 
     return UDS_PositiveResponse;
@@ -1749,14 +1748,14 @@ static UDSErr_t decodeAddressAndLengthAt(UDSReq_t *r, uint8_t *const buf, void *
  * @param memorySize the decoded memory size
  * @return uint8_t
  */
-static UDSErr_t decodeAddressAndLength(UDSReq_t *r, uint8_t *const buf, void **memoryAddress,
+static UDSErr_t decodeAddressAndLength(UDSReq_t *r, uint8_t *const buf, uintptr_t *memoryAddress,
                                        size_t *memorySize) {
     return decodeAddressAndLengthAt(r, buf, memoryAddress, memorySize, 0);
 }
 
 static UDSErr_t Handle_0x23_ReadMemoryByAddress(UDSServer_t *srv, UDSReq_t *r) {
     UDSErr_t ret = UDS_PositiveResponse;
-    void *address = NULL;
+    uintptr_t address = 0;
     size_t length = 0;
 
     if (r->recv_len < UDS_0X23_REQ_MIN_LEN) {
@@ -1797,7 +1796,7 @@ static UDSErr_t Handle_0x27_SecurityAccess(UDSServer_t *srv, UDSReq_t *r) {
         return NegativeResponse(r, UDS_NRC_RequiredTimeDelayNotExpired);
     }
 
-    if (!(UDSTimeAfter(UDSMillis(), srv->sec_access_auth_fail_timer))) {
+    if (!UDSTimeAfter(UDSMillis(), srv->sec_access_auth_fail_timer)) {
         return NegativeResponse(r, UDS_NRC_ExceedNumberOfAttempts);
     }
 
@@ -1838,40 +1837,37 @@ static UDSErr_t Handle_0x27_SecurityAccess(UDSServer_t *srv, UDSReq_t *r) {
     }
 
     // Odd: requestSeed
-    else {
-        /* If a server supports security, but the requested security level is already unlocked when
-        a SecurityAccess ‘requestSeed’ message is received, that server shall respond with a
-        SecurityAccess ‘requestSeed’ positive response message service with a seed value equal to
-        zero (0). The server shall never send an all zero seed for a given security level that is
-        currently locked. The client shall use this method to determine if a server is locked for a
-        particular security level by checking for a non-zero seed.
-        */
-        if (subFunction == srv->securityLevel) {
-            // Table 52 sends a response of length 2. Use a preprocessor define if this needs
-            // customizing by the user.
-            const uint8_t already_unlocked[] = {0x00, 0x00};
-            return safe_copy(srv, already_unlocked, sizeof(already_unlocked));
-        } else {
-            UDSSecAccessRequestSeedArgs_t args = {
-                .level = subFunction,
-                .dataRecord = &r->recv_buf[UDS_0X27_REQ_BASE_LEN],
-                .len = (uint16_t)(r->recv_len - UDS_0X27_REQ_BASE_LEN),
-                .copySeed = safe_copy,
-            };
+    UDS_ASSERT(1U == (subFunction % 2U));
 
-            UDSErr_t ret = EmitEvent(srv, UDS_EVT_SecAccessRequestSeed, &args);
-
-            if (UDS_PositiveResponse != ret) {
-                return NegativeResponse(r, ret);
-            }
-
-            if (r->send_len <= UDS_0X27_RESP_BASE_LEN) { // no data was copied
-                UDS_LOGE(__FILE__, "0x27: no seed data was copied");
-                return NegativeResponse(r, UDS_NRC_GeneralReject);
-            }
-            return UDS_PositiveResponse;
-        }
+    // Already unlocked: send a zero seed
+    if (subFunction == srv->securityLevel) {
+        // Table 52 sends a response of length 2. Use a preprocessor define if this needs
+        // customizing by the user.
+        const uint8_t already_unlocked[] = {0x00, 0x00};
+        return safe_copy(srv, already_unlocked, sizeof(already_unlocked));
     }
+
+    // Not yet unlocked: request a seed
+    UDS_ASSERT(subFunction != srv->securityLevel);
+
+    UDSSecAccessRequestSeedArgs_t args = {
+        .level = subFunction,
+        .dataRecord = &r->recv_buf[UDS_0X27_REQ_BASE_LEN],
+        .len = (uint16_t)(r->recv_len - UDS_0X27_REQ_BASE_LEN),
+        .copySeed = safe_copy,
+    };
+
+    UDSErr_t ret = EmitEvent(srv, UDS_EVT_SecAccessRequestSeed, &args);
+
+    if (UDS_PositiveResponse != ret) {
+        return NegativeResponse(r, ret);
+    }
+
+    if (r->send_len <= UDS_0X27_RESP_BASE_LEN) { // no data was copied
+        UDS_LOGE(__FILE__, "0x27: no seed data was copied");
+        return NegativeResponse(r, UDS_NRC_GeneralReject);
+    }
+    return UDS_PositiveResponse;
 }
 
 static UDSErr_t Handle_0x28_CommunicationControl(UDSServer_t *srv, UDSReq_t *r) {
@@ -2030,7 +2026,7 @@ static UDSErr_t Handle_0x2E_WriteDataByIdentifier(UDSServer_t *srv, UDSReq_t *r)
         return NegativeResponse(r, UDS_NRC_IncorrectMessageLengthOrInvalidFormat);
     }
 
-    dataId = (uint16_t)((uint16_t)(r->recv_buf[1] << 8) | (uint16_t)r->recv_buf[2]);
+    dataId = UnpackBEu16(&r->recv_buf[1]);
     dataLen = (uint16_t)(r->recv_len - UDS_0X2E_REQ_BASE_LEN);
 
     UDSWDBIArgs_t args = {
@@ -2062,7 +2058,7 @@ static UDSErr_t Handle_0x2F_IOControlByIdentifier(UDSServer_t *srv, UDSReq_t *r)
     r->send_len = UDS_0X2F_RESP_BASE_LEN;
 
     UDSIOCtrlArgs_t args = {
-        .dataId = (uint16_t)(r->recv_buf[1] << 8) | (uint16_t)r->recv_buf[2],
+        .dataId = UnpackBEu16(&r->recv_buf[1]),
         .ioCtrlParam = r->recv_buf[3],
         .ctrlStateAndMask = &r->recv_buf[UDS_0X2F_REQ_MIN_LEN],
         .ctrlStateAndMaskLen = r->recv_len - UDS_0X2F_REQ_MIN_LEN,
@@ -2134,7 +2130,7 @@ static void BeginTransfer(UDSServer_t *srv, size_t xferTotalBytes, size_t xferBl
 
 static UDSErr_t Handle_0x34_RequestDownload(UDSServer_t *srv, UDSReq_t *r) {
     UDSErr_t err = UDS_PositiveResponse;
-    void *memoryAddress = NULL;
+    uintptr_t memoryAddress = 0;
     size_t memorySize = 0;
 
     if (srv->xferIsActive) {
@@ -2171,7 +2167,7 @@ static UDSErr_t Handle_0x34_RequestDownload(UDSServer_t *srv, UDSReq_t *r) {
     BeginTransfer(srv, memorySize, args.maxNumberOfBlockLength);
 
     // ISO-14229-1:2013 Table 401:
-    uint8_t lengthFormatIdentifier = (uint8_t)(sizeof(args.maxNumberOfBlockLength) << 4);
+    uint8_t lengthFormatIdentifier = (uint8_t)(sizeof(args.maxNumberOfBlockLength) << 4U);
 
     /* ISO-14229-1:2013 Table 396: maxNumberOfBlockLength
     This parameter is used by the requestDownload positive response message to
@@ -2186,18 +2182,16 @@ static UDSErr_t Handle_0x34_RequestDownload(UDSServer_t *srv, UDSReq_t *r) {
 
     r->send_buf[0] = AsResponseSID(UDS_SID_REQUEST_DOWNLOAD);
     r->send_buf[1] = lengthFormatIdentifier;
-    for (uint8_t idx = 0; idx < (uint8_t)sizeof(args.maxNumberOfBlockLength); idx++) {
-        uint8_t shiftBytes = (uint8_t)(sizeof(args.maxNumberOfBlockLength) - 1U - idx);
-        uint8_t byte = (args.maxNumberOfBlockLength >> (shiftBytes * 8U)) & 0xFFU;
-        r->send_buf[UDS_0X34_RESP_BASE_LEN + idx] = byte;
-    }
-    r->send_len = UDS_0X34_RESP_BASE_LEN + (size_t)sizeof(args.maxNumberOfBlockLength);
+    enum { N = 2 };
+    static_assert(sizeof(args.maxNumberOfBlockLength) == N, "See ISO14229-1:2020 Table 442");
+    PackBE(&r->send_buf[2], args.maxNumberOfBlockLength, N);
+    r->send_len = UDS_0X34_RESP_BASE_LEN + N;
     return UDS_PositiveResponse;
 }
 
 static UDSErr_t Handle_0x35_RequestUpload(UDSServer_t *srv, UDSReq_t *r) {
     UDSErr_t err = UDS_PositiveResponse;
-    void *memoryAddress = NULL;
+    uintptr_t memoryAddress = 0;
     size_t memorySize = 0;
 
     if (srv->xferIsActive) {
@@ -2233,7 +2227,7 @@ static UDSErr_t Handle_0x35_RequestUpload(UDSServer_t *srv, UDSReq_t *r) {
 
     BeginTransfer(srv, memorySize, args.maxNumberOfBlockLength);
 
-    uint8_t lengthFormatIdentifier = (uint8_t)(sizeof(args.maxNumberOfBlockLength) << 4);
+    uint8_t lengthFormatIdentifier = (uint8_t)(sizeof(args.maxNumberOfBlockLength) << 4U);
 
     r->send_buf[0] = AsResponseSID(UDS_SID_REQUEST_UPLOAD);
     r->send_buf[1] = lengthFormatIdentifier;
@@ -2290,11 +2284,11 @@ static UDSErr_t Handle_0x36_TransferData(UDSServer_t *srv, UDSReq_t *r) {
         if (err == UDS_PositiveResponse) {
             srv->xferByteCounter += request_data_len;
             return UDS_PositiveResponse;
-        } else if (err == UDS_NRC_RequestCorrectlyReceived_ResponsePending) {
-            return NegativeResponse(r, UDS_NRC_RequestCorrectlyReceived_ResponsePending);
-        } else {
-            goto fail;
         }
+        if (err == UDS_NRC_RequestCorrectlyReceived_ResponsePending) {
+            return NegativeResponse(r, UDS_NRC_RequestCorrectlyReceived_ResponsePending);
+        }
+        goto fail;
     }
 
 fail:
@@ -2323,12 +2317,12 @@ static UDSErr_t Handle_0x37_RequestTransferExit(UDSServer_t *srv, UDSReq_t *r) {
     if (err == UDS_PositiveResponse) {
         ResetTransfer(srv);
         return UDS_PositiveResponse;
-    } else if (err == UDS_NRC_RequestCorrectlyReceived_ResponsePending) {
-        return NegativeResponse(r, UDS_NRC_RequestCorrectlyReceived_ResponsePending);
-    } else {
-        ResetTransfer(srv);
-        return NegativeResponse(r, err);
     }
+    if (err == UDS_NRC_RequestCorrectlyReceived_ResponsePending) {
+        return NegativeResponse(r, UDS_NRC_RequestCorrectlyReceived_ResponsePending);
+    }
+    ResetTransfer(srv);
+    return NegativeResponse(r, err);
 }
 
 static UDSErr_t Handle_0x38_RequestFileTransfer(UDSServer_t *srv, UDSReq_t *r) {
@@ -2493,7 +2487,7 @@ done:
 
 static UDSErr_t Handle_0x3D_WriteMemoryByAddress(UDSServer_t *srv, UDSReq_t *r) {
     UDSErr_t ret = UDS_PositiveResponse;
-    void *address = NULL;
+    uintptr_t address = 0;
     size_t length = 0;
 
     if (r->recv_len < UDS_0X3D_REQ_MIN_LEN) {
@@ -2660,7 +2654,6 @@ static UDSService getServiceForSID(uint8_t sid) {
     case UDS_SID_TESTER_PRESENT:
         return &Handle_0x3E_TesterPresent;
     case UDS_SID_ACCESS_TIMING_PARAMETER:
-        return NULL;
     case UDS_SID_SECURED_DATA_TRANSMISSION:
         return NULL;
     case UDS_SID_CONTROL_DTC_SETTING:
@@ -2707,7 +2700,7 @@ static UDSErr_t evaluateServiceResponse(UDSServer_t *srv, UDSReq_t *r) {
         UDS_ASSERT(service);
         response = service(srv, r);
 
-        bool suppressPosRspMsgIndicationBit = r->recv_buf[1] & 0x80U;
+        bool suppressPosRspMsgIndicationBit = (r->recv_buf[1] & 0x80U) != 0U;
 
         /* test if positive response is required and if responseCode is positive 0x00 */
         if (suppressPosRspMsgIndicationBit && (response == UDS_PositiveResponse) &&
@@ -3534,6 +3527,10 @@ void UDSTpISOTpCSocketCANDeinit(UDSTpISOTpCSocketCAN_t *tp) {
 
 
 
+static bool revents_has(short revents, short flag) {
+    return (bool)(((unsigned int)revents & (unsigned int)flag) != 0U);
+}
+
 static UDSErr_t isotp_sock_tp_poll(UDSTp_t *hdl) {
     const UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl; // cppcheck-suppress [misra-c2012-11.3]
     UDSErr_t err = UDS_OK;
@@ -3560,7 +3557,7 @@ static UDSErr_t isotp_sock_tp_poll(UDSTp_t *hdl) {
             struct pollfd pfd = pfds[i];
 
             // Check for errors
-            if (pfd.revents & POLLERR) {
+            if (revents_has(pfd.revents, POLLERR)) {
                 int pending_err = 0;
                 socklen_t len = sizeof(pending_err);
                 if (0 == getsockopt(fds[i], SOL_SOCKET, SO_ERROR, &pending_err, &len) &&
@@ -3584,7 +3581,7 @@ static UDSErr_t isotp_sock_tp_poll(UDSTp_t *hdl) {
                 // writes because a multi-frame transmission is in progress.
                 // See: https://lore.kernel.org/all/20230331125511.372783-1-michal.sojka@cvut.cz/
                 // The kernel ISO-TP driver suppresses POLLOUT when tx.state != ISOTP_IDLE
-                if (!(pfd.revents & POLLOUT)) {
+                if (!revents_has(pfd.revents, POLLOUT)) {
                     hdl->status.is_sending = 1;
                 } else {
                     hdl->status.is_sending = 0;

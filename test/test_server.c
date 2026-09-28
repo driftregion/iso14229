@@ -2483,7 +2483,7 @@ void test_0x22_misuse(void **state) {
 UDSErr_t fn_test_0x23(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     TEST_INT_EQUAL(ev, UDS_EVT_ReadMemByAddr);
     UDSReadMemByAddrArgs_t *r = (UDSReadMemByAddrArgs_t *)arg;
-    TEST_PTR_EQUAL(r->memAddr, (void *)0x20481392);
+    TEST_UINTPTR_EQUAL(r->memAddr, 0x20481392);
     TEST_INT_EQUAL(r->memSize, 259);
     return r->copy(srv, srv->fn_data, r->memSize);
 }
@@ -2525,7 +2525,7 @@ void test_0x23(void **state) {
 }
 
 typedef struct {
-    const void *expectedMemAddr;
+    const uintptr_t expectedMemAddr;
     const size_t expectedMemSize;
     const void *expectedMemData;
 } Test0x3DTestFnData_t;
@@ -2536,7 +2536,7 @@ UDSErr_t fn_test_0x3D(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     TEST_INT_EQUAL(ev, UDS_EVT_WriteMemByAddr);
     UDSWriteMemByAddrArgs_t *r = (UDSWriteMemByAddrArgs_t *)arg;
 
-    TEST_PTR_EQUAL(r->memAddr, fnData->expectedMemAddr);
+    TEST_UINTPTR_EQUAL(r->memAddr, fnData->expectedMemAddr);
     TEST_INT_EQUAL(r->memSize, fnData->expectedMemSize);
     TEST_MEMORY_EQUAL(r->data, fnData->expectedMemData, r->memSize);
 
@@ -2550,7 +2550,7 @@ void test_0x3D_example_1(void **state) {
     uint8_t expected_mem_data[] = {0x00, 0x8C};
 
     Test0x3DTestFnData_t fnData = {
-        .expectedMemAddr = (void *)0x00002048,
+        .expectedMemAddr = 0x00002048,
         .expectedMemSize = 2,
         .expectedMemData = expected_mem_data,
     };
@@ -2593,7 +2593,7 @@ void test_0x3D_example_2(void **state) {
     uint8_t expected_mem_data[] = {0x00, 0x01, 0x8C};
 
     Test0x3DTestFnData_t fnData = {
-        .expectedMemAddr = (void *)0x00204813,
+        .expectedMemAddr = 0x00204813,
         .expectedMemSize = 3,
         .expectedMemData = expected_mem_data,
     };
@@ -2639,7 +2639,7 @@ void test_0x3D_example_3(void **state) {
     uint8_t expected_mem_data[] = {0x00, 0x01, 0x8C, 0x09, 0xAF};
 
     Test0x3DTestFnData_t fnData = {
-        .expectedMemAddr = (void *)0x000020481309,
+        .expectedMemAddr = 0x000020481309,
         .expectedMemSize = 5,
         .expectedMemData = expected_mem_data,
     };
@@ -3637,7 +3637,7 @@ UDSErr_t fn_test_0x34(UDSServer_t *srv, UDSEvent_t ev, void *arg) {
     TEST_INT_EQUAL(ev, UDS_EVT_RequestDownload);
     UDSRequestDownloadArgs_t *r = (UDSRequestDownloadArgs_t *)arg;
     TEST_INT_EQUAL(0x11, r->dataFormatIdentifier);
-    TEST_PTR_EQUAL((void *)0x602000, r->addr);
+    TEST_UINTPTR_EQUAL(0x602000, r->addr);
     TEST_INT_EQUAL(0x00FFFF, r->size);
     TEST_INT_EQUAL(r->maxNumberOfBlockLength, UDS_SERVER_DEFAULT_XFER_DATA_MAX_BLOCKLENGTH);
     r->maxNumberOfBlockLength = 0x0081;

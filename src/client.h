@@ -79,7 +79,7 @@ UDSErr_t UDSSendSecurityAccess(UDSClient_t *client, uint8_t level, const uint8_t
 UDSErr_t UDSSendCommCtrl(UDSClient_t *client, uint8_t ctrl,
                          uint8_t comm); ///< Change communication settings
 UDSErr_t UDSSendRDBI(UDSClient_t *client, const uint16_t *didList,
-                     const uint16_t numDataIdentifiers); ///< Read Data By Identifier
+                     uint16_t numDataIdentifiers); ///< Read Data By Identifier
 UDSErr_t UDSSendWDBI(UDSClient_t *client, uint16_t dataIdentifier, const uint8_t *data,
                      uint16_t size);                ///< Write Data By Identifier
 UDSErr_t UDSSendTesterPresent(UDSClient_t *client); ///< What's up?
@@ -94,7 +94,7 @@ UDSErr_t UDSSendRequestUpload(UDSClient_t *client, uint8_t dataFormatIdentifier,
                               uint8_t addressAndLengthFormatIdentifier, size_t memoryAddress,
                               size_t memorySize); ///< Request to Upload via TransferData
 UDSErr_t UDSSendTransferData(UDSClient_t *client, uint8_t blockSequenceCounter,
-                             const uint16_t blockLength, const uint8_t *data,
+                             uint16_t blockLength, const uint8_t *data,
                              uint16_t size); ///< Transfer Data to/from a buffer
 UDSErr_t
 UDSSendRequestTransferExit(UDSClient_t *client); ///< Call this when finished with TransferData

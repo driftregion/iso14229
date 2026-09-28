@@ -8,11 +8,11 @@
 </p>
 
 - Two files: `iso14229.c` and `iso14229.h` -> download the latest [release here](https://github.com/driftregion/iso14229/releases).
-- ISO-TP (ISO15765-2) transports are included. Choose from: [`isotp-c`](https://github.com/SimonCahill/isotp-c), linux isotp sockets.
-- Highly portable. Write your implementation once, it works everywhere.
+- ISO-TP (ISO15765-2) transports are included. Choose from: [`isotp-c`](https://github.com/SimonCahill/isotp-c), linux isotp sockets, or bring your own.
 - Static memory allocation. (no `malloc`)
 - Examples for esp32, Arduino, NXP S32K144, STM32, Zephyr
 - Heavily tested: unit, fuzz, coverage
+- MISRA deviations [documented here](./docs/MISRA.md)
 
 API status: Major version zero (0.y.z) **(not yet stable)**. Anything MAY change at any time.
 

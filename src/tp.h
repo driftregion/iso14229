@@ -88,8 +88,8 @@ typedef struct UDSTp {
     } status;
 } UDSTp_t;
 
-UDSErr_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, const size_t len,
+UDSErr_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, size_t len,
                    const UDSSDU_t *info); ///< Send to transport
-UDSErr_t UDSTpRecv(UDSTp_t *hdl, uint8_t *buf, const size_t bufsiz, size_t *recvlen,
+UDSErr_t UDSTpRecv(UDSTp_t *hdl, uint8_t *buf, size_t bufsiz, size_t *recvlen,
                    UDSSDU_t *info); ///< Receive from transport
 UDSErr_t UDSTpPoll(UDSTp_t *hdl);   ///< call this at <5ms intervals

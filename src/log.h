@@ -24,9 +24,9 @@
 
 typedef unsigned int UDS_LogLevel_t; ///< one of @ref uds_log_level_
 
-static_assert((UDS_LOG_LEVEL == UDS_LOG_NONE) || (UDS_LOG_LEVEL == UDS_LOG_ERROR) ||
-                  (UDS_LOG_LEVEL == UDS_LOG_WARN) || (UDS_LOG_LEVEL == UDS_LOG_INFO) ||
-                  (UDS_LOG_LEVEL == UDS_LOG_DEBUG) || (UDS_LOG_LEVEL == UDS_LOG_VERBOSE),
+static_assert((bool)((UDS_LOG_LEVEL == UDS_LOG_NONE) || (UDS_LOG_LEVEL == UDS_LOG_ERROR) ||
+                     (UDS_LOG_LEVEL == UDS_LOG_WARN) || (UDS_LOG_LEVEL == UDS_LOG_INFO) ||
+                     (UDS_LOG_LEVEL == UDS_LOG_DEBUG) || (UDS_LOG_LEVEL == UDS_LOG_VERBOSE)),
               "unknown log level");
 
 #if UDS_LOG_LEVEL >= UDS_LOG_ERROR && UDS_LOG_LEVEL != UDS_LOG_NONE

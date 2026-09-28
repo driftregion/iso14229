@@ -1,6 +1,9 @@
 #pragma once
 #include "include.h"
 
+#include <assert.h>
+#include <inttypes.h>
+
 #if UDS_SYS == UDS_SYS_UNIX
 #include <sys/time.h>
 /* cppcheck-suppress [misra-c2012-21.10]. This is a platform-specific port. */

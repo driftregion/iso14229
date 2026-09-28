@@ -185,8 +185,8 @@ typedef struct {
  * @brief Read memory by address arguments
  */
 typedef struct {
-    const void *memAddr;  /**< requested server memory address */
-    const size_t memSize; /**< requested size */
+    const uintptr_t memAddr; /**< requested server memory address */
+    const size_t memSize;    /**< requested size */
     uint8_t (*copy)(UDSServer_t *srv, const void *src,
                     uint16_t count); /**< function for copying data to response */
 } UDSReadMemByAddrArgs_t;
@@ -233,7 +233,7 @@ typedef struct {
  * @brief Write memory by address arguments
  */
 typedef struct {
-    const void *memAddr;       /**< pointer to memory address */
+    const uintptr_t memAddr;   /**< pointer to memory address */
     const size_t memSize;      /**< size of memory */
     const uint8_t *const data; /**< pointer to data */
 } UDSWriteMemByAddrArgs_t;
@@ -255,9 +255,9 @@ typedef struct {
             uint8_t size;          /**< number of bytes to be copied */
         } defineById; /**< args when defining from an existing source data identifier */
         struct {
-            void *memAddr;    /**< memory address to read from */
-            size_t memSize;   /**< number of bytes to read */
-        } defineByMemAddress; /**< args when defining from a memory address */
+            uintptr_t memAddr; /**< memory address to read from */
+            size_t memSize;    /**< number of bytes to read */
+        } defineByMemAddress;  /**< args when defining from a memory address */
         /* cppcheck-suppress [misra-c2012-19.2] */
     } subFuncArgs; /**< subfunction-specific arguments, selected by \ref type */
 } UDSDDDIArgs_t;
@@ -290,7 +290,7 @@ typedef struct {
  * @brief Request download arguments
  */
 typedef struct {
-    const void *addr;                   /**< requested address */
+    const uintptr_t addr;               /**< requested address */
     const size_t size;                  /**< requested download size */
     const uint8_t dataFormatIdentifier; /**< optional specifier for format of data */
     uint16_t maxNumberOfBlockLength;    /**< optional response: inform client how many data bytes to
@@ -301,7 +301,7 @@ typedef struct {
  * @brief Request upload arguments
  */
 typedef struct {
-    const void *addr;                   /**< requested address */
+    const uintptr_t addr;               /**< requested address */
     const size_t size;                  /**< requested download size */
     const uint8_t dataFormatIdentifier; /**< optional specifier for format of data */
     uint16_t maxNumberOfBlockLength;    /**< optional response: inform client how many data bytes to

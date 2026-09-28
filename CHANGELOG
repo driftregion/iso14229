@@ -1,12 +1,14 @@
 ## 0.11.0
-- breaking API change:
-    - made client flags into bitfield:
+- breaking API changes:
+    1.  made client flags into bitfield:
 
 | before                                       | after                                     |
 | ---------------------------------------------|-------------------------------------------|
 | `client->options \|= UDS_SUPPRESS_POS_RESP`   | `client->cfg_suppress_pos_resp = 1`         |
 | `client->options \|= UDS_FUNCTIONAL`          | `client->cfg_send_functional = 1`           |
 | `client->options \|= UDS_IGNORE_SRV_TIMINGS`  | `client->cfg_ignore_srv_sess_timing = 1`    |
+
+    2. use uintptr_t instead of void* for memory addresses in API. 
 
 - improved MISRA compliance
 

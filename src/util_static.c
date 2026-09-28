@@ -88,10 +88,15 @@ static uint8_t AsRequestSID(uint8_t response_sid) {
  * @param a: timestamp to check
  * @param b: reference timestamp
  * @return true if `a` is after `b`
+ * @note Do not use for durations > 10 days.
+ *
+ * The upper limit is 2**32 / 2 / 1000 / 60 / 60 / 24 = 24.8 days.
+ * TODO: There is likely some buggy behavior after this time has elapsed. Mitigate this.
+ *
  */
 static bool UDSTimeAfter(uint32_t a, uint32_t b) {
     uint32_t diff = a - b;
-    return (diff != 0U) && ((diff & 0x80000000U) == 0U);
+    return (diff - 1U) < 0x7FFFFFFFU;
 }
 
 /// returns true if a security level is reserved per ISO14229-1:2020 Table 42

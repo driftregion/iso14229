@@ -58,7 +58,7 @@ jobs:
         repository-cache: true
 
     - name: run unit tests
-      run: bazel test --verbose_failures --test_output=all //test:all --test_tag_filters=-fuzz
+      run: bazel test --verbose_failures --test_output=all //test:all --build_tag_filters=-fuzz --test_tag_filters=-fuzz
 
 
   arduino:

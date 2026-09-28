@@ -5,6 +5,10 @@
 #include "log.h"
 #include "include_private.h"
 
+static bool revents_has(short revents, short flag) {
+    return (bool)(((unsigned int)revents & (unsigned int)flag) != 0U);
+}
+
 static UDSErr_t isotp_sock_tp_poll(UDSTp_t *hdl) {
     const UDSTpIsoTpSock_t *impl = (UDSTpIsoTpSock_t *)hdl; // cppcheck-suppress [misra-c2012-11.3]
     UDSErr_t err = UDS_OK;
@@ -31,7 +35,7 @@ static UDSErr_t isotp_sock_tp_poll(UDSTp_t *hdl) {
             struct pollfd pfd = pfds[i];
 
             // Check for errors
-            if (pfd.revents & POLLERR) {
+            if (revents_has(pfd.revents, POLLERR)) {
                 int pending_err = 0;
                 socklen_t len = sizeof(pending_err);
                 if (0 == getsockopt(fds[i], SOL_SOCKET, SO_ERROR, &pending_err, &len) &&
@@ -55,7 +59,7 @@ static UDSErr_t isotp_sock_tp_poll(UDSTp_t *hdl) {
                 // writes because a multi-frame transmission is in progress.
                 // See: https://lore.kernel.org/all/20230331125511.372783-1-michal.sojka@cvut.cz/
                 // The kernel ISO-TP driver suppresses POLLOUT when tx.state != ISOTP_IDLE
-                if (!(pfd.revents & POLLOUT)) {
+                if (!revents_has(pfd.revents, POLLOUT)) {
                     hdl->status.is_sending = 1;
                 } else {
                     hdl->status.is_sending = 0;

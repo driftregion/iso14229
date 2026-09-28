@@ -129,7 +129,7 @@ static UDSErr_t HandleServerResponse(UDSClient_t *client) {
         // else: fall-through
     } else {
         uint8_t respSid = client->recv_buf[0];
-        switch (AsRequestSID(respSid)) {
+        switch (AsRequestSID(respSid)) { // NOLINT(readability-trivial-switch) response handler
         case UDS_SID_DIAGNOSTIC_SESSION_CONTROL: {
             if (client->recv_size < UDS_0X10_RESP_LEN) {
                 UDS_LOGI(__FILE__, "Error: SID %x response too short",
@@ -620,7 +620,7 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, const uint8_t mode, con
     case UDS_MOOP_REPLFILE: // MOOP = 3
     case UDS_MOOP_RSFILE:   // MOOP = 6
     {
-        send_size = 4U + filePathLen + 2U + (2U * client->cfg_file_size_parameter_length);
+        send_size = 4U + filePathLen + 2U + (size_t)(2U * client->cfg_file_size_parameter_length);
         if (send_size > sizeof(client->send_buf)) {
             err = UDS_ERR_BUFSIZ;
             goto done;

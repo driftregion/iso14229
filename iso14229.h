@@ -24,6 +24,8 @@ extern "C" {
 #line 1 "src/include.h"
 #endif // #ifdef UDS_LINES
 
+#include <assert.h> // early includes for static_assert
+
 #if !defined(__cplusplus) && ((!defined(__STDC_VERSION__)) || (__STDC_VERSION__ < 201112L))
 #ifndef static_assert
 /* cppcheck-suppress [misra-c2012-19.2,misra-c2012-20.4] Patch static_assert for pre-C11 toolchains
@@ -34,7 +36,6 @@ extern "C" {
 #endif // #ifndef static_assert
 #endif
 
-#include <assert.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -83,8 +84,6 @@ extern "C" {
 #ifdef UDS_LINES
 #line 1 "src/config.h"
 #endif // #ifdef UDS_LINES
-
-
 
 /**
  * @def UDS_SYS
@@ -166,9 +165,9 @@ static_assert(UDS_CLIENT_DEFAULT_P2_STAR_MS > UDS_CLIENT_DEFAULT_P2_MS, "");
     (5100) ///< default S3 duration (ISO14229-2 2013 Table 5: 5000 -0/+200 ms)
 #endif
 
-static_assert((0 < UDS_SERVER_DEFAULT_P2_MS) &&
-                  (UDS_SERVER_DEFAULT_P2_MS < UDS_SERVER_DEFAULT_P2_STAR_MS) &&
-                  (UDS_SERVER_DEFAULT_P2_STAR_MS < UDS_SERVER_DEFAULT_S3_MS),
+static_assert((bool)((0 < UDS_SERVER_DEFAULT_P2_MS) &&
+                     (UDS_SERVER_DEFAULT_P2_MS < UDS_SERVER_DEFAULT_P2_STAR_MS) &&
+                     (UDS_SERVER_DEFAULT_P2_STAR_MS < UDS_SERVER_DEFAULT_S3_MS)),
               "");
 
 /// Duration between the server sending a positive response to an ECU reset request and the emission
@@ -399,14 +398,15 @@ typedef enum {
 
     // The following values are not defined in ISO14229-1:2020
     UDS_ERR_TIMEOUT = 0x100,      // A request has timed out
-    UDS_ERR_DID_MISMATCH,         // The response DID does not match the request DID
-    UDS_ERR_SID_MISMATCH,         // The response SID does not match the request SID
-    UDS_ERR_SUBFUNCTION_MISMATCH, // The response SubFunction does not match the request SubFunction
-    UDS_ERR_RESP_TOO_SHORT,       // The response is too short
-    UDS_ERR_BUFSIZ,               // The buffer is not large enough
-    UDS_ERR_INVALID_ARG,          // The function has been called with invalid arguments
-    UDS_ERR_BUSY,                 // The client is busy and cannot process the request
-    UDS_ERR_MISUSE,               // The library is used incorrectly
+    UDS_ERR_DID_MISMATCH = 0x101, // The response DID does not match the request DID
+    UDS_ERR_SID_MISMATCH = 0x102, // The response SID does not match the request SID
+    UDS_ERR_SUBFUNCTION_MISMATCH =
+        0x103, // The response SubFunction does not match the request SubFunction
+    UDS_ERR_RESP_TOO_SHORT = 0x104, // The response is too short
+    UDS_ERR_BUFSIZ = 0x105,         // The buffer is not large enough
+    UDS_ERR_INVALID_ARG = 0x106,    // The function has been called with invalid arguments
+    UDS_ERR_BUSY = 0x107,           // The client is busy and cannot process the request
+    UDS_ERR_MISUSE = 0x108,         // The library is used incorrectly
 
     UDS_ERR_TPORT = 0x200, // Transport error
 } UDSErr_t;
@@ -599,9 +599,9 @@ typedef struct UDSTp {
     } status;
 } UDSTp_t;
 
-UDSErr_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, const size_t len,
+UDSErr_t UDSTpSend(UDSTp_t *hdl, const uint8_t *buf, size_t len,
                    const UDSSDU_t *info); ///< Send to transport
-UDSErr_t UDSTpRecv(UDSTp_t *hdl, uint8_t *buf, const size_t bufsiz, size_t *recvlen,
+UDSErr_t UDSTpRecv(UDSTp_t *hdl, uint8_t *buf, size_t bufsiz, size_t *recvlen,
                    UDSSDU_t *info); ///< Receive from transport
 UDSErr_t UDSTpPoll(UDSTp_t *hdl);   ///< call this at <5ms intervals
 
@@ -664,9 +664,9 @@ const char *UDSEventToStr(UDSEvent_t evt);
 
 typedef unsigned int UDS_LogLevel_t; ///< one of @ref uds_log_level_
 
-static_assert((UDS_LOG_LEVEL == UDS_LOG_NONE) || (UDS_LOG_LEVEL == UDS_LOG_ERROR) ||
-                  (UDS_LOG_LEVEL == UDS_LOG_WARN) || (UDS_LOG_LEVEL == UDS_LOG_INFO) ||
-                  (UDS_LOG_LEVEL == UDS_LOG_DEBUG) || (UDS_LOG_LEVEL == UDS_LOG_VERBOSE),
+static_assert((bool)((UDS_LOG_LEVEL == UDS_LOG_NONE) || (UDS_LOG_LEVEL == UDS_LOG_ERROR) ||
+                     (UDS_LOG_LEVEL == UDS_LOG_WARN) || (UDS_LOG_LEVEL == UDS_LOG_INFO) ||
+                     (UDS_LOG_LEVEL == UDS_LOG_DEBUG) || (UDS_LOG_LEVEL == UDS_LOG_VERBOSE)),
               "unknown log level");
 
 #if UDS_LOG_LEVEL >= UDS_LOG_ERROR && UDS_LOG_LEVEL != UDS_LOG_NONE
@@ -823,7 +823,7 @@ UDSErr_t UDSSendSecurityAccess(UDSClient_t *client, uint8_t level, const uint8_t
 UDSErr_t UDSSendCommCtrl(UDSClient_t *client, uint8_t ctrl,
                          uint8_t comm); ///< Change communication settings
 UDSErr_t UDSSendRDBI(UDSClient_t *client, const uint16_t *didList,
-                     const uint16_t numDataIdentifiers); ///< Read Data By Identifier
+                     uint16_t numDataIdentifiers); ///< Read Data By Identifier
 UDSErr_t UDSSendWDBI(UDSClient_t *client, uint16_t dataIdentifier, const uint8_t *data,
                      uint16_t size);                ///< Write Data By Identifier
 UDSErr_t UDSSendTesterPresent(UDSClient_t *client); ///< What's up?
@@ -838,7 +838,7 @@ UDSErr_t UDSSendRequestUpload(UDSClient_t *client, uint8_t dataFormatIdentifier,
                               uint8_t addressAndLengthFormatIdentifier, size_t memoryAddress,
                               size_t memorySize); ///< Request to Upload via TransferData
 UDSErr_t UDSSendTransferData(UDSClient_t *client, uint8_t blockSequenceCounter,
-                             const uint16_t blockLength, const uint8_t *data,
+                             uint16_t blockLength, const uint8_t *data,
                              uint16_t size); ///< Transfer Data to/from a buffer
 UDSErr_t
 UDSSendRequestTransferExit(UDSClient_t *client); ///< Call this when finished with TransferData
@@ -1052,8 +1052,8 @@ typedef struct {
  * @brief Read memory by address arguments
  */
 typedef struct {
-    const void *memAddr;  /**< requested server memory address */
-    const size_t memSize; /**< requested size */
+    const uintptr_t memAddr; /**< requested server memory address */
+    const size_t memSize;    /**< requested size */
     uint8_t (*copy)(UDSServer_t *srv, const void *src,
                     uint16_t count); /**< function for copying data to response */
 } UDSReadMemByAddrArgs_t;
@@ -1100,7 +1100,7 @@ typedef struct {
  * @brief Write memory by address arguments
  */
 typedef struct {
-    const void *memAddr;       /**< pointer to memory address */
+    const uintptr_t memAddr;   /**< pointer to memory address */
     const size_t memSize;      /**< size of memory */
     const uint8_t *const data; /**< pointer to data */
 } UDSWriteMemByAddrArgs_t;
@@ -1122,9 +1122,9 @@ typedef struct {
             uint8_t size;          /**< number of bytes to be copied */
         } defineById; /**< args when defining from an existing source data identifier */
         struct {
-            void *memAddr;    /**< memory address to read from */
-            size_t memSize;   /**< number of bytes to read */
-        } defineByMemAddress; /**< args when defining from a memory address */
+            uintptr_t memAddr; /**< memory address to read from */
+            size_t memSize;    /**< number of bytes to read */
+        } defineByMemAddress;  /**< args when defining from a memory address */
         /* cppcheck-suppress [misra-c2012-19.2] */
     } subFuncArgs; /**< subfunction-specific arguments, selected by \ref type */
 } UDSDDDIArgs_t;
@@ -1157,7 +1157,7 @@ typedef struct {
  * @brief Request download arguments
  */
 typedef struct {
-    const void *addr;                   /**< requested address */
+    const uintptr_t addr;               /**< requested address */
     const size_t size;                  /**< requested download size */
     const uint8_t dataFormatIdentifier; /**< optional specifier for format of data */
     uint16_t maxNumberOfBlockLength;    /**< optional response: inform client how many data bytes to
@@ -1168,7 +1168,7 @@ typedef struct {
  * @brief Request upload arguments
  */
 typedef struct {
-    const void *addr;                   /**< requested address */
+    const uintptr_t addr;               /**< requested address */
     const size_t size;                  /**< requested download size */
     const uint8_t dataFormatIdentifier; /**< optional specifier for format of data */
     uint16_t maxNumberOfBlockLength;    /**< optional response: inform client how many data bytes to

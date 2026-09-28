@@ -93,14 +93,14 @@ static inline bool EnvTimeAfter(uint32_t a, uint32_t b) { return (int32_t)(a - b
         }                                                                                          \
 } 
 
-#define TEST_PTR_EQUAL(a, b)                                                                       \
+#define TEST_UINTPTR_EQUAL(a, b)                                                                       \
     {                                                                                              \
-        const void *_a = a;                                                                        \
-        const void *_b = b;                                                                        \
+        uintptr_t _a = a;                                                                        \
+        uintptr_t _b = b;                                                                        \
         if ((_a) != (_b)) {                                                                        \
-            printf("%s:%d (%p != %p)\n", __FILE__, __LINE__, _a, _b);                              \
+            printf("%s:%d (0x%"PRIxPTR" != 0x%"PRIxPTR")\n", __FILE__, __LINE__, _a, _b);                              \
             fflush(stdout);                                                                        \
-            assert(a == b);                                                                        \
+            assert_uint_equal(_a, _b); \
         }                                                                                          \
     }
 

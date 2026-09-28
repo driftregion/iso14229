@@ -1,7 +1,5 @@
 #pragma once
-
-#include <assert.h> // early include for static_assert
-
+#include "include.h"
 /**
  * @def UDS_SYS
  * @brief Selects the host system iso14229 is compiled for.
@@ -82,9 +80,9 @@ static_assert(UDS_CLIENT_DEFAULT_P2_STAR_MS > UDS_CLIENT_DEFAULT_P2_MS, "");
     (5100) ///< default S3 duration (ISO14229-2 2013 Table 5: 5000 -0/+200 ms)
 #endif
 
-static_assert((0 < UDS_SERVER_DEFAULT_P2_MS) &&
-                  (UDS_SERVER_DEFAULT_P2_MS < UDS_SERVER_DEFAULT_P2_STAR_MS) &&
-                  (UDS_SERVER_DEFAULT_P2_STAR_MS < UDS_SERVER_DEFAULT_S3_MS),
+static_assert((bool)((0 < UDS_SERVER_DEFAULT_P2_MS) &&
+                     (UDS_SERVER_DEFAULT_P2_MS < UDS_SERVER_DEFAULT_P2_STAR_MS) &&
+                     (UDS_SERVER_DEFAULT_P2_STAR_MS < UDS_SERVER_DEFAULT_S3_MS)),
               "");
 
 /// Duration between the server sending a positive response to an ECU reset request and the emission
