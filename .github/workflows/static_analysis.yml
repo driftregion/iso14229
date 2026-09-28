@@ -76,12 +76,14 @@ jobs:
     - name: Convert clang-tidy output to SARIF
       if: always() && hashFiles('reports/clang-tidy/clang-tidy.txt') != ''
       run: |
-        # clang-tidy reports absolute paths; code scanning needs repo-relative paths
         sed "s|^$GITHUB_WORKSPACE/||" reports/clang-tidy/clang-tidy.txt \
-          | "$RUNNER_TEMP/clang-tidy-sarif" --output reports/clang-tidy/clang-tidy.sarif
+          | "$RUNNER_TEMP/clang-tidy-sarif" \
+          | jq '(.runs[].results[] | select(has("relatedLocations")) | .relatedLocations)
+                |= reduce .[] as $l ([]; if index([$l]) then . else . + [$l] end)' \
+          > reports/clang-tidy/clang-tidy.sarif
 
     - name: Upload SARIF results to GitHub Code Scanning
-      uses: github/codeql-action/upload-sarif@v3
+      uses: github/codeql-action/upload-sarif@v4
       if: always() && hashFiles('reports/clang-tidy/clang-tidy.sarif') != ''
       with:
         sarif_file: reports/clang-tidy/clang-tidy.sarif
@@ -150,7 +152,7 @@ jobs:
         ./tools/cppcheck/run_MISRA.sh
 
     - name: Upload SARIF results to GitHub Code Scanning
-      uses: github/codeql-action/upload-sarif@v3
+      uses: github/codeql-action/upload-sarif@v4
       if: always() && hashFiles('reports/cppcheck/cppcheck.sarif') != ''
       with:
         sarif_file: reports/cppcheck/cppcheck.sarif

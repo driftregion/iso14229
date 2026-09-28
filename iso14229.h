@@ -17,7 +17,7 @@ extern "C" {
 #ifdef UDS_LINES
 #line 1 "src/version.h"
 #endif // #ifdef UDS_LINES
-#define UDS_LIB_VERSION "0.10.2"
+#define UDS_LIB_VERSION "0.11.0"
 
 
 #ifdef UDS_LINES
