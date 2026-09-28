@@ -120,7 +120,7 @@ int main(int ac, char **av) {
     sa.sa_handler = sigint_handler;
     sigaction(SIGINT, &sa, NULL);
 
-#ifdef(UDS_TP_ISOTP_SOCK)
+#if defined(UDS_TP_ISOTP_SOCK)
     if (UDSServerTpIsoTpSockInit(&tp, "vcan0", 0x7E0, 0x7E8, 0x7DF)) {
         fprintf(stderr, "UDSServerTpIsoTpSockInit failed\n");
         exit(-1);

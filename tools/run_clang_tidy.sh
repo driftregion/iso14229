@@ -2,6 +2,13 @@
 
 set -euo pipefail
 
+# set WARNINGS_AS_ERRORS=1 to fail on any clang-tidy warning (used in CI)
+WARNINGS_AS_ERRORS=${WARNINGS_AS_ERRORS:-""}
+TIDY_ARGS=""
+if [ -n "$WARNINGS_AS_ERRORS" ]; then
+    TIDY_ARGS="'--warnings-as-errors=*'"
+fi
+
 # symlink to clang-tidy executable in the hermetic llvm toolchain
 CLANG_TIDY="${TMPDIR:-/tmp}/clang-tidy.bazel"
 # sometimes the symlink exists already but points to an invalid location
@@ -20,5 +27,5 @@ fi
 
 bash -c "$CLANG_TIDY --version"
 
-bash -c "$CLANG_TIDY $(realpath iso14229.c) -- -I$(realpath .)"
+bash -c "$CLANG_TIDY $TIDY_ARGS $(realpath iso14229.c) -- -I$(realpath .)"
 

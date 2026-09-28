@@ -21,6 +21,10 @@ jobs:
     - name: checkout
       uses: actions/checkout@v4
 
+    - name: checkout isotp-c
+      run: |
+        git submodule update --init src/tp/isotp-c
+
     - name: Setup Bazel
       uses: bazel-contrib/setup-bazel@0.15.0
       with:
@@ -34,35 +38,16 @@ jobs:
     - name: lint
       run: CHECK_FORMAT=1 ./tools/run_clang_format.sh
 
-  CodeChecker:
+  clang-tidy:
     runs-on: ubuntu-latest
 
     steps:
     - name: checkout
       uses: actions/checkout@v4
 
-    - name: Cache pip packages
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-codechecker-${{ hashFiles('**/requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-codechecker-
-          ${{ runner.os }}-pip-
-
-    - name: Cache apt packages
-      uses: awalsh128/cache-apt-pkgs-action@latest
-      with:
-        packages: build-essential cmake jq cppcheck
-        version: 1.0
-
-    - name: Install Python dependencies
+    - name: checkout isotp-c
       run: |
-        pip3 install codechecker requests
-
-    - name: Verify analyzers
-      run: |
-        CodeChecker analyzers --details
+        git submodule update --init src/tp/isotp-c
 
     - name: Setup Bazel
       uses: bazel-contrib/setup-bazel@0.15.0
@@ -71,46 +56,57 @@ jobs:
         disk-cache: ${{ github.workflow }}
         repository-cache: true
 
-    - name: Build compile commands
-      run: |
-        make compile_commands.json
+    - name: clang-tidy
+      run: WARNINGS_AS_ERRORS=1 ./tools/run_clang_tidy.sh
 
-    - name: Analyze with CodeChecker
-      run: |
-        make static_analysis
+  cppcheck:
+    runs-on: ubuntu-latest
+    env:
+      # driftregion/cppcheck integration branch: upstream cppcheck plus
+      # https://github.com/cppcheck-opensource/cppcheck/pull/8879
+      # https://github.com/cppcheck-opensource/cppcheck/pull/8876
+      # https://github.com/cppcheck-opensource/simplecpp/pull/704
+      CPPCHECK_REPO: https://github.com/driftregion/cppcheck.git
+      CPPCHECK_SHA: d13e40e5b91c886e643fdc583d3a1cdbd03f3bdd
 
-    - name: Print report summary
-      run: |
-        CodeChecker parse reports --print-steps || echo "No issues found"
+    steps:
+    - name: checkout
+      uses: actions/checkout@v4
 
-    - name: Generate SARIF report
+    - name: checkout isotp-c
       run: |
-        # CodeChecker parse exit codes: 0 = no findings, 2 = findings present (both OK here
-        # since the SARIF file is uploaded either way); only a real error (1) should fail CI.
-        # `set +e` is needed to capture the real exit code below: GitHub Actions runs steps
-        # with `bash -e` by default, which would otherwise abort on the non-zero exit before
-        # `code=$?` is reached.
-        set +e
-        CodeChecker parse reports --export sarif -o results.sarif
-        code=$?
-        set -e
-        if [ "$code" -ne 0 ] && [ "$code" -ne 2 ]; then
-          exit "$code"
-        fi
+        git submodule update --init src/tp/isotp-c
 
-    - name: Upload SARIF results to GitHub Code Scanning
-      uses: github/codeql-action/upload-sarif@v3
-      if: always()
+    - name: Cache cppcheck build
+      id: cache-cppcheck
+      uses: actions/cache@v4
       with:
-        sarif_file: results.sarif
-        category: "CodeChecker Static Analysis"
+        path: ${{ runner.temp }}/cppcheck/build
+        key: ${{ runner.os }}-cppcheck-${{ env.CPPCHECK_SHA }}
 
-    - name: Upload analysis reports
+    - name: Build cppcheck
+      if: steps.cache-cppcheck.outputs.cache-hit != 'true'
+      run: |
+        git init "$RUNNER_TEMP/cppcheck"
+        cd "$RUNNER_TEMP/cppcheck"
+        git fetch --depth 1 "$CPPCHECK_REPO" "$CPPCHECK_SHA"
+        git checkout FETCH_HEAD
+        cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+        cmake --build build -j "$(nproc)"
+
+    - name: Verify cppcheck
+      run: $RUNNER_TEMP/cppcheck/build/bin/cppcheck --version
+
+    - name: Download MISRA rule texts
+      run: make tools/cppcheck/misra_c_2023__headlines_for_cppcheck.txt
+
+    - name: cppcheck MISRA
+      run: CPPCHECK=$RUNNER_TEMP/cppcheck/build/bin/cppcheck ./tools/cppcheck/run_MISRA.sh
+
+    - name: Upload cppcheck reports
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: static-analysis-reports
-        path: |
-          reports/
-          results.sarif
+        name: cppcheck-reports
+        path: reports/cppcheck/
         retention-days: 30

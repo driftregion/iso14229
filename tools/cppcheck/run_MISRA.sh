@@ -8,8 +8,12 @@ mkdir -p reports/cppcheck
 # https://github.com/cppcheck-opensource/cppcheck/pull/8879
 # https://github.com/cppcheck-opensource/cppcheck/pull/8876
 # https://github.com/cppcheck-opensource/simplecpp/pull/704
-# 
-../cppcheck/build/bin/cppcheck \
+#
+# override with CPPCHECK=/path/to/cppcheck
+CPPCHECK="${CPPCHECK:-../cppcheck/build/bin/cppcheck}"
+
+status=0
+"$CPPCHECK" \
 -P \
 -UUDS_LINES \
 -UUDS_TP_ISOTP_C_SOCKETCAN \
@@ -28,7 +32,11 @@ iso14229.c \
 --inline-suppr \
 --suppressions-list=tools/cppcheck/suppressions.txt \
 --checkers-report=reports/cppcheck/checkers.txt \
-2>reports/cppcheck/report_MISRA.txt
+--error-exitcode=1 \
+2>reports/cppcheck/report_MISRA.txt || status=$?
+
+cat reports/cppcheck/report_MISRA.txt
+exit $status
 
 
 # cppcheck \
