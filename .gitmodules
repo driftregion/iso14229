@@ -3,4 +3,4 @@
 	url = https://github.com/STMicroelectronics/STM32CubeG4
 [submodule "src/tp/isotp-c"]
 	path = src/tp/isotp-c
-	url = git@github.com:SimonCahill/isotp-c.git
+	url = https://github.com/SimonCahill/isotp-c.git
