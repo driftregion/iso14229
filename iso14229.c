@@ -924,10 +924,11 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, const uint8_t mode, con
     if (filePath == NULL) {
         return UDS_ERR_INVALID_ARG;
     }
+    // the protocol dictates a two byte maximum.
+    // additional length checks are per-case.
     if (filePathLen > (size_t)UINT16_MAX) {
         return UDS_ERR_INVALID_ARG;
     }
-    const uint16_t u16_filePathLen = (uint16_t)filePathLen;
     /*
     Pre-compute the request length based on the MOOP.
     For each field, "Y" denotes present and "_" denotes absent.
@@ -962,13 +963,13 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, const uint8_t mode, con
         }
         client->send_buf[0] = UDS_SID_REQUEST_FILE_TRANSFER;
         client->send_buf[1] = mode;
-        PackBE(&client->send_buf[2], u16_filePathLen, 2);               // filePathAndNameLength
-        (void)memmove(&client->send_buf[4], filePath, u16_filePathLen); // filePathAndName
-        client->send_buf[4U + u16_filePathLen] = client->cfg_data_format_identifier;
-        client->send_buf[5U + u16_filePathLen] = client->cfg_file_size_parameter_length;
-        PackBE(&client->send_buf[6U + u16_filePathLen], fileSizeUncompressed,
+        PackBE(&client->send_buf[2], filePathLen, 2);               // filePathAndNameLength
+        (void)memmove(&client->send_buf[4], filePath, filePathLen); // filePathAndName
+        client->send_buf[4U + filePathLen] = client->cfg_data_format_identifier;
+        client->send_buf[5U + filePathLen] = client->cfg_file_size_parameter_length;
+        PackBE(&client->send_buf[6U + filePathLen], fileSizeUncompressed,
                client->cfg_file_size_parameter_length);
-        PackBE(&client->send_buf[6U + u16_filePathLen + client->cfg_file_size_parameter_length],
+        PackBE(&client->send_buf[6U + filePathLen + client->cfg_file_size_parameter_length],
                fileSizeCompressed, client->cfg_file_size_parameter_length);
         break;
     }
@@ -981,8 +982,8 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, const uint8_t mode, con
         }
         client->send_buf[0] = UDS_SID_REQUEST_FILE_TRANSFER;
         client->send_buf[1] = mode;
-        PackBE(&client->send_buf[2], u16_filePathLen, 2);               // filePathAndNameLength
-        (void)memmove(&client->send_buf[4], filePath, u16_filePathLen); // filePathAndName
+        PackBE(&client->send_buf[2], filePathLen, 2);               // filePathAndNameLength
+        (void)memmove(&client->send_buf[4], filePath, filePathLen); // filePathAndName
         break;
     }
     case UDS_MOOP_RDFILE: { // MOOP = 4
@@ -992,9 +993,9 @@ UDSErr_t UDSSendRequestFileTransfer(UDSClient_t *client, const uint8_t mode, con
         }
         client->send_buf[0] = UDS_SID_REQUEST_FILE_TRANSFER;
         client->send_buf[1] = mode;
-        PackBE(&client->send_buf[2], u16_filePathLen, 2);               // filePathAndNameLength
-        (void)memmove(&client->send_buf[4], filePath, u16_filePathLen); // filePathAndName
-        client->send_buf[4U + u16_filePathLen] = client->cfg_data_format_identifier;
+        PackBE(&client->send_buf[2], filePathLen, 2);               // filePathAndNameLength
+        (void)memmove(&client->send_buf[4], filePath, filePathLen); // filePathAndName
+        client->send_buf[4U + filePathLen] = client->cfg_data_format_identifier;
         break;
     }
     default:
