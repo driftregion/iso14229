@@ -8,6 +8,7 @@ load(
     "flag_set",
     "feature",
 )
+load("@rules_cc//cc:defs.bzl", "CcToolchainConfigInfo")
 
 all_link_actions = [ 
     ACTION_NAMES.cpp_link_executable,
