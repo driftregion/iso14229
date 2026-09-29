@@ -62,4 +62,4 @@ llvm.sysroot(
 use_repo(llvm, "llvm_toolchain")
 
 
-bazel_dep(name = "rules_fuzzing", version = "0.6.0")
+bazel_dep(name = "rules_fuzzing", version = "0.8.0")
