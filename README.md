@@ -2,7 +2,7 @@
 
 <p align="center">
 <a href="https://github.com/driftregion/iso14229/actions"><img src="https://github.com/driftregion/iso14229/actions/workflows/unit_tests.yml/badge.svg" alt="Build Status"></a>
-<a href="https://codecov.io/github/driftregion/iso14229" ><img src="https://codecov.io/github/driftregion/iso14229/graph/badge.svg?token=SZP3Q3Y0YE"/> 
+<a href="https://codecov.io/github/driftregion/iso14229" ><img src="https://codecov.io/github/driftregion/iso14229/graph/badge.svg?token=SZP3Q3Y0YE"/></a>
 <a href="https://scan.coverity.com/projects/driftregion-iso14229"><img alt="Coverity Scan Build Status" src="https://scan.coverity.com/projects/33287/badge.svg?flat=1"></a>
 <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
 </p>
