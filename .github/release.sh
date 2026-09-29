@@ -1,7 +1,10 @@
 #!/bin/bash
 
-VERSION=`head -n1 VERSION`
+set -euo pipefail
 
+test/test_srcs_are_updated.sh
+
+VERSION=`head -n1 VERSION`
 gh release create $VERSION \
 "bazel-bin/iso14229.zip#iso14229.zip" \
 "bazel-bin/src/iso14229.c#iso14229.c" \
