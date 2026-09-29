@@ -145,6 +145,7 @@ cc_fuzz_test(
         "UDS_TP_ISOTP_MOCK",
         "UDS_CUSTOM_MILLIS",
         "UDS_LINES",
+        "UDS_AUTOSELECT_TP=0U",
     ],
     copts = [
         "-g",
