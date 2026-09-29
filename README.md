@@ -36,6 +36,6 @@ For disclosure guidelines, see [SECURITY.md](./SECURITY.md)
 
 # Contributing
 
-Contributions are welcome. 
-Use of AI tools for verification of code, or for communication is strongly discouraged.
-See [CONTRIBUTING.md](./CONTRIBUTING.md)
+Contributions are welcome, 
+but the use of AI tools is strongly discouraged.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for more information. 
